@@ -72,7 +72,8 @@ Important domain objects include:
 * Company
 * Yearly Company
 * Sponsorship Contract
-* Advertisement
+* Sponsorship Menu
+* Contract Menu
 * Payment
 * Activity Log
 
@@ -127,11 +128,19 @@ A company may be contacted without creating a contract.
 
 ---
 
-## Advertisement
+## Sponsorship Menu
 
-Advertisements belong to a Sponsorship Contract.
+A Sponsorship Menu is master data defined per festival Year (e.g. Pamphlet advertisement, Company booth, Website listing).
 
-Advertisement files are stored in Google Drive.
+A Sponsorship Menu never belongs to a specific company or contract.
+
+---
+
+## Contract Menu
+
+A Contract Menu belongs to a Sponsorship Contract and references exactly one Sponsorship Menu.
+
+Contract Menu files are stored in Google Drive.
 
 The system stores only metadata and Drive references.
 
@@ -172,7 +181,7 @@ The system manages:
 * Company Management
 * Yearly Company Management
 * Sponsorship Contracts
-* Advertisements
+* Sponsorship Menus
 * Payments
 * Activity Logs
 * Permissions
@@ -219,7 +228,8 @@ Good:
 
 * YearlyCompany
 * SponsorshipContract
-* Advertisement
+* SponsorshipMenu
+* ContractMenu
 * ActivityLog
 
 Bad:
