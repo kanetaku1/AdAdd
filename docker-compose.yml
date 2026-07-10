@@ -1,4 +1,24 @@
 services:
+  api:
+    build:
+      context: ./apps/api
+    container_name: adadd-api
+    restart: unless-stopped
+
+    depends_on:
+      - mysql
+
+    environment:
+      APP_PORT: 8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: adadd
+      DB_PASSWORD: adadd_password
+      DB_NAME: adadd
+
+    ports:
+      - "8080:8080"
+
   mysql:
     image: mysql:8.4
     container_name: adadd-mysql
