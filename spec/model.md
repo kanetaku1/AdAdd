@@ -59,20 +59,33 @@ Represents a company.
 
 ### Attributes
 
-| Name            | Type     |
-| --------------- | -------- |
-| id              | UUID     |
-| companyName     | string   |
-| companyNameKana | string   |
-| postalCode      | string   |
-| address         | string   |
-| phoneNumber     | string   |
-| website         | string   |
-| memo            | text     |
-| createdAt       | datetime |
-| updatedAt       | datetime |
+| Name                  | Type     |
+| --------------------- | -------- |
+| id                    | UUID     |
+| companyName           | string   |
+| companyNameKana       | string   |
+| postalCode            | string   |
+| address               | string   |
+| phoneNumber           | string   |
+| website               | string   |
+| contactPersonName     | string   |
+| contactEmailOrForm    | string   |
+| firstSponsorshipYear  | string   |
+| memo                  | text     |
+| createdAt             | datetime |
+| updatedAt             | datetime |
 
 A Company exists permanently.
+
+`contactPersonName` is the name of the company-side contact person, stored without honorific (e.g. 様) or job title — these are appended when generating outbound communication.
+
+`contactEmailOrForm` holds either the company's contact email address or an inquiry form URL, whichever the company provides.
+
+`firstSponsorshipYear` preserves the year the company first sponsored, including history that predates AdAdd (see `spec/database.md` → Preserve Historical Data). For companies onboarded after AdAdd went live, this is informational; it is not derived from `YearlyCompany` because it must also cover pre-system history.
+
+`memo` consolidates what the legacy spreadsheet tracked as separate 企業詳細 (company details), 備考 (remarks), and 以前の情報 (previous information) columns.
+
+A Company does not store a Slack ID. The Slack ID used for outreach notifications (see FR-014) belongs to the internal Sponsorship Member assigned via `Assignment`, not to the Company — see `User.slackId`.
 
 ---
 
@@ -534,5 +547,6 @@ Possible extensions include:
 * Printing schedules
 * Email synchronization
 * Accounting integration
+* Automatic address/postal code validation on Company entry (the legacy spreadsheet performed this with a formula-based AI function; not a stored field, and not yet implemented in AdAdd)
 
 These extensions should reference existing entities rather than introducing duplicate business concepts.

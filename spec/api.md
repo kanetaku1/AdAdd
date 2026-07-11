@@ -114,7 +114,26 @@ Query:
 | Parameter | Description          |
 | --------- | -------------------- |
 | keyword   | Company name search  |
-| phase     | Company phase filter |
+
+Company status and sponsorship phase are per-Year attributes of `YearlyCompany`, not `Company` — filter by them via `GET /years/{yearId}/companies` instead.
+
+Example response item:
+
+```json
+{
+  "id": "company_id",
+  "companyName": "株式会社長岡テクノ",
+  "companyNameKana": "ナガオカテクノ",
+  "postalCode": "940-2188",
+  "address": "新潟県長岡市上富岡町1603-1",
+  "phoneNumber": "0258-00-0000",
+  "website": "https://example.com",
+  "contactPersonName": "山田太郎",
+  "contactEmailOrForm": "yamada@example.com",
+  "firstSponsorshipYear": "2015",
+  "memo": ""
+}
+```
 
 ---
 

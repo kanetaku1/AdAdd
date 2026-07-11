@@ -225,18 +225,19 @@ Manage company master data.
 
 Display:
 
-| Information              |
-| ------------------------ |
-| Company name             |
-| Industry                 |
-| Contact information      |
-| Past sponsorship history |
+| Information                             |
+| ---------------------------------------- |
+| Company name                            |
+| Contact person (company-side)           |
+| Contact email or inquiry form            |
+| Phone number / address                  |
+| First sponsorship year                  |
 
 Actions:
 
 * Create company
 * Edit company
-* View history
+* View sponsorship history (past Yearly Companies)
 
 ---
 
