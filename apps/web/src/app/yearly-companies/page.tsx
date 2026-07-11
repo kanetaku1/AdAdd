@@ -26,30 +26,61 @@ import {
   SPONSORSHIP_PHASE_LABEL,
   SPONSORSHIP_PROGRESS_LABEL,
 } from "@/lib/yearly-company-labels"
-import type { CompanyStatus, SponsorshipPhase } from "@/types/yearly-company"
+import type {
+  CompanyStatus,
+  SponsorshipPhase,
+  YearlyCompany,
+} from "@/types/yearly-company"
 
 const ALL = "ALL" as const
 
+type EditableColumn = "companyStatus" | "phase"
+
 /**
  * Yearly Company List (spec/frontend.md#Yearly Company Management).
- * Manages companies participating in the current festival year — the central
- * business screen of AdAdd (spec/domain.md: Yearly Company is the domain's core aggregate).
- * TODO: replace mockYearlyCompanies with GET /years/{yearId}/companies once the
- * backend YearlyCompany endpoints exist (spec/api.md).
+ *
+ * companyStatus/phase are inline-editable (spec/frontend.md UI Principle 4):
+ * click a cell to change its value via a dropdown, in place.
+ *
+ * TODO: replace mockYearlyCompanies with GET /years/{yearId}/companies, and
+ * wire cell edits to PATCH /yearly-companies/{id}/company-status and
+ * .../phase, once the backend endpoints exist (spec/api.md).
  */
 export default function YearlyCompaniesPage() {
-  const [companyStatus, setCompanyStatus] = useState<CompanyStatus | typeof ALL>(ALL)
-  const [phase, setPhase] = useState<SponsorshipPhase | typeof ALL>(ALL)
-
-  const yearlyCompanies = useMemo(
-    () =>
-      mockYearlyCompanies.filter(
-        (yc) =>
-          (companyStatus === ALL || yc.companyStatus === companyStatus) &&
-          (phase === ALL || yc.phase === phase)
-      ),
-    [companyStatus, phase]
+  const [rows, setRows] = useState<YearlyCompany[]>(mockYearlyCompanies)
+  const [companyStatusFilter, setCompanyStatusFilter] = useState<
+    CompanyStatus | typeof ALL
+  >(ALL)
+  const [phaseFilter, setPhaseFilter] = useState<SponsorshipPhase | typeof ALL>(
+    ALL
   )
+  const [editingCell, setEditingCell] = useState<{
+    id: string
+    column: EditableColumn
+  } | null>(null)
+
+  const visibleRows = useMemo(
+    () =>
+      rows.filter(
+        (yc) =>
+          (companyStatusFilter === ALL ||
+            yc.companyStatus === companyStatusFilter) &&
+          (phaseFilter === ALL || yc.phase === phaseFilter)
+      ),
+    [rows, companyStatusFilter, phaseFilter]
+  )
+
+  function setCompanyStatus(id: string, value: CompanyStatus) {
+    setRows((prev) =>
+      prev.map((yc) => (yc.id === id ? { ...yc, companyStatus: value } : yc))
+    )
+  }
+
+  function setPhase(id: string, value: SponsorshipPhase) {
+    setRows((prev) =>
+      prev.map((yc) => (yc.id === id ? { ...yc, phase: value } : yc))
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,10 +89,12 @@ export default function YearlyCompaniesPage() {
         <p className="text-muted-foreground">2026年度 協賛企業の管理</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <Select
-          value={companyStatus}
-          onValueChange={(value) => setCompanyStatus(value as CompanyStatus | typeof ALL)}
+          value={companyStatusFilter}
+          onValueChange={(value) =>
+            setCompanyStatusFilter(value as CompanyStatus | typeof ALL)
+          }
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="企業ステータス" />
@@ -77,8 +110,10 @@ export default function YearlyCompaniesPage() {
         </Select>
 
         <Select
-          value={phase}
-          onValueChange={(value) => setPhase(value as SponsorshipPhase | typeof ALL)}
+          value={phaseFilter}
+          onValueChange={(value) =>
+            setPhaseFilter(value as SponsorshipPhase | typeof ALL)
+          }
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="フェーズ" />
@@ -92,6 +127,10 @@ export default function YearlyCompaniesPage() {
             ))}
           </SelectContent>
         </Select>
+
+        <p className="text-xs text-muted-foreground">
+          ステータス・フェーズはクリックで編集できます
+        </p>
       </div>
 
       <div className="rounded-md border">
@@ -106,7 +145,7 @@ export default function YearlyCompaniesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {yearlyCompanies.map((yc) => (
+            {visibleRows.map((yc) => (
               <TableRow key={yc.id}>
                 <TableCell className="font-medium">
                   <Link
@@ -116,16 +155,86 @@ export default function YearlyCompaniesPage() {
                     {yc.companyName}
                   </Link>
                 </TableCell>
-                <TableCell>
-                  <Badge variant="outline">
-                    {COMPANY_STATUS_LABEL[yc.companyStatus]}
-                  </Badge>
+
+                <TableCell className="rounded">
+                  {editingCell?.id === yc.id &&
+                  editingCell.column === "companyStatus" ? (
+                    <Select
+                      value={yc.companyStatus}
+                      defaultOpen
+                      onValueChange={(value) => {
+                        setCompanyStatus(yc.id, value as CompanyStatus)
+                        setEditingCell(null)
+                      }}
+                      onOpenChange={(open) => {
+                        if (!open) setEditingCell(null)
+                      }}
+                    >
+                      <SelectTrigger size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(COMPANY_STATUS_LABEL).map(
+                          ([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          )
+                        )}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setEditingCell({ id: yc.id, column: "companyStatus" })
+                      }
+                    >
+                      {COMPANY_STATUS_LABEL[yc.companyStatus]}
+                    </Badge>
+                  )}
                 </TableCell>
-                <TableCell>
-                  <Badge variant={SPONSORSHIP_PHASE_BADGE_VARIANT[yc.phase]}>
-                    {SPONSORSHIP_PHASE_LABEL[yc.phase]}
-                  </Badge>
+
+                <TableCell className="rounded">
+                  {editingCell?.id === yc.id && editingCell.column === "phase" ? (
+                    <Select
+                      value={yc.phase}
+                      defaultOpen
+                      onValueChange={(value) => {
+                        setPhase(yc.id, value as SponsorshipPhase)
+                        setEditingCell(null)
+                      }}
+                      onOpenChange={(open) => {
+                        if (!open) setEditingCell(null)
+                      }}
+                    >
+                      <SelectTrigger size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(SPONSORSHIP_PHASE_LABEL).map(
+                          ([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          )
+                        )}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge
+                      variant={SPONSORSHIP_PHASE_BADGE_VARIANT[yc.phase]}
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setEditingCell({ id: yc.id, column: "phase" })
+                      }
+                    >
+                      {SPONSORSHIP_PHASE_LABEL[yc.phase]}
+                    </Badge>
+                  )}
                 </TableCell>
+
                 <TableCell>{yc.assignedMemberName ?? "未割当"}</TableCell>
                 <TableCell>
                   <Badge variant="secondary">

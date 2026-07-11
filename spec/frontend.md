@@ -581,7 +581,6 @@ AdAdd replaces a spreadsheet-based workflow. If editing business data in AdAdd i
 
 * Prefer inline, cell-level editing over full-page forms with a separate save step, for list/table screens (e.g. Yearly Company list).
 * New rows may be created mostly blank and filled in over time. Only validate the field(s) that would otherwise break data integrity (e.g. Company name uniqueness) — do not require an entire row to be complete before it can be saved.
-* Support pasting multiple values from a spreadsheet directly into a table (row/column paste), not just single-cell entry.
 * Bulk initial data entry should go through Google Sheets Import (see `spec/api.md` → Google Sheets Import), not one-by-one UI entry.
 * Keep permission restrictions limited to what business rules actually require (see `spec/business.md` Organization, `spec/api.md` Authorization Matrix). Do not add new restrictions beyond documented business rules for the sake of caution.
 * Where a user can view a field but not edit it, show it (e.g. read-only/greyed out) rather than hiding it.
