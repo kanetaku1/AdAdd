@@ -330,10 +330,10 @@ The outreach priority ranking for a Yearly Company within the current Year, set 
 
 ## ContractMenuProductionType
 
-Applies only when the referenced Sponsorship Menu has `requiresSubmission = true`.
+Applies only when the referenced Sponsorship Menu has `requiresSubmission = true`. Chosen by the company on the Google Forms application; determines whether the company's submission is a finished product or raw material (see `spec/business.md` → Contract Menu Production Type).
 
-* Company
-* Internal
+* Company — company submits a finished product (完成品)
+* Internal — company submits raw material (素材) for the committee to produce from
 
 ---
 

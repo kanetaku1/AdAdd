@@ -316,10 +316,10 @@ Typical values:
 
 ## Contract Menu Production Type
 
-Applies only when the referenced Sponsorship Menu requires submission.
+Applies only when the referenced Sponsorship Menu requires submission. The company chooses between these when submitting the Google Forms application, and the choice determines what the company submits — a finished product, or raw material for the committee to build from.
 
-* Company Production
-* Internal Production
+* Company Production — the company submits a finished, ready-to-use product (完成品).
+* Internal Production — the company submits raw material (素材, e.g. logo, text/copy), and the Sponsorship Menu Management Team has another department produce the finished product from it.
 
 ---
 

@@ -298,11 +298,11 @@ Examples:
 * Company booth → Booth information management
 * Website listing (e.g. homepage banner) → Submission management (banner artwork/logo), then listing confirmation
 
-For menus that require submission (e.g. advertisements, website listing), there are two production methods.
+For menus that require submission (e.g. advertisements, website listing), there are two production methods. The company chooses between them when submitting the Google Forms application, and the choice determines what the company is expected to submit.
 
 ## Company Production
 
-The company creates the submission.
+The company creates and submits a finished, ready-to-use product (完成品) — e.g. the completed banner or advertisement artwork.
 
 The completed files are uploaded to Google Drive.
 
@@ -310,7 +310,9 @@ The completed files are uploaded to Google Drive.
 
 ## Internal Production
 
-The Sponsorship Menu Management Team requests production from another department.
+The company still submits something, but it is raw material (素材) — e.g. logo image, company text/copy — not a finished product.
+
+The Sponsorship Menu Management Team requests production from another department, which uses the submitted material to create the finished product.
 
 The request status is managed within AdAdd.
 
