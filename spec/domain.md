@@ -119,8 +119,8 @@ Every business process starts from a Yearly Company.
 
 * Sponsorship progress
 * Assigned members
-* Company classification
-* Priority
+* Company status (continuing / new / dormant)
+* Sponsorship phase (outreach priority ranking for the current Year)
 * Activity history
 * Sponsorship contracts
 
@@ -275,13 +275,27 @@ User (Advisor)
 
 The following concepts are immutable values.
 
-## Company Classification
+## Company Status
+
+Represents the company's relationship history with the festival. Informed by past Company/YearlyCompany data.
 
 Examples:
 
 * Continuing
 * New
-* High Priority
+* Dormant
+
+---
+
+## Sponsorship Phase
+
+Represents the outreach priority ranking assigned to a Yearly Company by the Company Management Team during the Year preparation period (see UC-02). Independent of Company Status — a Continuing company and a New company can both be assigned any Sponsorship Phase.
+
+Examples:
+
+* Phase 1 (highest priority)
+* Phase 2
+* Phase 3
 
 ---
 

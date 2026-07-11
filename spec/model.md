@@ -84,19 +84,23 @@ This is the central model of AdAdd.
 
 ### Attributes
 
-| Name      | Type     |
-| --------- | -------- |
-| id        | UUID     |
-| yearId    | UUID     |
-| companyId | UUID     |
-| phase     | enum     |
-| priority  | enum     |
-| progress  | enum     |
-| notes     | text     |
-| createdAt | datetime |
-| updatedAt | datetime |
+| Name          | Type     |
+| ------------- | -------- |
+| id            | UUID     |
+| yearId        | UUID     |
+| companyId     | UUID     |
+| companyStatus | enum     |
+| phase         | enum     |
+| progress      | enum     |
+| notes         | text     |
+| createdAt     | datetime |
+| updatedAt     | datetime |
 
 YearlyCompany does not reference an Advisor. Advisors are assigned to Sponsorship Members via `AdvisorAssignment`.
+
+`companyStatus` (Continuing / New / Dormant) reflects the company's sponsorship history, independent of `phase`.
+
+`phase` (Phase1 / Phase2 / Phase3) is the outreach priority ranking set by the Company Management Team during the Year preparation period (see `spec/usecase.md` UC-02). It must never be confused with `companyStatus` — a company's history does not determine its phase.
 
 ---
 
@@ -267,12 +271,23 @@ Represents system permissions.
 
 # Enumerations
 
-## CompanyPhase
+## CompanyStatus
+
+The company's relationship history with the festival. Applies to `YearlyCompany.companyStatus`.
 
 * Continuing
 * New
 * Dormant
-* Priority
+
+---
+
+## SponsorshipPhase
+
+The outreach priority ranking for a Yearly Company within the current Year, set by the Company Management Team during the preparation period. Applies to `YearlyCompany.phase`. Independent of `CompanyStatus`.
+
+* Phase1
+* Phase2
+* Phase3
 
 ---
 

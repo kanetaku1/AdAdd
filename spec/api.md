@@ -154,10 +154,11 @@ GET /years/{yearId}/companies
 
 Query:
 
-| Parameter | Description            |
-| --------- | ----------------------- |
-| phase     | Company classification  |
-| assignee  | Sponsorship member      |
+| Parameter     | Description                              |
+| ------------- | ----------------------------------------- |
+| companyStatus | Company relationship history              |
+| phase         | Sponsorship outreach priority (this Year)  |
+| assignee      | Sponsorship member                         |
 
 ---
 
@@ -171,9 +172,27 @@ POST /years/{yearId}/companies
 
 ---
 
-## Update Company Phase
+## Update Company Status
 
-Updates company classification.
+Updates the company's relationship history classification.
+
+```
+PATCH /yearly-companies/{yearlyCompanyId}/company-status
+```
+
+Example:
+
+```json
+{
+  "companyStatus": "CONTINUING"
+}
+```
+
+---
+
+## Update Sponsorship Phase
+
+Updates the outreach priority ranking for the current Year (see UC-02).
 
 ```
 PATCH /yearly-companies/{yearlyCompanyId}/phase
@@ -183,7 +202,7 @@ Example:
 
 ```json
 {
-  "phase": "CONTINUING"
+  "phase": "PHASE_1"
 }
 ```
 

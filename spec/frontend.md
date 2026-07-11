@@ -253,14 +253,15 @@ Display:
 | Information      |
 | ---------------- |
 | Company name     |
-| Continuation/New |
-| Priority         |
+| Company status (Continuing/New/Dormant) |
+| Sponsorship phase (Phase1/2/3) |
 | Assigned member  |
 | Progress         |
 
 Filters:
 
-* Company phase
+* Company status
+* Sponsorship phase
 * Assigned member
 * Contract status
 

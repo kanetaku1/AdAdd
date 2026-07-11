@@ -105,11 +105,11 @@ Currently represented through `Role` rather than a dedicated entity — a User's
 
 ---
 
-## Company Phase
+## Company Status
 
 ### Definition
 
-The classification of a company's ongoing relationship with the festival (e.g. Continuing, New, Dormant, Priority).
+The classification of a company's ongoing relationship history with the festival (e.g. Continuing, New, Dormant).
 
 ### Scope
 
@@ -121,11 +121,35 @@ Company Management Team.
 
 ### Referenced By
 
+`YearlyCompany.companyStatus`
+
+### Source
+
+See `spec/model.md` → `CompanyStatus`.
+
+---
+
+## Sponsorship Phase
+
+### Definition
+
+The outreach priority ranking (Phase1, Phase2, Phase3) assigned to a Yearly Company during the Year preparation period, used to sequence sponsorship outreach. Independent of Company Status.
+
+### Scope
+
+Per Year, applied per Yearly Company. Reset/reassigned every Year.
+
+### Maintained By
+
+Company Management Team.
+
+### Referenced By
+
 `YearlyCompany.phase`
 
 ### Source
 
-See `spec/model.md` → `CompanyPhase`.
+See `spec/model.md` → `SponsorshipPhase`, `spec/usecase.md` → UC-02.
 
 ---
 
