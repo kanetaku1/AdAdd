@@ -122,7 +122,7 @@ Business progress belongs to the Yearly Company.
 
 A contract belongs to a Yearly Company.
 
-A Yearly Company may have zero or multiple contracts.
+A Yearly Company has at most one contract (zero before it is created). Multiple Sponsorship Menus may be bundled into that single contract — the company/organization is invoiced and receipted once per Year, not once per menu.
 
 A company may be contacted without creating a contract.
 

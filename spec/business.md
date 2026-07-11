@@ -150,7 +150,7 @@ A Yearly Company does not have a direct advisor reference. Advisors are assigned
 
 Represents an agreement between the festival and a company.
 
-A Yearly Company may have zero or multiple contracts.
+A Yearly Company has at most one contract (zero before it is created). The company selects one or more Sponsorship Menus, but they are bundled into a single contract — the company/organization receives one invoice and one receipt per Year, not one per menu.
 
 ---
 

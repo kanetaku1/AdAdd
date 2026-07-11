@@ -496,6 +496,7 @@ AdvisorAssignment (as Member)
 ## SponsorshipContract
 
 * Every contract belongs to one Yearly Company.
+* A Yearly Company has at most one contract — `yearlyCompanyId` is unique on `SponsorshipContract`.
 * `assigneeId` is set on the contract, not on individual Contract Menus.
 
 ---

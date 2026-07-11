@@ -144,7 +144,7 @@ YearlyCompany
 
 Represents one sponsorship agreement.
 
-A Yearly Company may have multiple contracts.
+A Yearly Company has at most one contract (zero before it is created). A single company/organization is invoiced and receipted once per Year, even though the contract may bundle multiple Sponsorship Menus (via multiple Contract Menus).
 
 ### Responsibilities
 
