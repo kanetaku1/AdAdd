@@ -44,6 +44,7 @@ apps/api also integrates with:
   Google Drive    (Advertisement file storage — metadata only)
   Google Forms    (Contract input method — not source of truth)
   Google Groups   (Email distribution — content not stored)
+  Slack           (Assignee notification — outbound only, content not stored)
 ```
 
 MySQL is always the Single Source of Truth.
@@ -124,6 +125,7 @@ Secrets are never committed to the repository.
 | Google Drive   | Advertisement file storage                 | Store metadata and Drive reference only |
 | Google Forms   | Contract input method                      | Import submitted data into MySQL  |
 | Google Groups  | Email distribution for sponsorship contacts | None — email content is not stored |
+| Slack          | Assignee notification (e.g. mention the Sponsorship Member assigned to a company when a Google Forms application is received) | Send notifications only — Slack is never read from, and message content is not stored |
 
 The system does not send email, generate PDFs, or create advertisements.
 These remain manual or external processes.

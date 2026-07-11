@@ -498,6 +498,8 @@ API
 SponsorshipContract
       ↓
 ContractMenu
+      ↓
+Slack notification to assigned Sponsorship Member(s) (see FR-014, UC-16)
 ```
 
 ---

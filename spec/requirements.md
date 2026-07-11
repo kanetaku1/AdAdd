@@ -347,6 +347,31 @@ High
 
 ---
 
+## FR-014 Slack Notification
+
+### Purpose
+
+Notify the Sponsorship Member(s) assigned to a company when a sponsorship application is received, so they can respond promptly.
+
+### Description
+
+The system shall:
+
+* Allow a User to link their Slack ID
+* When a Sponsorship Contract is created or updated via Google Forms import, look up the Sponsorship Members assigned to the corresponding Yearly Company (via Assignment) and send them a Slack mention
+
+Slack is a notification target only. AdAdd does not read from Slack, and does not store Slack message contents.
+
+### Related Use Cases
+
+* UC-16
+
+### Priority
+
+Medium
+
+---
+
 # Non-Functional Requirements
 
 ## NFR-001 Availability
@@ -406,6 +431,7 @@ Important business operations shall be traceable through Activity Logs.
 | Activity History     | UC-14                  |
 | User Management      | UC-12                  |
 | Advisor Assignment   | UC-03                  |
+| Slack Notification   | UC-16                  |
 
 ---
 

@@ -369,6 +369,36 @@ The festival year becomes read-only.
 
 ---
 
+# UC-16 Notify Assigned Member via Slack
+
+## Actor
+
+System (triggered automatically)
+
+## Goal
+
+Alert the Sponsorship Member(s) assigned to a company as soon as a sponsorship application arrives, so they can respond quickly.
+
+## Trigger
+
+* Google Forms application imported (see UC-06, FR-012)
+
+## Flow
+
+1. Google Forms submission is imported and a Sponsorship Contract is created or updated for a Yearly Company.
+2. The system looks up the Sponsorship Members assigned to that Yearly Company (Assignment).
+3. For each assigned member with a linked Slack ID, the system sends a Slack mention referencing the company and application.
+
+## Result
+
+Assigned members are notified without needing to check AdAdd manually.
+
+## Notes
+
+Slack is a notification target only. It is not read from, and message content is not stored in AdAdd (see `spec/business.md` → External Systems → Slack).
+
+---
+
 # Use Case Relationships
 
 ```text id="c98fr8"

@@ -251,7 +251,10 @@ Represents a system user.
 | studentId | string  |
 | name      | string  |
 | email     | string  |
+| slackId   | string  |
 | isActive  | boolean |
+
+`slackId` is optional (a User may not have linked their Slack account). It is used to send notifications — see `spec/architecture.md` → External Services → Slack.
 
 ---
 

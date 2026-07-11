@@ -23,8 +23,8 @@ Responsible for:
 * Managing company information
 * Assigning Sponsorship Advisors to Sponsorship Members
 * Assigning Sponsorship Members to companies
-* Classifying companies
-* Determining company priorities
+* Reviewing each company's status (Continuing / New / Dormant)
+* Setting each company's sponsorship phase (outreach priority ranking) for the Year
 
 ---
 
@@ -136,8 +136,8 @@ This is the central business entity of AdAdd.
 A Yearly Company contains:
 
 * Assigned members
-* Company classification
-* Priority
+* Company status (Continuing / New / Dormant — relationship history)
+* Sponsorship phase (Phase1 / Phase2 / Phase3 — outreach priority ranking for this Year)
 * Sponsorship progress
 * Activity history
 * Sponsorship contracts
@@ -443,6 +443,16 @@ Stores email communication.
 AdAdd does not synchronize email contents.
 
 Users can search historical emails using company names.
+
+---
+
+## Slack
+
+Used to notify the Sponsorship Members assigned to a company when relevant business events occur (e.g. a sponsorship application is received via Google Forms).
+
+Each User may have a linked Slack ID.
+
+AdAdd sends notifications to Slack. It does not read from Slack, and does not store Slack message contents.
 
 ---
 
