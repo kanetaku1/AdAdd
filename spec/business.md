@@ -187,7 +187,7 @@ The management content differs by menu category. Examples:
 | ----------------------- | ----------------------- |
 | Pamphlet advertisement   | Submission management   |
 | Company booth            | Booth information management |
-| Website listing          | Listing confirmation    |
+| Website listing (e.g. homepage banner) | Submission management (banner artwork/logo), then listing confirmation |
 
 Each Contract Menu manages:
 
@@ -296,9 +296,9 @@ Examples:
 
 * Pamphlet advertisement → Submission management
 * Company booth → Booth information management
-* Website listing → Listing confirmation
+* Website listing (e.g. homepage banner) → Submission management (banner artwork/logo), then listing confirmation
 
-For menus that require submission (e.g. advertisements), there are two production methods.
+For menus that require submission (e.g. advertisements, website listing), there are two production methods.
 
 ## Company Production
 

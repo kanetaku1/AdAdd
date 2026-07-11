@@ -168,7 +168,7 @@ Represents one Sponsorship Menu that a company has actually contracted for, as p
 
 A Contract Menu references exactly one Sponsorship Menu. A contract may contain multiple Contract Menus.
 
-The management content differs depending on the referenced Sponsorship Menu category (e.g. submission management for advertisements, booth information management for booths, listing confirmation for website listings).
+The management content differs depending on the referenced Sponsorship Menu category (e.g. submission management for advertisements, booth information management for booths, submission management followed by listing confirmation for website listings such as a homepage banner).
 
 ### Responsibilities
 
@@ -453,7 +453,9 @@ Completed
 Submitted
 ```
 
-For menus that do not require submission (e.g. booth, website listing), the lifecycle may skip directly from Created to Completed.
+For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Created to Completed.
+
+Website listing (e.g. a homepage banner) requires submission — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as other advertisement-type menus.
 
 ---
 

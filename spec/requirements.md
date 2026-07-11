@@ -132,7 +132,7 @@ The system shall provide:
 * Contract Menu management (the menus a company actually contracted for)
 * Production method selection (when submission is required)
 * Assignee management
-* Progress management, varying by menu category (e.g. submission management for advertisements, booth information management for booths, listing confirmation for website listings)
+* Progress management, varying by menu category (e.g. submission management for advertisements, booth information management for booths, submission management followed by listing confirmation for website listings such as a homepage banner)
 * Google Drive linkage
 
 ### Related Use Cases

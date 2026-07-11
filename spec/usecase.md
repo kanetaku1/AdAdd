@@ -183,7 +183,7 @@ Manage the sponsorship menus contracted within a sponsorship contract.
 3. For each Contract Menu, select production method (when submission is required).
 4. Assign production if required.
 5. Register Google Drive folder.
-6. Update progress according to the menu's category (e.g. submission management for advertisements, booth information management for booths, listing confirmation for website listings).
+6. Update progress according to the menu's category (e.g. submission management for advertisements, booth information management for booths, submission management followed by listing confirmation for website listings such as a homepage banner).
 
 ## Result
 
