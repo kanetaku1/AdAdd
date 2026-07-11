@@ -31,10 +31,10 @@ export default function CompaniesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>会社名</TableHead>
-              <TableHead>フリガナ</TableHead>
-              <TableHead>電話番号</TableHead>
-              <TableHead>住所</TableHead>
-              <TableHead>Webサイト</TableHead>
+              <TableHead>企業担当者</TableHead>
+              <TableHead>連絡先</TableHead>
+              <TableHead>電話番号 / 住所</TableHead>
+              <TableHead>協賛開始年度</TableHead>
               <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -43,20 +43,32 @@ export default function CompaniesPage() {
               <TableRow key={company.id}>
                 <TableCell className="font-medium">
                   {company.companyName}
+                  <div className="text-xs text-muted-foreground">
+                    {company.companyNameKana}
+                  </div>
                 </TableCell>
-                <TableCell>{company.companyNameKana}</TableCell>
-                <TableCell>{company.phoneNumber}</TableCell>
-                <TableCell>{company.address}</TableCell>
+                <TableCell>{company.contactPersonName}</TableCell>
                 <TableCell>
-                  <a
-                    href={company.website}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary underline-offset-4 hover:underline"
-                  >
-                    {company.website}
-                  </a>
+                  {company.contactEmailOrForm.startsWith("http") ? (
+                    <a
+                      href={company.contactEmailOrForm}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      問い合わせフォーム
+                    </a>
+                  ) : (
+                    company.contactEmailOrForm
+                  )}
                 </TableCell>
+                <TableCell>
+                  <div>{company.phoneNumber}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {company.address}
+                  </div>
+                </TableCell>
+                <TableCell>{company.firstSponsorshipYear}</TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
