@@ -149,8 +149,7 @@ A Yearly Company has at most one contract (zero before it is created). A single 
 ### Responsibilities
 
 * Contract information
-* Sponsorship contents
-* Contract status
+* Sponsorship contents (Contract Menus)
 
 ### Relationships
 
@@ -414,19 +413,9 @@ A new Yearly Company is created every festival year.
 
 ## Sponsorship Contract
 
-```
-Draft
+A Sponsorship Contract is created only once an agreement is actually reached — there is no separate draft state to track on the contract itself. A contract may be created directly when an agreement is made outside Google Forms.
 
-↓
-
-Confirmed
-
-↓
-
-Completed
-```
-
-A contract may also be created directly when an agreement is made outside Google Forms.
+Overall progress toward completing the engagement (materials sent, invoice sent, payment received, receipt sent) is tracked on `YearlyCompany.progress`, not as a separate lifecycle on the contract.
 
 ---
 

@@ -312,10 +312,7 @@ Example response:
 {
   "id": "contract_id",
   "yearlyCompanyId": "yearly_company_id",
-  "contractNumber": "2026-014",
   "contractDate": "2026-06-01",
-  "status": "CONFIRMED",
-  "confirmedAt": "2026-06-02T10:00:00Z",
   "totalAmount": 100000,
   "assigneeId": "user_id",
   "remarks": ""

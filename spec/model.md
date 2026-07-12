@@ -127,17 +127,14 @@ Represents one sponsorship agreement.
 | --------------- | -------- |
 | id              | UUID     |
 | yearlyCompanyId | UUID     |
-| contractNumber  | string   |
 | contractDate    | date     |
-| status          | enum     |
-| confirmedAt     | datetime |
 | totalAmount     | decimal  |
 | assigneeId      | UUID     |
 | remarks         | text     |
 
 The assignee is scoped to the contract, not to individual Contract Menus. Every Contract Menu under a contract shares the same assignee.
 
-`status` (Draft / Confirmed / Completed, see `SponsorshipContractStatus`) is the source of truth for the contract's lifecycle stage (`spec/domain.md` → Sponsorship Contract lifecycle). `confirmedAt` is the timestamp of the Draft → Confirmed transition, not a separate state.
+A `SponsorshipContract` record is only created once an agreement is actually reached (see `spec/usecase.md` UC-06) — there is no separate draft state, so no `status` field is needed here. `contractDate` is the single date the agreement was reached. Overall progress (including whether the engagement is fully wrapped up) is tracked on `YearlyCompany.progress`, not duplicated on the contract.
 
 ---
 
@@ -324,16 +321,6 @@ The outreach priority ranking for a Yearly Company within the current Year, set 
 * ReceiptSent
 * Declined
 * Pending
-
----
-
-## SponsorshipContractStatus
-
-Applies to `SponsorshipContract.status` (`spec/domain.md` → Sponsorship Contract lifecycle).
-
-* Draft
-* Confirmed
-* Completed
 
 ---
 
