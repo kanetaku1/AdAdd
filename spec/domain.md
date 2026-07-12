@@ -325,12 +325,11 @@ Applies only when the referenced Sponsorship Menu requires submission. The compa
 
 ## Contract Menu Status
 
-Examples:
-
 * Waiting
 * Requested
-* In Progress
+* Producing
 * Completed
+* Submitted
 
 ---
 
@@ -434,7 +433,7 @@ A contract may also be created directly when an agreement is made outside Google
 ## Contract Menu
 
 ```
-Created
+Waiting
 
 ↓
 
@@ -453,7 +452,7 @@ Completed
 Submitted
 ```
 
-For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Created to Completed.
+For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Waiting to Completed.
 
 A homepage banner is an Advertisement-category menu and requires submission — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 
