@@ -26,6 +26,12 @@ import {
   PAYMENT_STATUS_LABEL,
 } from "@/lib/payment-labels"
 import { ContractProgressBadge } from "@/components/contract-progress-badge"
+import { InvoiceGeneratorModal } from "@/components/invoice-generator-modal"
+import type { InvoiceData } from "@/lib/pdf/invoice-document"
+
+function formatDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
@@ -59,6 +65,28 @@ export default async function ContractDetailPage({
   )
   const payment = mockPayments.find((p) => p.contractId === contract.id)
 
+  const today = new Date()
+  const defaultDeadline = new Date(today)
+  defaultDeadline.setDate(defaultDeadline.getDate() + 14)
+
+  const invoiceData: InvoiceData = {
+    companyName: yearlyCompany?.companyName ?? "(不明な企業)",
+    contactPersonName: company?.contactPersonName ?? "",
+    subject: "技大祭企業協賛",
+    issuedDate: formatDate(today),
+    deadline: formatDate(defaultDeadline),
+    staffName: contract.assigneeName ?? "",
+    remark: contract.remarks,
+    items: contractMenus.map((cm) => ({
+      name:
+        mockSponsorshipMenus.find((m) => m.id === cm.sponsorshipMenuId)
+          ?.name ?? "(不明なメニュー)",
+      quantity: cm.quantity,
+      unitPrice: cm.unitPrice,
+    })),
+    totalAmount: contract.totalAmount,
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -70,9 +98,15 @@ export default async function ContractDetailPage({
             契約日 {contract.contractDate}
           </p>
         </div>
-        {yearlyCompany && (
-          <ContractProgressBadge initialProgress={yearlyCompany.progress} />
-        )}
+        <div className="flex items-center gap-2">
+          {yearlyCompany && (
+            <ContractProgressBadge initialProgress={yearlyCompany.progress} />
+          )}
+          <InvoiceGeneratorModal
+            initialData={invoiceData}
+            fileName={`請求書_${invoiceData.companyName}.pdf`}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-2 rounded-md border p-4 text-sm sm:grid-cols-4">

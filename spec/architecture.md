@@ -83,7 +83,7 @@ Business logic must never live in the Frontend.
 * TypeScript
 * Tailwind CSS
 * shadcn/ui
-* @react-pdf/renderer — client-side generation of Invoice/Receipt PDFs (FR-015, UC-17, UC-10). No server-side PDF service exists; documents are rendered in the browser from data already fetched from `apps/api` and downloaded locally.
+* @react-pdf/renderer — client-side generation of Invoice/Receipt PDFs (FR-015, UC-17, UC-10). No server-side PDF service exists; documents are rendered in the browser from data already fetched from `apps/api` and downloaded locally. The Japanese font (Noto Sans JP, OFL-licensed) is bundled locally under `apps/web/public/fonts/` rather than fetched from a remote URL at render time — this proved more reliable than depending on an external font host.
 
 ## Responsibilities
 

@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EditablePaymentStatusBadge } from "@/components/editable-payment-status-badge"
+import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { mockPayments } from "@/lib/mock/payments"
 import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
 import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
@@ -79,6 +80,7 @@ export default function FinancePage() {
               <TableHead className="text-right">契約金額</TableHead>
               <TableHead>入金状況</TableHead>
               <TableHead>入金確認日</TableHead>
+              <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -89,6 +91,7 @@ export default function FinancePage() {
               const yearlyCompany = mockYearlyCompanies.find(
                 (yc) => yc.id === contract?.yearlyCompanyId
               )
+              const companyName = yearlyCompany?.companyName ?? "(不明な企業)"
               return (
                 <TableRow key={payment.id}>
                   <TableCell className="font-medium">
@@ -96,7 +99,7 @@ export default function FinancePage() {
                       href={`/contracts/${payment.contractId}`}
                       className="hover:underline"
                     >
-                      {yearlyCompany?.companyName ?? "(不明な企業)"}
+                      {companyName}
                     </Link>
                   </TableCell>
                   <TableCell className="text-right">
@@ -109,6 +112,21 @@ export default function FinancePage() {
                     />
                   </TableCell>
                   <TableCell>{payment.confirmedAt ?? "-"}</TableCell>
+                  <TableCell className="text-right">
+                    {payment.status === "CONFIRMED" && (
+                      <ReceiptGeneratorModal
+                        initialData={{
+                          companyName,
+                          amount: payment.amount,
+                          issuedDate: new Date().toISOString().slice(0, 10),
+                          paymentDate:
+                            payment.confirmedAt ??
+                            new Date().toISOString().slice(0, 10),
+                        }}
+                        fileName={`領収書_${companyName}.pdf`}
+                      />
+                    )}
+                  </TableCell>
                 </TableRow>
               )
             })}
