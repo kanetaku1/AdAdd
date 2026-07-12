@@ -78,7 +78,7 @@ export default function FinancePage() {
               <TableHead>会社名</TableHead>
               <TableHead className="text-right">契約金額</TableHead>
               <TableHead>入金状況</TableHead>
-              <TableHead>入金日</TableHead>
+              <TableHead>入金確認日</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

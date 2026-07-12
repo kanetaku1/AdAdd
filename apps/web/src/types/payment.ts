@@ -8,9 +8,9 @@ export type PaymentStatus = "WAITING" | "CONFIRMED"
  * Contract's sponsorship amount. A Sponsorship Contract has at most one
  * Payment (spec/model.md Constraints — no split/installment payments).
  *
- * confirmedAt doubles as both the payment date and the confirmation
- * timestamp — there is no separate "money arrived" date distinct from
- * "Finance confirmed it arrived" (spec/model.md#Payment).
+ * confirmedAt is the payment confirmation date — when Finance confirmed the
+ * bank transfer in AdAdd, not necessarily the date the transfer itself
+ * occurred. Used when generating the receipt (spec/usecase.md UC-10).
  *
  * confirmedById/confirmedByName follow the same denormalized xId + xName
  * pairing as SponsorshipContract.assigneeId/assigneeName: model.md only

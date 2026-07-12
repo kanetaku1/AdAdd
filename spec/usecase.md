@@ -249,7 +249,7 @@ Send receipt after payment confirmation.
 ## Flow
 
 1. Confirm payment.
-2. Send receipt using Google Groups.
+2. Send receipt using Google Groups, dated using `Payment.confirmedAt` (the payment confirmation date — see `spec/model.md` → Payment).
 3. Update sponsorship progress.
 
 ## Result

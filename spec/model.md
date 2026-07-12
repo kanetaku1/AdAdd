@@ -201,7 +201,7 @@ Represents payment information for a contract's sponsorship amount.
 
 `confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with `SponsorshipContract.assigneeId`'s `xId`-suffixed foreign-key naming).
 
-`confirmedAt` is set the moment the Finance Department confirms the bank transfer (`spec/domain.md` → Payment). It doubles as both the payment date and the confirmation timestamp — these are the same event in practice, so no separate `paymentDate` field is needed (same reasoning as `SponsorshipContract.contractDate`).
+`confirmedAt` is the **payment confirmation date** — the date the Finance Department confirmed the bank transfer in AdAdd (`spec/domain.md` → Payment), not necessarily the date the bank transfer itself occurred. It is set automatically to the day the status is changed to Confirmed; there is no separate "actual transfer date" field. This date is used when generating the receipt (`spec/usecase.md` UC-10 Send Receipt).
 
 ---
 
