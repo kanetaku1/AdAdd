@@ -35,6 +35,7 @@ export default function CompaniesPage() {
               <TableHead>連絡先</TableHead>
               <TableHead>電話番号 / 住所</TableHead>
               <TableHead>協賛開始年度</TableHead>
+              <TableHead>メモ</TableHead>
               <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -69,6 +70,14 @@ export default function CompaniesPage() {
                   </div>
                 </TableCell>
                 <TableCell>{company.firstSponsorshipYear}</TableCell>
+                <TableCell className="max-w-48">
+                  <div
+                    className="line-clamp-2 text-sm text-muted-foreground"
+                    title={company.memo || undefined}
+                  >
+                    {company.memo || "-"}
+                  </div>
+                </TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
