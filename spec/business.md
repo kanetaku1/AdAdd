@@ -191,10 +191,10 @@ The management content differs by menu category. Examples:
 
 Each Contract Menu manages:
 
+* Quantity and unit price
 * Production method (when submission is required)
 * Progress
 * Google Drive folder
-* Assignee
 * Remarks
 
 ---

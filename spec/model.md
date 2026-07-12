@@ -129,12 +129,15 @@ Represents one sponsorship agreement.
 | yearlyCompanyId | UUID     |
 | contractNumber  | string   |
 | contractDate    | date     |
+| status          | enum     |
 | confirmedAt     | datetime |
 | totalAmount     | decimal  |
 | assigneeId      | UUID     |
 | remarks         | text     |
 
 The assignee is scoped to the contract, not to individual Contract Menus. Every Contract Menu under a contract shares the same assignee.
+
+`status` (Draft / Confirmed / Completed, see `SponsorshipContractStatus`) is the source of truth for the contract's lifecycle stage (`spec/domain.md` → Sponsorship Contract lifecycle). `confirmedAt` is the timestamp of the Draft → Confirmed transition, not a separate state.
 
 ---
 
@@ -169,6 +172,8 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 | id                | UUID     |
 | contractId        | UUID     |
 | sponsorshipMenuId | UUID     |
+| quantity          | integer  |
+| unitPrice         | decimal  |
 | productionType    | enum     |
 | status            | enum     |
 | driveFolderId     | string   |
@@ -177,6 +182,8 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 | remarks           | text     |
 
 ContractMenu does not have its own assignee. The assignee belongs to the parent `SponsorshipContract`.
+
+`unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus.
 
 ---
 
@@ -317,6 +324,16 @@ The outreach priority ranking for a Yearly Company within the current Year, set 
 * ReceiptSent
 * Declined
 * Pending
+
+---
+
+## SponsorshipContractStatus
+
+Applies to `SponsorshipContract.status` (`spec/domain.md` → Sponsorship Contract lifecycle).
+
+* Draft
+* Confirmed
+* Completed
 
 ---
 

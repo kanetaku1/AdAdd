@@ -300,10 +300,26 @@ GET /users/{userId}/advisor-members
 
 ## Get Contract
 
-Returns sponsorship contract information.
+Returns sponsorship contract information. A Yearly Company has at most one contract.
 
 ```
 GET /yearly-companies/{id}/contract
+```
+
+Example response:
+
+```json
+{
+  "id": "contract_id",
+  "yearlyCompanyId": "yearly_company_id",
+  "contractNumber": "2026-014",
+  "contractDate": "2026-06-01",
+  "status": "CONFIRMED",
+  "confirmedAt": "2026-06-02T10:00:00Z",
+  "totalAmount": 100000,
+  "assigneeId": "user_id",
+  "remarks": ""
+}
 ```
 
 ---
@@ -381,6 +397,32 @@ PATCH /sponsorship-menus/{menuId}
 ---
 
 # Contract Menu API
+
+## List Contract Menus
+
+Returns the Contract Menus belonging to a contract.
+
+```
+GET /contracts/{contractId}/menus
+```
+
+Example response:
+
+```json
+[
+  {
+    "id": "contract_menu_id",
+    "sponsorshipMenuId": "menu_id",
+    "quantity": 1,
+    "unitPrice": 80000,
+    "productionType": "COMPANY",
+    "status": "WAITING",
+    "driveUrl": null
+  }
+]
+```
+
+---
 
 ## Add Contract Menu
 

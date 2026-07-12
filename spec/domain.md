@@ -172,10 +172,10 @@ The management content differs depending on the referenced Sponsorship Menu cate
 
 ### Responsibilities
 
+* Quantity and unit price
 * Production method (when submission is required)
 * Progress status
 * Google Drive folder
-* Assignee
 
 ### Relationships
 

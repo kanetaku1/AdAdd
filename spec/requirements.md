@@ -106,7 +106,8 @@ The system shall allow users to:
 * Register contracts
 * Edit contracts
 * View contract history
-* Calculate contract totals
+* Calculate contract totals (sum of quantity × unit price across the contract's Contract Menus)
+* Assign a Sponsorship Member to the contract (shared by all Contract Menus under it — see `spec/model.md` → SponsorshipContract)
 
 ### Related Use Cases
 
@@ -129,9 +130,8 @@ Manage sponsorship menus, both as yearly master data and as concrete items contr
 The system shall provide:
 
 * Sponsorship Menu management (yearly master: category, name, default price, whether submission is required, whether currently offered)
-* Contract Menu management (the menus a company actually contracted for)
+* Contract Menu management (the menus a company actually contracted for, including quantity and unit price)
 * Production method selection (when submission is required)
-* Assignee management
 * Progress management, varying by menu category (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths)
 * Google Drive linkage
 
