@@ -1,15 +1,27 @@
+import { mockCompanies } from "@/lib/mock/companies"
 import type { YearlyCompany } from "@/types/yearly-company"
+
+function companyName(companyId: string): string {
+  const company = mockCompanies.find((c) => c.id === companyId)
+  if (!company) {
+    throw new Error(`mock data error: no Company found for id ${companyId}`)
+  }
+  return company.companyName
+}
 
 /**
  * Placeholder data matching the GET /years/{yearId}/companies response shape (spec/api.md).
  * Replace with a real fetch to the API once the backend YearlyCompany endpoints exist.
+ *
+ * companyName is looked up from mockCompanies (rather than duplicated by hand) so the
+ * two mock datasets can't drift apart — a real API response would join Company server-side.
  */
 export const mockYearlyCompanies: YearlyCompany[] = [
   {
     id: "yc_001",
     yearId: "year_2026",
     companyId: "c_001",
-    companyName: "株式会社長岡テクノ",
+    companyName: companyName("c_001"),
     companyStatus: "CONTINUING",
     phase: "PHASE_1",
     progress: "INVOICE_SENT",
@@ -20,7 +32,7 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     id: "yc_002",
     yearId: "year_2026",
     companyId: "c_002",
-    companyName: "越後電機株式会社",
+    companyName: companyName("c_002"),
     companyStatus: "NEW",
     phase: "PHASE_2",
     progress: "MATERIALS_SENT",
@@ -31,7 +43,7 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     id: "yc_003",
     yearId: "year_2026",
     companyId: "c_003",
-    companyName: "信濃川建設株式会社",
+    companyName: companyName("c_003"),
     companyStatus: "DORMANT",
     phase: "PHASE_3",
     progress: "NOT_CONTACTED",
@@ -42,7 +54,7 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     id: "yc_004",
     yearId: "year_2026",
     companyId: "c_004",
-    companyName: "北越フーズ株式会社",
+    companyName: companyName("c_004"),
     companyStatus: "CONTINUING",
     phase: "PHASE_1",
     progress: "PAYMENT_RECEIVED",
