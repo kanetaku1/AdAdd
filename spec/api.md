@@ -487,6 +487,19 @@ Request:
 GET /contracts/{contractId}/payment
 ```
 
+Example response:
+
+```json
+{
+  "id": "payment_id",
+  "contractId": "contract_id",
+  "amount": 100000,
+  "status": "WAITING",
+  "confirmedAt": null,
+  "confirmedById": null
+}
+```
+
 ---
 
 ## Update Payment Status
@@ -499,12 +512,13 @@ Permission:
 
 * Finance Department
 
+Confirms a payment once the Finance Department has verified the bank transfer (see `spec/usecase.md` UC-09). `confirmedAt`/`confirmedById` are set server-side from the authenticated user and current timestamp — not part of the request body.
+
 Example:
 
 ```json
 {
-  "status": "PAID",
-  "paidAt": "2026-08-01"
+  "status": "CONFIRMED"
 }
 ```
 

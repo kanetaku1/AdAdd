@@ -194,8 +194,7 @@ Represents payment information for a contract.
 
 * Amount
 * Payment status
-* Payment date
-* Confirmation
+* Confirmation (date and performer of the Finance Department's manual confirmation — see `spec/model.md#Payment`, `confirmedAt`/`confirmedById`)
 
 ### Relationships
 

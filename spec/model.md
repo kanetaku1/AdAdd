@@ -186,18 +186,22 @@ ContractMenu does not have its own assignee. The assignee belongs to the parent 
 
 ## Payment
 
-Represents payment information.
+Represents payment information for a contract's sponsorship amount.
 
 ### Attributes
 
-| Name        | Type     |
-| ----------- | -------- |
-| id          | UUID     |
-| contractId  | UUID     |
-| amount      | decimal  |
-| status      | enum     |
-| confirmedAt | datetime |
-| confirmedBy | UUID     |
+| Name          | Type     |
+| ------------- | -------- |
+| id            | UUID     |
+| contractId    | UUID     |
+| amount        | decimal  |
+| status        | enum     |
+| confirmedAt   | datetime |
+| confirmedById | UUID     |
+
+`confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with `SponsorshipContract.assigneeId`'s `xId`-suffixed foreign-key naming).
+
+`confirmedAt` is set the moment the Finance Department confirms the bank transfer (`spec/domain.md` → Payment). It doubles as both the payment date and the confirmation timestamp — these are the same event in practice, so no separate `paymentDate` field is needed (same reasoning as `SponsorshipContract.contractDate`).
 
 ---
 
@@ -421,14 +425,10 @@ SponsorshipContract
 
 ```
 SponsorshipContract
-
-1 ----- *
-
-ContractMenu
-
-1 ----- *
-
-Payment
+      │
+      ├── ContractMenu (1 ----- *)
+      │
+      └── Payment (1 ----- *)
 ```
 
 ---
@@ -524,6 +524,7 @@ AdvisorAssignment (as Member)
 ## Payment
 
 * Every payment belongs to one contract.
+* A Sponsorship Contract has at most one Payment — `contractId` is unique on `Payment` (no split/installment payments).
 
 ---
 
