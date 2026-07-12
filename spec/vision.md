@@ -149,6 +149,7 @@ The scope includes:
 * Payment Management
 * Activity History
 * Permission Management
+* Invoice/Receipt PDF Generation (on-demand, from existing data — see FR-015)
 
 ---
 
@@ -160,7 +161,6 @@ The following responsibilities remain outside the system.
 * Creating advertisements
 * Accounting
 * AI assistants
-* PDF generation
 * Banking integration
 
 These operations continue to use existing workflows.

@@ -185,14 +185,16 @@ The system manages:
 * Payments
 * Activity Logs
 * Permissions
+* Invoice and Receipt PDF generation (on-demand, from existing Contract/Payment data — see FR-015)
 
 The system does NOT manage:
 
 * Email delivery
 * Advertisement creation
-* PDF generation
 * AI assistant
 * Accounting
+
+Invoice/Receipt PDF generation is a narrow exception to "no PDF generation": it produces a downloadable document from data already in AdAdd, on demand, for the user to send manually (e.g. via Google Groups). It does not generate advertisement artwork, and AdAdd does not send the document itself.
 
 ---
 

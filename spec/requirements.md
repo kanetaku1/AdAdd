@@ -372,6 +372,34 @@ Medium
 
 ---
 
+## FR-015 Invoice and Receipt Generation
+
+### Purpose
+
+Reduce manual document creation by generating invoice and receipt PDFs directly from data already in AdAdd.
+
+### Description
+
+The system shall:
+
+* Allow a Sponsorship Member to generate an invoice (請求書) PDF from a Sponsorship Contract, on demand, pre-filled with the company's name/contact person, the contract's Contract Menus (name/quantity/unit price), and the total amount
+* Allow a Sponsorship Member to generate a receipt (領収書) PDF from a confirmed Payment, on demand, pre-filled with the company's name, the payment amount, and the payment confirmation date (`Payment.confirmedAt`)
+* Allow the pre-filled content to be edited before download (e.g. remarks, payment deadline)
+* Produce a downloadable PDF file — AdAdd does not send it; sending remains a manual step via Google Groups (see UC-17, UC-10)
+
+Generated documents are not persisted — each is produced fresh from the current Contract/Payment/Company data, and there is no stored Invoice/Receipt entity (see `spec/domain.md`).
+
+### Related Use Cases
+
+* UC-17
+* UC-10
+
+### Priority
+
+Medium
+
+---
+
 # Non-Functional Requirements
 
 ## NFR-001 Availability
@@ -432,6 +460,7 @@ Important business operations shall be traceable through Activity Logs.
 | User Management      | UC-12                  |
 | Advisor Assignment   | UC-03                  |
 | Slack Notification   | UC-16                  |
+| Invoice/Receipt Generation | UC-17, UC-10     |
 
 ---
 

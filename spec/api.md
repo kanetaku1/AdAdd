@@ -671,6 +671,7 @@ Potential future APIs:
 
 * Gmail communication history integration
 * Automatic bank transfer confirmation
-* PDF generation
 * Dashboard analytics
 * CSV export
+
+Invoice/Receipt PDF generation (FR-015, UC-17, UC-10) needs no new API endpoint — it is generated client-side from data already returned by the existing Sponsorship Contract / Contract Menu / Payment / Company GET endpoints above.

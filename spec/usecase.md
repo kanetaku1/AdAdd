@@ -249,8 +249,9 @@ Send receipt after payment confirmation.
 ## Flow
 
 1. Confirm payment.
-2. Send receipt using Google Groups, dated using `Payment.confirmedAt` (the payment confirmation date — see `spec/model.md` → Payment).
-3. Update sponsorship progress.
+2. Generate a receipt PDF from the Payment, pre-filled with the company name, amount, and `Payment.confirmedAt` (the payment confirmation date — see `spec/model.md` → Payment, FR-015).
+3. Send receipt using Google Groups.
+4. Update sponsorship progress.
 
 ## Result
 
@@ -399,6 +400,35 @@ Slack is a notification target only. It is not read from, and message content is
 
 ---
 
+# UC-17 Generate Invoice
+
+## Actor
+
+Sponsorship Member
+
+## Goal
+
+Produce an invoice document to request payment from a sponsoring company.
+
+## Flow
+
+1. Open the Sponsorship Contract.
+2. Generate an invoice PDF, pre-filled with the company's name/contact person, the contract's Contract Menus (name, quantity, unit price), and the total amount (see FR-015).
+3. Adjust content if needed (e.g. remarks, payment deadline).
+4. Download the PDF.
+5. Send it to the company via Google Groups.
+6. Update sponsorship progress to Invoice Sent.
+
+## Result
+
+The company receives an invoice, and sponsorship progress reflects that it was sent.
+
+## Notes
+
+AdAdd generates the document but does not send it — sending remains a manual step via Google Groups, consistent with `spec/business.md` → External Systems → Google Groups. There is no stored Invoice entity; the PDF is produced fresh from current Contract data each time (see FR-015).
+
+---
+
 # Use Case Relationships
 
 ```text id="c98fr8"
@@ -413,6 +443,8 @@ Assign Members
 Send Materials
       ↓
 Create Contract
+      ↓
+Generate Invoice
       ↓
 Manage Contract Menus
       ↓
