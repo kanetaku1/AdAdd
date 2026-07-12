@@ -1,0 +1,151 @@
+import Link from "next/link"
+import { notFound } from "next/navigation"
+
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { mockCompanies } from "@/lib/mock/companies"
+import { mockContractMenus } from "@/lib/mock/contract-menus"
+import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
+import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
+import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
+import {
+  CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
+  CONTRACT_MENU_STATUS_LABEL,
+} from "@/lib/contract-menu-labels"
+import { ContractProgressBadge } from "@/components/contract-progress-badge"
+
+const currencyFormatter = new Intl.NumberFormat("ja-JP", {
+  style: "currency",
+  currency: "JPY",
+})
+
+/**
+ * Sponsorship Contract Detail (spec/frontend.md#Contract Detail).
+ * Company -> Contract -> Contract Menus (quantity/price/production status) -> Total.
+ *
+ * TODO: replace mock lookups with real fetches once the backend Contract /
+ * Contract Menu endpoints exist (spec/api.md).
+ */
+export default async function ContractDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const contract = mockSponsorshipContracts.find((c) => c.id === id)
+  if (!contract) {
+    notFound()
+  }
+
+  const yearlyCompany = mockYearlyCompanies.find(
+    (yc) => yc.id === contract.yearlyCompanyId
+  )
+  const company = mockCompanies.find((c) => c.id === yearlyCompany?.companyId)
+  const contractMenus = mockContractMenus.filter(
+    (cm) => cm.contractId === contract.id
+  )
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">
+            {yearlyCompany?.companyName ?? "(不明な企業)"}
+          </h1>
+          <p className="text-muted-foreground">
+            契約日 {contract.contractDate}
+          </p>
+        </div>
+        {yearlyCompany && (
+          <ContractProgressBadge initialProgress={yearlyCompany.progress} />
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2 rounded-md border p-4 text-sm sm:grid-cols-3">
+        <div>
+          <div className="text-muted-foreground">企業担当者(先方)</div>
+          <div>{company?.contactPersonName ?? "-"}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">担当者(委員会)</div>
+          <div>{contract.assigneeName ?? "未割当"}</div>
+        </div>
+        <div>
+          {yearlyCompany && (
+            <Link
+              href={`/yearly-companies/${yearlyCompany.id}`}
+              className="text-muted-foreground hover:underline"
+            >
+              Yearly Company を見る →
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>メニュー</TableHead>
+              <TableHead>数量</TableHead>
+              <TableHead>単価</TableHead>
+              <TableHead>小計</TableHead>
+              <TableHead>制作方法</TableHead>
+              <TableHead>進捗</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {contractMenus.map((cm) => {
+              const menu = mockSponsorshipMenus.find(
+                (m) => m.id === cm.sponsorshipMenuId
+              )
+              return (
+                <TableRow key={cm.id}>
+                  <TableCell className="font-medium">
+                    {menu?.name ?? "(不明なメニュー)"}
+                  </TableCell>
+                  <TableCell>{cm.quantity}</TableCell>
+                  <TableCell>{currencyFormatter.format(cm.unitPrice)}</TableCell>
+                  <TableCell>
+                    {currencyFormatter.format(cm.quantity * cm.unitPrice)}
+                  </TableCell>
+                  <TableCell>
+                    {cm.productionType
+                      ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[cm.productionType]
+                      : "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {CONTRACT_MENU_STATUS_LABEL[cm.status]}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="flex justify-end text-lg font-semibold">
+        合計金額: {currencyFormatter.format(contract.totalAmount)}
+      </div>
+
+      {contract.remarks && (
+        <div className="text-sm">
+          <div className="text-muted-foreground">備考</div>
+          <div>{contract.remarks}</div>
+        </div>
+      )}
+    </div>
+  )
+}
