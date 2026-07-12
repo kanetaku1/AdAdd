@@ -37,7 +37,7 @@ Some enumerations listed below started as fixed value objects but are documented
 
 ### Definition
 
-The set of sponsorship benefits offered during a specific festival Year (e.g. Pamphlet advertisement, Company booth, Website listing).
+The set of sponsorship benefits offered during a specific festival Year (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth).
 
 ### Scope
 
@@ -181,7 +181,7 @@ See `spec/model.md` → `SponsorshipProgress`, `spec/business.md` → Sponsorshi
 
 ### Definition
 
-The category a Sponsorship Menu belongs to (e.g. Advertisement, Booth, WebListing). Determines what kind of progress management a Contract Menu needs.
+The category a Sponsorship Menu belongs to: Advertisement or Booth. Determines what kind of progress management a Contract Menu needs — not the medium. A homepage banner is an Advertisement (it requires submission, like a print ad); only Booth has no submission step.
 
 ### Scope
 

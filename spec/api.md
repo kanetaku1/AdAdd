@@ -350,7 +350,7 @@ Example response:
   {
     "id": "menu_id",
     "name": "パンフレット広告1P",
-    "category": "PRINT",
+    "category": "ADVERTISEMENT",
     "defaultPrice": 80000
   }
 ]

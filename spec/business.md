@@ -163,8 +163,8 @@ This is the master definition, not a specific company's contract.
 Examples include:
 
 * Pamphlet advertisement
+* Homepage banner advertisement
 * Company booth
-* Website listing
 
 Each Sponsorship Menu defines:
 
@@ -185,9 +185,9 @@ The management content differs by menu category. Examples:
 
 | Sponsorship Menu       | Management Content     |
 | ----------------------- | ----------------------- |
-| Pamphlet advertisement   | Submission management   |
-| Company booth            | Booth information management |
-| Website listing (e.g. homepage banner) | Submission management (banner artwork/logo), then listing confirmation |
+| Pamphlet advertisement (Advertisement category) | Submission management |
+| Homepage banner advertisement (Advertisement category) | Submission management (banner artwork/logo) |
+| Company booth (Booth category) | Booth information management |
 
 Each Contract Menu manages:
 
@@ -295,10 +295,10 @@ Progress management per contracted Sponsorship Menu
 Examples:
 
 * Pamphlet advertisement → Submission management
+* Homepage banner advertisement → Submission management (banner artwork/logo)
 * Company booth → Booth information management
-* Website listing (e.g. homepage banner) → Submission management (banner artwork/logo), then listing confirmation
 
-For menus that require submission (e.g. advertisements, website listing), there are two production methods. The company chooses between them when submitting the Google Forms application, and the choice determines what the company is expected to submit.
+For menus that require submission (e.g. advertisements, including web-based formats such as a homepage banner), there are two production methods. The company chooses between them when submitting the Google Forms application, and the choice determines what the company is expected to submit.
 
 ## Company Production
 

@@ -130,7 +130,7 @@ A company may be contacted without creating a contract.
 
 ## Sponsorship Menu
 
-A Sponsorship Menu is master data defined per festival Year (e.g. Pamphlet advertisement, Company booth, Website listing).
+A Sponsorship Menu is master data defined per festival Year (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth).
 
 A Sponsorship Menu never belongs to a specific company or contract.
 

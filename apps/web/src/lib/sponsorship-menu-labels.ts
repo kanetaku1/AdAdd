@@ -9,5 +9,4 @@ export const SPONSORSHIP_MENU_CATEGORY_LABEL: Record<
 > = {
   ADVERTISEMENT: "広告",
   BOOTH: "ブース",
-  WEB_LISTING: "Web掲載",
 }

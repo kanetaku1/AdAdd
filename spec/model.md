@@ -322,9 +322,10 @@ The outreach priority ranking for a Yearly Company within the current Year, set 
 
 ## SponsorshipMenuCategory
 
-* Advertisement
-* Booth
-* WebListing
+Determines management content, not medium. A homepage banner is still `Advertisement` — it requires submission and is managed the same way as a print advertisement, just displayed on the web instead of paper. Medium/format belongs in `SponsorshipMenu.name`, not in a separate category value.
+
+* Advertisement (e.g. pamphlet ad, homepage banner, uniform ad, nori flag — anything requiring submission and production)
+* Booth (no submission; booth logistics only)
 
 ---
 

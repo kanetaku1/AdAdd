@@ -26,9 +26,9 @@ export const mockSponsorshipMenus: SponsorshipMenu[] = [
   {
     id: "menu_003",
     yearId: "year_2026",
-    name: "Web掲載",
-    category: "WEB_LISTING",
-    defaultPrice: 20000,
+    name: "ホームページ広告",
+    category: "ADVERTISEMENT",
+    defaultPrice: 15000,
     requiresSubmission: true,
     isActive: true,
   },

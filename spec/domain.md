@@ -35,7 +35,7 @@ Year
               └──── Activity Log
 ```
 
-A Sponsorship Menu is the yearly master definition of what can be sponsored (e.g. Pamphlet advertisement, Company booth, Website listing). A Contract Menu is the concrete instance a company actually contracted for, carrying its own progress, assignee, and Drive folder.
+A Sponsorship Menu is the yearly master definition of what can be sponsored (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth). A Contract Menu is the concrete instance a company actually contracted for, carrying its own progress, assignee, and Drive folder.
 
 ---
 
@@ -168,7 +168,7 @@ Represents one Sponsorship Menu that a company has actually contracted for, as p
 
 A Contract Menu references exactly one Sponsorship Menu. A contract may contain multiple Contract Menus.
 
-The management content differs depending on the referenced Sponsorship Menu category (e.g. submission management for advertisements, booth information management for booths, submission management followed by listing confirmation for website listings such as a homepage banner).
+The management content differs depending on the referenced Sponsorship Menu category: submission management for advertisements (including web-based formats such as a homepage banner), or booth information management for booths.
 
 ### Responsibilities
 
@@ -455,7 +455,7 @@ Submitted
 
 For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Created to Completed.
 
-Website listing (e.g. a homepage banner) requires submission — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as other advertisement-type menus.
+A homepage banner is an Advertisement-category menu and requires submission — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 
 ---
 
