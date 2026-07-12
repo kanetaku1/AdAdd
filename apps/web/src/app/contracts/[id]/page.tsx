@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table"
 import { mockCompanies } from "@/lib/mock/companies"
 import { mockContractMenus } from "@/lib/mock/contract-menus"
+import { mockPayments } from "@/lib/mock/payments"
 import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
@@ -20,6 +21,10 @@ import {
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
 } from "@/lib/contract-menu-labels"
+import {
+  PAYMENT_STATUS_BADGE_VARIANT,
+  PAYMENT_STATUS_LABEL,
+} from "@/lib/payment-labels"
 import { ContractProgressBadge } from "@/components/contract-progress-badge"
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
@@ -52,6 +57,7 @@ export default async function ContractDetailPage({
   const contractMenus = mockContractMenus.filter(
     (cm) => cm.contractId === contract.id
   )
+  const payment = mockPayments.find((p) => p.contractId === contract.id)
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,7 +75,7 @@ export default async function ContractDetailPage({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-x-8 gap-y-2 rounded-md border p-4 text-sm sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2 rounded-md border p-4 text-sm sm:grid-cols-4">
         <div>
           <div className="text-muted-foreground">企業担当者(先方)</div>
           <div>{company?.contactPersonName ?? "-"}</div>
@@ -79,6 +85,18 @@ export default async function ContractDetailPage({
           <div>{contract.assigneeName ?? "未割当"}</div>
         </div>
         <div>
+          <div className="text-muted-foreground">入金状況</div>
+          <div>
+            {payment ? (
+              <Badge variant={PAYMENT_STATUS_BADGE_VARIANT[payment.status]}>
+                {PAYMENT_STATUS_LABEL[payment.status]}
+              </Badge>
+            ) : (
+              "入金情報なし"
+            )}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
           {yearlyCompany && (
             <Link
               href={`/yearly-companies/${yearlyCompany.id}`}
@@ -87,6 +105,12 @@ export default async function ContractDetailPage({
               Yearly Company を見る →
             </Link>
           )}
+          <Link
+            href="/finance"
+            className="text-muted-foreground hover:underline"
+          >
+            Finance を見る →
+          </Link>
         </div>
       </div>
 
