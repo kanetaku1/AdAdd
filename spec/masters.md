@@ -177,30 +177,6 @@ See `spec/model.md` → `SponsorshipProgress`, `spec/business.md` → Sponsorshi
 
 ---
 
-## Sponsorship Menu Category
-
-### Definition
-
-The category a Sponsorship Menu belongs to: Advertisement or Booth. Determines what kind of progress management a Contract Menu needs — not the medium. A homepage banner is an Advertisement (it requires submission, like a print ad); only Booth has no submission step.
-
-### Scope
-
-Global enumeration, applied per Sponsorship Menu.
-
-### Maintained By
-
-Sponsorship Menu Management Team.
-
-### Referenced By
-
-`SponsorshipMenu.category`
-
-### Source
-
-See `spec/model.md` → `SponsorshipMenuCategory`.
-
----
-
 ## Contract Menu Status / Production Type
 
 ### Definition

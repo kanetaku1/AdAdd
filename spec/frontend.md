@@ -422,7 +422,6 @@ Display:
 | Information         |
 | -------------------- |
 | Menu name           |
-| Category            |
 | Price               |
 | Submission required |
 | Active status       |
@@ -434,7 +433,6 @@ Display:
 Input:
 
 * Name
-* Category
 * Default price
 * Required submission
 * Description

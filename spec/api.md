@@ -363,7 +363,7 @@ Example response:
   {
     "id": "menu_id",
     "name": "パンフレット広告1P",
-    "category": "ADVERTISEMENT",
+    "requiresSubmission": true,
     "defaultPrice": 80000
   }
 ]

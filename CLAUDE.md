@@ -132,6 +132,8 @@ A company may be contacted without creating a contract.
 
 A Sponsorship Menu is master data defined per festival Year (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth).
 
+A Contract Menu may be a goods sponsorship (物品協賛) return — the company sponsors with goods instead of money, and the advertising given in exchange is marked `isGoodsSponsorship` with `unitPrice = 0`. This is a property of the Contract Menu, not the Sponsorship Menu (see `spec/domain.md`).
+
 A Sponsorship Menu never belongs to a specific company or contract.
 
 ---

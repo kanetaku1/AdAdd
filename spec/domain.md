@@ -35,7 +35,7 @@ Year
               └──── Activity Log
 ```
 
-A Sponsorship Menu is the yearly master definition of what can be sponsored (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth). A Contract Menu is the concrete instance a company actually contracted for, carrying its own progress, assignee, and Drive folder.
+A Sponsorship Menu is the yearly master definition of what can be sponsored (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth). A Contract Menu is the concrete instance a company actually contracted for, carrying its own progress, assignee, and Drive folder. A Contract Menu may be a goods-sponsorship return (`isGoodsSponsorship`) rather than a paid item — see Contract Menu → Goods Sponsorship below.
 
 ---
 
@@ -69,7 +69,7 @@ This is master data. It defines what can be sponsored, not what a specific compa
 
 ### Responsibilities
 
-* Menu category and name
+* Name
 * Default price
 * Whether submission/production is required
 * Whether the menu is currently offered
@@ -167,7 +167,17 @@ Represents one Sponsorship Menu that a company has actually contracted for, as p
 
 A Contract Menu references exactly one Sponsorship Menu. A contract may contain multiple Contract Menus.
 
-The management content differs depending on the referenced Sponsorship Menu category: submission management for advertisements (including web-based formats such as a homepage banner), or booth information management for booths.
+The management content differs depending on the referenced Sponsorship Menu's `requiresSubmission`: submission/production management when true (e.g. print advertisements, web-based formats such as a homepage banner), or none when false (e.g. company booth — booth logistics only).
+
+### Goods Sponsorship (物品協賛)
+
+A company may sponsor with goods/items instead of money. The festival provides advertising in exchange, equivalent to the value of the goods received.
+
+Goods sponsorship is **not** a Sponsorship Menu of its own — the same Sponsorship Menu (e.g. a Pamphlet ad) is contracted normally in some contracts and given as a goods-sponsorship return in others, so the distinction cannot live on the menu. It is a property of the individual Contract Menu:
+
+* `ContractMenu.isGoodsSponsorship` (boolean) marks that this specific line is provided free of charge as a return for goods received, rather than a paid item. When true, `unitPrice` is conventionally `0`.
+* The goods description and estimated value are recorded in `SponsorshipContract.remarks` (free text, contract-wide — not per Contract Menu) — this content is always entered manually, never imported from Google Forms (see `spec/usecase.md` UC-06).
+* A contract may mix ordinary paid Contract Menus and `isGoodsSponsorship` ones; `SponsorshipContract.totalAmount` still sums `quantity * unitPrice` across all of them, so goods-sponsorship-only contracts correctly total ¥0.
 
 ### Responsibilities
 
@@ -442,7 +452,7 @@ Submitted
 
 For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Waiting to Completed.
 
-A homepage banner is an Advertisement-category menu and requires submission — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
+A homepage banner requires submission (`requiresSubmission = true`) — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 
 ---
 
@@ -532,7 +542,7 @@ A Sponsorship Menu never belongs to a specific Company or Contract.
 
 A Contract Menu belongs to exactly one Sponsorship Contract and references exactly one Sponsorship Menu.
 
-A Contract Menu must never duplicate attributes already defined on its Sponsorship Menu (e.g. category, default price).
+A Contract Menu must never duplicate attributes already defined on its Sponsorship Menu (e.g. name, default price).
 
 ---
 

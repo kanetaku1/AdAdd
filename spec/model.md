@@ -151,10 +151,11 @@ This is master data, managed independently of any company or contract.
 | id                 | UUID    |
 | yearId             | UUID    |
 | name               | string  |
-| category           | enum    |
 | defaultPrice       | decimal |
 | requiresSubmission | boolean |
 | isActive           | boolean |
+
+`requiresSubmission` alone determines the Contract Menu's management workflow (submission/production tracking vs. none) — there is no separate category field. A previous `category` (Advertisement/Booth) enum was removed because it never carried information beyond what `requiresSubmission` already expressed (see `spec/domain.md`).
 
 ---
 
@@ -171,6 +172,7 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 | sponsorshipMenuId | UUID     |
 | quantity          | integer  |
 | unitPrice         | decimal  |
+| isGoodsSponsorship | boolean |
 | productionType    | enum     |
 | status            | enum     |
 | driveFolderId     | string   |
@@ -181,6 +183,8 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 ContractMenu does not have its own assignee. The assignee belongs to the parent `SponsorshipContract`.
 
 `unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus.
+
+`isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
 
 ---
 
@@ -325,15 +329,6 @@ The outreach priority ranking for a Yearly Company within the current Year, set 
 * ReceiptSent
 * Declined
 * Pending
-
----
-
-## SponsorshipMenuCategory
-
-Determines management content, not medium. A homepage banner is still `Advertisement` — it requires submission and is managed the same way as a print advertisement, just displayed on the web instead of paper. Medium/format belongs in `SponsorshipMenu.name`, not in a separate category value.
-
-* Advertisement (e.g. pamphlet ad, homepage banner, uniform ad, nori flag — anything requiring submission and production)
-* Booth (no submission; booth logistics only)
 
 ---
 

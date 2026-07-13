@@ -108,6 +108,7 @@ The system shall allow users to:
 * View contract history
 * Calculate contract totals (sum of quantity × unit price across the contract's Contract Menus)
 * Assign a Sponsorship Member to the contract (shared by all Contract Menus under it — see `spec/model.md` → SponsorshipContract)
+* Support contracts whose content originates from manual entry rather than Google Forms (e.g. goods sponsorship — 物品協賛)
 
 ### Related Use Cases
 
@@ -129,10 +130,10 @@ Manage sponsorship menus, both as yearly master data and as concrete items contr
 
 The system shall provide:
 
-* Sponsorship Menu management (yearly master: category, name, default price, whether submission is required, whether currently offered)
+* Sponsorship Menu management (yearly master: name, default price, whether submission is required, whether currently offered)
 * Contract Menu management (the menus a company actually contracted for, including quantity and unit price)
 * Production method selection (when submission is required)
-* Progress management, varying by menu category (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths)
+* Progress management, varying by whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission)
 * Google Drive linkage
 
 ### Related Use Cases

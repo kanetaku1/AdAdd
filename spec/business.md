@@ -168,7 +168,6 @@ Examples include:
 
 Each Sponsorship Menu defines:
 
-* Category
 * Default price
 * Whether submission/production is required
 * Whether it is currently offered
@@ -181,13 +180,13 @@ Represents one Sponsorship Menu that a company has actually contracted for, as p
 
 A Contract Menu references exactly one Sponsorship Menu.
 
-The management content differs by menu category. Examples:
+The management content differs by whether the referenced Sponsorship Menu requires submission. Examples:
 
 | Sponsorship Menu       | Management Content     |
 | ----------------------- | ----------------------- |
-| Pamphlet advertisement (Advertisement category) | Submission management |
-| Homepage banner advertisement (Advertisement category) | Submission management (banner artwork/logo) |
-| Company booth (Booth category) | Booth information management |
+| Pamphlet advertisement (requires submission) | Submission management |
+| Homepage banner advertisement (requires submission) | Submission management (banner artwork/logo) |
+| Company booth (no submission) | Booth information management |
 
 Each Contract Menu manages:
 
@@ -284,7 +283,7 @@ Some companies may decline sponsorship after receiving materials.
 
 # Contract Menu Workflow
 
-Once a Sponsorship Contract is confirmed, each Contract Menu is managed according to its Sponsorship Menu category.
+Once a Sponsorship Contract is confirmed, each Contract Menu is managed according to whether its Sponsorship Menu requires submission.
 
 ```text
 Contract
@@ -397,6 +396,8 @@ Each Contract Menu references exactly one Sponsorship Menu.
 Submission files are stored in Google Drive.
 
 AdAdd stores metadata only.
+
+For goods sponsorship (物品協賛), the advertising given in exchange is an ordinary Contract Menu marked `isGoodsSponsorship`, with `unitPrice` set to `0`. This is a property of the individual Contract Menu, not the Sponsorship Menu — the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods description and estimated value are recorded in the Sponsorship Contract's remarks (contract-wide, not per menu), entered manually (never via Google Forms).
 
 ---
 

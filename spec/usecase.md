@@ -164,6 +164,10 @@ Register a confirmed sponsorship contract.
 
 The sponsorship contract is registered.
 
+## Notes
+
+Goods sponsorship (物品協賛) always uses the "Email agreement" / "Face-to-face agreement" trigger and manual entry at step 3 — it is never imported from Google Forms, since the goods description and estimated value must be entered by hand (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
+
 ---
 
 # UC-07 Manage Contract Menus
@@ -183,7 +187,7 @@ Manage the sponsorship menus contracted within a sponsorship contract.
 3. For each Contract Menu, select production method (when submission is required).
 4. Assign production if required.
 5. Register Google Drive folder.
-6. Update progress according to the menu's category (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths).
+6. Update progress according to whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission).
 
 ## Result
 
