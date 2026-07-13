@@ -4,6 +4,7 @@ go 1.22
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.15.2
+	github.com/google/uuid v1.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/shopspring/decimal v1.3.1

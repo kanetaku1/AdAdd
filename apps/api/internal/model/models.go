@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -17,6 +18,13 @@ type Year struct {
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (y *Year) BeforeCreate(tx *gorm.DB) (err error) {
+	if y.ID == "" {
+		y.ID = uuid.NewString()
+	}
+	return nil
 }
 
 // Company
@@ -37,6 +45,13 @@ type Company struct {
 	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+func (c *Company) BeforeCreate(tx *gorm.DB) (err error) {
+	if c.ID == "" {
+		c.ID = uuid.NewString()
+	}
+	return nil
+}
+
 // YearlyCompany
 type YearlyCompany struct {
 	ID            string         `gorm:"type:char(36);primaryKey" json:"id"`
@@ -49,6 +64,13 @@ type YearlyCompany struct {
 	CreatedAt     time.Time      `json:"createdAt"`
 	UpdatedAt     time.Time      `json:"updatedAt"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (y *YearlyCompany) BeforeCreate(tx *gorm.DB) (err error) {
+	if y.ID == "" {
+		y.ID = uuid.NewString()
+	}
+	return nil
 }
 
 // SponsorshipContract
@@ -64,6 +86,13 @@ type SponsorshipContract struct {
 	DeletedAt       gorm.DeletedAt  `gorm:"index" json:"-"`
 }
 
+func (s *SponsorshipContract) BeforeCreate(tx *gorm.DB) (err error) {
+	if s.ID == "" {
+		s.ID = uuid.NewString()
+	}
+	return nil
+}
+
 // SponsorshipMenu (master per Year)
 type SponsorshipMenu struct {
 	ID                 string          `gorm:"type:char(36);primaryKey" json:"id"`
@@ -75,6 +104,13 @@ type SponsorshipMenu struct {
 	CreatedAt          time.Time       `json:"createdAt"`
 	UpdatedAt          time.Time       `json:"updatedAt"`
 	DeletedAt          gorm.DeletedAt  `gorm:"index" json:"-"`
+}
+
+func (m *SponsorshipMenu) BeforeCreate(tx *gorm.DB) (err error) {
+	if m.ID == "" {
+		m.ID = uuid.NewString()
+	}
+	return nil
 }
 
 // ContractMenu
@@ -96,6 +132,13 @@ type ContractMenu struct {
 	DeletedAt          gorm.DeletedAt  `gorm:"index" json:"-"`
 }
 
+func (cm *ContractMenu) BeforeCreate(tx *gorm.DB) (err error) {
+	if cm.ID == "" {
+		cm.ID = uuid.NewString()
+	}
+	return nil
+}
+
 // Payment
 type Payment struct {
 	ID            string          `gorm:"type:char(36);primaryKey" json:"id"`
@@ -107,6 +150,13 @@ type Payment struct {
 	CreatedAt     time.Time       `json:"createdAt"`
 	UpdatedAt     time.Time       `json:"updatedAt"`
 	DeletedAt     gorm.DeletedAt  `gorm:"index" json:"-"`
+}
+
+func (p *Payment) BeforeCreate(tx *gorm.DB) (err error) {
+	if p.ID == "" {
+		p.ID = uuid.NewString()
+	}
+	return nil
 }
 
 // Assignment
@@ -121,6 +171,13 @@ type Assignment struct {
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+func (a *Assignment) BeforeCreate(tx *gorm.DB) (err error) {
+	if a.ID == "" {
+		a.ID = uuid.NewString()
+	}
+	return nil
+}
+
 // AdvisorAssignment
 type AdvisorAssignment struct {
 	ID         string         `gorm:"type:char(36);primaryKey" json:"id"`
@@ -131,6 +188,13 @@ type AdvisorAssignment struct {
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (aa *AdvisorAssignment) BeforeCreate(tx *gorm.DB) (err error) {
+	if aa.ID == "" {
+		aa.ID = uuid.NewString()
+	}
+	return nil
 }
 
 // ActivityLog
@@ -154,4 +218,11 @@ type User struct {
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.ID == "" {
+		u.ID = uuid.NewString()
+	}
+	return nil
 }
