@@ -6,12 +6,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
-	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 )
 
 func RegisterAssignmentRoutes(e *echo.Echo) {
 	r := e.Group("")
-	r.POST("/yearly-companies/:id/assignments", createAssignment)
+	// Only admin can create assignments
+	rAdmin := e.Group("")
+	rAdmin.Use(RequireRoles("admin"))
+	rAdmin.POST("/yearly-companies/:id/assignments", createAssignment)
 	r.GET("/users/me/companies", getAssignedCompaniesForMe)
 }
 
@@ -26,14 +28,6 @@ func createAssignment(c echo.Context) error {
 	if err := svc.Create(&req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
-	// Activity log
-	alRepo := repository.NewActivityLogRepository()
-	alRepo.Create(&model.ActivityLog{
-		YearlyCompanyID: req.YearlyCompanyID,
-		UserID: req.UserID,
-		Action: "ASSIGNED_MEMBER",
-		Description: "Member assigned to YearlyCompany",
-	})
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
 
