@@ -560,6 +560,30 @@ Current scope covers user creation, listing, and activation/deactivation only. R
 
 ---
 
+## Advisor Assignment
+
+Purpose:
+
+Assign a Sponsorship Advisor to each Sponsorship Member (UC-03, FR-013). Actor: Company Management Team.
+
+Display, one row per User (there is no `Role` yet, so any User may act as a Sponsorship Member or an Advisor — see User List above):
+
+| Information                |
+| --------------------------- |
+| Sponsorship Member (name)  |
+| Advisor (inline-editable)  |
+
+Actions:
+
+* Click the Advisor cell to reassign it via a dropdown (Principle 4), scoped to the active Year (`AdvisorAssignment.yearId`) — a User cannot be selected as their own Advisor.
+* Selecting the empty option ("未設定") removes the assignment.
+
+Below the table, a read-only summary groups members by their current Advisor, covering FR-013's "view the members supervised by a given Advisor." Viewing the companies an Advisor's members handle (FR-013's 4th bullet) is not built here — that belongs to a future Advisor Dashboard, out of scope for now (see Dashboard → Department view decision).
+
+Assignments do not carry over when a new Year is created — reassignment is a fresh per-Year action, same as the Yearly Company assigned-member picker.
+
+---
+
 # Navigation Structure
 
 ```text
@@ -582,6 +606,8 @@ Sidebar
 ├── Years
 │
 ├── Users
+│
+├── Advisor Assignments
 │
 └── Settings
 ```

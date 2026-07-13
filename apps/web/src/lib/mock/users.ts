@@ -38,6 +38,14 @@ export const mockUsers: User[] = [
     slackId: null,
     isActive: false,
   },
+  {
+    id: "user_005",
+    studentId: "b5678901",
+    name: "山田",
+    email: "yamada@example.com",
+    slackId: "U05YAMADA",
+    isActive: true,
+  },
 ]
 
 /**

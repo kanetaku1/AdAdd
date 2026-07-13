@@ -13,6 +13,7 @@ import {
   BarChart3,
   CalendarClock,
   Users,
+  UserCheck,
   Settings,
 } from "lucide-react"
 
@@ -40,6 +41,11 @@ const NAV_ITEMS = [
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Years", url: "/years", icon: CalendarClock },
   { title: "Users", url: "/users", icon: Users },
+  {
+    title: "Advisor Assignments",
+    url: "/advisor-assignments",
+    icon: UserCheck,
+  },
   { title: "Settings", url: "/settings", icon: Settings },
 ]
 
