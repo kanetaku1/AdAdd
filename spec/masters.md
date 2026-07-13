@@ -37,7 +37,7 @@ Some enumerations listed below started as fixed value objects but are documented
 
 ### Definition
 
-The set of sponsorship benefits offered during a specific festival Year (e.g. Pamphlet advertisement, Company booth, Website listing).
+The set of sponsorship benefits offered during a specific festival Year (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth).
 
 ### Scope
 
@@ -105,11 +105,11 @@ Currently represented through `Role` rather than a dedicated entity — a User's
 
 ---
 
-## Company Phase
+## Company Status
 
 ### Definition
 
-The classification of a company's ongoing relationship with the festival (e.g. Continuing, New, Dormant, Priority).
+The classification of a company's ongoing relationship history with the festival (e.g. Continuing, New, Dormant).
 
 ### Scope
 
@@ -121,11 +121,35 @@ Company Management Team.
 
 ### Referenced By
 
+`YearlyCompany.companyStatus`
+
+### Source
+
+See `spec/model.md` → `CompanyStatus`.
+
+---
+
+## Sponsorship Phase
+
+### Definition
+
+The outreach priority ranking (Phase1, Phase2, Phase3) assigned to a Yearly Company during the Year preparation period, used to sequence sponsorship outreach. Independent of Company Status.
+
+### Scope
+
+Per Year, applied per Yearly Company. Reset/reassigned every Year.
+
+### Maintained By
+
+Company Management Team.
+
+### Referenced By
+
 `YearlyCompany.phase`
 
 ### Source
 
-See `spec/model.md` → `CompanyPhase`.
+See `spec/model.md` → `SponsorshipPhase`, `spec/usecase.md` → UC-02.
 
 ---
 
@@ -150,30 +174,6 @@ Company Management Team / Sponsorship Advisors (definition); Sponsorship Members
 ### Source
 
 See `spec/model.md` → `SponsorshipProgress`, `spec/business.md` → Sponsorship Progress.
-
----
-
-## Sponsorship Menu Category
-
-### Definition
-
-The category a Sponsorship Menu belongs to (e.g. Advertisement, Booth, WebListing). Determines what kind of progress management a Contract Menu needs.
-
-### Scope
-
-Global enumeration, applied per Sponsorship Menu.
-
-### Maintained By
-
-Sponsorship Menu Management Team.
-
-### Referenced By
-
-`SponsorshipMenu.category`
-
-### Source
-
-See `spec/model.md` → `SponsorshipMenuCategory`.
 
 ---
 

@@ -45,6 +45,12 @@ Create a new festival year.
 
 The new festival year becomes available.
 
+## Notes
+
+Step 3–4's Yearly Company generation computes `companyStatus` automatically — see `spec/domain.md` → Company Status for the exact rule (Continuing/New; Dormant is always a later manual reclassification, never generated here).
+
+Yearly Company creation also happens **individually**, outside this bulk flow, for a company discovered mid-cycle after a Year already exists (see `spec/frontend.md` → Company List — the same underlying operation as step 4, invoked once for a single Company instead of for every Company).
+
 ---
 
 # UC-02 Classify Companies
@@ -60,8 +66,8 @@ Prepare companies before sponsorship activities begin.
 ## Flow
 
 1. Open Yearly Companies.
-2. Classify each company.
-3. Set company priority.
+2. Review each company's status (Continuing / New / Dormant), referencing its past sponsorship history.
+3. Set the company's sponsorship phase (Phase1 / Phase2 / Phase3) to rank outreach priority for this Year.
 4. Save.
 
 ## Result
@@ -164,6 +170,14 @@ Register a confirmed sponsorship contract.
 
 The sponsorship contract is registered.
 
+## Notes
+
+Goods sponsorship (物品協賛) always uses the "Email agreement" / "Face-to-face agreement" trigger and manual entry at step 3 — it is never imported from Google Forms, since the goods description and estimated value must be entered by hand (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
+
+The contract's assignee is not entered at step 3. By the time a contract is created, the Company Management Team or an Advisor has already assigned a Sponsorship Member to the Yearly Company (UC-04) — the contract simply carries that assignee over (see `spec/model.md#SponsorshipContract`).
+
+Regardless of trigger, entering the contract at step 3 is always a manual action performed by the Sponsorship Member: reading the submitted Google Forms response, or an email/face-to-face agreement, and transcribing it into AdAdd. Google Forms is never imported automatically (`spec/domain.md` → Google Forms is a contract input method, not the source of truth).
+
 ---
 
 # UC-07 Manage Contract Menus
@@ -183,7 +197,7 @@ Manage the sponsorship menus contracted within a sponsorship contract.
 3. For each Contract Menu, select production method (when submission is required).
 4. Assign production if required.
 5. Register Google Drive folder.
-6. Update progress according to the menu's category (e.g. submission management for advertisements, booth information management for booths, listing confirmation for website listings).
+6. Update progress according to whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission).
 
 ## Result
 
@@ -249,8 +263,9 @@ Send receipt after payment confirmation.
 ## Flow
 
 1. Confirm payment.
-2. Send receipt using Google Groups.
-3. Update sponsorship progress.
+2. Generate a receipt PDF from the Payment, pre-filled with the company name, amount, and `Payment.confirmedAt` (the payment confirmation date — see `spec/model.md` → Payment, FR-015).
+3. Send receipt using Google Groups.
+4. Update sponsorship progress.
 
 ## Result
 
@@ -300,6 +315,10 @@ Manage system users.
 ## Result
 
 System permissions remain up to date.
+
+## Notes
+
+The current AdAdd implementation covers step 1 (create) and step 3 (disable/re-enable), plus listing — see `spec/frontend.md` → System Administration → User List. Step 2 (assign roles) is deferred: `Role` (`spec/model.md#Role`) has no management UI yet, so users cannot yet be granted roles through AdAdd.
 
 ---
 
@@ -369,6 +388,65 @@ The festival year becomes read-only.
 
 ---
 
+# UC-16 Notify Assigned Member via Slack
+
+## Actor
+
+System (triggered automatically)
+
+## Goal
+
+Alert the Sponsorship Member(s) assigned to a company as soon as a sponsorship application arrives, so they can respond quickly.
+
+## Trigger
+
+* Google Forms application imported (see UC-06, FR-012)
+
+## Flow
+
+1. Google Forms submission is imported and a Sponsorship Contract is created or updated for a Yearly Company.
+2. The system looks up the Sponsorship Members assigned to that Yearly Company (Assignment).
+3. For each assigned member with a linked Slack ID, the system sends a Slack mention referencing the company and application.
+
+## Result
+
+Assigned members are notified without needing to check AdAdd manually.
+
+## Notes
+
+Slack is a notification target only. It is not read from, and message content is not stored in AdAdd (see `spec/business.md` → External Systems → Slack).
+
+---
+
+# UC-17 Generate Invoice
+
+## Actor
+
+Sponsorship Member
+
+## Goal
+
+Produce an invoice document to request payment from a sponsoring company.
+
+## Flow
+
+1. Open the Sponsorship Contract.
+2. Generate an invoice PDF, pre-filled with the company's name/contact person, the contract's Contract Menus (name, quantity, unit price), and the total amount (see FR-015).
+3. Adjust content if needed (e.g. remarks, payment deadline).
+4. Download the PDF.
+5. Send it to the company via Google Groups.
+6. Update sponsorship progress to Invoice Sent.
+
+## Result
+
+The company receives an invoice, and sponsorship progress reflects that it was sent.
+
+## Notes
+
+AdAdd generates the document but does not send it — sending remains a manual step via Google Groups, consistent with `spec/business.md` → External Systems → Google Groups. There is no stored Invoice entity; the PDF is produced fresh from current Contract data each time (see FR-015).
+
+---
+
 # Use Case Relationships
 
 ```text id="c98fr8"
@@ -383,6 +461,8 @@ Assign Members
 Send Materials
       ↓
 Create Contract
+      ↓
+Generate Invoice
       ↓
 Manage Contract Menus
       ↓

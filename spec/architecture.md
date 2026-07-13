@@ -44,6 +44,7 @@ apps/api also integrates with:
   Google Drive    (Advertisement file storage — metadata only)
   Google Forms    (Contract input method — not source of truth)
   Google Groups   (Email distribution — content not stored)
+  Slack           (Assignee notification — outbound only, content not stored)
 ```
 
 MySQL is always the Single Source of Truth.
@@ -82,11 +83,13 @@ Business logic must never live in the Frontend.
 * TypeScript
 * Tailwind CSS
 * shadcn/ui
+* @react-pdf/renderer — client-side generation of Invoice/Receipt PDFs (FR-015, UC-17, UC-10). No server-side PDF service exists; documents are rendered in the browser from data already fetched from `apps/api` and downloaded locally. The Japanese font (Noto Sans JP, OFL-licensed) is bundled locally under `apps/web/public/fonts/` rather than fetched from a remote URL at render time — this proved more reliable than depending on an external font host.
 
 ## Responsibilities
 
 * Presents business state retrieved from `apps/api`.
 * Contains no business logic (see `spec/development.md` Frontend Development Rules).
+* Renders Invoice/Receipt PDFs from existing Contract/Payment/Company data for on-demand download (FR-015). This is presentation, not business logic — no new business rules are computed, only existing fields formatted into a document.
 
 ---
 
@@ -124,9 +127,9 @@ Secrets are never committed to the repository.
 | Google Drive   | Advertisement file storage                 | Store metadata and Drive reference only |
 | Google Forms   | Contract input method                      | Import submitted data into MySQL  |
 | Google Groups  | Email distribution for sponsorship contacts | None — email content is not stored |
+| Slack          | Assignee notification (e.g. mention the Sponsorship Member assigned to a company when a Google Forms application is received) | Send notifications only — Slack is never read from, and message content is not stored |
 
-The system does not send email, generate PDFs, or create advertisements.
-These remain manual or external processes.
+The system does not send email or create advertisements — these remain manual or external processes. It does generate Invoice/Receipt PDFs on demand (FR-015), but does not send them.
 
 ---
 
@@ -136,6 +139,5 @@ The following are explicitly not part of this architecture:
 
 * Email delivery infrastructure
 * Advertisement creation tooling
-* PDF generation
 * AI assistant integration
 * Accounting / banking integration

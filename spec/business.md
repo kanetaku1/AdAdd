@@ -23,8 +23,8 @@ Responsible for:
 * Managing company information
 * Assigning Sponsorship Advisors to Sponsorship Members
 * Assigning Sponsorship Members to companies
-* Classifying companies
-* Determining company priorities
+* Reviewing each company's status (Continuing / New / Dormant)
+* Setting each company's sponsorship phase (outreach priority ranking) for the Year
 
 ---
 
@@ -136,8 +136,8 @@ This is the central business entity of AdAdd.
 A Yearly Company contains:
 
 * Assigned members
-* Company classification
-* Priority
+* Company status (Continuing / New / Dormant — relationship history)
+* Sponsorship phase (Phase1 / Phase2 / Phase3 — outreach priority ranking for this Year)
 * Sponsorship progress
 * Activity history
 * Sponsorship contracts
@@ -150,7 +150,7 @@ A Yearly Company does not have a direct advisor reference. Advisors are assigned
 
 Represents an agreement between the festival and a company.
 
-A Yearly Company may have zero or multiple contracts.
+A Yearly Company has at most one contract (zero before it is created). The company selects one or more Sponsorship Menus, but they are bundled into a single contract — the company/organization receives one invoice and one receipt per Year, not one per menu.
 
 ---
 
@@ -163,12 +163,11 @@ This is the master definition, not a specific company's contract.
 Examples include:
 
 * Pamphlet advertisement
+* Homepage banner advertisement
 * Company booth
-* Website listing
 
 Each Sponsorship Menu defines:
 
-* Category
 * Default price
 * Whether submission/production is required
 * Whether it is currently offered
@@ -181,20 +180,20 @@ Represents one Sponsorship Menu that a company has actually contracted for, as p
 
 A Contract Menu references exactly one Sponsorship Menu.
 
-The management content differs by menu category. Examples:
+The management content differs by whether the referenced Sponsorship Menu requires submission. Examples:
 
 | Sponsorship Menu       | Management Content     |
 | ----------------------- | ----------------------- |
-| Pamphlet advertisement   | Submission management   |
-| Company booth            | Booth information management |
-| Website listing          | Listing confirmation    |
+| Pamphlet advertisement (requires submission) | Submission management |
+| Homepage banner advertisement (requires submission) | Submission management (banner artwork/logo) |
+| Company booth (no submission) | Booth information management |
 
 Each Contract Menu manages:
 
+* Quantity and unit price
 * Production method (when submission is required)
 * Progress
 * Google Drive folder
-* Assignee
 * Remarks
 
 ---
@@ -284,7 +283,7 @@ Some companies may decline sponsorship after receiving materials.
 
 # Contract Menu Workflow
 
-Once a Sponsorship Contract is confirmed, each Contract Menu is managed according to its Sponsorship Menu category.
+Once a Sponsorship Contract is confirmed, each Contract Menu is managed according to whether its Sponsorship Menu requires submission.
 
 ```text
 Contract
@@ -295,14 +294,14 @@ Progress management per contracted Sponsorship Menu
 Examples:
 
 * Pamphlet advertisement → Submission management
+* Homepage banner advertisement → Submission management (banner artwork/logo)
 * Company booth → Booth information management
-* Website listing → Listing confirmation
 
-For menus that require submission (e.g. advertisements), there are two production methods.
+For menus that require submission (e.g. advertisements, including web-based formats such as a homepage banner), there are two production methods. The company chooses between them when submitting the Google Forms application, and the choice determines what the company is expected to submit.
 
 ## Company Production
 
-The company creates the submission.
+The company creates and submits a finished, ready-to-use product (完成品) — e.g. the completed banner or advertisement artwork.
 
 The completed files are uploaded to Google Drive.
 
@@ -310,7 +309,9 @@ The completed files are uploaded to Google Drive.
 
 ## Internal Production
 
-The Sponsorship Menu Management Team requests production from another department.
+The company still submits something, but it is raw material (素材) — e.g. logo image, company text/copy — not a finished product.
+
+The Sponsorship Menu Management Team requests production from another department, which uses the submitted material to create the finished product.
 
 The request status is managed within AdAdd.
 
@@ -396,6 +397,8 @@ Submission files are stored in Google Drive.
 
 AdAdd stores metadata only.
 
+For goods sponsorship (物品協賛), the advertising given in exchange is an ordinary Contract Menu marked `isGoodsSponsorship`, with `unitPrice` set to `0`. This is a property of the individual Contract Menu, not the Sponsorship Menu — the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods description and estimated value are recorded in the Sponsorship Contract's remarks (contract-wide, not per menu), entered manually (never via Google Forms).
+
 ---
 
 ## Payment
@@ -443,6 +446,16 @@ Stores email communication.
 AdAdd does not synchronize email contents.
 
 Users can search historical emails using company names.
+
+---
+
+## Slack
+
+Used to notify the Sponsorship Members assigned to a company when relevant business events occur (e.g. a sponsorship application is received via Google Forms).
+
+Each User may have a linked Slack ID.
+
+AdAdd sends notifications to Slack. It does not read from Slack, and does not store Slack message contents.
 
 ---
 

@@ -225,18 +225,20 @@ Manage company master data.
 
 Display:
 
-| Information              |
-| ------------------------ |
-| Company name             |
-| Industry                 |
-| Contact information      |
-| Past sponsorship history |
+| Information                             |
+| ---------------------------------------- |
+| Company name                            |
+| Contact person (company-side)           |
+| Contact email or inquiry form            |
+| Phone number / address                  |
+| First sponsorship year                  |
 
 Actions:
 
 * Create company
 * Edit company
-* View history
+* View sponsorship history (past Yearly Companies)
+* Register the company into the active Year as a Yearly Company (per row, only shown when it isn't already registered for that Year) — the individual registration path noted in `spec/usecase.md` UC-01 Notes.
 
 ---
 
@@ -253,16 +255,19 @@ Display:
 | Information      |
 | ---------------- |
 | Company name     |
-| Continuation/New |
-| Priority         |
+| Company status (Continuing/New/Dormant) |
+| Sponsorship phase (Phase1/2/3) |
 | Assigned member  |
 | Progress         |
 
 Filters:
 
-* Company phase
+* Company status
+* Sponsorship phase
 * Assigned member
 * Contract status
+
+The Assigned Member column/edit currently surfaces and edits **one** primary assignee per Yearly Company (inline, cell-level, per Principle 4), even though `Assignment` is domain-modeled as 1:* (`spec/model.md#Assignment` — a Yearly Company may have multiple assigned members). Multi-assignee UI is deferred to a later iteration; this is a stated frontend scope simplification, not a change to the domain model.
 
 ---
 
@@ -420,7 +425,6 @@ Display:
 | Information         |
 | -------------------- |
 | Menu name           |
-| Category            |
 | Price               |
 | Submission required |
 | Active status       |
@@ -432,7 +436,6 @@ Display:
 Input:
 
 * Name
-* Category
 * Default price
 * Required submission
 * Description
@@ -505,6 +508,58 @@ Supported:
 
 ---
 
+# Year Management
+
+## Year List
+
+Purpose:
+
+Create and switch between festival years (UC-01). Actor: Company Management Team.
+
+Display:
+
+| Information         |
+| -------------------- |
+| Name (e.g. 2026)     |
+| Start date / End date |
+| Active (運用中)      |
+
+Actions:
+
+* Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before.
+
+Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year.
+
+---
+
+# System Administration
+
+## User List
+
+Purpose:
+
+Manage system users (UC-12). Actor: System Administrator.
+
+Display, one always-editable row per user (Principle 4):
+
+| Information  |
+| ------------ |
+| Student ID   |
+| Name         |
+| Email        |
+| Slack ID     |
+| Active       |
+
+Actions:
+
+* Add user (new row, mostly blank)
+* Edit any field inline
+* Disable / re-enable (Active toggle)
+
+Current scope covers user creation, listing, and activation/deactivation only. Role assignment (UC-12 step 2) is deferred until `Role` (`spec/model.md#Role`) has its own management UI — there is no role picker on this screen yet.
+
+---
+
 # Navigation Structure
 
 ```text
@@ -523,6 +578,10 @@ Sidebar
 ├── Finance
 │
 ├── Reports
+│
+├── Years
+│
+├── Users
 │
 └── Settings
 ```
@@ -570,6 +629,19 @@ Examples:
 * Progress changes
 * Assignment changes
 * Payment updates
+
+---
+
+## Principle 4: Editing Should Feel Like a Spreadsheet, Not a Form
+
+AdAdd replaces a spreadsheet-based workflow. If editing business data in AdAdd is harder than editing the spreadsheet was, people will keep using the spreadsheet instead.
+
+* Prefer inline, cell-level editing over full-page forms with a separate save step, for list/table screens (e.g. Yearly Company list).
+* New rows may be created mostly blank and filled in over time. Only validate the field(s) that would otherwise break data integrity (e.g. Company name uniqueness) — do not require an entire row to be complete before it can be saved.
+* Bulk initial data entry should go through Google Sheets Import (see `spec/api.md` → Google Sheets Import), not one-by-one UI entry.
+* Keep permission restrictions limited to what business rules actually require (see `spec/business.md` Organization, `spec/api.md` Authorization Matrix). Do not add new restrictions beyond documented business rules for the sake of caution.
+* Where a user can view a field but not edit it, show it (e.g. read-only/greyed out) rather than hiding it.
+* Rely on Activity Log (append-only, see `spec/domain.md` Rule 8) as the safety net for mistakes, instead of confirmation dialogs or overly cautious permission gates that slow down everyday editing.
 
 ---
 

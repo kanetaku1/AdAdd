@@ -35,7 +35,7 @@ Year
               └──── Activity Log
 ```
 
-A Sponsorship Menu is the yearly master definition of what can be sponsored (e.g. Pamphlet advertisement, Company booth, Website listing). A Contract Menu is the concrete instance a company actually contracted for, carrying its own progress, assignee, and Drive folder.
+A Sponsorship Menu is the yearly master definition of what can be sponsored (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth). A Contract Menu is the concrete instance a company actually contracted for, carrying its own progress, assignee, and Drive folder. A Contract Menu may be a goods-sponsorship return (`isGoodsSponsorship`) rather than a paid item — see Contract Menu → Goods Sponsorship below.
 
 ---
 
@@ -69,7 +69,7 @@ This is master data. It defines what can be sponsored, not what a specific compa
 
 ### Responsibilities
 
-* Menu category and name
+* Name
 * Default price
 * Whether submission/production is required
 * Whether the menu is currently offered
@@ -119,8 +119,8 @@ Every business process starts from a Yearly Company.
 
 * Sponsorship progress
 * Assigned members
-* Company classification
-* Priority
+* Company status (continuing / new / dormant)
+* Sponsorship phase (outreach priority ranking for the current Year)
 * Activity history
 * Sponsorship contracts
 
@@ -144,13 +144,12 @@ YearlyCompany
 
 Represents one sponsorship agreement.
 
-A Yearly Company may have multiple contracts.
+A Yearly Company has at most one contract (zero before it is created). A single company/organization is invoiced and receipted once per Year, even though the contract may bundle multiple Sponsorship Menus (via multiple Contract Menus).
 
 ### Responsibilities
 
 * Contract information
-* Sponsorship contents
-* Contract status
+* Sponsorship contents (Contract Menus)
 
 ### Relationships
 
@@ -168,14 +167,24 @@ Represents one Sponsorship Menu that a company has actually contracted for, as p
 
 A Contract Menu references exactly one Sponsorship Menu. A contract may contain multiple Contract Menus.
 
-The management content differs depending on the referenced Sponsorship Menu category (e.g. submission management for advertisements, booth information management for booths, listing confirmation for website listings).
+The management content differs depending on the referenced Sponsorship Menu's `requiresSubmission`: submission/production management when true (e.g. print advertisements, web-based formats such as a homepage banner), or none when false (e.g. company booth — booth logistics only).
+
+### Goods Sponsorship (物品協賛)
+
+A company may sponsor with goods/items instead of money. The festival provides advertising in exchange, equivalent to the value of the goods received.
+
+Goods sponsorship is **not** a Sponsorship Menu of its own — the same Sponsorship Menu (e.g. a Pamphlet ad) is contracted normally in some contracts and given as a goods-sponsorship return in others, so the distinction cannot live on the menu. It is a property of the individual Contract Menu:
+
+* `ContractMenu.isGoodsSponsorship` (boolean) marks that this specific line is provided free of charge as a return for goods received, rather than a paid item. When true, `unitPrice` is conventionally `0`.
+* The goods description and estimated value are recorded in `SponsorshipContract.remarks` (free text, contract-wide — not per Contract Menu) — this content is always entered manually, never imported from Google Forms (see `spec/usecase.md` UC-06).
+* A contract may mix ordinary paid Contract Menus and `isGoodsSponsorship` ones; `SponsorshipContract.totalAmount` still sums `quantity * unitPrice` across all of them, so goods-sponsorship-only contracts correctly total ¥0.
 
 ### Responsibilities
 
+* Quantity and unit price
 * Production method (when submission is required)
 * Progress status
 * Google Drive folder
-* Assignee
 
 ### Relationships
 
@@ -195,8 +204,7 @@ Represents payment information for a contract.
 
 * Amount
 * Payment status
-* Payment date
-* Confirmation
+* Confirmation (date and performer of the Finance Department's manual confirmation — see `spec/model.md#Payment`, `confirmedAt`/`confirmedById`)
 
 ### Relationships
 
@@ -275,13 +283,34 @@ User (Advisor)
 
 The following concepts are immutable values.
 
-## Company Classification
+## Company Status
+
+Represents the company's relationship history with the festival. Informed by past Company/YearlyCompany data.
 
 Examples:
 
 * Continuing
 * New
-* High Priority
+* Dormant
+
+When a Yearly Company is generated (UC-01, both the bulk per-Year generation and individual mid-cycle registration), `companyStatus` is computed automatically:
+
+* **Continuing** — the Company had a Yearly Company in the immediately preceding Year, and a Sponsorship Contract was created for it.
+* **New** — every other case, including a company that was contacted in a previous Year but never reached a contract.
+
+**Dormant is never auto-assigned at generation.** It is only ever set by a manual reclassification during UC-02 (e.g. the company could not be reached, or has gone out of business) — see the existing inline-editable `companyStatus` on the Yearly Company List (`spec/frontend.md`).
+
+---
+
+## Sponsorship Phase
+
+Represents the outreach priority ranking assigned to a Yearly Company by the Company Management Team during the Year preparation period (see UC-02). Independent of Company Status — a Continuing company and a New company can both be assigned any Sponsorship Phase.
+
+Examples:
+
+* Phase 1 (highest priority)
+* Phase 2
+* Phase 3
 
 ---
 
@@ -302,21 +331,20 @@ Typical values:
 
 ## Contract Menu Production Type
 
-Applies only when the referenced Sponsorship Menu requires submission.
+Applies only when the referenced Sponsorship Menu requires submission. The company chooses between these when submitting the Google Forms application, and the choice determines what the company submits — a finished product, or raw material for the committee to build from.
 
-* Company Production
-* Internal Production
+* Company Production — the company submits a finished, ready-to-use product (完成品).
+* Internal Production — the company submits raw material (素材, e.g. logo, text/copy), and the Sponsorship Menu Management Team has another department produce the finished product from it.
 
 ---
 
 ## Contract Menu Status
 
-Examples:
-
 * Waiting
 * Requested
-* In Progress
+* Producing
 * Completed
+* Submitted
 
 ---
 
@@ -401,26 +429,16 @@ A new Yearly Company is created every festival year.
 
 ## Sponsorship Contract
 
-```
-Draft
+A Sponsorship Contract is created only once an agreement is actually reached — there is no separate draft state to track on the contract itself. A contract may be created directly when an agreement is made outside Google Forms.
 
-↓
-
-Confirmed
-
-↓
-
-Completed
-```
-
-A contract may also be created directly when an agreement is made outside Google Forms.
+Overall progress toward completing the engagement (materials sent, invoice sent, payment received, receipt sent) is tracked on `YearlyCompany.progress`, not as a separate lifecycle on the contract.
 
 ---
 
 ## Contract Menu
 
 ```
-Created
+Waiting
 
 ↓
 
@@ -439,7 +457,9 @@ Completed
 Submitted
 ```
 
-For menus that do not require submission (e.g. booth, website listing), the lifecycle may skip directly from Created to Completed.
+For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Waiting to Completed.
+
+A homepage banner requires submission (`requiresSubmission = true`) — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 
 ---
 
@@ -529,7 +549,7 @@ A Sponsorship Menu never belongs to a specific Company or Contract.
 
 A Contract Menu belongs to exactly one Sponsorship Contract and references exactly one Sponsorship Menu.
 
-A Contract Menu must never duplicate attributes already defined on its Sponsorship Menu (e.g. category, default price).
+A Contract Menu must never duplicate attributes already defined on its Sponsorship Menu (e.g. name, default price).
 
 ---
 

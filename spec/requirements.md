@@ -106,7 +106,9 @@ The system shall allow users to:
 * Register contracts
 * Edit contracts
 * View contract history
-* Calculate contract totals
+* Calculate contract totals (sum of quantity × unit price across the contract's Contract Menus)
+* Assign a Sponsorship Member to the contract (shared by all Contract Menus under it — see `spec/model.md` → SponsorshipContract)
+* Support contracts whose content originates from manual entry rather than Google Forms (e.g. goods sponsorship — 物品協賛)
 
 ### Related Use Cases
 
@@ -128,11 +130,10 @@ Manage sponsorship menus, both as yearly master data and as concrete items contr
 
 The system shall provide:
 
-* Sponsorship Menu management (yearly master: category, name, default price, whether submission is required, whether currently offered)
-* Contract Menu management (the menus a company actually contracted for)
+* Sponsorship Menu management (yearly master: name, default price, whether submission is required, whether currently offered)
+* Contract Menu management (the menus a company actually contracted for, including quantity and unit price)
 * Production method selection (when submission is required)
-* Assignee management
-* Progress management, varying by menu category (e.g. submission management for advertisements, booth information management for booths, listing confirmation for website listings)
+* Progress management, varying by whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission)
 * Google Drive linkage
 
 ### Related Use Cases
@@ -208,6 +209,8 @@ The system shall support:
 * Role assignment
 * User activation
 * User deactivation
+
+Implementation status: registration, listing, and activation/deactivation are implemented (`/users`). Role assignment is not yet implemented — see `spec/usecase.md` UC-12 Notes.
 
 ### Related Use Cases
 
@@ -347,6 +350,59 @@ High
 
 ---
 
+## FR-014 Slack Notification
+
+### Purpose
+
+Notify the Sponsorship Member(s) assigned to a company when a sponsorship application is received, so they can respond promptly.
+
+### Description
+
+The system shall:
+
+* Allow a User to link their Slack ID
+* When a Sponsorship Contract is created or updated via Google Forms import, look up the Sponsorship Members assigned to the corresponding Yearly Company (via Assignment) and send them a Slack mention
+
+Slack is a notification target only. AdAdd does not read from Slack, and does not store Slack message contents.
+
+### Related Use Cases
+
+* UC-16
+
+### Priority
+
+Medium
+
+---
+
+## FR-015 Invoice and Receipt Generation
+
+### Purpose
+
+Reduce manual document creation by generating invoice and receipt PDFs directly from data already in AdAdd.
+
+### Description
+
+The system shall:
+
+* Allow a Sponsorship Member to generate an invoice (請求書) PDF from a Sponsorship Contract, on demand, pre-filled with the company's name/contact person, the contract's Contract Menus (name/quantity/unit price), and the total amount
+* Allow a Sponsorship Member to generate a receipt (領収書) PDF from a confirmed Payment, on demand, pre-filled with the company's name, the payment amount, and the payment confirmation date (`Payment.confirmedAt`)
+* Allow the pre-filled content to be edited before download (e.g. remarks, payment deadline)
+* Produce a downloadable PDF file — AdAdd does not send it; sending remains a manual step via Google Groups (see UC-17, UC-10)
+
+Generated documents are not persisted — each is produced fresh from the current Contract/Payment/Company data, and there is no stored Invoice/Receipt entity (see `spec/domain.md`).
+
+### Related Use Cases
+
+* UC-17
+* UC-10
+
+### Priority
+
+Medium
+
+---
+
 # Non-Functional Requirements
 
 ## NFR-001 Availability
@@ -406,6 +462,8 @@ Important business operations shall be traceable through Activity Logs.
 | Activity History     | UC-14                  |
 | User Management      | UC-12                  |
 | Advisor Assignment   | UC-03                  |
+| Slack Notification   | UC-16                  |
+| Invoice/Receipt Generation | UC-17, UC-10     |
 
 ---
 

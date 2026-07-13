@@ -59,20 +59,33 @@ Represents a company.
 
 ### Attributes
 
-| Name            | Type     |
-| --------------- | -------- |
-| id              | UUID     |
-| companyName     | string   |
-| companyNameKana | string   |
-| postalCode      | string   |
-| address         | string   |
-| phoneNumber     | string   |
-| website         | string   |
-| memo            | text     |
-| createdAt       | datetime |
-| updatedAt       | datetime |
+| Name                  | Type     |
+| --------------------- | -------- |
+| id                    | UUID     |
+| companyName           | string   |
+| companyNameKana       | string   |
+| postalCode            | string   |
+| address               | string   |
+| phoneNumber           | string   |
+| website               | string   |
+| contactPersonName     | string   |
+| contactEmailOrForm    | string   |
+| firstSponsorshipYear  | string   |
+| memo                  | text     |
+| createdAt             | datetime |
+| updatedAt             | datetime |
 
 A Company exists permanently.
+
+`contactPersonName` is the name of the company-side contact person, stored without honorific (e.g. 様) or job title — these are appended when generating outbound communication.
+
+`contactEmailOrForm` holds either the company's contact email address or an inquiry form URL, whichever the company provides.
+
+`firstSponsorshipYear` preserves the year the company first sponsored, including history that predates AdAdd (see `spec/database.md` → Preserve Historical Data). For companies onboarded after AdAdd went live, this is informational; it is not derived from `YearlyCompany` because it must also cover pre-system history.
+
+`memo` consolidates what the legacy spreadsheet tracked as separate 企業詳細 (company details), 備考 (remarks), and 以前の情報 (previous information) columns.
+
+A Company does not store a Slack ID. The Slack ID used for outreach notifications (see FR-014) belongs to the internal Sponsorship Member assigned via `Assignment`, not to the Company — see `User.slackId`.
 
 ---
 
@@ -84,19 +97,23 @@ This is the central model of AdAdd.
 
 ### Attributes
 
-| Name      | Type     |
-| --------- | -------- |
-| id        | UUID     |
-| yearId    | UUID     |
-| companyId | UUID     |
-| phase     | enum     |
-| priority  | enum     |
-| progress  | enum     |
-| notes     | text     |
-| createdAt | datetime |
-| updatedAt | datetime |
+| Name          | Type     |
+| ------------- | -------- |
+| id            | UUID     |
+| yearId        | UUID     |
+| companyId     | UUID     |
+| companyStatus | enum     |
+| phase         | enum     |
+| progress      | enum     |
+| notes         | text     |
+| createdAt     | datetime |
+| updatedAt     | datetime |
 
 YearlyCompany does not reference an Advisor. Advisors are assigned to Sponsorship Members via `AdvisorAssignment`.
+
+`companyStatus` (Continuing / New / Dormant) reflects the company's sponsorship history, independent of `phase`.
+
+`phase` (Phase1 / Phase2 / Phase3) is the outreach priority ranking set by the Company Management Team during the Year preparation period (see `spec/usecase.md` UC-02). It must never be confused with `companyStatus` — a company's history does not determine its phase.
 
 ---
 
@@ -110,14 +127,16 @@ Represents one sponsorship agreement.
 | --------------- | -------- |
 | id              | UUID     |
 | yearlyCompanyId | UUID     |
-| contractNumber  | string   |
 | contractDate    | date     |
-| confirmedAt     | datetime |
 | totalAmount     | decimal  |
 | assigneeId      | UUID     |
 | remarks         | text     |
 
 The assignee is scoped to the contract, not to individual Contract Menus. Every Contract Menu under a contract shares the same assignee.
+
+`assigneeId` is not entered when the contract is created. It is carried over from the Sponsorship Member already assigned to the Yearly Company (`Assignment`, decided earlier by the Company Management Team or an Advisor — see `spec/usecase.md` UC-04) — a contract never introduces a new assignment of its own.
+
+A `SponsorshipContract` record is only created once an agreement is actually reached (see `spec/usecase.md` UC-06) — there is no separate draft state, so no `status` field is needed here. `contractDate` is the single date the agreement was reached. Overall progress (including whether the engagement is fully wrapped up) is tracked on `YearlyCompany.progress`, not duplicated on the contract.
 
 ---
 
@@ -134,10 +153,11 @@ This is master data, managed independently of any company or contract.
 | id                 | UUID    |
 | yearId             | UUID    |
 | name               | string  |
-| category           | enum    |
 | defaultPrice       | decimal |
 | requiresSubmission | boolean |
 | isActive           | boolean |
+
+`requiresSubmission` alone determines the Contract Menu's management workflow (submission/production tracking vs. none) — there is no separate category field. A previous `category` (Advertisement/Booth) enum was removed because it never carried information beyond what `requiresSubmission` already expressed (see `spec/domain.md`).
 
 ---
 
@@ -152,6 +172,9 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 | id                | UUID     |
 | contractId        | UUID     |
 | sponsorshipMenuId | UUID     |
+| quantity          | integer  |
+| unitPrice         | decimal  |
+| isGoodsSponsorship | boolean |
 | productionType    | enum     |
 | status            | enum     |
 | driveFolderId     | string   |
@@ -161,22 +184,30 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 
 ContractMenu does not have its own assignee. The assignee belongs to the parent `SponsorshipContract`.
 
+`unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus.
+
+`isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
+
 ---
 
 ## Payment
 
-Represents payment information.
+Represents payment information for a contract's sponsorship amount.
 
 ### Attributes
 
-| Name        | Type     |
-| ----------- | -------- |
-| id          | UUID     |
-| contractId  | UUID     |
-| amount      | decimal  |
-| status      | enum     |
-| confirmedAt | datetime |
-| confirmedBy | UUID     |
+| Name          | Type     |
+| ------------- | -------- |
+| id            | UUID     |
+| contractId    | UUID     |
+| amount        | decimal  |
+| status        | enum     |
+| confirmedAt   | datetime |
+| confirmedById | UUID     |
+
+`confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with `SponsorshipContract.assigneeId`'s `xId`-suffixed foreign-key naming).
+
+`confirmedAt` is the **payment confirmation date** — the date the Finance Department confirmed the bank transfer in AdAdd (`spec/domain.md` → Payment), not necessarily the date the bank transfer itself occurred. It is set automatically to the day the status is changed to Confirmed; there is no separate "actual transfer date" field. This date is used when generating the receipt (`spec/usecase.md` UC-10 Send Receipt).
 
 ---
 
@@ -247,7 +278,10 @@ Represents a system user.
 | studentId | string  |
 | name      | string  |
 | email     | string  |
+| slackId   | string  |
 | isActive  | boolean |
+
+`slackId` is optional (a User may not have linked their Slack account). It is used to send notifications — see `spec/architecture.md` → External Services → Slack.
 
 ---
 
@@ -267,12 +301,23 @@ Represents system permissions.
 
 # Enumerations
 
-## CompanyPhase
+## CompanyStatus
+
+The company's relationship history with the festival. Applies to `YearlyCompany.companyStatus`.
 
 * Continuing
 * New
 * Dormant
-* Priority
+
+---
+
+## SponsorshipPhase
+
+The outreach priority ranking for a Yearly Company within the current Year, set by the Company Management Team during the preparation period. Applies to `YearlyCompany.phase`. Independent of `CompanyStatus`.
+
+* Phase1
+* Phase2
+* Phase3
 
 ---
 
@@ -289,20 +334,12 @@ Represents system permissions.
 
 ---
 
-## SponsorshipMenuCategory
-
-* Advertisement
-* Booth
-* WebListing
-
----
-
 ## ContractMenuProductionType
 
-Applies only when the referenced Sponsorship Menu has `requiresSubmission = true`.
+Applies only when the referenced Sponsorship Menu has `requiresSubmission = true`. Chosen by the company on the Google Forms application; determines whether the company's submission is a finished product or raw material (see `spec/business.md` → Contract Menu Production Type).
 
-* Company
-* Internal
+* Company — company submits a finished product (完成品)
+* Internal — company submits raw material (素材) for the committee to produce from
 
 ---
 
@@ -385,14 +422,10 @@ SponsorshipContract
 
 ```
 SponsorshipContract
-
-1 ----- *
-
-ContractMenu
-
-1 ----- *
-
-Payment
+      │
+      ├── ContractMenu (1 ----- *)
+      │
+      └── Payment (1 ----- *)
 ```
 
 ---
@@ -465,6 +498,7 @@ AdvisorAssignment (as Member)
 ## SponsorshipContract
 
 * Every contract belongs to one Yearly Company.
+* A Yearly Company has at most one contract — `yearlyCompanyId` is unique on `SponsorshipContract`.
 * `assigneeId` is set on the contract, not on individual Contract Menus.
 
 ---
@@ -487,6 +521,7 @@ AdvisorAssignment (as Member)
 ## Payment
 
 * Every payment belongs to one contract.
+* A Sponsorship Contract has at most one Payment — `contractId` is unique on `Payment` (no split/installment payments).
 
 ---
 
@@ -516,5 +551,6 @@ Possible extensions include:
 * Printing schedules
 * Email synchronization
 * Accounting integration
+* Automatic address/postal code validation on Company entry (the legacy spreadsheet performed this with a formula-based AI function; not a stored field, and not yet implemented in AdAdd)
 
 These extensions should reference existing entities rather than introducing duplicate business concepts.

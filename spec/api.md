@@ -114,7 +114,26 @@ Query:
 | Parameter | Description          |
 | --------- | -------------------- |
 | keyword   | Company name search  |
-| phase     | Company phase filter |
+
+Company status and sponsorship phase are per-Year attributes of `YearlyCompany`, not `Company` — filter by them via `GET /years/{yearId}/companies` instead.
+
+Example response item:
+
+```json
+{
+  "id": "company_id",
+  "companyName": "株式会社長岡テクノ",
+  "companyNameKana": "ナガオカテクノ",
+  "postalCode": "940-2188",
+  "address": "新潟県長岡市上富岡町1603-1",
+  "phoneNumber": "0258-00-0000",
+  "website": "https://example.com",
+  "contactPersonName": "山田太郎",
+  "contactEmailOrForm": "yamada@example.com",
+  "firstSponsorshipYear": "2015",
+  "memo": ""
+}
+```
 
 ---
 
@@ -154,10 +173,11 @@ GET /years/{yearId}/companies
 
 Query:
 
-| Parameter | Description            |
-| --------- | ----------------------- |
-| phase     | Company classification  |
-| assignee  | Sponsorship member      |
+| Parameter     | Description                              |
+| ------------- | ----------------------------------------- |
+| companyStatus | Company relationship history              |
+| phase         | Sponsorship outreach priority (this Year)  |
+| assignee      | Sponsorship member                         |
 
 ---
 
@@ -171,9 +191,27 @@ POST /years/{yearId}/companies
 
 ---
 
-## Update Company Phase
+## Update Company Status
 
-Updates company classification.
+Updates the company's relationship history classification.
+
+```
+PATCH /yearly-companies/{yearlyCompanyId}/company-status
+```
+
+Example:
+
+```json
+{
+  "companyStatus": "CONTINUING"
+}
+```
+
+---
+
+## Update Sponsorship Phase
+
+Updates the outreach priority ranking for the current Year (see UC-02).
 
 ```
 PATCH /yearly-companies/{yearlyCompanyId}/phase
@@ -183,7 +221,7 @@ Example:
 
 ```json
 {
-  "phase": "CONTINUING"
+  "phase": "PHASE_1"
 }
 ```
 
@@ -262,10 +300,23 @@ GET /users/{userId}/advisor-members
 
 ## Get Contract
 
-Returns sponsorship contract information.
+Returns sponsorship contract information. A Yearly Company has at most one contract.
 
 ```
 GET /yearly-companies/{id}/contract
+```
+
+Example response:
+
+```json
+{
+  "id": "contract_id",
+  "yearlyCompanyId": "yearly_company_id",
+  "contractDate": "2026-06-01",
+  "totalAmount": 100000,
+  "assigneeId": "user_id",
+  "remarks": ""
+}
 ```
 
 ---
@@ -312,7 +363,7 @@ Example response:
   {
     "id": "menu_id",
     "name": "パンフレット広告1P",
-    "category": "PRINT",
+    "requiresSubmission": true,
     "defaultPrice": 80000
   }
 ]
@@ -343,6 +394,32 @@ PATCH /sponsorship-menus/{menuId}
 ---
 
 # Contract Menu API
+
+## List Contract Menus
+
+Returns the Contract Menus belonging to a contract.
+
+```
+GET /contracts/{contractId}/menus
+```
+
+Example response:
+
+```json
+[
+  {
+    "id": "contract_menu_id",
+    "sponsorshipMenuId": "menu_id",
+    "quantity": 1,
+    "unitPrice": 80000,
+    "productionType": "COMPANY",
+    "status": "WAITING",
+    "driveUrl": null
+  }
+]
+```
+
+---
 
 ## Add Contract Menu
 
@@ -410,6 +487,19 @@ Request:
 GET /contracts/{contractId}/payment
 ```
 
+Example response:
+
+```json
+{
+  "id": "payment_id",
+  "contractId": "contract_id",
+  "amount": 100000,
+  "status": "WAITING",
+  "confirmedAt": null,
+  "confirmedById": null
+}
+```
+
 ---
 
 ## Update Payment Status
@@ -422,12 +512,13 @@ Permission:
 
 * Finance Department
 
+Confirms a payment once the Finance Department has verified the bank transfer (see `spec/usecase.md` UC-09). `confirmedAt`/`confirmedById` are set server-side from the authenticated user and current timestamp — not part of the request body.
+
 Example:
 
 ```json
 {
-  "status": "PAID",
-  "paidAt": "2026-08-01"
+  "status": "CONFIRMED"
 }
 ```
 
@@ -479,6 +570,8 @@ API
 SponsorshipContract
       ↓
 ContractMenu
+      ↓
+Slack notification to assigned Sponsorship Member(s) (see FR-014, UC-16)
 ```
 
 ---
@@ -578,6 +671,7 @@ Potential future APIs:
 
 * Gmail communication history integration
 * Automatic bank transfer confirmation
-* PDF generation
 * Dashboard analytics
 * CSV export
+
+Invoice/Receipt PDF generation (FR-015, UC-17, UC-10) needs no new API endpoint — it is generated client-side from data already returned by the existing Sponsorship Contract / Contract Menu / Payment / Company GET endpoints above.

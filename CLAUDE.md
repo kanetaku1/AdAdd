@@ -122,7 +122,7 @@ Business progress belongs to the Yearly Company.
 
 A contract belongs to a Yearly Company.
 
-A Yearly Company may have zero or multiple contracts.
+A Yearly Company has at most one contract (zero before it is created). Multiple Sponsorship Menus may be bundled into that single contract — the company/organization is invoiced and receipted once per Year, not once per menu.
 
 A company may be contacted without creating a contract.
 
@@ -130,7 +130,9 @@ A company may be contacted without creating a contract.
 
 ## Sponsorship Menu
 
-A Sponsorship Menu is master data defined per festival Year (e.g. Pamphlet advertisement, Company booth, Website listing).
+A Sponsorship Menu is master data defined per festival Year (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth).
+
+A Contract Menu may be a goods sponsorship (物品協賛) return — the company sponsors with goods instead of money, and the advertising given in exchange is marked `isGoodsSponsorship` with `unitPrice = 0`. This is a property of the Contract Menu, not the Sponsorship Menu (see `spec/domain.md`).
 
 A Sponsorship Menu never belongs to a specific company or contract.
 
@@ -185,14 +187,16 @@ The system manages:
 * Payments
 * Activity Logs
 * Permissions
+* Invoice and Receipt PDF generation (on-demand, from existing Contract/Payment data — see FR-015)
 
 The system does NOT manage:
 
 * Email delivery
 * Advertisement creation
-* PDF generation
 * AI assistant
 * Accounting
+
+Invoice/Receipt PDF generation is a narrow exception to "no PDF generation": it produces a downloadable document from data already in AdAdd, on demand, for the user to send manually (e.g. via Google Groups). It does not generate advertisement artwork, and AdAdd does not send the document itself.
 
 ---
 
