@@ -20,10 +20,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { AssignedMemberCell } from "@/components/assigned-member-cell"
+import { EditableProgressBadge } from "@/components/editable-progress-badge"
+import { advisorIdForMember } from "@/lib/mock/advisor-assignments"
 import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
 import {
   mockYearlyCompanies,
   updateAssignedMember,
+  updateProgress,
 } from "@/lib/mock/yearly-companies"
 import { mockUsers } from "@/lib/mock/users"
 import { getActiveYearId, mockYears } from "@/lib/mock/years"
@@ -36,34 +41,43 @@ import {
 import type {
   CompanyStatus,
   SponsorshipPhase,
+  SponsorshipProgress,
   YearlyCompany,
 } from "@/types/yearly-company"
 
 const ALL = "ALL" as const
 const UNASSIGNED = "UNASSIGNED" as const
 
-type EditableColumn = "companyStatus" | "phase" | "assignedMember"
+type EditableColumn = "companyStatus" | "phase"
 
 /**
  * Yearly Company List (spec/frontend.md#Yearly Company Management).
  *
- * companyStatus/phase are inline-editable (spec/frontend.md UI Principle 4):
- * click a cell to change its value via a dropdown, in place.
+ * companyStatus/phase/progress are inline-editable (spec/frontend.md UI
+ * Principle 4): click a cell to change its value via a dropdown, in place.
+ * assignedMember uses the shared AssignedMemberCell instead (also
+ * click-to-edit, but persists via updateAssignedMember).
  *
  * TODO: replace mockYearlyCompanies with GET /years/{yearId}/companies, and
- * wire cell edits to PATCH /yearly-companies/{id}/company-status and
- * .../phase, once the backend endpoints exist (spec/api.md).
+ * wire cell edits to PATCH /yearly-companies/{id}/company-status,
+ * .../phase, and .../progress, once the backend endpoints exist (spec/api.md).
  */
 export default function YearlyCompaniesPage() {
   const activeYearId = getActiveYearId()
   const activeYearName = mockYears.find((y) => y.id === activeYearId)?.name
   const [rows, setRows] = useState<YearlyCompany[]>(mockYearlyCompanies)
+  const [nameQuery, setNameQuery] = useState("")
   const [companyStatusFilter, setCompanyStatusFilter] = useState<
     CompanyStatus | typeof ALL
   >(ALL)
   const [phaseFilter, setPhaseFilter] = useState<SponsorshipPhase | typeof ALL>(
     ALL
   )
+  const [memberFilter, setMemberFilter] = useState<string | typeof ALL>(ALL)
+  const [advisorFilter, setAdvisorFilter] = useState<string | typeof ALL>(ALL)
+  const [progressFilter, setProgressFilter] = useState<
+    SponsorshipProgress | typeof ALL
+  >(ALL)
   const [editingCell, setEditingCell] = useState<{
     id: string
     column: EditableColumn
@@ -74,11 +88,42 @@ export default function YearlyCompaniesPage() {
       rows.filter(
         (yc) =>
           yc.yearId === activeYearId &&
+          (nameQuery.trim()
+            ? yc.companyName
+                .toLowerCase()
+                .includes(nameQuery.trim().toLowerCase())
+            : true) &&
           (companyStatusFilter === ALL ||
             yc.companyStatus === companyStatusFilter) &&
-          (phaseFilter === ALL || yc.phase === phaseFilter)
+          (phaseFilter === ALL || yc.phase === phaseFilter) &&
+          (memberFilter === ALL
+            ? true
+            : memberFilter === UNASSIGNED
+              ? !yc.assignedMemberId
+              : yc.assignedMemberId === memberFilter) &&
+          (advisorFilter === ALL
+            ? true
+            : (() => {
+                const advisorId = advisorIdForMember(
+                  yc.yearId,
+                  yc.assignedMemberId
+                )
+                return advisorFilter === UNASSIGNED
+                  ? !advisorId
+                  : advisorId === advisorFilter
+              })()) &&
+          (progressFilter === ALL || yc.progress === progressFilter)
       ),
-    [rows, activeYearId, companyStatusFilter, phaseFilter]
+    [
+      rows,
+      activeYearId,
+      nameQuery,
+      companyStatusFilter,
+      phaseFilter,
+      memberFilter,
+      advisorFilter,
+      progressFilter,
+    ]
   )
 
   function setCompanyStatus(id: string, value: CompanyStatus) {
@@ -109,6 +154,13 @@ export default function YearlyCompaniesPage() {
     )
   }
 
+  function setProgress(id: string, value: SponsorshipProgress) {
+    updateProgress(id, value)
+    setRows((prev) =>
+      prev.map((yc) => (yc.id === id ? { ...yc, progress: value } : yc))
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -119,11 +171,19 @@ export default function YearlyCompaniesPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="企業名で検索"
+          value={nameQuery}
+          onChange={(e) => setNameQuery(e.target.value)}
+          className="max-w-56"
+        />
+
         <Select
           value={companyStatusFilter}
           onValueChange={(value) =>
             setCompanyStatusFilter(value as CompanyStatus | typeof ALL)
           }
+          items={{ [ALL]: "すべてのステータス", ...COMPANY_STATUS_LABEL }}
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="企業ステータス" />
@@ -143,6 +203,7 @@ export default function YearlyCompaniesPage() {
           onValueChange={(value) =>
             setPhaseFilter(value as SponsorshipPhase | typeof ALL)
           }
+          items={{ [ALL]: "すべてのフェーズ", ...SPONSORSHIP_PHASE_LABEL }}
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="フェーズ" />
@@ -157,9 +218,73 @@ export default function YearlyCompaniesPage() {
           </SelectContent>
         </Select>
 
-        <p className="text-xs text-muted-foreground">
-          ステータス・フェーズはクリックで編集できます
-        </p>
+        <Select
+          value={memberFilter}
+          onValueChange={(value) => setMemberFilter(value ?? ALL)}
+          items={{
+            [ALL]: "すべての担当メンバー",
+            [UNASSIGNED]: "未割当",
+            ...Object.fromEntries(mockUsers.map((u) => [u.id, u.name])),
+          }}
+        >
+          <SelectTrigger size="sm">
+            <SelectValue placeholder="担当メンバー" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>すべての担当メンバー</SelectItem>
+            <SelectItem value={UNASSIGNED}>未割当</SelectItem>
+            {mockUsers.map((u) => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={advisorFilter}
+          onValueChange={(value) => setAdvisorFilter(value ?? ALL)}
+          items={{
+            [ALL]: "すべてのアドバイザー",
+            [UNASSIGNED]: "未設定",
+            ...Object.fromEntries(mockUsers.map((u) => [u.id, u.name])),
+          }}
+        >
+          <SelectTrigger size="sm">
+            <SelectValue placeholder="アドバイザー" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>すべてのアドバイザー</SelectItem>
+            <SelectItem value={UNASSIGNED}>未設定</SelectItem>
+            {mockUsers.map((u) => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={progressFilter}
+          onValueChange={(value) =>
+            setProgressFilter(value as SponsorshipProgress | typeof ALL)
+          }
+          items={{ [ALL]: "すべての進捗", ...SPONSORSHIP_PROGRESS_LABEL }}
+        >
+          <SelectTrigger size="sm">
+            <SelectValue placeholder="進捗" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>すべての進捗</SelectItem>
+            {Object.entries(SPONSORSHIP_PROGRESS_LABEL).map(
+              ([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              )
+            )}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-md border">
@@ -270,54 +395,17 @@ export default function YearlyCompaniesPage() {
                 </TableCell>
 
                 <TableCell className="rounded">
-                  {editingCell?.id === yc.id &&
-                  editingCell.column === "assignedMember" ? (
-                    <Select
-                      value={yc.assignedMemberId ?? UNASSIGNED}
-                      defaultOpen
-                      onValueChange={(value) => {
-                        setAssignedMember(
-                          yc.id,
-                          value === UNASSIGNED ? null : value
-                        )
-                        setEditingCell(null)
-                      }}
-                      onOpenChange={(open) => {
-                        if (!open) setEditingCell(null)
-                      }}
-                    >
-                      <SelectTrigger size="sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={UNASSIGNED}>未割当</SelectItem>
-                        {mockUsers
-                          .filter(
-                            (u) => u.isActive || u.id === yc.assignedMemberId
-                          )
-                          .map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="cursor-pointer"
-                      onClick={() =>
-                        setEditingCell({ id: yc.id, column: "assignedMember" })
-                      }
-                    >
-                      {yc.assignedMemberName ?? "未割当"}
-                    </Badge>
-                  )}
+                  <AssignedMemberCell
+                    assignedMemberId={yc.assignedMemberId}
+                    assignedMemberName={yc.assignedMemberName}
+                    onChange={(userId) => setAssignedMember(yc.id, userId)}
+                  />
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">
-                    {SPONSORSHIP_PROGRESS_LABEL[yc.progress]}
-                  </Badge>
+                  <EditableProgressBadge
+                    value={yc.progress}
+                    onChange={(value) => setProgress(yc.id, value)}
+                  />
                 </TableCell>
                 <TableCell className="text-right">
                   {!hasContract && (

@@ -233,6 +233,10 @@ Display:
 | Phone number / address                  |
 | First sponsorship year                  |
 
+Filters:
+
+* Company name (search, substring match)
+
 Actions:
 
 * Create company
@@ -262,10 +266,13 @@ Display:
 
 Filters:
 
+* Company name (search, substring match)
 * Company status
 * Sponsorship phase
-* Assigned member
-* Contract status
+* Assigned member (FR-010)
+* Advisor (FR-010; derived from the assigned member's `AdvisorAssignment` for the active Year)
+* Sponsorship Progress (FR-010)
+* Contract status (not yet implemented)
 
 The Assigned Member column/edit currently surfaces and edits **one** primary assignee per Yearly Company (inline, cell-level, per Principle 4), even though `Assignment` is domain-modeled as 1:* (`spec/model.md#Assignment` — a Yearly Company may have multiple assigned members). Multi-assignee UI is deferred to a later iteration; this is a stated frontend scope simplification, not a change to the domain model.
 
@@ -383,6 +390,13 @@ Display:
 | Production type |
 | Status          |
 | Drive URL       |
+
+Filters:
+
+* Company name (search, substring match)
+* Sponsorship Menu
+* Status
+* Production type
 
 ---
 

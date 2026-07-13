@@ -1,6 +1,6 @@
 import { mockCompanies } from "@/lib/mock/companies"
 import { mockUsers } from "@/lib/mock/users"
-import type { YearlyCompany } from "@/types/yearly-company"
+import type { SponsorshipProgress, YearlyCompany } from "@/types/yearly-company"
 
 function companyName(companyId: string): string {
   const company = mockCompanies.find((c) => c.id === companyId)
@@ -105,5 +105,24 @@ export function updateAssignedMember(
   if (yearlyCompany) {
     yearlyCompany.assignedMemberId = userId
     yearlyCompany.assignedMemberName = memberName(userId)
+  }
+}
+
+/**
+ * Mutates the shared mock array so a progress change persists for the rest
+ * of the browser session (spec/domain.md — Sponsorship progress belongs to
+ * the Yearly Company).
+ * TODO: replace with PATCH /yearly-companies/{id}/progress once the backend
+ * exists (spec/api.md).
+ */
+export function updateProgress(
+  yearlyCompanyId: string,
+  progress: SponsorshipProgress
+): void {
+  const yearlyCompany = mockYearlyCompanies.find(
+    (yc) => yc.id === yearlyCompanyId
+  )
+  if (yearlyCompany) {
+    yearlyCompany.progress = progress
   }
 }

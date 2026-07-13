@@ -61,6 +61,8 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
 export default function ContractMenusPage() {
   const [contractMenus, setContractMenus] =
     useState<ContractMenu[]>(mockContractMenus)
+  const [companyNameQuery, setCompanyNameQuery] = useState("")
+  const [menuFilter, setMenuFilter] = useState<string | typeof ALL>(ALL)
   const [statusFilter, setStatusFilter] = useState<
     ContractMenuStatus | typeof ALL
   >(ALL)
@@ -74,12 +76,25 @@ export default function ContractMenusPage() {
     )
   }
 
-  const visibleContractMenus = contractMenus.filter(
-    (cm) =>
+  const visibleContractMenus = contractMenus.filter((cm) => {
+    const contract = mockSponsorshipContracts.find(
+      (c) => c.id === cm.contractId
+    )
+    const yearlyCompany = mockYearlyCompanies.find(
+      (yc) => yc.id === contract?.yearlyCompanyId
+    )
+    return (
+      (menuFilter === ALL || cm.sponsorshipMenuId === menuFilter) &&
       (statusFilter === ALL || cm.status === statusFilter) &&
       (productionTypeFilter === ALL ||
-        cm.productionType === productionTypeFilter)
-  )
+        cm.productionType === productionTypeFilter) &&
+      (companyNameQuery.trim()
+        ? yearlyCompany?.companyName
+            .toLowerCase()
+            .includes(companyNameQuery.trim().toLowerCase())
+        : true)
+    )
+  })
 
   return (
     <div className="flex flex-col gap-4">
@@ -91,11 +106,42 @@ export default function ContractMenusPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="企業名で検索"
+          value={companyNameQuery}
+          onChange={(e) => setCompanyNameQuery(e.target.value)}
+          className="max-w-56"
+        />
+
+        <Select
+          value={menuFilter}
+          onValueChange={(value) => setMenuFilter(value ?? ALL)}
+          items={{
+            [ALL]: "すべてのメニュー",
+            ...Object.fromEntries(
+              mockSponsorshipMenus.map((m) => [m.id, m.name])
+            ),
+          }}
+        >
+          <SelectTrigger size="sm">
+            <SelectValue placeholder="メニュー" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>すべてのメニュー</SelectItem>
+            {mockSponsorshipMenus.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select
           value={statusFilter}
           onValueChange={(value) =>
             setStatusFilter(value as ContractMenuStatus | typeof ALL)
           }
+          items={{ [ALL]: "すべてのステータス", ...CONTRACT_MENU_STATUS_LABEL }}
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="ステータス" />
@@ -119,6 +165,10 @@ export default function ContractMenusPage() {
               value as ContractMenuProductionType | typeof ALL
             )
           }
+          items={{
+            [ALL]: "すべての制作者",
+            ...CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
+          }}
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="制作者" />
@@ -191,6 +241,7 @@ export default function ContractMenusPage() {
                             productionType: value as ContractMenuProductionType,
                           })
                         }
+                        items={CONTRACT_MENU_PRODUCTION_TYPE_LABEL}
                       >
                         <SelectTrigger size="sm">
                           <SelectValue />

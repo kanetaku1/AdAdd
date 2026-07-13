@@ -60,7 +60,13 @@ export function ContractMenuItemFields({
     <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
       <div className="flex min-w-48 flex-col gap-1">
         <label className="text-xs text-muted-foreground">メニュー</label>
-        <Select value={value.sponsorshipMenuId} onValueChange={handleMenuChange}>
+        <Select
+          value={value.sponsorshipMenuId}
+          onValueChange={handleMenuChange}
+          items={Object.fromEntries(
+            mockSponsorshipMenus.map((m) => [m.id, m.name])
+          )}
+        >
           <SelectTrigger size="sm">
             <SelectValue placeholder="メニューを選択" />
           </SelectTrigger>
@@ -106,6 +112,7 @@ export function ContractMenuItemFields({
             onValueChange={(v) =>
               onChange({ productionType: v as ContractMenuProductionType })
             }
+            items={CONTRACT_MENU_PRODUCTION_TYPE_LABEL}
           >
             <SelectTrigger size="sm">
               <SelectValue />
