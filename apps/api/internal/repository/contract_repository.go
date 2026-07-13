@@ -19,4 +19,11 @@ func (r *ContractRepository) GetByYearlyCompanyID(yearlyCompanyId string) (*mode
 
 func (r *ContractRepository) Create(c *model.SponsorshipContract) error { return db.DB.Create(c).Error }
 
-func (r *ContractRepository) Update(c *model.SponsorshipContract) error { return db.DB.Save(c).Error }
+func (r *ContractRepository) Update(c *model.SponsorshipContract) error {
+	// preserve existing CreatedAt to avoid writing zero DATETIME
+	var existing model.SponsorshipContract
+	if err := db.DB.First(&existing, "id = ?", c.ID).Error; err == nil {
+		c.CreatedAt = existing.CreatedAt
+	}
+	return db.DB.Save(c).Error
+}

@@ -22,6 +22,11 @@ func (r *SponsorshipMenuRepository) Create(m *model.SponsorshipMenu) error {
 }
 
 func (r *SponsorshipMenuRepository) Update(m *model.SponsorshipMenu) error {
+	// preserve existing CreatedAt to avoid writing zero DATETIME
+	var existing model.SponsorshipMenu
+	if err := db.DB.First(&existing, "id = ?", m.ID).Error; err == nil {
+		m.CreatedAt = existing.CreatedAt
+	}
 	return db.DB.Save(m).Error
 }
 

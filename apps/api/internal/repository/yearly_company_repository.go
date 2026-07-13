@@ -30,5 +30,10 @@ func (r *YearlyCompanyRepository) GetByID(id string) (*model.YearlyCompany, erro
 }
 
 func (r *YearlyCompanyRepository) Update(yc *model.YearlyCompany) error {
+	// preserve existing CreatedAt to avoid writing zero DATETIME
+	var existing model.YearlyCompany
+	if err := db.DB.First(&existing, "id = ?", yc.ID).Error; err == nil {
+		yc.CreatedAt = existing.CreatedAt
+	}
 	return db.DB.Save(yc).Error
 }

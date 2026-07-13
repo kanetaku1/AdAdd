@@ -38,6 +38,8 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 			return err
 		}
 		wasSubmitted := existing.Status == "SUBMITTED"
+		// preserve created_at from existing to avoid zero-datetime issues
+		m.CreatedAt = existing.CreatedAt
 		if err := tx.Save(m).Error; err != nil {
 			return err
 		}
