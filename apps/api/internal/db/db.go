@@ -25,3 +25,13 @@ func Init(cfg *config.Config) {
 	DB = db
 	log.Println("database connection established")
 }
+
+// WithTx runs fn inside a database transaction and returns its error if any.
+// This helper centralizes transaction handling so service-layer operations can
+// perform multiple DB writes atomically without exposing *gorm.DB across all repositories.
+func WithTx(fn func(tx *gorm.DB) error) error {
+	if DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return DB.Transaction(fn)
+}
