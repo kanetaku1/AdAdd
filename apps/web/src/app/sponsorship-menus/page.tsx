@@ -14,14 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
+import { getActiveYearId, mockYears } from "@/lib/mock/years"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
-
-const CURRENT_YEAR_ID = "year_2026"
 
 function emptyMenu(): SponsorshipMenu {
   return {
     id: crypto.randomUUID(),
-    yearId: CURRENT_YEAR_ID,
+    yearId: getActiveYearId() ?? "",
     name: "",
     defaultPrice: 0,
     requiresSubmission: false,
@@ -41,7 +40,11 @@ function emptyMenu(): SponsorshipMenu {
  * backend endpoints exist (spec/api.md).
  */
 export default function SponsorshipMenusPage() {
-  const [menus, setMenus] = useState<SponsorshipMenu[]>(mockSponsorshipMenus)
+  const activeYearId = getActiveYearId()
+  const activeYearName = mockYears.find((y) => y.id === activeYearId)?.name
+  const [menus, setMenus] = useState<SponsorshipMenu[]>(
+    mockSponsorshipMenus.filter((menu) => menu.yearId === activeYearId)
+  )
 
   function updateMenu(id: string, patch: Partial<SponsorshipMenu>) {
     setMenus((prev) =>
@@ -58,7 +61,9 @@ export default function SponsorshipMenusPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Sponsorship Menus</h1>
-          <p className="text-muted-foreground">2026年度 協賛メニューマスタ</p>
+          <p className="text-muted-foreground">
+            {activeYearName ?? ""}年度 協賛メニューマスタ
+          </p>
         </div>
         <Button onClick={addMenu}>行を追加</Button>
       </div>

@@ -293,6 +293,13 @@ Examples:
 * New
 * Dormant
 
+When a Yearly Company is generated (UC-01, both the bulk per-Year generation and individual mid-cycle registration), `companyStatus` is computed automatically:
+
+* **Continuing** — the Company had a Yearly Company in the immediately preceding Year, and a Sponsorship Contract was created for it.
+* **New** — every other case, including a company that was contacted in a previous Year but never reached a contract.
+
+**Dormant is never auto-assigned at generation.** It is only ever set by a manual reclassification during UC-02 (e.g. the company could not be reached, or has gone out of business) — see the existing inline-editable `companyStatus` on the Yearly Company List (`spec/frontend.md`).
+
 ---
 
 ## Sponsorship Phase

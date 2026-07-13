@@ -8,7 +8,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { RegisterYearlyCompanyButton } from "@/components/register-yearly-company-button"
 import { mockCompanies } from "@/lib/mock/companies"
+import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
+import { getActiveYearId, mockYears } from "@/lib/mock/years"
 
 /**
  * Company List (spec/frontend.md#Company Management).
@@ -16,6 +19,9 @@ import { mockCompanies } from "@/lib/mock/companies"
  * TODO: replace mockCompanies with GET /companies once the backend endpoint exists (spec/api.md).
  */
 export default function CompaniesPage() {
+  const activeYearId = getActiveYearId()
+  const activeYear = mockYears.find((y) => y.id === activeYearId)
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -79,13 +85,27 @@ export default function CompaniesPage() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    render={<Link href={`/companies/${company.id}`} />}
-                  >
-                    編集
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    {activeYear && (
+                      <RegisterYearlyCompanyButton
+                        companyId={company.id}
+                        yearId={activeYear.id}
+                        yearName={activeYear.name}
+                        initiallyRegistered={mockYearlyCompanies.some(
+                          (yc) =>
+                            yc.companyId === company.id &&
+                            yc.yearId === activeYear.id
+                        )}
+                      />
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      render={<Link href={`/companies/${company.id}`} />}
+                    >
+                      編集
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

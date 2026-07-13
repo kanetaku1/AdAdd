@@ -45,6 +45,12 @@ Create a new festival year.
 
 The new festival year becomes available.
 
+## Notes
+
+Step 3–4's Yearly Company generation computes `companyStatus` automatically — see `spec/domain.md` → Company Status for the exact rule (Continuing/New; Dormant is always a later manual reclassification, never generated here).
+
+Yearly Company creation also happens **individually**, outside this bulk flow, for a company discovered mid-cycle after a Year already exists (see `spec/frontend.md` → Company List — the same underlying operation as step 4, invoked once for a single Company instead of for every Company).
+
 ---
 
 # UC-02 Classify Companies

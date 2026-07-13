@@ -238,6 +238,7 @@ Actions:
 * Create company
 * Edit company
 * View sponsorship history (past Yearly Companies)
+* Register the company into the active Year as a Yearly Company (per row, only shown when it isn't already registered for that Year) — the individual registration path noted in `spec/usecase.md` UC-01 Notes.
 
 ---
 
@@ -507,6 +508,30 @@ Supported:
 
 ---
 
+# Year Management
+
+## Year List
+
+Purpose:
+
+Create and switch between festival years (UC-01). Actor: Company Management Team.
+
+Display:
+
+| Information         |
+| -------------------- |
+| Name (e.g. 2026)     |
+| Start date / End date |
+| Active (運用中)      |
+
+Actions:
+
+* Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before.
+
+Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year.
+
+---
+
 # System Administration
 
 ## User List
@@ -553,6 +578,8 @@ Sidebar
 ├── Finance
 │
 ├── Reports
+│
+├── Years
 │
 ├── Users
 │

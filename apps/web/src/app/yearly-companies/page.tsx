@@ -26,6 +26,7 @@ import {
   updateAssignedMember,
 } from "@/lib/mock/yearly-companies"
 import { mockUsers } from "@/lib/mock/users"
+import { getActiveYearId, mockYears } from "@/lib/mock/years"
 import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_BADGE_VARIANT,
@@ -54,6 +55,8 @@ type EditableColumn = "companyStatus" | "phase" | "assignedMember"
  * .../phase, once the backend endpoints exist (spec/api.md).
  */
 export default function YearlyCompaniesPage() {
+  const activeYearId = getActiveYearId()
+  const activeYearName = mockYears.find((y) => y.id === activeYearId)?.name
   const [rows, setRows] = useState<YearlyCompany[]>(mockYearlyCompanies)
   const [companyStatusFilter, setCompanyStatusFilter] = useState<
     CompanyStatus | typeof ALL
@@ -70,11 +73,12 @@ export default function YearlyCompaniesPage() {
     () =>
       rows.filter(
         (yc) =>
+          yc.yearId === activeYearId &&
           (companyStatusFilter === ALL ||
             yc.companyStatus === companyStatusFilter) &&
           (phaseFilter === ALL || yc.phase === phaseFilter)
       ),
-    [rows, companyStatusFilter, phaseFilter]
+    [rows, activeYearId, companyStatusFilter, phaseFilter]
   )
 
   function setCompanyStatus(id: string, value: CompanyStatus) {
@@ -109,7 +113,9 @@ export default function YearlyCompaniesPage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-semibold">Yearly Companies</h1>
-        <p className="text-muted-foreground">2026年度 協賛企業の管理</p>
+        <p className="text-muted-foreground">
+          {activeYearName ?? ""}年度 協賛企業の管理
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

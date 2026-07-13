@@ -25,6 +25,7 @@ import {
 import { addContractMenu } from "@/lib/mock/contract-menus"
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
+import { getActiveYearId } from "@/lib/mock/years"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
 
@@ -74,8 +75,11 @@ function NewContractForm() {
   const searchParams = useSearchParams()
   const preselectedYearlyCompanyId = searchParams.get("yearlyCompanyId")
 
+  const activeYearId = getActiveYearId()
   const availableYearlyCompanies = mockYearlyCompanies.filter(
-    (yc) => !mockSponsorshipContracts.some((c) => c.yearlyCompanyId === yc.id)
+    (yc) =>
+      yc.yearId === activeYearId &&
+      !mockSponsorshipContracts.some((c) => c.yearlyCompanyId === yc.id)
   )
 
   const [yearlyCompanyId, setYearlyCompanyId] = useState(
