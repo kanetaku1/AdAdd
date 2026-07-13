@@ -1,0 +1,227 @@
+openapi: 3.0.3
+info:
+  title: AdAdd API
+  version: "1.0.0"
+  description: OpenAPI 仕様（簡易版）。フロントエンド実装用に主要エンドポイントとスキーマを記載。
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+  /yearly-companies:
+    post:
+      summary: YearlyCompany 作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/YearlyCompanyInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearlyCompany'
+  /contracts:
+    post:
+      summary: SponsorshipContract 作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContractInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SponsorshipContract'
+        '409':
+          description: Conflict (duplicate contract for YearlyCompany)
+  /contracts/{contractId}:
+    get:
+      summary: 契約を取得
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /contracts/{contractId}/menus:
+    get:
+      summary: 契約メニューの一覧を取得
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: 契約メニューを追加
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContractMenuInput'
+      responses:
+        '201':
+          description: Created
+  /contract-menus/{id}/status:
+    patch:
+      summary: 契約メニューのステータス更新
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Updated
+  /payments:
+    post:
+      summary: 支払い作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentInput'
+      responses:
+        '201':
+          description: Created
+  /payments/{id}/confirm:
+    patch:
+      summary: 支払い確定
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmed
+components:
+  schemas:
+    YearlyCompanyInput:
+      type: object
+      properties:
+        companyId:
+          type: string
+        year:
+          type: integer
+        contactName:
+          type: string
+      required: [companyId, year]
+    YearlyCompany:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        year:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    ContractInput:
+      type: object
+      properties:
+        yearlyCompanyId:
+          type: string
+        memo:
+          type: string
+      required: [yearlyCompanyId]
+    SponsorshipContract:
+      type: object
+      properties:
+        id:
+          type: string
+        yearlyCompanyId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ContractMenuInput:
+      type: object
+      properties:
+        sponsorshipMenuId:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: string
+      required: [sponsorshipMenuId, quantity]
+    PaymentInput:
+      type: object
+      properties:
+        contractId:
+          type: string
+        amount:
+          type: string
+        method:
+          type: string
+      required: [contractId, amount]
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        contractId:
+          type: string
+        amount:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+    ActivityLog:
+      type: object
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        details:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
