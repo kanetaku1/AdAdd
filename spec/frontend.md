@@ -266,6 +266,8 @@ Filters:
 * Assigned member
 * Contract status
 
+The Assigned Member column/edit currently surfaces and edits **one** primary assignee per Yearly Company (inline, cell-level, per Principle 4), even though `Assignment` is domain-modeled as 1:* (`spec/model.md#Assignment` — a Yearly Company may have multiple assigned members). Multi-assignee UI is deferred to a later iteration; this is a stated frontend scope simplification, not a change to the domain model.
+
 ---
 
 ## Yearly Company Detail
@@ -505,6 +507,34 @@ Supported:
 
 ---
 
+# System Administration
+
+## User List
+
+Purpose:
+
+Manage system users (UC-12). Actor: System Administrator.
+
+Display, one always-editable row per user (Principle 4):
+
+| Information  |
+| ------------ |
+| Student ID   |
+| Name         |
+| Email        |
+| Slack ID     |
+| Active       |
+
+Actions:
+
+* Add user (new row, mostly blank)
+* Edit any field inline
+* Disable / re-enable (Active toggle)
+
+Current scope covers user creation, listing, and activation/deactivation only. Role assignment (UC-12 step 2) is deferred until `Role` (`spec/model.md#Role`) has its own management UI — there is no role picker on this screen yet.
+
+---
+
 # Navigation Structure
 
 ```text
@@ -523,6 +553,8 @@ Sidebar
 ├── Finance
 │
 ├── Reports
+│
+├── Users
 │
 └── Settings
 ```

@@ -11,6 +11,7 @@ import {
   ListChecks,
   Wallet,
   BarChart3,
+  Users,
   Settings,
 } from "lucide-react"
 
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { title: "Sponsorship Menus", url: "/sponsorship-menus", icon: ListChecks },
   { title: "Finance", url: "/finance", icon: Wallet },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Users", url: "/users", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },
 ]
 

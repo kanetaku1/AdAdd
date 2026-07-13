@@ -21,7 +21,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
-import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
+import {
+  mockYearlyCompanies,
+  updateAssignedMember,
+} from "@/lib/mock/yearly-companies"
+import { mockUsers } from "@/lib/mock/users"
 import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_BADGE_VARIANT,
@@ -35,8 +39,9 @@ import type {
 } from "@/types/yearly-company"
 
 const ALL = "ALL" as const
+const UNASSIGNED = "UNASSIGNED" as const
 
-type EditableColumn = "companyStatus" | "phase"
+type EditableColumn = "companyStatus" | "phase" | "assignedMember"
 
 /**
  * Yearly Company List (spec/frontend.md#Yearly Company Management).
@@ -81,6 +86,22 @@ export default function YearlyCompaniesPage() {
   function setPhase(id: string, value: SponsorshipPhase) {
     setRows((prev) =>
       prev.map((yc) => (yc.id === id ? { ...yc, phase: value } : yc))
+    )
+  }
+
+  function setAssignedMember(id: string, userId: string | null) {
+    updateAssignedMember(id, userId)
+    setRows((prev) =>
+      prev.map((yc) =>
+        yc.id === id
+          ? {
+              ...yc,
+              assignedMemberId: userId,
+              assignedMemberName:
+                mockUsers.find((u) => u.id === userId)?.name ?? null,
+            }
+          : yc
+      )
     )
   }
 
@@ -242,7 +263,51 @@ export default function YearlyCompaniesPage() {
                   )}
                 </TableCell>
 
-                <TableCell>{yc.assignedMemberName ?? "未割当"}</TableCell>
+                <TableCell className="rounded">
+                  {editingCell?.id === yc.id &&
+                  editingCell.column === "assignedMember" ? (
+                    <Select
+                      value={yc.assignedMemberId ?? UNASSIGNED}
+                      defaultOpen
+                      onValueChange={(value) => {
+                        setAssignedMember(
+                          yc.id,
+                          value === UNASSIGNED ? null : value
+                        )
+                        setEditingCell(null)
+                      }}
+                      onOpenChange={(open) => {
+                        if (!open) setEditingCell(null)
+                      }}
+                    >
+                      <SelectTrigger size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={UNASSIGNED}>未割当</SelectItem>
+                        {mockUsers
+                          .filter(
+                            (u) => u.isActive || u.id === yc.assignedMemberId
+                          )
+                          .map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setEditingCell({ id: yc.id, column: "assignedMember" })
+                      }
+                    >
+                      {yc.assignedMemberName ?? "未割当"}
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Badge variant="secondary">
                     {SPONSORSHIP_PROGRESS_LABEL[yc.progress]}

@@ -27,6 +27,10 @@ export type SponsorshipProgress =
  * YearlyCompany (spec/model.md#YearlyCompany) — the central aggregate of AdAdd.
  * Denormalized with companyName/assignedMemberName for list display convenience;
  * the backend API is expected to join Company/Assignment when returning this shape.
+ *
+ * assignedMemberId/assignedMemberName represent a single primary assignee, even
+ * though Assignment is domain-modeled as 1:* (spec/model.md#Assignment) — a
+ * stated frontend scope simplification, see spec/frontend.md#Yearly Company List.
  */
 export type YearlyCompany = {
   id: string
@@ -36,6 +40,7 @@ export type YearlyCompany = {
   companyStatus: CompanyStatus
   phase: SponsorshipPhase
   progress: SponsorshipProgress
+  assignedMemberId: string | null
   assignedMemberName: string | null
   notes: string
 }

@@ -310,6 +310,10 @@ Manage system users.
 
 System permissions remain up to date.
 
+## Notes
+
+The current AdAdd implementation covers step 1 (create) and step 3 (disable/re-enable), plus listing — see `spec/frontend.md` → System Administration → User List. Step 2 (assign roles) is deferred: `Role` (`spec/model.md#Role`) has no management UI yet, so users cannot yet be granted roles through AdAdd.
+
 ---
 
 # UC-13 Search Companies

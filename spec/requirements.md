@@ -210,6 +210,8 @@ The system shall support:
 * User activation
 * User deactivation
 
+Implementation status: registration, listing, and activation/deactivation are implemented (`/users`). Role assignment is not yet implemented — see `spec/usecase.md` UC-12 Notes.
+
 ### Related Use Cases
 
 * UC-12
