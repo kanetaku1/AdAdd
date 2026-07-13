@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
+	"gorm.io/gorm"
 )
 
 type ContractRepository struct{}
