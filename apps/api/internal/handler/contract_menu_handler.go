@@ -11,9 +11,12 @@ import (
 func RegisterContractMenuRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/contracts/:contractId/menus", listContractMenus)
-	r.POST("/contracts/:contractId/menus", addContractMenu)
-	r.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
-	r.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
+	// staff and admin manage contract menus
+	rStaff := e.Group("")
+	rStaff.Use(RequireRoles("staff", "admin"))
+	rStaff.POST("/contracts/:contractId/menus", addContractMenu)
+	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
+	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 }
 
 func listContractMenus(c echo.Context) error {
