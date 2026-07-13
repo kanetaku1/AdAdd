@@ -9,5 +9,11 @@ func RegisterRoutes(e *echo.Echo) {
 	RegisterCompanyRoutes(e)
 	RegisterYearlyCompanyRoutes(e)
 	RegisterContractRoutes(e)
-	RegisterCompanyRoutes(e) // companies already registered; harmless
+	RegisterPaymentRoutes(e)
+	RegisterContractMenuRoutes(e)
+	RegisterAssignmentRoutes(e)
+	RegisterSponsorshipMenuRoutes(e)
+	RegisterUserRoutes(e)
+	RegisterActivityLogRoutes(e)
+	RegisterAdvisorRoutes(e)
 }
