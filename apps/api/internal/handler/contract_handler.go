@@ -42,6 +42,9 @@ func createContract(c echo.Context) error {
 	}
 	svc := service.NewContractService()
 	if err := svc.Create(&req); err != nil {
+		if err == service.ErrContractExists {
+			return c.JSON(http.StatusConflict, map[string]interface{}{"error": "contract already exists for this YearlyCompany"})
+		}
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
