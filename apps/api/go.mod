@@ -5,6 +5,12 @@ go 1.22
 require (
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.12.0
+	gorm.io/gorm v1.26.0
+	gorm.io/driver/mysql v1.5.0
+	github.com/shopspring/decimal v1.3.1
+	github.com/golang-migrate/migrate/v4 v4.15.2
+	github.com/golang-migrate/migrate/v4/database/mysql v4.15.2
+	github.com/golang-migrate/migrate/v4/source/file v4.15.2
 )
 
 require (

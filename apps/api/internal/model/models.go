@@ -1,0 +1,157 @@
+package model
+
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
+)
+
+// Year
+type Year struct {
+	ID        string         `gorm:"type:char(36);primaryKey" json:"id"`
+	Name      string         `gorm:"size:32;not null" json:"name"`
+	StartDate time.Time      `json:"startDate"`
+	EndDate   time.Time      `json:"endDate"`
+	IsActive  bool           `gorm:"not null;default:false" json:"isActive"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// Company
+type Company struct {
+	ID                 string         `gorm:"type:char(36);primaryKey" json:"id"`
+	CompanyName        string         `gorm:"size:255;not null;unique" json:"companyName"`
+	CompanyNameKana    string         `gorm:"size:255" json:"companyNameKana"`
+	PostalCode         string         `gorm:"size:20" json:"postalCode"`
+	Address            string         `gorm:"size:512" json:"address"`
+	PhoneNumber        string         `gorm:"size:64" json:"phoneNumber"`
+	Website            string         `gorm:"size:255" json:"website"`
+	ContactPersonName  string         `gorm:"size:255" json:"contactPersonName"`
+	ContactEmailOrForm string         `gorm:"size:512" json:"contactEmailOrForm"`
+	FirstSponsorshipYear string       `gorm:"size:16" json:"firstSponsorshipYear"`
+	Memo               string         `gorm:"type:text" json:"memo"`
+	CreatedAt          time.Time      `json:"createdAt"`
+	UpdatedAt          time.Time      `json:"updatedAt"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// YearlyCompany
+type YearlyCompany struct {
+	ID           string         `gorm:"type:char(36);primaryKey" json:"id"`
+	YearID       string         `gorm:"type:char(36);not null;index" json:"yearId"`
+	CompanyID    string         `gorm:"type:char(36);not null;index" json:"companyId"`
+	CompanyStatus string        `gorm:"size:32" json:"companyStatus"`
+	Phase        string         `gorm:"size:32" json:"phase"`
+	Progress     string         `gorm:"size:32" json:"progress"`
+	Notes        string         `gorm:"type:text" json:"notes"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	UpdatedAt    time.Time      `json:"updatedAt"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// SponsorshipContract
+type SponsorshipContract struct {
+	ID             string         `gorm:"type:char(36);primaryKey" json:"id"`
+	YearlyCompanyID string        `gorm:"type:char(36);not null;uniqueIndex" json:"yearlyCompanyId"`
+	ContractDate   *time.Time     `json:"contractDate"`
+	TotalAmount    decimal.Decimal `json:"totalAmount"`
+	AssigneeID     string         `gorm:"type:char(36)" json:"assigneeId"`
+	Remarks        string         `gorm:"type:text" json:"remarks"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// SponsorshipMenu (master per Year)
+type SponsorshipMenu struct {
+	ID                 string         `gorm:"type:char(36);primaryKey" json:"id"`
+	YearID             string         `gorm:"type:char(36);not null;index" json:"yearId"`
+	Name               string         `gorm:"size:255;not null" json:"name"`
+	DefaultPrice       decimal.Decimal `json:"defaultPrice"`
+	RequiresSubmission bool           `gorm:"not null;default:false" json:"requiresSubmission"`
+	IsActive           bool           `gorm:"not null;default:true" json:"isActive"`
+	CreatedAt          time.Time      `json:"createdAt"`
+	UpdatedAt          time.Time      `json:"updatedAt"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// ContractMenu
+type ContractMenu struct {
+	ID                string         `gorm:"type:char(36);primaryKey" json:"id"`
+	ContractID        string         `gorm:"type:char(36);not null;index" json:"contractId"`
+	SponsorshipMenuID string         `gorm:"type:char(36);not null;index" json:"sponsorshipMenuId"`
+	Quantity          int            `gorm:"not null;default:1" json:"quantity"`
+	UnitPrice         decimal.Decimal `json:"unitPrice"`
+	IsGoodsSponsorship bool          `gorm:"not null;default:false" json:"isGoodsSponsorship"`
+	ProductionType    string         `gorm:"size:32" json:"productionType"`
+	Status            string         `gorm:"size:32" json:"status"`
+	DriveFolderID     string         `gorm:"size:512" json:"driveFolderId"`
+	DriveURL          string         `gorm:"size:1024" json:"driveUrl"`
+	SubmittedAt       *time.Time     `json:"submittedAt"`
+	Remarks           string         `gorm:"type:text" json:"remarks"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// Payment
+type Payment struct {
+	ID            string         `gorm:"type:char(36);primaryKey" json:"id"`
+	ContractID    string         `gorm:"type:char(36);not null;uniqueIndex" json:"contractId"`
+	Amount        decimal.Decimal `json:"amount"`
+	Status        string         `gorm:"size:32" json:"status"`
+	ConfirmedAt   *time.Time     `json:"confirmedAt"`
+	ConfirmedByID string         `gorm:"type:char(36)" json:"confirmedById"`
+	CreatedAt     time.Time      `json:"createdAt"`
+	UpdatedAt     time.Time      `json:"updatedAt"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// Assignment
+type Assignment struct {
+	ID            string         `gorm:"type:char(36);primaryKey" json:"id"`
+	YearlyCompanyID string       `gorm:"type:char(36);not null;index" json:"yearlyCompanyId"`
+	UserID        string         `gorm:"type:char(36);not null;index" json:"userId"`
+	Role          string         `gorm:"size:32" json:"role"`
+	AssignedAt    time.Time      `json:"assignedAt"`
+	CreatedAt     time.Time      `json:"createdAt"`
+	UpdatedAt     time.Time      `json:"updatedAt"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// AdvisorAssignment
+type AdvisorAssignment struct {
+	ID         string         `gorm:"type:char(36);primaryKey" json:"id"`
+	YearID     string         `gorm:"type:char(36);not null;index" json:"yearId"`
+	AdvisorID  string         `gorm:"type:char(36);not null;index" json:"advisorId"`
+	MemberID   string         `gorm:"type:char(36);not null;index" json:"memberId"`
+	AssignedAt time.Time      `json:"assignedAt"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	UpdatedAt  time.Time      `json:"updatedAt"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// ActivityLog
+type ActivityLog struct {
+	ID            string         `gorm:"type:char(36);primaryKey" json:"id"`
+	YearlyCompanyID string       `gorm:"type:char(36);not null;index" json:"yearlyCompanyId"`
+	UserID        string         `gorm:"type:char(36);not null;index" json:"userId"`
+	Action        string         `gorm:"size:255;not null" json:"action"`
+	Description   string         `gorm:"type:text" json:"description"`
+	CreatedAt     time.Time      `json:"createdAt"`
+}
+
+// User
+type User struct {
+	ID        string         `gorm:"type:char(36);primaryKey" json:"id"`
+	StudentID string         `gorm:"size:64" json:"studentId"`
+	Name      string         `gorm:"size:255" json:"name"`
+	Email     string         `gorm:"size:255;uniqueIndex" json:"email"`
+	SlackID   string         `gorm:"size:255" json:"slackId"`
+	IsActive  bool           `gorm:"not null;default:true" json:"isActive"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
