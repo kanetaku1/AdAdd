@@ -35,7 +35,12 @@ func (s *PaymentService) Update(p *model.Payment) error {
 		if p.Status == "CONFIRMED" && !wasConfirmed {
 			n := time.Now()
 			p.ConfirmedAt = &n
+			if p.ConfirmedByID == "" {
+				p.ConfirmedByID = existing.ConfirmedByID
+			}
 		}
+		// preserve created_at to avoid inserting zero datetime
+		p.CreatedAt = existing.CreatedAt
 		if err := tx.Save(p).Error; err != nil {
 			return err
 		}
