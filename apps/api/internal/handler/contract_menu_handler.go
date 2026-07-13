@@ -78,24 +78,6 @@ func updateContractMenuStatus(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})
 }
-	id := c.Param("id")
-	var body struct {
-		Status string `json:"status"`
-	}
-	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
-	}
-	svc := service.NewContractMenuService()
-	cm, err := svc.GetByID(id)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "contract menu not found"})
-	}
-	cm.Status = body.Status
-	if err := svc.Update(cm); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})
-}
 
 func uploadContractMenuProduction(c echo.Context) error {
 	id := c.Param("id")
