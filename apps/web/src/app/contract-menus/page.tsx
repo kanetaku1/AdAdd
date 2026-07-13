@@ -214,7 +214,7 @@ export default function ContractMenusPage() {
                 <TableRow key={cm.id}>
                   <TableCell className="font-medium">
                     <Link
-                      href={`/contracts/${cm.contractId}`}
+                      href={`/yearly-companies/${yearlyCompany?.id}`}
                       className="hover:underline"
                     >
                       {yearlyCompany?.companyName ?? "(不明な企業)"}

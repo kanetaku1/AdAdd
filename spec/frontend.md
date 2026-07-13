@@ -311,6 +311,13 @@ Contract Menu
 Progress History
 ```
 
+Contract and Contract Menu are both shown directly on this screen (there is no separate Contract Detail route — `YearlyCompany`:`SponsorshipContract` is 1:1, per `spec/model.md`, so a dedicated detail page for the contract added nothing this screen couldn't already hold):
+
+* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed, and creates a `Payment` record (spec/model.md#Payment) when `totalAmount > 0` — goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
+* A contract exists — the full Contract Menu table (quantity/price/production status, same as Contract Menu Management below), invoice generation (FR-015), and payment status (read-only here — status changes happen on Finance) are all shown inline.
+
+Progress History currently shows only the live `YearlyCompany.progress` badge (editable). A full change-history timeline is UC-14 (Activity Log) — not built yet.
+
 ---
 
 # Sponsorship Progress Management
@@ -343,32 +350,6 @@ Display:
 * History
 * Updated user
 * Updated date
-
----
-
-# Contract Management
-
-## Contract Detail
-
-Display:
-
-```text
-Company
-
-Contract
-
-├── Menu A
-│     Quantity
-│     Price
-│     Production Status
-│
-├── Menu B
-│     Quantity
-│     Price
-│     Production Status
-│
-└── Total Amount
-```
 
 ---
 
@@ -608,8 +589,6 @@ Sidebar
 ├── Companies
 │
 ├── Yearly Companies
-│
-├── Sponsorship Contracts
 │
 ├── Sponsorship Menus
 │

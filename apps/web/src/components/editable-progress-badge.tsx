@@ -15,9 +15,9 @@ import type { SponsorshipProgress } from "@/types/yearly-company"
 
 /**
  * Inline-editable YearlyCompany.progress badge (spec/frontend.md UI Principle 4).
- * Used on both Contract Detail (as progress changes while working a company —
- * UC-05/UC-06/UC-10) and the Yearly Companies list, so progress can be
- * updated from wherever a Sponsorship Member happens to be.
+ * Used on both the Yearly Companies list and Yearly Company Detail (via
+ * yearly-company-progress.tsx), so progress can be updated from wherever a
+ * Sponsorship Member happens to be.
  */
 export function EditableProgressBadge({
   value,

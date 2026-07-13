@@ -96,7 +96,7 @@ export default function FinancePage() {
                 <TableRow key={payment.id}>
                   <TableCell className="font-medium">
                     <Link
-                      href={`/contracts/${payment.contractId}`}
+                      href={`/yearly-companies/${yearlyCompany?.id}`}
                       className="hover:underline"
                     >
                       {companyName}

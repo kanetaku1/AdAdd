@@ -412,7 +412,7 @@ export default function YearlyCompaniesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      render={<Link href={`/contracts/new?yearlyCompanyId=${yc.id}`} />}
+                      render={<Link href={`/yearly-companies/${yc.id}`} />}
                     >
                       契約を作成
                     </Button>

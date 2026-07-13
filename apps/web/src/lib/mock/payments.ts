@@ -35,3 +35,14 @@ export const mockPayments: Payment[] = [
     confirmedByName: "小林",
   },
 ]
+
+/**
+ * Mutates the shared mock array so a Payment created alongside a new
+ * Sponsorship Contract persists for the rest of the browser session
+ * (spec/domain.md#Sponsorship Contract — created when totalAmount > 0).
+ * TODO: replace with POST /contracts/{contractId}/payment once the backend
+ * exists (spec/api.md).
+ */
+export function addPayment(payment: Payment): void {
+  mockPayments.push(payment)
+}
