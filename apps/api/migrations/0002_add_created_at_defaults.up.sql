@@ -43,8 +43,8 @@ ALTER TABLE assignments
 UPDATE assignments SET created_at = @now WHERE YEAR(created_at) = 0;
 
 ALTER TABLE activity_logs
-  MODIFY COLUMN CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
-UPDATE activity_logs SET CreatedAt = @now WHERE YEAR(CreatedAt) = 0;
+  MODIFY COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+UPDATE activity_logs SET created_at = @now WHERE YEAR(created_at) = 0;
 
 ALTER TABLE users
   MODIFY COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
