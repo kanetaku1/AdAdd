@@ -25,6 +25,7 @@ func (s *AssignmentService) Create(a *model.Assignment) error {
 			UserID:          a.UserID,
 			Action:          "ASSIGNED_MEMBER",
 			Description:     "Member assigned to YearlyCompany",
+			CreatedAt:       time.Now(),
 		}
 		if err := tx.Create(al).Error; err != nil {
 			return err

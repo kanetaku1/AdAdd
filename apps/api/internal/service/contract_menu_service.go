@@ -48,6 +48,7 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 					UserID:          userID,
 					Action:          "CONTRACT_MENU_SUBMITTED",
 					Description:     "Contract menu production info uploaded",
+					CreatedAt:       time.Now(),
 				}
 				if err := tx.Create(al).Error; err != nil {
 					return err

@@ -37,6 +37,7 @@ func (s *ContractService) Create(c *model.SponsorshipContract) error {
 			UserID:          c.AssigneeID,
 			Action:          "CONTRACT_CREATED",
 			Description:     "Contract created",
+			CreatedAt:       time.Now(),
 		}
 		if err := tx.Create(al).Error; err != nil {
 			return err
