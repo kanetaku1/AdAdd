@@ -11,8 +11,11 @@ import (
 func RegisterSponsorshipMenuRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/years/:yearId/sponsorship-menus", listSponsorshipMenus)
-	r.POST("/years/:yearId/sponsorship-menus", createSponsorshipMenu)
-	r.PATCH("/sponsorship-menus/:menuId", updateSponsorshipMenu)
+	// manage menus requires staff or admin
+	rStaff := e.Group("")
+	rStaff.Use(RequireRoles("staff", "admin"))
+	rStaff.POST("/years/:yearId/sponsorship-menus", createSponsorshipMenu)
+	rStaff.PATCH("/sponsorship-menus/:menuId", updateSponsorshipMenu)
 }
 
 func listSponsorshipMenus(c echo.Context) error {
@@ -30,6 +33,13 @@ func createSponsorshipMenu(c echo.Context) error {
 	var req model.SponsorshipMenu
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+	}
+	// validation
+	if req.Name == "" {
+		return badRequest(c, "name is required")
+	}
+	if !validateNonNegativeAmount(req.DefaultPrice) {
+		return badRequest(c, "defaultPrice must be non-negative")
 	}
 	req.YearID = yearId
 	svc := service.NewSponsorshipMenuService()

@@ -35,6 +35,14 @@ func updatePayment(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
 	req.ID = pid
+	// basic validation: status must be known
+	allowed := []string{"PENDING", "CONFIRMED", "CANCELLED"}
+	if !validateStatus(req.Status, allowed) {
+		return badRequest(c, "invalid status")
+	}
+	if !req.Amount.IsZero() && !validateNonNegativeAmount(req.Amount) {
+		return badRequest(c, "amount must be non-negative")
+	}
 	// set confirmedAt/confirmedById server-side when status becomes CONFIRMED
 	if req.Status == "CONFIRMED" {
 		now := time.Now()

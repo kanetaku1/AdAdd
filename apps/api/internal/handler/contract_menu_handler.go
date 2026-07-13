@@ -35,6 +35,17 @@ func addContractMenu(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
+	// validation
+	if req.SponsorshipMenuID == "" {
+		return badRequest(c, "sponsorshipMenuId is required")
+	}
+	if req.Quantity <= 0 {
+		return badRequest(c, "quantity must be > 0")
+	}
+	if !validateNonNegativeAmount(req.UnitPrice) {
+		return badRequest(c, "unitPrice must be non-negative")
+	}
+
 	req.ContractID = contractId
 	svc := service.NewContractMenuService()
 	if err := svc.Create(&req); err != nil {
@@ -44,6 +55,29 @@ func addContractMenu(c echo.Context) error {
 }
 
 func updateContractMenuStatus(c echo.Context) error {
+	id := c.Param("id")
+	var body struct {
+		Status string `json:"status"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+	}
+	// validate status
+	allowed := []string{"DRAFT", "SUBMITTED", "PRODUCTION", "COMPLETED", "REJECTED"}
+	if !validateStatus(body.Status, allowed) {
+		return badRequest(c, "invalid status")
+	}
+	svc := service.NewContractMenuService()
+	cm, err := svc.GetByID(id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "contract menu not found"})
+	}
+	cm.Status = body.Status
+	if err := svc.Update(cm); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})
+}
 	id := c.Param("id")
 	var body struct {
 		Status string `json:"status"`

@@ -11,9 +11,12 @@ import (
 func RegisterYearlyCompanyRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/years/:yearId/companies", listYearlyCompanies)
-	r.POST("/years/:yearId/companies", createYearlyCompany)
-	r.PATCH("/yearly-companies/:id/company-status", updateCompanyStatus)
-	r.PATCH("/yearly-companies/:id/phase", updatePhase)
+	// Create and updates require staff or admin
+	rStaff := e.Group("")
+	rStaff.Use(RequireRoles("staff", "admin"))
+	rStaff.POST("/years/:yearId/companies", createYearlyCompany)
+	rStaff.PATCH("/yearly-companies/:id/company-status", updateCompanyStatus)
+	rStaff.PATCH("/yearly-companies/:id/phase", updatePhase)
 }
 
 func listYearlyCompanies(c echo.Context) error {
@@ -31,6 +34,10 @@ func createYearlyCompany(c echo.Context) error {
 	var req model.YearlyCompany
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+	}
+	// validation
+	if req.CompanyID == "" {
+		return badRequest(c, "companyId is required")
 	}
 	req.YearID = yearId
 	svc := service.NewYearlyCompanyService()
