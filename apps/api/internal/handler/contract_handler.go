@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 )
 
 func RegisterContractRoutes(e *echo.Echo) {
