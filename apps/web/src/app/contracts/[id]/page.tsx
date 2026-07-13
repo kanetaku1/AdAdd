@@ -3,14 +3,6 @@ import { notFound } from "next/navigation"
 
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { mockCompanies } from "@/lib/mock/companies"
 import { mockContractMenus } from "@/lib/mock/contract-menus"
 import { mockPayments } from "@/lib/mock/payments"
@@ -18,13 +10,10 @@ import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
 import {
-  CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
-  CONTRACT_MENU_STATUS_LABEL,
-} from "@/lib/contract-menu-labels"
-import {
   PAYMENT_STATUS_BADGE_VARIANT,
   PAYMENT_STATUS_LABEL,
 } from "@/lib/payment-labels"
+import { ContractMenuSection } from "@/components/contract-menu-section"
 import { ContractProgressBadge } from "@/components/contract-progress-badge"
 import { InvoiceGeneratorModal } from "@/components/invoice-generator-modal"
 import type { InvoiceData } from "@/lib/pdf/invoice-document"
@@ -32,11 +21,6 @@ import type { InvoiceData } from "@/lib/pdf/invoice-document"
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
-
-const currencyFormatter = new Intl.NumberFormat("ja-JP", {
-  style: "currency",
-  currency: "JPY",
-})
 
 /**
  * Sponsorship Contract Detail (spec/frontend.md#Contract Detail).
@@ -150,53 +134,11 @@ export default async function ContractDetailPage({
 
       <Separator />
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>メニュー</TableHead>
-              <TableHead>数量</TableHead>
-              <TableHead>単価</TableHead>
-              <TableHead>小計</TableHead>
-              <TableHead>制作方法</TableHead>
-              <TableHead>進捗</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contractMenus.map((cm) => {
-              const menu = mockSponsorshipMenus.find(
-                (m) => m.id === cm.sponsorshipMenuId
-              )
-              return (
-                <TableRow key={cm.id}>
-                  <TableCell className="font-medium">
-                    {menu?.name ?? "(不明なメニュー)"}
-                  </TableCell>
-                  <TableCell>{cm.quantity}</TableCell>
-                  <TableCell>{currencyFormatter.format(cm.unitPrice)}</TableCell>
-                  <TableCell>
-                    {currencyFormatter.format(cm.quantity * cm.unitPrice)}
-                  </TableCell>
-                  <TableCell>
-                    {cm.productionType
-                      ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[cm.productionType]
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {CONTRACT_MENU_STATUS_LABEL[cm.status]}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex justify-end text-lg font-semibold">
-        合計金額: {currencyFormatter.format(contract.totalAmount)}
-      </div>
+      <ContractMenuSection
+        contractId={contract.id}
+        initialContractMenus={contractMenus}
+        initialTotalAmount={contract.totalAmount}
+      />
 
       {contract.remarks && (
         <div className="text-sm">

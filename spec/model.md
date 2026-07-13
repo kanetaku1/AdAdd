@@ -134,6 +134,8 @@ Represents one sponsorship agreement.
 
 The assignee is scoped to the contract, not to individual Contract Menus. Every Contract Menu under a contract shares the same assignee.
 
+`assigneeId` is not entered when the contract is created. It is carried over from the Sponsorship Member already assigned to the Yearly Company (`Assignment`, decided earlier by the Company Management Team or an Advisor — see `spec/usecase.md` UC-04) — a contract never introduces a new assignment of its own.
+
 A `SponsorshipContract` record is only created once an agreement is actually reached (see `spec/usecase.md` UC-06) — there is no separate draft state, so no `status` field is needed here. `contractDate` is the single date the agreement was reached. Overall progress (including whether the engagement is fully wrapped up) is tracked on `YearlyCompany.progress`, not duplicated on the contract.
 
 ---

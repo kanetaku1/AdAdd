@@ -100,3 +100,13 @@ export const mockContractMenus: ContractMenu[] = [
     remarks: "",
   },
 ]
+
+/**
+ * Mutates the shared mock array so newly added Contract Menus persist for
+ * the rest of the browser session (spec/usecase.md UC-07).
+ * TODO: replace with POST /contracts/{contractId}/menus once the backend
+ * exists (spec/api.md).
+ */
+export function addContractMenu(menu: ContractMenu): void {
+  mockContractMenus.push(menu)
+}

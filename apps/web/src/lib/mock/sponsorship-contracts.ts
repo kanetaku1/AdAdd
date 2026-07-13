@@ -51,3 +51,28 @@ export const mockSponsorshipContracts: SponsorshipContract[] = [
       "物品協賛: お菓子・飲料の詰め合わせを提供いただいた(想定価値 約95,000円相当、2026年6月20日受領済み)。返礼としてパンフレット広告1P・ホームページ広告を無償提供(Contract Menu参照)。金銭のやり取りはなく入金確認は不要。",
   },
 ]
+
+/**
+ * Mutates the shared mock array so newly created contracts persist for the
+ * rest of the browser session and show up on any page that reads
+ * mockSponsorshipContracts (spec/usecase.md UC-06).
+ * TODO: replace with POST /yearly-companies/{id}/contract once the backend
+ * exists (spec/api.md).
+ */
+export function addSponsorshipContract(contract: SponsorshipContract): void {
+  mockSponsorshipContracts.push(contract)
+}
+
+/**
+ * Keeps SponsorshipContract.totalAmount in sync with the sum of its Contract
+ * Menus (spec/model.md invariant) whenever menus are added/changed.
+ */
+export function updateContractTotalAmount(
+  contractId: string,
+  totalAmount: number
+): void {
+  const contract = mockSponsorshipContracts.find((c) => c.id === contractId)
+  if (contract) {
+    contract.totalAmount = totalAmount
+  }
+}

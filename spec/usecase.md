@@ -168,6 +168,10 @@ The sponsorship contract is registered.
 
 Goods sponsorship (物品協賛) always uses the "Email agreement" / "Face-to-face agreement" trigger and manual entry at step 3 — it is never imported from Google Forms, since the goods description and estimated value must be entered by hand (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
 
+The contract's assignee is not entered at step 3. By the time a contract is created, the Company Management Team or an Advisor has already assigned a Sponsorship Member to the Yearly Company (UC-04) — the contract simply carries that assignee over (see `spec/model.md#SponsorshipContract`).
+
+Regardless of trigger, entering the contract at step 3 is always a manual action performed by the Sponsorship Member: reading the submitted Google Forms response, or an email/face-to-face agreement, and transcribing it into AdAdd. Google Forms is never imported automatically (`spec/domain.md` → Google Forms is a contract input method, not the source of truth).
+
 ---
 
 # UC-07 Manage Contract Menus

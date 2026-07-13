@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -19,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
 import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
 import {
   COMPANY_STATUS_LABEL,
@@ -142,10 +144,15 @@ export default function YearlyCompaniesPage() {
               <TableHead>フェーズ</TableHead>
               <TableHead>担当メンバー</TableHead>
               <TableHead>進捗</TableHead>
+              <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visibleRows.map((yc) => (
+            {visibleRows.map((yc) => {
+              const hasContract = mockSponsorshipContracts.some(
+                (c) => c.yearlyCompanyId === yc.id
+              )
+              return (
               <TableRow key={yc.id}>
                 <TableCell className="font-medium">
                   <Link
@@ -241,8 +248,20 @@ export default function YearlyCompaniesPage() {
                     {SPONSORSHIP_PROGRESS_LABEL[yc.progress]}
                   </Badge>
                 </TableCell>
+                <TableCell className="text-right">
+                  {!hasContract && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      render={<Link href={`/contracts/new?yearlyCompanyId=${yc.id}`} />}
+                    >
+                      契約を作成
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
-            ))}
+              )
+            })}
           </TableBody>
         </Table>
       </div>
