@@ -7,13 +7,15 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
-	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 )
 
 func RegisterPaymentRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/contracts/:contractId/payment", getPaymentByContract)
-	r.PATCH("/payments/:paymentId", updatePayment)
+	// Only finance or admin can update payments
+	rp := e.Group("")
+	rp.Use(RequireRoles("finance", "admin"))
+	rp.PATCH("/payments/:paymentId", updatePayment)
 }
 
 func getPaymentByContract(c echo.Context) error {
@@ -44,16 +46,6 @@ func updatePayment(c echo.Context) error {
 	svc := service.NewPaymentService()
 	if err := svc.Update(&req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-	}
-	// write ActivityLog for payment confirmation
-	if req.Status == "CONFIRMED" {
-		alRepo := repository.NewActivityLogRepository()
-		alRepo.Create(&model.ActivityLog{
-			YearlyCompanyID: "",
-			UserID: req.ConfirmedByID,
-			Action: "PAYMENT_CONFIRMED",
-			Description: "Payment confirmed",
-		})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
 }
