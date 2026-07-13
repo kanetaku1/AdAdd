@@ -47,5 +47,11 @@ func updatePayment(c echo.Context) error {
 	if err := svc.Update(&req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
+	// reload payment to return correct timestamps and stored values
+	updated, err := svc.GetByID(req.ID)
+	if err != nil {
+		// if reload fails, still return success but include request payload
+		return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": updated, "message": "updated"})
 }

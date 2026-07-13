@@ -21,6 +21,10 @@ func (s *PaymentService) GetByContractID(contractId string) (*model.Payment, err
 	return s.repo.GetByContractID(contractId)
 }
 
+func (s *PaymentService) GetByID(id string) (*model.Payment, error) {
+	return s.repo.GetByID(id)
+}
+
 func (s *PaymentService) Create(p *model.Payment) error { return s.repo.Create(p) }
 
 func (s *PaymentService) Update(p *model.Payment) error {
