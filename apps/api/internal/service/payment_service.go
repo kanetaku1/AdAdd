@@ -39,9 +39,18 @@ func (s *PaymentService) Update(p *model.Payment) error {
 				p.ConfirmedByID = existing.ConfirmedByID
 			}
 		}
-		// preserve created_at to avoid inserting zero datetime
-		p.CreatedAt = existing.CreatedAt
-		if err := tx.Save(p).Error; err != nil {
+		// perform targeted update to avoid overwriting fields with zero values
+		updates := map[string]interface{}{
+			"status":       p.Status,
+			"confirmed_at": p.ConfirmedAt,
+			"confirmed_by_id": p.ConfirmedByID,
+			"updated_at":    time.Now(),
+		}
+		// only update amount if provided (non-zero)
+		if !p.Amount.IsZero() {
+			updates["amount"] = p.Amount
+		}
+		if err := tx.Model(&model.Payment{}).Where("id = ?", p.ID).Updates(updates).Error; err != nil {
 			return err
 		}
 		if p.Status == "CONFIRMED" && !wasConfirmed {
@@ -53,6 +62,7 @@ func (s *PaymentService) Update(p *model.Payment) error {
 					UserID:          p.ConfirmedByID,
 					Action:          "PAYMENT_CONFIRMED",
 					Description:     "Payment confirmed",
+					CreatedAt: time.Now(),
 				}
 				if err := tx.Create(al).Error; err != nil {
 					return err
