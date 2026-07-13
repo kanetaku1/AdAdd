@@ -4,13 +4,6 @@ import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
   Table,
@@ -21,11 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
-import { SPONSORSHIP_MENU_CATEGORY_LABEL } from "@/lib/sponsorship-menu-labels"
-import type {
-  SponsorshipMenu,
-  SponsorshipMenuCategory,
-} from "@/types/sponsorship-menu"
+import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const CURRENT_YEAR_ID = "year_2026"
 
@@ -34,7 +23,6 @@ function emptyMenu(): SponsorshipMenu {
     id: crypto.randomUUID(),
     yearId: CURRENT_YEAR_ID,
     name: "",
-    category: "ADVERTISEMENT",
     defaultPrice: 0,
     requiresSubmission: false,
     isActive: true,
@@ -80,7 +68,6 @@ export default function SponsorshipMenusPage() {
           <TableHeader>
             <TableRow>
               <TableHead>メニュー名</TableHead>
-              <TableHead>カテゴリ</TableHead>
               <TableHead>標準価格</TableHead>
               <TableHead>提出要否</TableHead>
               <TableHead>募集中</TableHead>
@@ -97,29 +84,6 @@ export default function SponsorshipMenusPage() {
                       updateMenu(menu.id, { name: e.target.value })
                     }
                   />
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={menu.category}
-                    onValueChange={(value) =>
-                      updateMenu(menu.id, {
-                        category: value as SponsorshipMenuCategory,
-                      })
-                    }
-                  >
-                    <SelectTrigger size="sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(SPONSORSHIP_MENU_CATEGORY_LABEL).map(
-                        ([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        )
-                      )}
-                    </SelectContent>
-                  </Select>
                 </TableCell>
                 <TableCell>
                   <Input

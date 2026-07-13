@@ -16,6 +16,17 @@ export const CONTRACT_MENU_STATUS_LABEL: Record<ContractMenuStatus, string> = {
   SUBMITTED: "提出済み",
 }
 
+export const CONTRACT_MENU_STATUS_BADGE_VARIANT: Record<
+  ContractMenuStatus,
+  "default" | "secondary" | "outline"
+> = {
+  WAITING: "outline",
+  REQUESTED: "outline",
+  PRODUCING: "secondary",
+  COMPLETED: "secondary",
+  SUBMITTED: "default",
+}
+
 /**
  * spec/business.md — Company Production: company submits a finished product.
  * Internal Production: company submits raw material for the committee to produce from.
@@ -24,6 +35,6 @@ export const CONTRACT_MENU_PRODUCTION_TYPE_LABEL: Record<
   ContractMenuProductionType,
   string
 > = {
-  COMPANY: "企業が完成品を用意",
-  INTERNAL: "委員会が素材から制作",
+  COMPANY: "企業",
+  INTERNAL: "委員",
 }

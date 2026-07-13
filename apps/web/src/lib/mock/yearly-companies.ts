@@ -61,4 +61,15 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     assignedMemberName: "田中",
     notes: "",
   },
+  {
+    id: "yc_005",
+    yearId: "year_2026",
+    companyId: "c_005",
+    companyName: companyName("c_005"),
+    companyStatus: "NEW",
+    phase: "PHASE_2",
+    progress: "CONFIRMED",
+    assignedMemberName: "鈴木",
+    notes: "物品協賛のため入金・請求は発生しない",
+  },
 ]

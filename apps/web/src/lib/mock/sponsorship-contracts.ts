@@ -8,6 +8,9 @@ import type { SponsorshipContract } from "@/types/sponsorship-contract"
  *
  * totalAmount must equal the sum of quantity * unitPrice across this
  * contract's Contract Menus (see mock/contract-menus.ts and spec/model.md).
+ *
+ * contract_004 (yc_005, 物品協賛) totals ¥0 by design — see
+ * spec/domain.md#Contract Menu > Goods Sponsorship.
  */
 export const mockSponsorshipContracts: SponsorshipContract[] = [
   {
@@ -36,5 +39,15 @@ export const mockSponsorshipContracts: SponsorshipContract[] = [
     assigneeId: "user_tanaka",
     assigneeName: "田中",
     remarks: "",
+  },
+  {
+    id: "contract_004",
+    yearlyCompanyId: "yc_005",
+    contractDate: "2026-06-20",
+    totalAmount: 0,
+    assigneeId: "user_suzuki",
+    assigneeName: "鈴木",
+    remarks:
+      "物品協賛: お菓子・飲料の詰め合わせを提供いただいた(想定価値 約95,000円相当、2026年6月20日受領済み)。返礼としてパンフレット広告1P・ホームページ広告を無償提供(Contract Menu参照)。金銭のやり取りはなく入金確認は不要。",
   },
 ]
