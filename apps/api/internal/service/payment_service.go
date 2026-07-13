@@ -9,13 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type PaymentService struct{
+type PaymentService struct {
 	repo *repository.PaymentRepository
 }
 
-func NewPaymentService() *PaymentService { return &PaymentService{repo: repository.NewPaymentRepository()} }
+func NewPaymentService() *PaymentService {
+	return &PaymentService{repo: repository.NewPaymentRepository()}
+}
 
-func (s *PaymentService) GetByContractID(contractId string) (*model.Payment, error) { return s.repo.GetByContractID(contractId) }
+func (s *PaymentService) GetByContractID(contractId string) (*model.Payment, error) {
+	return s.repo.GetByContractID(contractId)
+}
 
 func (s *PaymentService) Create(p *model.Payment) error { return s.repo.Create(p) }
 
@@ -41,9 +45,9 @@ func (s *PaymentService) Update(p *model.Payment) error {
 			if err := tx.First(&contract, "id = ?", p.ContractID).Error; err == nil {
 				al := &model.ActivityLog{
 					YearlyCompanyID: contract.YearlyCompanyID,
-					UserID: p.ConfirmedByID,
-					Action: "PAYMENT_CONFIRMED",
-					Description: "Payment confirmed",
+					UserID:          p.ConfirmedByID,
+					Action:          "PAYMENT_CONFIRMED",
+					Description:     "Payment confirmed",
 				}
 				if err := tx.Create(al).Error; err != nil {
 					return err

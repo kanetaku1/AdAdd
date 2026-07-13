@@ -7,13 +7,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type ContractMenuService struct{
+type ContractMenuService struct {
 	repo *repository.ContractMenuRepository
 }
 
-func NewContractMenuService() *ContractMenuService { return &ContractMenuService{repo: repository.NewContractMenuRepository()} }
+func NewContractMenuService() *ContractMenuService {
+	return &ContractMenuService{repo: repository.NewContractMenuRepository()}
+}
 
-func (s *ContractMenuService) ListByContract(contractId string) ([]model.ContractMenu, error) { return s.repo.ListByContract(contractId) }
+func (s *ContractMenuService) ListByContract(contractId string) ([]model.ContractMenu, error) {
+	return s.repo.ListByContract(contractId)
+}
 
 func (s *ContractMenuService) Create(m *model.ContractMenu) error { return s.repo.Create(m) }
 
@@ -41,9 +45,9 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 			if err := tx.First(&contract, "id = ?", m.ContractID).Error; err == nil {
 				al := &model.ActivityLog{
 					YearlyCompanyID: contract.YearlyCompanyID,
-					UserID: userID,
-					Action: "CONTRACT_MENU_SUBMITTED",
-					Description: "Contract menu production info uploaded",
+					UserID:          userID,
+					Action:          "CONTRACT_MENU_SUBMITTED",
+					Description:     "Contract menu production info uploaded",
 				}
 				if err := tx.Create(al).Error; err != nil {
 					return err
@@ -54,4 +58,6 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 	})
 }
 
-func (s *ContractMenuService) GetByID(id string) (*model.ContractMenu, error) { return s.repo.GetByID(id) }
+func (s *ContractMenuService) GetByID(id string) (*model.ContractMenu, error) {
+	return s.repo.GetByID(id)
+}

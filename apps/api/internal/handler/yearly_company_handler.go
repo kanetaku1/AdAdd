@@ -3,9 +3,9 @@ package handler
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
+	"github.com/labstack/echo/v4"
 )
 
 func RegisterYearlyCompanyRoutes(e *echo.Echo) {
@@ -42,7 +42,9 @@ func createYearlyCompany(c echo.Context) error {
 
 func updateCompanyStatus(c echo.Context) error {
 	id := c.Param("id")
-	var body struct{ CompanyStatus string `json:"companyStatus"` }
+	var body struct {
+		CompanyStatus string `json:"companyStatus"`
+	}
 	if err := c.Bind(&body); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
@@ -60,7 +62,9 @@ func updateCompanyStatus(c echo.Context) error {
 
 func updatePhase(c echo.Context) error {
 	id := c.Param("id")
-	var body struct{ Phase string `json:"phase"` }
+	var body struct {
+		Phase string `json:"phase"`
+	}
 	if err := c.Bind(&body); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}

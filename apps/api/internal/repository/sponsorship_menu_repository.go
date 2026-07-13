@@ -17,9 +17,13 @@ func (r *SponsorshipMenuRepository) ListByYear(yearId string) ([]model.Sponsorsh
 	return list, nil
 }
 
-func (r *SponsorshipMenuRepository) Create(m *model.SponsorshipMenu) error { return db.DB.Create(m).Error }
+func (r *SponsorshipMenuRepository) Create(m *model.SponsorshipMenu) error {
+	return db.DB.Create(m).Error
+}
 
-func (r *SponsorshipMenuRepository) Update(m *model.SponsorshipMenu) error { return db.DB.Save(m).Error }
+func (r *SponsorshipMenuRepository) Update(m *model.SponsorshipMenu) error {
+	return db.DB.Save(m).Error
+}
 
 func (r *SponsorshipMenuRepository) GetByID(id string) (*model.SponsorshipMenu, error) {
 	var m model.SponsorshipMenu

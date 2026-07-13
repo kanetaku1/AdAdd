@@ -3,9 +3,9 @@ package handler
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
+	"github.com/labstack/echo/v4"
 )
 
 func RegisterContractMenuRoutes(e *echo.Echo) {
@@ -45,7 +45,9 @@ func addContractMenu(c echo.Context) error {
 
 func updateContractMenuStatus(c echo.Context) error {
 	id := c.Param("id")
-	var body struct{ Status string `json:"status"` }
+	var body struct {
+		Status string `json:"status"`
+	}
 	if err := c.Bind(&body); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}

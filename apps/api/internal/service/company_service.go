@@ -5,7 +5,7 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 )
 
-type CompanyService struct{
+type CompanyService struct {
 	repo *repository.CompanyRepository
 }
 

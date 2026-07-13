@@ -7,11 +7,13 @@ import (
 	"gorm.io/gorm"
 )
 
-type AssignmentService struct{
+type AssignmentService struct {
 	repo *repository.AssignmentRepository
 }
 
-func NewAssignmentService() *AssignmentService { return &AssignmentService{repo: repository.NewAssignmentRepository()} }
+func NewAssignmentService() *AssignmentService {
+	return &AssignmentService{repo: repository.NewAssignmentRepository()}
+}
 
 func (s *AssignmentService) Create(a *model.Assignment) error {
 	return db.WithTx(func(tx *gorm.DB) error {
@@ -20,9 +22,9 @@ func (s *AssignmentService) Create(a *model.Assignment) error {
 		}
 		al := &model.ActivityLog{
 			YearlyCompanyID: a.YearlyCompanyID,
-			UserID: a.UserID,
-			Action: "ASSIGNED_MEMBER",
-			Description: "Member assigned to YearlyCompany",
+			UserID:          a.UserID,
+			Action:          "ASSIGNED_MEMBER",
+			Description:     "Member assigned to YearlyCompany",
 		}
 		if err := tx.Create(al).Error; err != nil {
 			return err
@@ -31,6 +33,10 @@ func (s *AssignmentService) Create(a *model.Assignment) error {
 	})
 }
 
-func (s *AssignmentService) ListByYearlyCompany(yearlyCompanyId string) ([]model.Assignment, error) { return s.repo.ListByYearlyCompany(yearlyCompanyId) }
+func (s *AssignmentService) ListByYearlyCompany(yearlyCompanyId string) ([]model.Assignment, error) {
+	return s.repo.ListByYearlyCompany(yearlyCompanyId)
+}
 
-func (s *AssignmentService) ListByUser(userId string) ([]model.Assignment, error) { return s.repo.ListByUser(userId) }
+func (s *AssignmentService) ListByUser(userId string) ([]model.Assignment, error) {
+	return s.repo.ListByUser(userId)
+}

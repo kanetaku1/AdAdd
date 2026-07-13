@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
+	"github.com/labstack/echo/v4"
 )
 
 func RegisterPaymentRoutes(e *echo.Echo) {

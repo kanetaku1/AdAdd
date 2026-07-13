@@ -17,7 +17,9 @@ func (r *YearlyCompanyRepository) ListByYear(yearId string) ([]model.YearlyCompa
 	return list, nil
 }
 
-func (r *YearlyCompanyRepository) Create(yc *model.YearlyCompany) error { return db.DB.Create(yc).Error }
+func (r *YearlyCompanyRepository) Create(yc *model.YearlyCompany) error {
+	return db.DB.Create(yc).Error
+}
 
 func (r *YearlyCompanyRepository) GetByID(id string) (*model.YearlyCompany, error) {
 	var yc model.YearlyCompany

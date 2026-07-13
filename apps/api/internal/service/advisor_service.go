@@ -5,12 +5,16 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 )
 
-type AdvisorService struct{
+type AdvisorService struct {
 	repo *repository.AdvisorRepository
 }
 
-func NewAdvisorService() *AdvisorService { return &AdvisorService{repo: repository.NewAdvisorRepository()} }
+func NewAdvisorService() *AdvisorService {
+	return &AdvisorService{repo: repository.NewAdvisorRepository()}
+}
 
 func (s *AdvisorService) Create(a *model.AdvisorAssignment) error { return s.repo.Create(a) }
 
-func (s *AdvisorService) ListMembersByAdvisor(advisorId string) ([]model.AdvisorAssignment, error) { return s.repo.ListMembersByAdvisor(advisorId) }
+func (s *AdvisorService) ListMembersByAdvisor(advisorId string) ([]model.AdvisorAssignment, error) {
+	return s.repo.ListMembersByAdvisor(advisorId)
+}

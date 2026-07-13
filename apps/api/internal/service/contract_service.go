@@ -9,11 +9,13 @@ import (
 	"gorm.io/gorm"
 )
 
-type ContractService struct{
+type ContractService struct {
 	repo *repository.ContractRepository
 }
 
-func NewContractService() *ContractService { return &ContractService{repo: repository.NewContractRepository()} }
+func NewContractService() *ContractService {
+	return &ContractService{repo: repository.NewContractRepository()}
+}
 
 func (s *ContractService) GetByYearlyCompanyID(yearlyCompanyId string) (*model.SponsorshipContract, error) {
 	return s.repo.GetByYearlyCompanyID(yearlyCompanyId)
@@ -32,9 +34,9 @@ func (s *ContractService) Create(c *model.SponsorshipContract) error {
 		}
 		al := &model.ActivityLog{
 			YearlyCompanyID: c.YearlyCompanyID,
-			UserID: c.AssigneeID,
-			Action: "CONTRACT_CREATED",
-			Description: "Contract created",
+			UserID:          c.AssigneeID,
+			Action:          "CONTRACT_CREATED",
+			Description:     "Contract created",
 		}
 		if err := tx.Create(al).Error; err != nil {
 			return err
