@@ -9,8 +9,6 @@ require (
 	gorm.io/driver/mysql v1.5.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/golang-migrate/migrate/v4 v4.15.2
-	github.com/golang-migrate/migrate/v4/database/mysql v4.15.2
-	github.com/golang-migrate/migrate/v4/source/file v4.15.2
 )
 
 require (
