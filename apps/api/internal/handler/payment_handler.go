@@ -31,10 +31,27 @@ func updatePayment(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
 	req.ID = pid
-	// Business rule: only Finance can update — RBAC not yet implemented
+	// set confirmedAt/confirmedById server-side when status becomes CONFIRMED
+	if req.Status == "CONFIRMED" {
+		now := time.Now()
+		req.ConfirmedAt = &now
+		if uid := c.Get("userId"); uid != nil && uid != "" {
+			req.ConfirmedByID = uid.(string)
+		}
+	}
 	svc := service.NewPaymentService()
 	if err := svc.Update(&req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+	}
+	// write ActivityLog for payment confirmation
+	if req.Status == "CONFIRMED" {
+		alRepo := repository.NewActivityLogRepository()
+		alRepo.Create(&model.ActivityLog{
+			YearlyCompanyID: "",
+			UserID: req.ConfirmedByID,
+			Action: "PAYMENT_CONFIRMED",
+			Description: "Payment confirmed",
+		})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
 }

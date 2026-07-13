@@ -32,10 +32,24 @@ func createContract(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
 	req.YearlyCompanyID = yearlyId
+	// set assignee from context if available (assignee is typically carried over from assignment)
+	uid := c.Get("userId")
+	if uid != nil && uid != "" {
+		req.AssigneeID = uid.(string)
+	}
 	svc := service.NewContractService()
 	if err := svc.Create(&req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
+	// create ActivityLog entry for contract creation
+	alRepo := repository.NewActivityLogRepository()
+	alRepo.Create(&model.ActivityLog{
+		ID: "", // assume DB fills or app will set elsewhere
+		YearlyCompanyID: req.YearlyCompanyID,
+		UserID: req.AssigneeID,
+		Action: "CONTRACT_CREATED",
+		Description: "Contract created",
+	})
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
 

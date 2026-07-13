@@ -25,6 +25,14 @@ func createAssignment(c echo.Context) error {
 	if err := svc.Create(&req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
+	// Activity log
+	alRepo := repository.NewActivityLogRepository()
+	alRepo.Create(&model.ActivityLog{
+		YearlyCompanyID: req.YearlyCompanyID,
+		UserID: req.UserID,
+		Action: "ASSIGNED_MEMBER",
+		Description: "Member assigned to YearlyCompany",
+	})
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
 

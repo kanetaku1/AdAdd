@@ -74,8 +74,17 @@ func uploadContractMenuProduction(c echo.Context) error {
 	}
 	cm.DriveURL = body.DriveFolderUrl
 	cm.Remarks = body.Remarks
+	cm.Status = "SUBMITTED"
 	if err := svc.Update(cm); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
+	// Activity log
+	alRepo := repository.NewActivityLogRepository()
+	alRepo.Create(&model.ActivityLog{
+		YearlyCompanyID: "",
+		UserID: c.Get("userId").(string),
+		Action: "CONTRACT_MENU_SUBMITTED",
+		Description: "Contract menu production info uploaded",
+	})
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})
 }
