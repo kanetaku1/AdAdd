@@ -6,14 +6,16 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
-	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 )
 
 func RegisterContractRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/yearly-companies/:id/contract", getContractByYearlyCompany)
-	r.POST("/yearly-companies/:id/contract", createContract)
-	r.PATCH("/contracts/:contractId", updateContract)
+	// Create/update contracts: only staff or admin
+	rc := e.Group("")
+	rc.Use(RequireRoles("staff", "admin"))
+	rc.POST("/yearly-companies/:id/contract", createContract)
+	rc.PATCH("/contracts/:contractId", updateContract)
 }
 
 func getContractByYearlyCompany(c echo.Context) error {
@@ -42,15 +44,6 @@ func createContract(c echo.Context) error {
 	if err := svc.Create(&req); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
-	// create ActivityLog entry for contract creation
-	alRepo := repository.NewActivityLogRepository()
-	alRepo.Create(&model.ActivityLog{
-		ID: "", // assume DB fills or app will set elsewhere
-		YearlyCompanyID: req.YearlyCompanyID,
-		UserID: req.AssigneeID,
-		Action: "CONTRACT_CREATED",
-		Description: "Contract created",
-	})
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
 
