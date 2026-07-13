@@ -18,6 +18,13 @@ func (s *ContractMenuService) ListByContract(contractId string) ([]model.Contrac
 func (s *ContractMenuService) Create(m *model.ContractMenu) error { return s.repo.Create(m) }
 
 func (s *ContractMenuService) Update(m *model.ContractMenu) error {
+	// keep backward compatibility: no user context
+	return s.UpdateWithUser(m, "")
+}
+
+// UpdateWithUser updates the contract menu and, if the status transitions to SUBMITTED,
+// creates an ActivityLog linked to the given userID (if provided). This runs inside a transaction.
+func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID string) error {
 	return db.WithTx(func(tx *gorm.DB) error {
 		// fetch existing to detect status change
 		var existing model.ContractMenu
@@ -34,7 +41,7 @@ func (s *ContractMenuService) Update(m *model.ContractMenu) error {
 			if err := tx.First(&contract, "id = ?", m.ContractID).Error; err == nil {
 				al := &model.ActivityLog{
 					YearlyCompanyID: contract.YearlyCompanyID,
-					UserID: m.UploadedByID,
+					UserID: userID,
 					Action: "CONTRACT_MENU_SUBMITTED",
 					Description: "Contract menu production info uploaded",
 				}
