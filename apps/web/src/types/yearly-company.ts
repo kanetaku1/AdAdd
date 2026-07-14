@@ -8,7 +8,7 @@ export type CompanyStatus = "CONTINUING" | "NEW" | "DORMANT"
  * Year, set by the Company Management Team during the preparation period (UC-02). Independent
  * of CompanyStatus.
  */
-export type SponsorshipPhase = "PHASE_1" | "PHASE_2" | "PHASE_3"
+export type SponsorshipPhase = "PHASE_1" | "PHASE_2" | "PHASE_3" | "PHASE_4"
 
 /**
  * SponsorshipProgress (spec/model.md#Enumerations).

@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
     padding: 30,
     fontSize: 11,
   },
-  header: { fontSize: 24, textAlign: "center", marginBottom: 12 },
+  header: { fontSize: 24, textAlign: "center", marginBottom: 30 },
   text_S: { fontSize: 10 },
   text_M: { fontSize: 15 },
   text_L: { fontSize: 20 },
@@ -163,11 +163,6 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
               </View>
               <Text style={styles.text_M}>御中</Text>
             </View>
-
-            <Text style={[styles.text_S, styles.marginBottom]}>
-              ご担当 :{" "}
-              {data.contactPersonName ? `${data.contactPersonName} 様` : ""}
-            </Text>
 
             <Text style={[styles.text_S, styles.underline, styles.marginBottom]}>
               件名 : <Text style={styles.text_M}>{data.subject}</Text>

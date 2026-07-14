@@ -17,6 +17,7 @@ export const SPONSORSHIP_PHASE_LABEL: Record<SponsorshipPhase, string> = {
   PHASE_1: "フェーズ1",
   PHASE_2: "フェーズ2",
   PHASE_3: "フェーズ3",
+  PHASE_4: "フェーズ4",
 }
 
 export const SPONSORSHIP_PROGRESS_LABEL: Record<SponsorshipProgress, string> = {
@@ -33,9 +34,10 @@ export const SPONSORSHIP_PROGRESS_LABEL: Record<SponsorshipProgress, string> = {
 /** shadcn Badge variant per Sponsorship Phase — Phase1 is the highest outreach priority. */
 export const SPONSORSHIP_PHASE_BADGE_VARIANT: Record<
   SponsorshipPhase,
-  "default" | "secondary" | "outline"
+  "default" | "secondary" | "outline" | "destructive"
 > = {
   PHASE_1: "default",
   PHASE_2: "secondary",
   PHASE_3: "outline",
+  PHASE_4: "destructive",
 }

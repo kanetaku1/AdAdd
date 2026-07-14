@@ -76,16 +76,6 @@ export function InvoiceGeneratorModal({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="inv-contactPersonName">
-                担当者(企業)
-              </FieldLabel>
-              <Input
-                id="inv-contactPersonName"
-                value={data.contactPersonName}
-                onChange={(e) => set("contactPersonName", e.target.value)}
-              />
-            </Field>
-            <Field>
               <FieldLabel htmlFor="inv-subject">件名</FieldLabel>
               <Input
                 id="inv-subject"
