@@ -233,6 +233,10 @@ Display:
 | Phone number / address                  |
 | First sponsorship year                  |
 
+Filters:
+
+* Company name (search, substring match)
+
 Actions:
 
 * Create company
@@ -262,10 +266,13 @@ Display:
 
 Filters:
 
+* Company name (search, substring match)
 * Company status
 * Sponsorship phase
-* Assigned member
-* Contract status
+* Assigned member (FR-010)
+* Advisor (FR-010; derived from the assigned member's `AdvisorAssignment` for the active Year)
+* Sponsorship Progress (FR-010)
+* Contract status (not yet implemented)
 
 The Assigned Member column/edit currently surfaces and edits **one** primary assignee per Yearly Company (inline, cell-level, per Principle 4), even though `Assignment` is domain-modeled as 1:* (`spec/model.md#Assignment` — a Yearly Company may have multiple assigned members). Multi-assignee UI is deferred to a later iteration; this is a stated frontend scope simplification, not a change to the domain model.
 
@@ -304,6 +311,13 @@ Contract Menu
 Progress History
 ```
 
+Contract and Contract Menu are both shown directly on this screen (there is no separate Contract Detail route — `YearlyCompany`:`SponsorshipContract` is 1:1, per `spec/model.md`, so a dedicated detail page for the contract added nothing this screen couldn't already hold):
+
+* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed, and creates a `Payment` record (spec/model.md#Payment) when `totalAmount > 0` — goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
+* A contract exists — the full Contract Menu table (quantity/price/production status, same as Contract Menu Management below), invoice generation (FR-015), and payment status (read-only here — status changes happen on Finance) are all shown inline.
+
+Progress History currently shows only the live `YearlyCompany.progress` badge (editable). A full change-history timeline is UC-14 (Activity Log) — not built yet.
+
 ---
 
 # Sponsorship Progress Management
@@ -339,32 +353,6 @@ Display:
 
 ---
 
-# Contract Management
-
-## Contract Detail
-
-Display:
-
-```text
-Company
-
-Contract
-
-├── Menu A
-│     Quantity
-│     Price
-│     Production Status
-│
-├── Menu B
-│     Quantity
-│     Price
-│     Production Status
-│
-└── Total Amount
-```
-
----
-
 # Contract Menu Management
 
 ## Contract Menu List
@@ -383,6 +371,13 @@ Display:
 | Production type |
 | Status          |
 | Drive URL       |
+
+Filters:
+
+* Company name (search, substring match)
+* Sponsorship Menu
+* Status
+* Production type
 
 ---
 
@@ -560,6 +555,30 @@ Current scope covers user creation, listing, and activation/deactivation only. R
 
 ---
 
+## Advisor Assignment
+
+Purpose:
+
+Assign a Sponsorship Advisor to each Sponsorship Member (UC-03, FR-013). Actor: Company Management Team.
+
+Display, one row per User (there is no `Role` yet, so any User may act as a Sponsorship Member or an Advisor — see User List above):
+
+| Information                |
+| --------------------------- |
+| Sponsorship Member (name)  |
+| Advisor (inline-editable)  |
+
+Actions:
+
+* Click the Advisor cell to reassign it via a dropdown (Principle 4), scoped to the active Year (`AdvisorAssignment.yearId`) — a User cannot be selected as their own Advisor.
+* Selecting the empty option ("未設定") removes the assignment.
+
+Below the table, a read-only summary groups members by their current Advisor, covering FR-013's "view the members supervised by a given Advisor." Viewing the companies an Advisor's members handle (FR-013's 4th bullet) is not built here — that belongs to a future Advisor Dashboard, out of scope for now (see Dashboard → Department view decision).
+
+Assignments do not carry over when a new Year is created — reassignment is a fresh per-Year action, same as the Yearly Company assigned-member picker.
+
+---
+
 # Navigation Structure
 
 ```text
@@ -571,8 +590,6 @@ Sidebar
 │
 ├── Yearly Companies
 │
-├── Sponsorship Contracts
-│
 ├── Sponsorship Menus
 │
 ├── Finance
@@ -582,6 +599,8 @@ Sidebar
 ├── Years
 │
 ├── Users
+│
+├── Advisor Assignments
 │
 └── Settings
 ```

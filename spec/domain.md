@@ -433,6 +433,8 @@ A Sponsorship Contract is created only once an agreement is actually reached —
 
 Overall progress toward completing the engagement (materials sent, invoice sent, payment received, receipt sent) is tracked on `YearlyCompany.progress`, not as a separate lifecycle on the contract.
 
+Creating a Sponsorship Contract sets `YearlyCompany.progress` to Confirmed (協賛確定) automatically — the contract's existence *is* what "confirmed" means, so this isn't a manual step performed separately. A `Payment` (`spec/model.md#Payment`) is created alongside it when `totalAmount > 0`; a goods-sponsorship-only contract (`totalAmount = 0`) gets no Payment, since no money changes hands.
+
 ---
 
 ## Contract Menu
