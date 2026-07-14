@@ -99,6 +99,107 @@ Response:
 
 ---
 
+## List Users
+
+Returns every system user (see `spec/usecase.md` UC-12).
+
+```
+GET /users
+```
+
+Permission:
+
+* Admin
+
+---
+
+## Create User
+
+Registers a new system user.
+
+```
+POST /users
+```
+
+Request:
+
+```json
+{
+  "studentId": "b1234567",
+  "name": "田中",
+  "email": "tanaka@example.com",
+  "slackId": null
+}
+```
+
+Permission:
+
+* Admin
+
+---
+
+## Update User
+
+Edits a user's profile, or activates/deactivates them.
+
+```
+PATCH /users/{userId}
+```
+
+Example (deactivation):
+
+```json
+{
+  "isActive": false
+}
+```
+
+Role assignment is not yet implemented — see `spec/usecase.md` UC-12 Notes.
+
+Permission:
+
+* Admin
+
+---
+
+# Festival Year API
+
+## List Years
+
+Returns every festival Year.
+
+```
+GET /years
+```
+
+---
+
+## Create Year
+
+Creates a new festival Year and makes it the active Year (`isActive`). All other Years are deactivated.
+
+```
+POST /years
+```
+
+Request:
+
+```json
+{
+  "name": "2027",
+  "startDate": "2027-04-01",
+  "endDate": "2027-11-30"
+}
+```
+
+Side effect: bulk-generates a `YearlyCompany` for every existing `Company` (see `spec/usecase.md` UC-01, `spec/domain.md#Yearly Company`). For each Company, `companyStatus` is computed automatically (Continuing/New — never Dormant, see `spec/model.md#Value Objects` → `CompanyStatus`), `phase` defaults to `PHASE_3`, and `progress` defaults to `NOT_CONTACTED`.
+
+Permission:
+
+* Company Management Department / Admin
+
+---
+
 # Company API
 
 ## List Companies
@@ -179,15 +280,44 @@ Query:
 | phase         | Sponsorship outreach priority (this Year)  |
 | assignee      | Sponsorship member                         |
 
+The response joins `Company.companyName` and the primary `Assignment` (see Company Assignment API below) so each item is self-contained for list display:
+
+```json
+{
+  "id": "yearly_company_id",
+  "yearId": "year_id",
+  "companyId": "company_id",
+  "companyName": "株式会社長岡テクノ",
+  "companyStatus": "CONTINUING",
+  "phase": "PHASE_1",
+  "progress": "INVOICE_SENT",
+  "assignedMemberId": "user_id",
+  "assignedMemberName": "田中",
+  "notes": ""
+}
+```
+
+`assignedMemberId`/`assignedMemberName` surface a single primary assignee even though `Assignment` is domain-modeled as 1:* — a stated frontend scope simplification (see `spec/frontend.md#Yearly Company List`), not a change to the domain model.
+
 ---
 
 ## Create Yearly Company
 
-Creates a yearly company record.
+Creates a yearly company record (the individual, mid-cycle registration path — see `spec/usecase.md` UC-01 Notes; bulk generation happens automatically via `POST /years`).
 
 ```
 POST /years/{yearId}/companies
 ```
+
+Request:
+
+```json
+{
+  "companyId": "company_id"
+}
+```
+
+`companyStatus` is computed server-side (Continuing/New, based on whether the Company had a Yearly Company with a Sponsorship Contract in the immediately preceding Year — see `spec/model.md#Value Objects` → `CompanyStatus`) and must not be accepted from the request body. `phase` defaults to `PHASE_3`; `progress` defaults to `NOT_CONTACTED`.
 
 ---
 
@@ -231,7 +361,7 @@ Example:
 
 ## Assign Sponsorship Member
 
-Assigns sponsorship members to companies.
+Assigns a sponsorship member to a company.
 
 ```
 POST /yearly-companies/{id}/assignments
@@ -244,6 +374,8 @@ Request:
   "userId": "user_id"
 }
 ```
+
+Although `Assignment` is domain-modeled as 1:* (`spec/model.md#Assignment`), the current frontend only edits a single primary assignee per Yearly Company (see `spec/frontend.md#Yearly Company List`). Until multi-assignee UI exists, this endpoint replaces any existing `Assignment` for the Yearly Company rather than adding a second row — sending `userId: null` clears the assignment.
 
 Permission:
 
@@ -265,7 +397,7 @@ GET /users/me/companies
 
 ## Assign Advisor
 
-Assigns an advisor to a sponsorship member.
+Assigns an advisor to a sponsorship member for a given Year. A Sponsorship Member has at most one Advisor per Year (`spec/model.md` constraint: Year + memberId must be unique), so this upserts the existing assignment for that Year+member rather than creating a duplicate. Sending `advisorUserId: null` removes the assignment (see `spec/usecase.md` UC-03).
 
 ```
 POST /advisor-assignments
@@ -275,6 +407,7 @@ Request:
 
 ```json
 {
+  "yearId": "year_id",
   "advisorUserId": "advisor_id",
   "memberUserId": "member_id"
 }
@@ -283,6 +416,16 @@ Request:
 Permission:
 
 * Company Management Department
+
+---
+
+## List Advisor Assignments
+
+Returns every AdvisorAssignment for a Year (used to build the member↔advisor table — see `spec/frontend.md#Advisor Assignment`).
+
+```
+GET /advisor-assignments?yearId={yearId}
+```
 
 ---
 
@@ -315,6 +458,7 @@ Example response:
   "contractDate": "2026-06-01",
   "totalAmount": 100000,
   "assigneeId": "user_id",
+  "assigneeName": "田中",
   "remarks": ""
 }
 ```
@@ -323,11 +467,25 @@ Example response:
 
 ## Create Contract
 
-Creates a sponsorship contract.
+Creates a sponsorship contract. A Yearly Company has at most one contract — a second `POST` for the same Yearly Company returns `409 Conflict`.
 
 ```
 POST /yearly-companies/{id}/contract
 ```
+
+Request:
+
+```json
+{
+  "contractDate": "2026-06-01",
+  "totalAmount": 95000,
+  "remarks": ""
+}
+```
+
+`assigneeId` is never part of the request body. It is set server-side from the Sponsorship Member currently assigned to the Yearly Company (`Assignment`, see Company Assignment API above) — a contract never introduces a new assignment of its own (`spec/model.md#SponsorshipContract`).
+
+Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`).
 
 Trigger:
 
@@ -343,6 +501,8 @@ Updates contract information.
 ```
 PATCH /contracts/{contractId}
 ```
+
+`totalAmount` is maintained by the server as the sum of `quantity * unitPrice` across the contract's Contract Menus (`spec/model.md#ContractMenu`) — it is accepted at creation as an initial value, but recalculated automatically whenever Contract Menus are added, updated, or removed (see Add Contract Menu below). Clients should treat it as read-only after creation.
 
 ---
 
@@ -412,12 +572,37 @@ Example response:
     "sponsorshipMenuId": "menu_id",
     "quantity": 1,
     "unitPrice": 80000,
+    "isGoodsSponsorship": false,
     "productionType": "COMPANY",
     "status": "WAITING",
-    "driveUrl": null
+    "driveUrl": null,
+    "remarks": ""
   }
 ]
 ```
+
+`status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL` or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#Enumerations`).
+
+---
+
+## List Contract Menus Across a Year
+
+Returns every Contract Menu contracted during a Year, joined with its Yearly Company / Contract for cross-contract views (see `spec/frontend.md#Contract Menu List` — used by the Sponsorship Menu Management Team to track production/submission status across all companies at once, UC-07/UC-08).
+
+```
+GET /years/{yearId}/contract-menus
+```
+
+Query:
+
+| Parameter          | Description                    |
+| ------------------- | ------------------------------- |
+| companyName         | Company name search (substring) |
+| sponsorshipMenuId   | Filter by Sponsorship Menu       |
+| status              | Filter by Contract Menu status   |
+| productionType      | Filter by production type        |
+
+Each item additionally includes `companyName` and `yearlyCompanyId` (joined from the owning Contract's Yearly Company) so the list doesn't require a second round trip per row.
 
 ---
 
@@ -436,9 +621,12 @@ Request:
   "sponsorshipMenuId": "menu_id",
   "quantity": 1,
   "unitPrice": 80000,
+  "isGoodsSponsorship": false,
   "productionType": "COMPANY"
 }
 ```
+
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above).
 
 ---
 
@@ -496,9 +684,24 @@ Example response:
   "amount": 100000,
   "status": "WAITING",
   "confirmedAt": null,
-  "confirmedById": null
+  "confirmedById": null,
+  "confirmedByName": null
 }
 ```
+
+Returns `404` if the contract has no Payment (e.g. a goods-sponsorship-only contract with `totalAmount = 0` — see Create Payment below).
+
+---
+
+## Create Payment
+
+Creates the Payment record for a contract, once its Contract Menus are in place and `totalAmount > 0` (`spec/domain.md#Sponsorship Contract`). `amount` defaults to the contract's current `totalAmount`. A contract has at most one Payment — a second `POST` returns `409 Conflict`; contracts with `totalAmount = 0` (goods-sponsorship-only) should not call this endpoint.
+
+```
+POST /contracts/{contractId}/payment
+```
+
+Response `status` starts at `WAITING`.
 
 ---
 
@@ -512,7 +715,7 @@ Permission:
 
 * Finance Department
 
-Confirms a payment once the Finance Department has verified the bank transfer (see `spec/usecase.md` UC-09). `confirmedAt`/`confirmedById` are set server-side from the authenticated user and current timestamp — not part of the request body.
+Confirms a payment once the Finance Department has verified the bank transfer (see `spec/usecase.md` UC-09). `confirmedAt`/`confirmedById` are set server-side from the authenticated user and current timestamp — not part of the request body. `status` is one of `WAITING / CONFIRMED` only (no `CANCELLED`). Moving `status` back to `WAITING` clears `confirmedAt`/`confirmedById` server-side — it never touches `YearlyCompany.progress` (see `spec/frontend.md#Finance Management`).
 
 Example:
 
@@ -528,7 +731,7 @@ Example:
 
 ## Get Sponsorship Progress
 
-Returns sponsorship progress.
+Returns the Yearly Company's current sponsorship progress.
 
 ```
 GET /yearly-companies/{id}/progress
@@ -538,13 +741,25 @@ Example:
 
 ```json
 {
-  "status": "PAYMENT_COMPLETED",
-  "history": [
-    {
-      "status": "DOCUMENT_SENT",
-      "date": "2026-06-01"
-    }
-  ]
+  "progress": "PAYMENT_RECEIVED"
+}
+```
+
+`progress` is one of `NOT_CONTACTED / MATERIALS_SENT / CONFIRMED / INVOICE_SENT / PAYMENT_RECEIVED / RECEIPT_SENT / DECLINED / PENDING` (`spec/model.md#Enumerations` → `SponsorshipProgress`). A full change-history timeline is not yet built (UC-14/Activity Log covers this later) — this endpoint returns only the current value.
+
+---
+
+## Update Sponsorship Progress
+
+```
+PATCH /yearly-companies/{id}/progress
+```
+
+Example:
+
+```json
+{
+  "progress": "MATERIALS_SENT"
 }
 ```
 

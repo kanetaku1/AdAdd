@@ -138,6 +138,10 @@ The assignee is scoped to the contract, not to individual Contract Menus. Every 
 
 A `SponsorshipContract` record is only created once an agreement is actually reached (see `spec/usecase.md` UC-06) — there is no separate draft state, so no `status` field is needed here. `contractDate` is the single date the agreement was reached. Overall progress (including whether the engagement is fully wrapped up) is tracked on `YearlyCompany.progress`, not duplicated on the contract.
 
+Creating a `SponsorshipContract` sets `YearlyCompany.progress` to `Confirmed` automatically, and creates a `Payment` (see below) when `totalAmount > 0` — a goods-sponsorship-only contract (`totalAmount = 0`) gets no `Payment` (`spec/domain.md#Sponsorship Contract`).
+
+`totalAmount` is accepted at creation as an initial value but is server-maintained thereafter: it is recalculated as the sum of `quantity * unitPrice` across the contract's Contract Menus every time a Contract Menu is added, updated, or removed (see `ContractMenu` below). Clients should treat it as read-only once Contract Menus exist.
+
 ---
 
 ## SponsorshipMenu
@@ -208,6 +212,8 @@ Represents payment information for a contract's sponsorship amount.
 `confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with `SponsorshipContract.assigneeId`'s `xId`-suffixed foreign-key naming).
 
 `confirmedAt` is the **payment confirmation date** — the date the Finance Department confirmed the bank transfer in AdAdd (`spec/domain.md` → Payment), not necessarily the date the bank transfer itself occurred. It is set automatically to the day the status is changed to Confirmed; there is no separate "actual transfer date" field. This date is used when generating the receipt (`spec/usecase.md` UC-10 Send Receipt).
+
+A `Payment` is created alongside its `SponsorshipContract` only when `totalAmount > 0` (see `SponsorshipContract` above) — a goods-sponsorship-only contract has no `Payment` row at all, not a `Payment` with `amount = 0`. Moving `status` back from `Confirmed` to `Waiting` clears `confirmedAt`/`confirmedById`.
 
 ---
 
