@@ -21,6 +21,9 @@ func createAdvisorAssignment(c echo.Context) error {
 	}
 	svc := service.NewAdvisorService()
 	if err := svc.Create(&req); err != nil {
+		if err == service.ErrAdvisorAssignmentExists {
+			return c.JSON(http.StatusConflict, map[string]interface{}{"error": "advisor assignment already exists"})
+		}
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})

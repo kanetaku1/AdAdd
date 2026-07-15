@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
@@ -21,7 +22,35 @@ func (s *ContractMenuService) ListByContract(contractId string) ([]model.Contrac
 	return s.repo.ListByContract(contractId)
 }
 
-func (s *ContractMenuService) Create(m *model.ContractMenu) error { return s.repo.Create(m) }
+func (s *ContractMenuService) Create(m *model.ContractMenu) error {
+	csvc := NewContractService()
+	contract, err := csvc.GetByID(m.ContractID)
+	if err != nil {
+		return err
+	}
+
+	ycsvc := NewYearlyCompanyService()
+	yc, err := ycsvc.GetByID(contract.YearlyCompanyID)
+	if err != nil {
+		return err
+	}
+
+	smsvc := NewSponsorshipMenuService()
+	smenu, err := smsvc.GetByID(m.SponsorshipMenuID)
+	if err != nil {
+		return err
+	}
+
+	if smenu.YearID != yc.YearID {
+		return errors.New("sponsorship menu year does not match contract year")
+	}
+
+	if m.UnitPrice.IsZero() {
+		m.UnitPrice = smenu.DefaultPrice
+	}
+
+	return s.repo.Create(m)
+}
 
 func (s *ContractMenuService) Update(m *model.ContractMenu) error {
 	// keep backward compatibility: no user context

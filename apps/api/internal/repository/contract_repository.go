@@ -10,6 +10,17 @@ type ContractRepository struct{}
 
 func NewContractRepository() *ContractRepository { return &ContractRepository{} }
 
+func (r *ContractRepository) GetByID(id string) (*model.SponsorshipContract, error) {
+	var c model.SponsorshipContract
+	if db.DB == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	if err := db.DB.First(&c, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 func (r *ContractRepository) GetByYearlyCompanyID(yearlyCompanyId string) (*model.SponsorshipContract, error) {
 	var c model.SponsorshipContract
 	// If DB is not initialized (unit tests), return record not found to let caller proceed safely

@@ -30,3 +30,11 @@ func (r *CompanyRepository) GetByID(id string) (*model.Company, error) {
 	}
 	return &c, nil
 }
+
+func (r *CompanyRepository) Update(c *model.Company) error {
+	var existing model.Company
+	if err := db.DB.First(&existing, "id = ?", c.ID).Error; err == nil {
+		c.CreatedAt = existing.CreatedAt
+	}
+	return db.DB.Save(c).Error
+}

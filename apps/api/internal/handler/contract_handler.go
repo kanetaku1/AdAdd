@@ -35,24 +35,24 @@ func createContract(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
 	req.YearlyCompanyID = yearlyId
-	// set assignee from context if available (assignee is typically carried over from assignment)
-	uid := c.Get("userId")
-	if uid != nil && uid != "" {
-		req.AssigneeID = uid.(string)
+	// set assignee from assignment (contract never introduces a new assignment)
+	asvc := service.NewAssignmentService()
+	if assignments, err := asvc.ListByYearlyCompany(yearlyId); err == nil && len(assignments) > 0 {
+		req.AssigneeID = assignments[0].UserID
 	}
 	svc := service.NewContractService()
 	// input validation
 	if req.TotalAmount.IsNegative() {
-	return badRequest(c, "totalAmount must be non-negative")
+		return badRequest(c, "totalAmount must be non-negative")
 	}
 	if req.YearlyCompanyID == "" {
-	return badRequest(c, "yearlyCompanyId is required")
+		return badRequest(c, "yearlyCompanyId is required")
 	}
 	if err := svc.Create(&req); err != nil {
-	if err == service.ErrContractExists {
-		return c.JSON(http.StatusConflict, map[string]interface{}{"error": "contract already exists for this YearlyCompany"})
-	}
-	return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		if err == service.ErrContractExists {
+			return c.JSON(http.StatusConflict, map[string]interface{}{"error": "contract already exists for this YearlyCompany"})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }

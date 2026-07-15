@@ -23,6 +23,10 @@ func NewContractService() *ContractService {
 	return &ContractService{repo: repository.NewContractRepository()}
 }
 
+func (s *ContractService) GetByID(id string) (*model.SponsorshipContract, error) {
+	return s.repo.GetByID(id)
+}
+
 func (s *ContractService) GetByYearlyCompanyID(yearlyCompanyId string) (*model.SponsorshipContract, error) {
 	return s.repo.GetByYearlyCompanyID(yearlyCompanyId)
 }

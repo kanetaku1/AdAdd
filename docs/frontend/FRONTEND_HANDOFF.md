@@ -61,4 +61,3 @@ FRONTEND HANDOFF — AdAdd (apps/api)
 
 作成日: 2026-07-13T17:22:36+09:00
 作成者: Copilot CLI ランタイム上の AI アシスタント
-

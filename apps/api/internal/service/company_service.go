@@ -24,3 +24,7 @@ func (s *CompanyService) Create(c *model.Company) error {
 func (s *CompanyService) GetByID(id string) (*model.Company, error) {
 	return s.repo.GetByID(id)
 }
+
+func (s *CompanyService) Update(c *model.Company) error {
+	return s.repo.Update(c)
+}

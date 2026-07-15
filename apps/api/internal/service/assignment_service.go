@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
@@ -13,11 +14,21 @@ type AssignmentService struct {
 	repo *repository.AssignmentRepository
 }
 
+var ErrAssignmentExists = errors.New("assignment already exists")
+
 func NewAssignmentService() *AssignmentService {
 	return &AssignmentService{repo: repository.NewAssignmentRepository()}
 }
 
 func (s *AssignmentService) Create(a *model.Assignment) error {
+	// Check duplicate first
+	existing, _ := s.repo.ListByYearlyCompany(a.YearlyCompanyID)
+	for _, ex := range existing {
+		if ex.UserID == a.UserID {
+			return ErrAssignmentExists
+		}
+	}
+
 	return db.WithTx(func(tx *gorm.DB) error {
 		if err := tx.Create(a).Error; err != nil {
 			return err

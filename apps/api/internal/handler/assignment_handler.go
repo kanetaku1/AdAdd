@@ -26,6 +26,9 @@ func createAssignment(c echo.Context) error {
 	req.YearlyCompanyID = ycId
 	svc := service.NewAssignmentService()
 	if err := svc.Create(&req); err != nil {
+		if err == service.ErrAssignmentExists {
+			return c.JSON(http.StatusConflict, map[string]interface{}{"error": "assignment already exists"})
+		}
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})

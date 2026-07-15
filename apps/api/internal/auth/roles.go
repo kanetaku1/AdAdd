@@ -4,16 +4,12 @@ package auth
 // This file lists recommended roles for resources. Use as canonical source when reviewing RBAC.
 
 var RoleMatrix = map[string][]string{
-	// resource -> allowed roles
-	"create_contract":           {"staff", "admin"},
-	"update_contract":           {"staff", "admin"},
-	"create_yearly_company":     {"staff", "admin"},
-	"update_yearly_company":     {"staff", "admin"},
-	"create_sponsorship_menu":   {"staff", "admin"},
-	"update_sponsorship_menu":   {"staff", "admin"},
-	"create_contract_menu":      {"staff", "admin"},
-	"submit_contract_menu":      {"staff", "admin"},
-	"update_payment":            {"finance", "admin"},
-	"view_activity_logs":        {"staff", "admin"},
-	"create_assignment":         {"admin"},
+	"manage_companies":         {"company_manager", "admin"},
+	"manage_years":             {"company_manager", "admin"},
+	"manage_sponsorship_menus": {"menu_manager", "admin"},
+	"manage_contracts":         {"staff", "admin"},
+	"manage_contract_menus":    {"staff", "admin"},
+	"manage_payments":          {"finance", "admin"},
+	"manage_assignments":       {"admin"},
+	"manage_advisors":          {"company_manager", "admin"},
 }

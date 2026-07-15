@@ -7,6 +7,7 @@ func RegisterRoutes(e *echo.Echo) {
 	e.Use(AuthMiddleware)
 
 	RegisterCompanyRoutes(e)
+	RegisterYearRoutes(e)
 	RegisterYearlyCompanyRoutes(e)
 	RegisterContractRoutes(e)
 	RegisterPaymentRoutes(e)

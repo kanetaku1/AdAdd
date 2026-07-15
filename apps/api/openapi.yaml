@@ -19,7 +19,7 @@ paths:
                 properties:
                   status:
                     type: string
-  /yearly-companies:
+  /years/{yearId}/companies:
     post:
       summary: YearlyCompany 作成
       requestBody:
@@ -35,7 +35,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/YearlyCompany'
-  /contracts:
+  /yearly-companies/{id}/contract:
     post:
       summary: SponsorshipContract 作成
       requestBody:
@@ -115,7 +115,7 @@ paths:
       responses:
         '200':
           description: Updated
-  /payments:
+  /contracts/{contractId}/payment:
     post:
       summary: 支払い作成
       requestBody:
@@ -127,9 +127,9 @@ paths:
       responses:
         '201':
           description: Created
-  /payments/{id}/confirm:
+  /payments/{paymentId}:
     patch:
-      summary: 支払い確定
+      summary: 支払いステータス更新
       parameters:
         - name: id
           in: path

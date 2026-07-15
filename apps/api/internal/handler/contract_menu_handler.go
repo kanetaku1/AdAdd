@@ -63,7 +63,7 @@ func updateContractMenuStatus(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
 	// validate status
-	allowed := []string{"DRAFT", "SUBMITTED", "PRODUCTION", "COMPLETED", "REJECTED"}
+	allowed := []string{"WAITING", "REQUESTED", "PRODUCING", "COMPLETED", "SUBMITTED"}
 	if !validateStatus(body.Status, allowed) {
 		return badRequest(c, "invalid status")
 	}
