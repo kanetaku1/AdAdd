@@ -7,6 +7,7 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,7 @@ func (s *ContractMenuService) ListByContract(contractId string) ([]model.Contrac
 	return s.repo.ListByContract(contractId)
 }
 
-func (s *ContractMenuService) Create(m *model.ContractMenu) error {
+func (s *ContractMenuService) Create(m *model.ContractMenu, unitPriceProvided bool) error {
 	csvc := NewContractService()
 	contract, err := csvc.GetByID(m.ContractID)
 	if err != nil {
@@ -45,35 +46,45 @@ func (s *ContractMenuService) Create(m *model.ContractMenu) error {
 		return errors.New("sponsorship menu year does not match contract year")
 	}
 
-	if m.UnitPrice.IsZero() {
+	if m.IsGoodsSponsorship {
+		m.UnitPrice = decimal.Zero
+	} else if !unitPriceProvided {
 		m.UnitPrice = smenu.DefaultPrice
 	}
 
-	return s.repo.Create(m)
+	return db.WithTx(func(tx *gorm.DB) error {
+		if err := tx.Create(m).Error; err != nil {
+			return err
+		}
+		return csvc.RecalculateTotalAmount(tx, m.ContractID)
+	})
 }
 
 func (s *ContractMenuService) Update(m *model.ContractMenu) error {
-	// keep backward compatibility: no user context
 	return s.UpdateWithUser(m, "")
 }
 
 // UpdateWithUser updates the contract menu and, if the status transitions to SUBMITTED,
 // creates an ActivityLog linked to the given userID (if provided). This runs inside a transaction.
 func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID string) error {
+	csvc := NewContractService()
 	return db.WithTx(func(tx *gorm.DB) error {
-		// fetch existing to detect status change
 		var existing model.ContractMenu
 		if err := tx.First(&existing, "id = ?", m.ID).Error; err != nil {
 			return err
 		}
 		wasSubmitted := existing.Status == "SUBMITTED"
-		// preserve created_at from existing to avoid zero-datetime issues
 		m.CreatedAt = existing.CreatedAt
+		if m.IsGoodsSponsorship {
+			m.UnitPrice = decimal.Zero
+		}
 		if err := tx.Save(m).Error; err != nil {
 			return err
 		}
+		if err := csvc.RecalculateTotalAmount(tx, m.ContractID); err != nil {
+			return err
+		}
 		if m.Status == "SUBMITTED" && !wasSubmitted {
-			// try to attach YearlyCompanyID via contract
 			var contract model.SponsorshipContract
 			if err := tx.First(&contract, "id = ?", m.ContractID).Error; err == nil {
 				al := &model.ActivityLog{
@@ -89,6 +100,20 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 			}
 		}
 		return nil
+	})
+}
+
+func (s *ContractMenuService) Delete(id string) error {
+	csvc := NewContractService()
+	return db.WithTx(func(tx *gorm.DB) error {
+		var existing model.ContractMenu
+		if err := tx.First(&existing, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&existing).Error; err != nil {
+			return err
+		}
+		return csvc.RecalculateTotalAmount(tx, existing.ContractID)
 	})
 }
 
