@@ -110,7 +110,7 @@ YearlyCompany
 
 * ─── 1 Company
 
-1 ─── * CompanyAssignment
+1 ─── 0..1 CompanyAssignment
 
 1 ─── 1 SponsorshipContract
 
@@ -121,7 +121,7 @@ YearlyCompany
 
 # CompanyAssignment
 
-Represents sponsorship members responsible for a company.
+Represents the sponsorship member responsible for a company.
 
 This relationship represents sales responsibility.
 
@@ -130,7 +130,7 @@ This relationship represents sales responsibility.
 ```text
 YearlyCompany
 
-1 ─── * CompanyAssignment
+1 ─── 0..1 CompanyAssignment
 
 CompanyAssignment
 
@@ -139,7 +139,8 @@ CompanyAssignment
 
 ### Notes
 
-* A company may have multiple sponsorship members.
+* A Yearly Company has at most one CompanyAssignment: zero before an assignee is decided, one afterward.
+* A single sponsorship member may be the assignee for multiple companies.
 * Assignment is different from department membership.
 * Sponsorship members may belong to any department.
 
@@ -184,6 +185,8 @@ supports
 The advisor does not directly own companies.
 
 The advisor manages assigned members.
+
+A member may also be supported by more than one advisor at the same time within a Year — this relationship is many-to-many, not one advisor per member.
 
 ---
 
@@ -391,7 +394,7 @@ User
 | Year                | 1:N          | YearlyCompany        |
 | Company             | 1:N          | YearlyCompany        |
 | Year                | 1:N          | SponsorshipMenu       |
-| YearlyCompany       | 1:N          | CompanyAssignment     |
+| YearlyCompany       | 1:0..1       | CompanyAssignment     |
 | User                | 1:N          | CompanyAssignment     |
 | User                | 1:N          | AdvisorAssignment     |
 | YearlyCompany       | 1:1          | SponsorshipContract   |

@@ -118,7 +118,7 @@ Every business process starts from a Yearly Company.
 ### Responsibilities
 
 * Sponsorship progress
-* Assigned members
+* Assigned member (at most one — see Company Assignment)
 * Company status (continuing / new / dormant)
 * Sponsorship phase (outreach priority ranking for the current Year)
 * Activity history
@@ -133,7 +133,7 @@ YearlyCompany
 
 ├── Year
 ├── Company
-├── Assignment
+├── CompanyAssignment (0..1)
 ├── SponsorshipContract
 └── ActivityLog
 ```
@@ -256,11 +256,36 @@ Examples include:
 
 ---
 
+## Company Assignment
+
+Represents the Sponsorship Member responsible for a Yearly Company.
+
+A Yearly Company has at most one Company Assignment — zero before the Company Management Team (or an Advisor) decides an assignee, one afterward. A single Sponsorship Member may be the assignee for multiple Yearly Companies.
+
+### Responsibilities
+
+* Link one Sponsorship Member to a Yearly Company
+* Carry forward the assignee to the Sponsorship Contract once one is created (see `spec/model.md#SponsorshipContract`)
+
+### Relationships
+
+```
+YearlyCompany
+      │
+      └── CompanyAssignment (0..1)
+                │
+                └── User (Sponsorship Member)
+```
+
+---
+
 ## Advisor Assignment
 
 Represents the supervision relationship between a Sponsorship Advisor and a Sponsorship Member.
 
-An Advisor is assigned to Members, not to Yearly Companies or Companies.
+An Advisor is assigned to Members, not to Yearly Companies or Companies. This is independent of Company Assignment — an Advisor supervises a Member, not a specific company.
+
+A Sponsorship Member may have multiple Advisors at once (no upper bound); an Advisor may likewise supervise multiple Members.
 
 ### Responsibilities
 
@@ -367,7 +392,7 @@ Year
     └──── YearlyCompany
                │
                ├──── Company
-               ├──── Assignment
+               ├──── CompanyAssignment (0..1)
                ├──── ActivityLog
                └──── SponsorshipContract
                             │

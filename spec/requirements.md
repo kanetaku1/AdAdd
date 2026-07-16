@@ -333,8 +333,8 @@ Assign Sponsorship Advisors to Sponsorship Members.
 
 The system shall allow the Company Management Team to:
 
-* Assign an Advisor to a Sponsorship Member
-* Change an existing advisor assignment
+* Assign one or more Advisors to a Sponsorship Member (a Member may have multiple Advisors at once, no upper bound)
+* Remove an existing advisor assignment
 * View the members supervised by a given Advisor
 * View the companies handled by an Advisor's assigned members
 
@@ -354,14 +354,14 @@ High
 
 ### Purpose
 
-Notify the Sponsorship Member(s) assigned to a company when a sponsorship application is received, so they can respond promptly.
+Notify the Sponsorship Member assigned to a company when a sponsorship application is received, so they can respond promptly.
 
 ### Description
 
 The system shall:
 
 * Allow a User to link their Slack ID
-* When a Sponsorship Contract is created or updated via Google Forms import, look up the Sponsorship Members assigned to the corresponding Yearly Company (via Assignment) and send them a Slack mention
+* When a Sponsorship Contract is created or updated via Google Forms import, look up the Sponsorship Member assigned to the corresponding Yearly Company (via `CompanyAssignment`) and send them a Slack mention
 
 Slack is a notification target only. AdAdd does not read from Slack, and does not store Slack message contents.
 

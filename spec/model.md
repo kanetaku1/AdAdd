@@ -23,7 +23,7 @@ Year
                 │            ├──── ContractMenu ──→ SponsorshipMenu
                 │            └──── Payment
                 │
-                ├──── Assignment
+                ├──── CompanyAssignment (0..1)
                 └──── ActivityLog
 
 Company
@@ -85,7 +85,7 @@ A Company exists permanently.
 
 `memo` consolidates what the legacy spreadsheet tracked as separate 企業詳細 (company details), 備考 (remarks), and 以前の情報 (previous information) columns.
 
-A Company does not store a Slack ID. The Slack ID used for outreach notifications (see FR-014) belongs to the internal Sponsorship Member assigned via `Assignment`, not to the Company — see `User.slackId`.
+A Company does not store a Slack ID. The Slack ID used for outreach notifications (see FR-014) belongs to the internal Sponsorship Member assigned via `CompanyAssignment`, not to the Company — see `User.slackId`.
 
 ---
 
@@ -134,7 +134,7 @@ Represents one sponsorship agreement.
 
 The assignee is scoped to the contract, not to individual Contract Menus. Every Contract Menu under a contract shares the same assignee.
 
-`assigneeId` is not entered when the contract is created. It is carried over from the Sponsorship Member already assigned to the Yearly Company (`Assignment`, decided earlier by the Company Management Team or an Advisor — see `spec/usecase.md` UC-04) — a contract never introduces a new assignment of its own.
+`assigneeId` is not entered when the contract is created. It is carried over from the Sponsorship Member already assigned to the Yearly Company (`CompanyAssignment`, decided earlier by the Company Management Team or an Advisor — see `spec/usecase.md` UC-04) — a contract never introduces a new assignment of its own.
 
 A `SponsorshipContract` record is only created once an agreement is actually reached (see `spec/usecase.md` UC-06) — there is no separate draft state, so no `status` field is needed here. `contractDate` is the single date the agreement was reached. Overall progress (including whether the engagement is fully wrapped up) is tracked on `YearlyCompany.progress`, not duplicated on the contract.
 
@@ -217,11 +217,11 @@ A `Payment` is created alongside its `SponsorshipContract` only when `totalAmoun
 
 ---
 
-## Assignment
+## CompanyAssignment
 
-Represents member assignments.
+Represents the Sponsorship Member responsible for a Yearly Company.
 
-A Yearly Company may have multiple assigned members.
+A Yearly Company has at most one CompanyAssignment (`yearlyCompanyId` is unique) — zero before an assignee is decided, one afterward. A single Sponsorship Member may be the assignee for multiple Yearly Companies.
 
 ### Attributes
 
@@ -239,7 +239,7 @@ A Yearly Company may have multiple assigned members.
 
 Represents the supervision relationship between a Sponsorship Advisor and a Sponsorship Member.
 
-An Advisor is assigned to a Member, not to a Yearly Company.
+An Advisor is assigned to a Member, not to a Yearly Company. A Sponsorship Member may have multiple Advisors within the same Year (no upper bound); this is independent of `CompanyAssignment`.
 
 ### Attributes
 
@@ -363,7 +363,7 @@ Applies only when the referenced Sponsorship Menu has `requiresSubmission = true
 
 * SponsorshipMember
 
-`Assignment` links a User to a YearlyCompany. Advisor supervision is modeled separately by `AdvisorAssignment`.
+`CompanyAssignment` links a User to a YearlyCompany. Advisor supervision is modeled separately by `AdvisorAssignment`.
 
 ---
 
@@ -409,9 +409,9 @@ YearlyCompany
 ```
 YearlyCompany
 
-1 ----- *
+1 ----- 0..1
 
-Assignment
+CompanyAssignment
 
 1 ----- *
 
@@ -455,7 +455,7 @@ User
 
 1 ----- *
 
-Assignment
+CompanyAssignment
 
 1 ----- *
 
@@ -487,16 +487,16 @@ AdvisorAssignment (as Member)
 
 ---
 
-## Assignment
+## CompanyAssignment
 
-* A user cannot have duplicate assignments within the same Yearly Company.
+* A Yearly Company has at most one CompanyAssignment — `yearlyCompanyId` is unique.
 
 ---
 
 ## AdvisorAssignment
 
-* A Sponsorship Member can have only one Advisor per Year.
-* Year + memberId must be unique.
+* A Sponsorship Member may have multiple Advisors within the same Year (no upper bound).
+* Year + memberId + advisorId must be unique (the same Advisor cannot be assigned twice to the same Member in the same Year).
 * A YearlyCompany must never store a direct reference to an Advisor.
 
 ---
