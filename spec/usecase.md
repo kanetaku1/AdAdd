@@ -405,7 +405,7 @@ Alert the Sponsorship Member(s) assigned to a company as soon as a sponsorship a
 ## Flow
 
 1. Google Forms submission is imported and a Sponsorship Contract is created or updated for a Yearly Company.
-2. The system looks up the Sponsorship Members assigned to that Yearly Company (Assignment).
+2. The system looks up the Sponsorship Member assigned to that Yearly Company (`CompanyAssignment`).
 3. For each assigned member with a linked Slack ID, the system sends a Slack mention referencing the company and application.
 
 ## Result

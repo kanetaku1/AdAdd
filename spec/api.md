@@ -280,7 +280,7 @@ Query:
 | phase         | Sponsorship outreach priority (this Year)  |
 | assignee      | Sponsorship member                         |
 
-The response joins `Company.companyName` and the primary `Assignment` (see Company Assignment API below) so each item is self-contained for list display:
+The response joins `Company.companyName` and the assigned member (`CompanyAssignment`, see Company Assignment API below) so each item is self-contained for list display:
 
 ```json
 {
@@ -297,7 +297,7 @@ The response joins `Company.companyName` and the primary `Assignment` (see Compa
 }
 ```
 
-`assignedMemberId`/`assignedMemberName` surface a single primary assignee even though `Assignment` is domain-modeled as 1:* — a stated frontend scope simplification (see `spec/frontend.md#Yearly Company List`), not a change to the domain model.
+`assignedMemberId`/`assignedMemberName` surface the single assignee from `CompanyAssignment` (0..1 per Yearly Company — see `spec/model.md#CompanyAssignment`).
 
 ---
 
@@ -375,7 +375,7 @@ Request:
 }
 ```
 
-Although `Assignment` is domain-modeled as 1:* (`spec/model.md#Assignment`), the current frontend only edits a single primary assignee per Yearly Company (see `spec/frontend.md#Yearly Company List`). Until multi-assignee UI exists, this endpoint replaces any existing `Assignment` for the Yearly Company rather than adding a second row — sending `userId: null` clears the assignment.
+`CompanyAssignment` is domain-modeled as 0..1 per Yearly Company (`spec/model.md#CompanyAssignment`), so this endpoint always replaces any existing `CompanyAssignment` for the Yearly Company rather than adding a second row — sending `userId: null` clears the assignment.
 
 Permission:
 
@@ -397,7 +397,7 @@ GET /users/me/companies
 
 ## Assign Advisor
 
-Assigns an advisor to a sponsorship member for a given Year. A Sponsorship Member has at most one Advisor per Year (`spec/model.md` constraint: Year + memberId must be unique), so this upserts the existing assignment for that Year+member rather than creating a duplicate. Sending `advisorUserId: null` removes the assignment (see `spec/usecase.md` UC-03).
+Adds an advisor to a sponsorship member for a given Year. A Sponsorship Member may have multiple Advisors within the same Year (no upper bound — `spec/model.md` constraint: Year + memberId + advisorId must be unique). This always creates a new `AdvisorAssignment` row; it never replaces an existing one. Assigning the same Advisor to the same Member in the same Year twice returns `409 Conflict` (see `spec/usecase.md` UC-03).
 
 ```
 POST /advisor-assignments
@@ -419,9 +419,23 @@ Permission:
 
 ---
 
+## Remove Advisor
+
+Removes a single advisor assignment.
+
+```
+DELETE /advisor-assignments/{id}
+```
+
+Permission:
+
+* Company Management Department
+
+---
+
 ## List Advisor Assignments
 
-Returns every AdvisorAssignment for a Year (used to build the member↔advisor table — see `spec/frontend.md#Advisor Assignment`).
+Returns every AdvisorAssignment for a Year (used to build the member↔advisor table — see `spec/frontend.md#Advisor Assignment`). A single member may appear multiple times, once per Advisor.
 
 ```
 GET /advisor-assignments?yearId={yearId}
@@ -483,7 +497,9 @@ Request:
 }
 ```
 
-`assigneeId` is never part of the request body. It is set server-side from the Sponsorship Member currently assigned to the Yearly Company (`Assignment`, see Company Assignment API above) — a contract never introduces a new assignment of its own (`spec/model.md#SponsorshipContract`).
+`assigneeId` is never part of the request body. It is set server-side from the Sponsorship Member currently assigned to the Yearly Company (`CompanyAssignment`, see Company Assignment API above) — a contract never introduces a new assignment of its own (`spec/model.md#SponsorshipContract`).
+
+Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`).
 
 Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`).
 
@@ -626,7 +642,21 @@ Request:
 }
 ```
 
-`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above).
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above).
+
+---
+
+## Delete Contract Menu
+
+Removes a Contract Menu and recalculates the parent Contract's `totalAmount`.
+
+```
+DELETE /contract-menus/{id}
+```
+
+Permission:
+
+* Sponsorship Member / Company Management Department
 
 ---
 

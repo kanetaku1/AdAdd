@@ -274,7 +274,7 @@ Filters:
 * Sponsorship Progress (FR-010)
 * Contract status (not yet implemented)
 
-The Assigned Member column/edit currently surfaces and edits **one** primary assignee per Yearly Company (inline, cell-level, per Principle 4), even though `Assignment` is domain-modeled as 1:* (`spec/model.md#Assignment` — a Yearly Company may have multiple assigned members). Multi-assignee UI is deferred to a later iteration; this is a stated frontend scope simplification, not a change to the domain model.
+The Assigned Member column/edit surfaces and edits the single assignee per Yearly Company (inline, cell-level, per Principle 4) via `CompanyAssignment` (0..1 — `spec/model.md#CompanyAssignment`).
 
 ---
 
@@ -313,7 +313,7 @@ Progress History
 
 Contract and Contract Menu are both shown directly on this screen (there is no separate Contract Detail route — `YearlyCompany`:`SponsorshipContract` is 1:1, per `spec/model.md`, so a dedicated detail page for the contract added nothing this screen couldn't already hold):
 
-* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed, and creates a `Payment` record (spec/model.md#Payment) when `totalAmount > 0` — goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
+* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately after Contract Menu が作成され `totalAmount > 0` の場合（`POST /contracts/{contractId}/payment`）、goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
 * A contract exists — the full Contract Menu table (quantity/price/production status, same as Contract Menu Management below), invoice generation (FR-015), and payment status (read-only here — status changes happen on Finance) are all shown inline.
 
 Progress History currently shows only the live `YearlyCompany.progress` badge (editable). A full change-history timeline is UC-14 (Activity Log) — not built yet.

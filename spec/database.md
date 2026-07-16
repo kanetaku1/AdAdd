@@ -110,9 +110,9 @@ YearlyCompany
 
 * ─── 1 Company
 
-1 ─── * CompanyAssignment
+1 ─── 0..1 CompanyAssignment
 
-1 ─── 1 SponsorshipContract
+1 ─── 0..1 SponsorshipContract
 
 1 ─── * ActivityLog
 ```
@@ -121,7 +121,7 @@ YearlyCompany
 
 # CompanyAssignment
 
-Represents sponsorship members responsible for a company.
+Represents the sponsorship member responsible for a company.
 
 This relationship represents sales responsibility.
 
@@ -130,7 +130,7 @@ This relationship represents sales responsibility.
 ```text
 YearlyCompany
 
-1 ─── * CompanyAssignment
+1 ─── 0..1 CompanyAssignment
 
 CompanyAssignment
 
@@ -139,7 +139,8 @@ CompanyAssignment
 
 ### Notes
 
-* A company may have multiple sponsorship members.
+* A Yearly Company has at most one CompanyAssignment: zero before an assignee is decided, one afterward.
+* A single sponsorship member may be the assignee for multiple companies.
 * Assignment is different from department membership.
 * Sponsorship members may belong to any department.
 
@@ -169,6 +170,10 @@ memberUser
 
 ### Notes
 
+* A Sponsorship Member may have multiple Advisors within the same Year (no upper bound).
+* Year + memberId + advisorId must be unique.
+* The advisor does not directly own companies; the advisor manages assigned members.
+
 Example:
 
 ```text
@@ -181,24 +186,20 @@ supports
 高橋
 ```
 
-The advisor does not directly own companies.
-
-The advisor manages assigned members.
-
 ---
 
 # SponsorshipContract
 
 Represents a company's sponsorship agreement.
 
-A YearlyCompany has exactly one contract.
+A YearlyCompany has at most one contract (zero before it is created).
 
 ### Relationship
 
 ```text
 YearlyCompany
 
-1 ─── 1 SponsorshipContract
+1 ─── 0..1 SponsorshipContract
 ```
 
 ### Notes
@@ -391,10 +392,10 @@ User
 | Year                | 1:N          | YearlyCompany        |
 | Company             | 1:N          | YearlyCompany        |
 | Year                | 1:N          | SponsorshipMenu       |
-| YearlyCompany       | 1:N          | CompanyAssignment     |
+| YearlyCompany       | 1:0..1       | CompanyAssignment     |
 | User                | 1:N          | CompanyAssignment     |
 | User                | 1:N          | AdvisorAssignment     |
-| YearlyCompany       | 1:1          | SponsorshipContract   |
+| YearlyCompany       | 1:0..1       | SponsorshipContract   |
 | SponsorshipContract | 1:N          | ContractMenu          |
 | SponsorshipMenu     | 1:N          | ContractMenu          |
 | SponsorshipContract | 1:1          | Payment               |
