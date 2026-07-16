@@ -21,7 +21,6 @@ func (s *YearService) List() ([]model.Year, error) {
 
 func (s *YearService) Create(y *model.Year) error {
 	return db.WithTx(func(tx *gorm.DB) error {
-		// Deactivate all other years
 		if err := tx.Model(&model.Year{}).Where("1 = 1").Update("is_active", false).Error; err != nil {
 			return err
 		}
@@ -31,25 +30,24 @@ func (s *YearService) Create(y *model.Year) error {
 			return err
 		}
 
-		// Get all companies
 		var companies []model.Company
 		if err := tx.Find(&companies).Error; err != nil {
 			return err
 		}
 
+		precedingID, _ := findPrecedingYearID(tx, y.ID)
+
 		for _, c := range companies {
 			status := "NEW"
-			var count int64
-			// Quick check if company had a contract in the immediately preceding active year
-			// For MVP, just checking if they ever had a contract can sometimes be enough, but to be accurate:
-			// Actually, finding if there is at least one SponsorshipContract for this Company in ANY past year:
-			tx.Table("yearly_companies").
-				Joins("JOIN sponsorship_contracts ON sponsorship_contracts.yearly_company_id = yearly_companies.id").
-				Where("yearly_companies.company_id = ?", c.ID).
-				Count(&count)
-
-			if count > 0 {
-				status = "CONTINUING"
+			if precedingID != "" {
+				var count int64
+				tx.Table("yearly_companies").
+					Joins("JOIN sponsorship_contracts ON sponsorship_contracts.yearly_company_id = yearly_companies.id").
+					Where("yearly_companies.company_id = ? AND yearly_companies.year_id = ?", c.ID, precedingID).
+					Count(&count)
+				if count > 0 {
+					status = "CONTINUING"
+				}
 			}
 
 			yc := &model.YearlyCompany{
