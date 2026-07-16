@@ -84,17 +84,17 @@ Company Management Team
 
 ## Goal
 
-Assign advisors responsible for supporting sponsorship members.
+Assign advisors responsible for supporting sponsorship members. A Member may have more than one Advisor at once.
 
 ## Flow
 
 1. Select a Sponsorship Member.
-2. Select an Advisor.
+2. Add an Advisor (repeatable — a Member may accumulate multiple Advisors this way), or remove one of the Member's existing Advisors.
 3. Save.
 
 ## Result
 
-The advisor is assigned to the member, not to a company. The advisor supervises the companies handled by that member indirectly.
+Each advisor is assigned to the member individually, not to a company. Advisors supervise the companies handled by their assigned members indirectly.
 
 ---
 
@@ -106,17 +106,17 @@ Company Management Team
 
 ## Goal
 
-Assign members responsible for contacting companies.
+Assign the member responsible for contacting each company. A Yearly Company has at most one assignee (`CompanyAssignment`).
 
 ## Flow
 
 1. Select one or more Yearly Companies.
-2. Assign Sponsorship Members.
+2. Assign a Sponsorship Member (the same member may be applied to multiple companies in one bulk action).
 3. Save.
 
 ## Result
 
-Members receive their assigned companies.
+Each selected Yearly Company now has that member as its sole assignee, replacing any previous assignee.
 
 ---
 
@@ -396,7 +396,7 @@ System (triggered automatically)
 
 ## Goal
 
-Alert the Sponsorship Member(s) assigned to a company as soon as a sponsorship application arrives, so they can respond quickly.
+Alert the Sponsorship Member assigned to a company as soon as a sponsorship application arrives, so they can respond quickly.
 
 ## Trigger
 
@@ -406,11 +406,11 @@ Alert the Sponsorship Member(s) assigned to a company as soon as a sponsorship a
 
 1. Google Forms submission is imported and a Sponsorship Contract is created or updated for a Yearly Company.
 2. The system looks up the Sponsorship Member assigned to that Yearly Company (`CompanyAssignment`).
-3. For each assigned member with a linked Slack ID, the system sends a Slack mention referencing the company and application.
+3. If a member is assigned and has a linked Slack ID, the system sends a Slack mention referencing the company and application.
 
 ## Result
 
-Assigned members are notified without needing to check AdAdd manually.
+The assigned member is notified without needing to check AdAdd manually.
 
 ## Notes
 

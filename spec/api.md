@@ -297,7 +297,7 @@ The response joins `Company.companyName` and the assigned member (`CompanyAssign
 }
 ```
 
-`assignedMemberId`/`assignedMemberName` surface the single assignee from `CompanyAssignment` (0..1 per Yearly Company — see `spec/model.md#CompanyAssignment`).
+`assignedMemberId`/`assignedMemberName` surface the Yearly Company's `CompanyAssignment`, which is domain-modeled as 0..1 (`spec/model.md#CompanyAssignment`) — there is at most one assignee, never a list.
 
 ---
 
@@ -498,8 +498,6 @@ Request:
 ```
 
 `assigneeId` is never part of the request body. It is set server-side from the Sponsorship Member currently assigned to the Yearly Company (`CompanyAssignment`, see Company Assignment API above) — a contract never introduces a new assignment of its own (`spec/model.md#SponsorshipContract`).
-
-Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`).
 
 Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`).
 

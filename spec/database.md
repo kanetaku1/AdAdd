@@ -186,6 +186,12 @@ supports
 高橋
 ```
 
+The advisor does not directly own companies.
+
+The advisor manages assigned members.
+
+A member may also be supported by more than one advisor at the same time within a Year — this relationship is many-to-many, not one advisor per member.
+
 ---
 
 # SponsorshipContract

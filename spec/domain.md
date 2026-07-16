@@ -118,7 +118,7 @@ Every business process starts from a Yearly Company.
 ### Responsibilities
 
 * Sponsorship progress
-* Assigned members
+* Assigned member (at most one — see Company Assignment)
 * Company status (continuing / new / dormant)
 * Sponsorship phase (outreach priority ranking for the current Year)
 * Activity history

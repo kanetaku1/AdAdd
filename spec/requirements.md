@@ -333,8 +333,8 @@ Assign Sponsorship Advisors to Sponsorship Members.
 
 The system shall allow the Company Management Team to:
 
-* Assign an Advisor to a Sponsorship Member
-* Change an existing advisor assignment
+* Assign one or more Advisors to a Sponsorship Member (a Member may have multiple Advisors at once, no upper bound)
+* Remove an existing advisor assignment
 * View the members supervised by a given Advisor
 * View the companies handled by an Advisor's assigned members
 
@@ -354,7 +354,7 @@ High
 
 ### Purpose
 
-Notify the Sponsorship Member(s) assigned to a company when a sponsorship application is received, so they can respond promptly.
+Notify the Sponsorship Member assigned to a company when a sponsorship application is received, so they can respond promptly.
 
 ### Description
 
