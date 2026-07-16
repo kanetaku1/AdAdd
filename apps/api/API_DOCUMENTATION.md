@@ -47,17 +47,17 @@
 - GET /yearly-companies/:id/contract
   - 説明: YearlyCompany に紐づく契約取得
 - POST /yearly-companies/:id/contract
-  - 説明: 契約作成（staff, admin）
+  - 説明: 契約作成（staff, admin）。作成時に YearlyCompany.progress を CONFIRMED に更新
+  - assigneeId はリクエスト不可（CompanyAssignment からサーバ設定）
   - バリデーション: totalAmount は非負
   - ボディ例:
     {
       "totalAmount": "15000",
-      "assigneeId": "user-admin",
       "remarks": "Initial contract"
     }
   - エラー: 既に契約が存在する場合は 409 Conflict を返します
 - PATCH /contracts/:contractId
-  - 説明: 契約更新（staff, admin）
+  - 説明: 契約更新（staff, admin）。totalAmount / assigneeId はサーバ管理
 
 ### Sponsorship Menus
 - GET /years/:yearId/sponsorship-menus
@@ -72,8 +72,11 @@
 - GET /contracts/:contractId/menus
   - 説明: 契約に紐づくメニュー一覧
 - POST /contracts/:contractId/menus (staff, admin)
-  - 説明: 契約メニュー追加
+  - 説明: 契約メニュー追加。追加後に親契約の totalAmount を再計算
+  - unitPrice 省略時は defaultPrice。明示 0 は保持。isGoodsSponsorship=true なら unitPrice=0
   - バリデーション: sponsorshipMenuId 必須, quantity > 0, unitPrice 非負
+- DELETE /contract-menus/:id (staff, admin)
+  - 説明: 契約メニュー削除。削除後に totalAmount を再計算
 - PATCH /contract-menus/:id/status (staff, admin)
   - 説明: ステータス更新
   - ボディ: { "status": "SUBMITTED" }
@@ -84,16 +87,29 @@
 ### Payments
 - GET /contracts/:contractId/payment
   - 説明: 指定契約の支払い情報取得
+- POST /contracts/:contractId/payment (staff, admin, finance)
+  - 説明: 支払い作成（totalAmount > 0 の契約のみ。契約作成時には自動作成しない）
+  - エラー: totalAmount=0 は 400、既存 Payment は 409
 - PATCH /payments/:paymentId (finance, admin)
   - 説明: 支払い情報更新（ステータス変更など）
-  - バリデーション: status は PENDING|CONFIRMED|CANCELLED
+  - バリデーション: status は WAITING|CONFIRMED
   - CONFIRMED にするとサーバ側で confirmedAt/confirmedById がセットされます
+  - WAITING に戻すと confirmedAt/confirmedById をクリア
 
-### Assignments
+### Assignments（CompanyAssignment 0..1）
 - POST /yearly-companies/:id/assignments (admin)
-  - 説明: YearlyCompany にメンバーを割り当て
+  - 説明: 担当メンバーを置換。`userId: null` でクリア
 - GET /users/me/companies
   - 説明: 自分に割り当てられた YearlyCompany を取得
+
+### Advisor Assignments
+- GET /advisor-assignments?yearId={yearId}
+  - 説明: Year の AdvisorAssignment 一覧（Member あたり複数可）
+- POST /advisor-assignments (admin)
+  - 説明: Advisor 追加。同一 year+member+advisor は 409
+  - ボディ: { "yearId", "advisorUserId", "memberUserId" }
+- DELETE /advisor-assignments/:id (admin)
+  - 説明: AdvisorAssignment 削除
 
 ### Activity Logs
 - GET /yearly-companies/:id/activity-logs (staff, admin)

@@ -35,9 +35,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/YearlyCompany'
-  /yearly-companies/{id}/contract:
+  /yearly-companies/{id}/assignments:
     post:
-      summary: SponsorshipContract 作成
+      summary: CompanyAssignment を置換またはクリア（userId null でクリア）
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  nullable: true
+                role:
+                  type: string
+      responses:
+        '201':
+          description: Assigned
+        '200':
+          description: Cleared
+  /yearly-companies/{id}/contract:
+    get:
+      summary: 契約を取得
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: SponsorshipContract 作成（progress を CONFIRMED に更新、assigneeId は CompanyAssignment から設定）
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -54,8 +97,8 @@ paths:
         '409':
           description: Conflict (duplicate contract for YearlyCompany)
   /contracts/{contractId}:
-    get:
-      summary: 契約を取得
+    patch:
+      summary: 契約を更新（totalAmount / assigneeId はサーバ管理のため更新不可）
       parameters:
         - name: contractId
           in: path
@@ -78,7 +121,7 @@ paths:
         '200':
           description: OK
     post:
-      summary: 契約メニューを追加
+      summary: 契約メニューを追加（親契約の totalAmount を再計算）
       parameters:
         - name: contractId
           in: path
@@ -94,6 +137,18 @@ paths:
       responses:
         '201':
           description: Created
+  /contract-menus/{id}:
+    delete:
+      summary: 契約メニューを削除（親契約の totalAmount を再計算）
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
   /contract-menus/{id}/status:
     patch:
       summary: 契約メニューのステータス更新
@@ -117,19 +172,66 @@ paths:
           description: Updated
   /contracts/{contractId}/payment:
     post:
-      summary: 支払い作成
+      summary: 支払い作成（totalAmount > 0 の契約に対して明示的に作成）
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Created
+        '409':
+          description: Conflict
+  /payments/{paymentId}:
+    patch:
+      summary: 支払いステータス更新
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated
+  /advisor-assignments:
+    get:
+      summary: Year の AdvisorAssignment 一覧
+      parameters:
+        - name: yearId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: AdvisorAssignment を追加（同一 Year+Member+Advisor は 409）
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PaymentInput'
+              type: object
+              properties:
+                yearId:
+                  type: string
+                advisorUserId:
+                  type: string
+                memberUserId:
+                  type: string
+              required: [yearId, advisorUserId, memberUserId]
       responses:
         '201':
           description: Created
-  /payments/{paymentId}:
-    patch:
-      summary: 支払いステータス更新
+        '409':
+          description: Conflict
+  /advisor-assignments/{id}:
+    delete:
+      summary: AdvisorAssignment を削除
       parameters:
         - name: id
           in: path
@@ -138,7 +240,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Confirmed
+          description: Deleted
 components:
   schemas:
     YearlyCompanyInput:
@@ -146,37 +248,47 @@ components:
       properties:
         companyId:
           type: string
-        year:
-          type: integer
-        contactName:
-          type: string
-      required: [companyId, year]
+      required: [companyId]
     YearlyCompany:
       type: object
       properties:
         id:
           type: string
+        yearId:
+          type: string
         companyId:
           type: string
-        year:
-          type: integer
+        companyStatus:
+          type: string
+        phase:
+          type: string
+        progress:
+          type: string
         createdAt:
           type: string
           format: date-time
     ContractInput:
       type: object
       properties:
-        yearlyCompanyId:
+        contractDate:
           type: string
-        memo:
+          format: date
+        totalAmount:
+          type: number
+        remarks:
           type: string
-      required: [yearlyCompanyId]
     SponsorshipContract:
       type: object
       properties:
         id:
           type: string
         yearlyCompanyId:
+          type: string
+        totalAmount:
+          type: number
+        assigneeId:
+          type: string
+        remarks:
           type: string
         createdAt:
           type: string
@@ -189,18 +301,10 @@ components:
         quantity:
           type: integer
         unitPrice:
-          type: string
+          type: number
+        isGoodsSponsorship:
+          type: boolean
       required: [sponsorshipMenuId, quantity]
-    PaymentInput:
-      type: object
-      properties:
-        contractId:
-          type: string
-        amount:
-          type: string
-        method:
-          type: string
-      required: [contractId, amount]
     Payment:
       type: object
       properties:
@@ -209,19 +313,9 @@ components:
         contractId:
           type: string
         amount:
+          type: number
+        status:
           type: string
         confirmedAt:
-          type: string
-          format: date-time
-    ActivityLog:
-      type: object
-      properties:
-        id:
-          type: string
-        action:
-          type: string
-        details:
-          type: object
-        createdAt:
           type: string
           format: date-time
