@@ -112,7 +112,7 @@ YearlyCompany
 
 1 ─── 0..1 CompanyAssignment
 
-1 ─── 1 SponsorshipContract
+1 ─── 0..1 SponsorshipContract
 
 1 ─── * ActivityLog
 ```
@@ -170,6 +170,10 @@ memberUser
 
 ### Notes
 
+* A Sponsorship Member may have multiple Advisors within the same Year (no upper bound).
+* Year + memberId + advisorId must be unique.
+* The advisor does not directly own companies; the advisor manages assigned members.
+
 Example:
 
 ```text
@@ -194,14 +198,14 @@ A member may also be supported by more than one advisor at the same time within 
 
 Represents a company's sponsorship agreement.
 
-A YearlyCompany has exactly one contract.
+A YearlyCompany has at most one contract (zero before it is created).
 
 ### Relationship
 
 ```text
 YearlyCompany
 
-1 ─── 1 SponsorshipContract
+1 ─── 0..1 SponsorshipContract
 ```
 
 ### Notes
@@ -397,7 +401,7 @@ User
 | YearlyCompany       | 1:0..1       | CompanyAssignment     |
 | User                | 1:N          | CompanyAssignment     |
 | User                | 1:N          | AdvisorAssignment     |
-| YearlyCompany       | 1:1          | SponsorshipContract   |
+| YearlyCompany       | 1:0..1       | SponsorshipContract   |
 | SponsorshipContract | 1:N          | ContractMenu          |
 | SponsorshipMenu     | 1:N          | ContractMenu          |
 | SponsorshipContract | 1:1          | Payment               |

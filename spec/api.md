@@ -640,7 +640,21 @@ Request:
 }
 ```
 
-`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above).
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above).
+
+---
+
+## Delete Contract Menu
+
+Removes a Contract Menu and recalculates the parent Contract's `totalAmount`.
+
+```
+DELETE /contract-menus/{id}
+```
+
+Permission:
+
+* Sponsorship Member / Company Management Department
 
 ---
 
