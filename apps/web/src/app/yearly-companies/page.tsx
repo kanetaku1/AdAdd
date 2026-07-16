@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
@@ -20,12 +20,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
+import { isApiEnabled } from "@/lib/api/client"
 import {
-  mockYearlyCompanies,
-  updateAssignedMember,
-} from "@/lib/mock/yearly-companies"
-import { mockUsers } from "@/lib/mock/users"
+  assignMember,
+  getContractByYearlyCompany,
+  listUsers,
+  listYearlyCompaniesByYear,
+  updateYearlyCompanyPhase,
+  updateYearlyCompanyStatus,
+} from "@/lib/data/sponsorship"
+import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
 import { getActiveYearId, mockYears } from "@/lib/mock/years"
 import {
   COMPANY_STATUS_LABEL,
@@ -33,6 +37,7 @@ import {
   SPONSORSHIP_PHASE_LABEL,
   SPONSORSHIP_PROGRESS_LABEL,
 } from "@/lib/yearly-company-labels"
+import type { User } from "@/types/user"
 import type {
   CompanyStatus,
   SponsorshipPhase,
@@ -46,18 +51,15 @@ type EditableColumn = "companyStatus" | "phase" | "assignedMember"
 
 /**
  * Yearly Company List (spec/frontend.md#Yearly Company Management).
- *
- * companyStatus/phase are inline-editable (spec/frontend.md UI Principle 4):
- * click a cell to change its value via a dropdown, in place.
- *
- * TODO: replace mockYearlyCompanies with GET /years/{yearId}/companies, and
- * wire cell edits to PATCH /yearly-companies/{id}/company-status and
- * .../phase, once the backend endpoints exist (spec/api.md).
  */
 export default function YearlyCompaniesPage() {
-  const activeYearId = getActiveYearId()
+  const activeYearId = getActiveYearId() ?? "year_2026"
   const activeYearName = mockYears.find((y) => y.id === activeYearId)?.name
-  const [rows, setRows] = useState<YearlyCompany[]>(mockYearlyCompanies)
+  const [rows, setRows] = useState<YearlyCompany[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [contractYearlyIds, setContractYearlyIds] = useState<Set<string>>(
+    new Set()
+  )
   const [companyStatusFilter, setCompanyStatusFilter] = useState<
     CompanyStatus | typeof ALL
   >(ALL)
@@ -68,6 +70,48 @@ export default function YearlyCompaniesPage() {
     id: string
     column: EditableColumn
   } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      const [list, userList] = await Promise.all([
+        listYearlyCompaniesByYear(activeYearId),
+        listUsers(),
+      ])
+      if (cancelled) return
+      setRows(list)
+      setUsers(userList)
+
+      if (isApiEnabled()) {
+        const flags = await Promise.all(
+          list.map(async (yc) => {
+            const contract = await getContractByYearlyCompany(yc.id)
+            return contract ? yc.id : null
+          })
+        )
+        if (!cancelled) {
+          setContractYearlyIds(
+            new Set(flags.filter((id): id is string => id !== null))
+          )
+        }
+      } else {
+        setContractYearlyIds(
+          new Set(
+            mockSponsorshipContracts
+              .filter((c) => list.some((yc) => yc.id === c.yearlyCompanyId))
+              .map((c) => c.yearlyCompanyId)
+          )
+        )
+      }
+      setLoading(false)
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [activeYearId])
 
   const visibleRows = useMemo(
     () =>
@@ -81,20 +125,22 @@ export default function YearlyCompaniesPage() {
     [rows, activeYearId, companyStatusFilter, phaseFilter]
   )
 
-  function setCompanyStatus(id: string, value: CompanyStatus) {
+  async function setCompanyStatus(id: string, value: CompanyStatus) {
+    await updateYearlyCompanyStatus(id, value)
     setRows((prev) =>
       prev.map((yc) => (yc.id === id ? { ...yc, companyStatus: value } : yc))
     )
   }
 
-  function setPhase(id: string, value: SponsorshipPhase) {
+  async function setPhase(id: string, value: SponsorshipPhase) {
+    await updateYearlyCompanyPhase(id, value)
     setRows((prev) =>
       prev.map((yc) => (yc.id === id ? { ...yc, phase: value } : yc))
     )
   }
 
-  function setAssignedMember(id: string, userId: string | null) {
-    updateAssignedMember(id, userId)
+  async function setAssignedMember(id: string, userId: string | null) {
+    await assignMember(id, userId)
     setRows((prev) =>
       prev.map((yc) =>
         yc.id === id
@@ -102,7 +148,7 @@ export default function YearlyCompaniesPage() {
               ...yc,
               assignedMemberId: userId,
               assignedMemberName:
-                mockUsers.find((u) => u.id === userId)?.name ?? null,
+                users.find((u) => u.id === userId)?.name ?? null,
             }
           : yc
       )
@@ -117,6 +163,12 @@ export default function YearlyCompaniesPage() {
           {activeYearName ?? ""}年度 協賛企業の管理
         </p>
       </div>
+
+      {!isApiEnabled() && (
+        <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+          開発モード: mock データを使用（`NEXT_PUBLIC_API_BASE_URL` で API 接続）。
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Select
@@ -175,164 +227,176 @@ export default function YearlyCompaniesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visibleRows.map((yc) => {
-              const hasContract = mockSponsorshipContracts.some(
-                (c) => c.yearlyCompanyId === yc.id
-              )
-              return (
-              <TableRow key={yc.id}>
-                <TableCell className="font-medium">
-                  <Link
-                    href={`/yearly-companies/${yc.id}`}
-                    className="hover:underline"
-                  >
-                    {yc.companyName}
-                  </Link>
-                </TableCell>
-
-                <TableCell className="rounded">
-                  {editingCell?.id === yc.id &&
-                  editingCell.column === "companyStatus" ? (
-                    <Select
-                      value={yc.companyStatus}
-                      defaultOpen
-                      onValueChange={(value) => {
-                        setCompanyStatus(yc.id, value as CompanyStatus)
-                        setEditingCell(null)
-                      }}
-                      onOpenChange={(open) => {
-                        if (!open) setEditingCell(null)
-                      }}
-                    >
-                      <SelectTrigger size="sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(COMPANY_STATUS_LABEL).map(
-                          ([value, label]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="cursor-pointer"
-                      onClick={() =>
-                        setEditingCell({ id: yc.id, column: "companyStatus" })
-                      }
-                    >
-                      {COMPANY_STATUS_LABEL[yc.companyStatus]}
-                    </Badge>
-                  )}
-                </TableCell>
-
-                <TableCell className="rounded">
-                  {editingCell?.id === yc.id && editingCell.column === "phase" ? (
-                    <Select
-                      value={yc.phase}
-                      defaultOpen
-                      onValueChange={(value) => {
-                        setPhase(yc.id, value as SponsorshipPhase)
-                        setEditingCell(null)
-                      }}
-                      onOpenChange={(open) => {
-                        if (!open) setEditingCell(null)
-                      }}
-                    >
-                      <SelectTrigger size="sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(SPONSORSHIP_PHASE_LABEL).map(
-                          ([value, label]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge
-                      variant={SPONSORSHIP_PHASE_BADGE_VARIANT[yc.phase]}
-                      className="cursor-pointer"
-                      onClick={() =>
-                        setEditingCell({ id: yc.id, column: "phase" })
-                      }
-                    >
-                      {SPONSORSHIP_PHASE_LABEL[yc.phase]}
-                    </Badge>
-                  )}
-                </TableCell>
-
-                <TableCell className="rounded">
-                  {editingCell?.id === yc.id &&
-                  editingCell.column === "assignedMember" ? (
-                    <Select
-                      value={yc.assignedMemberId ?? UNASSIGNED}
-                      defaultOpen
-                      onValueChange={(value) => {
-                        setAssignedMember(
-                          yc.id,
-                          value === UNASSIGNED ? null : value
-                        )
-                        setEditingCell(null)
-                      }}
-                      onOpenChange={(open) => {
-                        if (!open) setEditingCell(null)
-                      }}
-                    >
-                      <SelectTrigger size="sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={UNASSIGNED}>未割当</SelectItem>
-                        {mockUsers
-                          .filter(
-                            (u) => u.isActive || u.id === yc.assignedMemberId
-                          )
-                          .map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="cursor-pointer"
-                      onClick={() =>
-                        setEditingCell({ id: yc.id, column: "assignedMember" })
-                      }
-                    >
-                      {yc.assignedMemberName ?? "未割当"}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">
-                    {SPONSORSHIP_PROGRESS_LABEL[yc.progress]}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  {!hasContract && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      render={<Link href={`/contracts/new?yearlyCompanyId=${yc.id}`} />}
-                    >
-                      契約を作成
-                    </Button>
-                  )}
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-muted-foreground">
+                  読み込み中…
                 </TableCell>
               </TableRow>
-              )
-            })}
+            ) : (
+              visibleRows.map((yc) => {
+                const hasContract = contractYearlyIds.has(yc.id)
+                return (
+                  <TableRow key={yc.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/yearly-companies/${yc.id}`}
+                        className="hover:underline"
+                      >
+                        {yc.companyName}
+                      </Link>
+                    </TableCell>
+
+                    <TableCell className="rounded">
+                      {editingCell?.id === yc.id &&
+                      editingCell.column === "companyStatus" ? (
+                        <Select
+                          value={yc.companyStatus}
+                          defaultOpen
+                          onValueChange={(value) => {
+                            void setCompanyStatus(yc.id, value as CompanyStatus)
+                            setEditingCell(null)
+                          }}
+                          onOpenChange={(open) => {
+                            if (!open) setEditingCell(null)
+                          }}
+                        >
+                          <SelectTrigger size="sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(COMPANY_STATUS_LABEL).map(
+                              ([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer"
+                          onClick={() =>
+                            setEditingCell({
+                              id: yc.id,
+                              column: "companyStatus",
+                            })
+                          }
+                        >
+                          {COMPANY_STATUS_LABEL[yc.companyStatus]}
+                        </Badge>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="rounded">
+                      {editingCell?.id === yc.id &&
+                      editingCell.column === "phase" ? (
+                        <Select
+                          value={yc.phase}
+                          defaultOpen
+                          onValueChange={(value) => {
+                            void setPhase(yc.id, value as SponsorshipPhase)
+                            setEditingCell(null)
+                          }}
+                          onOpenChange={(open) => {
+                            if (!open) setEditingCell(null)
+                          }}
+                        >
+                          <SelectTrigger size="sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(SPONSORSHIP_PHASE_LABEL).map(
+                              ([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge
+                          variant={SPONSORSHIP_PHASE_BADGE_VARIANT[yc.phase]}
+                          className="cursor-pointer"
+                          onClick={() =>
+                            setEditingCell({ id: yc.id, column: "phase" })
+                          }
+                        >
+                          {SPONSORSHIP_PHASE_LABEL[yc.phase]}
+                        </Badge>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="rounded">
+                      {editingCell?.id === yc.id &&
+                      editingCell.column === "assignedMember" ? (
+                        <Select
+                          value={yc.assignedMemberId ?? UNASSIGNED}
+                          defaultOpen
+                          onValueChange={(value) => {
+                            void setAssignedMember(
+                              yc.id,
+                              value === UNASSIGNED ? null : value
+                            )
+                            setEditingCell(null)
+                          }}
+                          onOpenChange={(open) => {
+                            if (!open) setEditingCell(null)
+                          }}
+                        >
+                          <SelectTrigger size="sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={UNASSIGNED}>未割当</SelectItem>
+                            {users
+                              .filter(
+                                (u) =>
+                                  u.isActive || u.id === yc.assignedMemberId
+                              )
+                              .map((u) => (
+                                <SelectItem key={u.id} value={u.id}>
+                                  {u.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer"
+                          onClick={() =>
+                            setEditingCell({
+                              id: yc.id,
+                              column: "assignedMember",
+                            })
+                          }
+                        >
+                          {yc.assignedMemberName ?? "未割当"}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {SPONSORSHIP_PROGRESS_LABEL[yc.progress]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        render={<Link href={`/yearly-companies/${yc.id}`} />}
+                      >
+                        {hasContract ? "詳細" : "契約を作成"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
           </TableBody>
         </Table>
       </div>

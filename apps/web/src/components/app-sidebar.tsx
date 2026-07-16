@@ -6,14 +6,11 @@ import {
   LayoutDashboard,
   Building2,
   CalendarRange,
-  FileText,
   ClipboardCheck,
   ListChecks,
   Wallet,
-  BarChart3,
   CalendarClock,
   Users,
-  Settings,
 } from "lucide-react"
 
 import {
@@ -28,19 +25,16 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-/** Navigation Structure — spec/frontend.md */
+/** Navigation Structure — spec/frontend.md (YearlyCompany-centric). */
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Companies", url: "/companies", icon: Building2 },
   { title: "Yearly Companies", url: "/yearly-companies", icon: CalendarRange },
-  { title: "Sponsorship Contracts", url: "/contracts", icon: FileText },
   { title: "Contract Menus", url: "/contract-menus", icon: ClipboardCheck },
   { title: "Sponsorship Menus", url: "/sponsorship-menus", icon: ListChecks },
   { title: "Finance", url: "/finance", icon: Wallet },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Years", url: "/years", icon: CalendarClock },
   { title: "Users", url: "/users", icon: Users },
-  { title: "Settings", url: "/settings", icon: Settings },
 ]
 
 export function AppSidebar() {
@@ -62,7 +56,10 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     render={<Link href={item.url} />}
-                    isActive={pathname === item.url}
+                    isActive={
+                      pathname === item.url ||
+                      pathname.startsWith(`${item.url}/`)
+                    }
                     tooltip={item.title}
                   >
                     <item.icon />

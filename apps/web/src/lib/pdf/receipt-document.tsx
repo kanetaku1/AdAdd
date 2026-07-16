@@ -92,6 +92,7 @@ export function ReceiptDocument({ data }: { data: ReceiptData }) {
           </View>
         </View>
 
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image has no alt prop */}
         <Image style={styles.stamp} src="/images/43rd_Stamp.png" />
 
         <View style={styles.companyRow}>
