@@ -433,7 +433,6 @@ Input:
 * Name
 * Default price
 * Required submission
-* Description
 
 ---
 
