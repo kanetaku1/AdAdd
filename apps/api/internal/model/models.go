@@ -159,10 +159,10 @@ func (p *Payment) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
-// Assignment
-type Assignment struct {
+// CompanyAssignment (table: assignments) — 0..1 per YearlyCompany
+type CompanyAssignment struct {
 	ID              string         `gorm:"type:char(36);primaryKey" json:"id"`
-	YearlyCompanyID string         `gorm:"type:char(36);not null;index" json:"yearlyCompanyId"`
+	YearlyCompanyID string         `gorm:"type:char(36);not null;uniqueIndex:ux_assignment_yearly_company" json:"yearlyCompanyId"`
 	UserID          string         `gorm:"type:char(36);not null;index" json:"userId"`
 	Role            string         `gorm:"size:32" json:"role"`
 	AssignedAt      time.Time      `json:"assignedAt"`
@@ -171,19 +171,21 @@ type Assignment struct {
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-func (a *Assignment) BeforeCreate(tx *gorm.DB) (err error) {
+func (CompanyAssignment) TableName() string { return "assignments" }
+
+func (a *CompanyAssignment) BeforeCreate(tx *gorm.DB) (err error) {
 	if a.ID == "" {
 		a.ID = uuid.NewString()
 	}
 	return nil
 }
 
-// AdvisorAssignment
+// AdvisorAssignment — multiple Advisors per Member per Year; unique (yearId, memberId, advisorId)
 type AdvisorAssignment struct {
 	ID         string         `gorm:"type:char(36);primaryKey" json:"id"`
-	YearID     string         `gorm:"type:char(36);not null;index" json:"yearId"`
-	AdvisorID  string         `gorm:"type:char(36);not null;index" json:"advisorId"`
-	MemberID   string         `gorm:"type:char(36);not null;index" json:"memberId"`
+	YearID     string         `gorm:"type:char(36);not null;uniqueIndex:ux_advisor_year_member_advisor" json:"yearId"`
+	AdvisorID  string         `gorm:"type:char(36);not null;uniqueIndex:ux_advisor_year_member_advisor" json:"advisorId"`
+	MemberID   string         `gorm:"type:char(36);not null;uniqueIndex:ux_advisor_year_member_advisor" json:"memberId"`
 	AssignedAt time.Time      `json:"assignedAt"`
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`

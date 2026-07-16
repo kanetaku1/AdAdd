@@ -3,14 +3,12 @@ package handler
 import (
 	"net/http"
 
-	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
 )
 
 func RegisterAssignmentRoutes(e *echo.Echo) {
 	r := e.Group("")
-	// Only admin can create assignments
 	rAdmin := e.Group("")
 	rAdmin.Use(RequireRoles("admin"))
 	rAdmin.POST("/yearly-companies/:id/assignments", createAssignment)
@@ -19,19 +17,33 @@ func RegisterAssignmentRoutes(e *echo.Echo) {
 
 func createAssignment(c echo.Context) error {
 	ycId := c.Param("id")
-	var req model.Assignment
-	if err := c.Bind(&req); err != nil {
+	var body struct {
+		UserID *string `json:"userId"`
+		Role   string  `json:"role"`
+	}
+	if err := c.Bind(&body); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
-	req.YearlyCompanyID = ycId
+
+	userID := ""
+	if body.UserID != nil {
+		userID = *body.UserID
+	}
+
+	actorID := ""
+	if uid := c.Get("userId"); uid != nil {
+		actorID, _ = uid.(string)
+	}
+
 	svc := service.NewAssignmentService()
-	if err := svc.Create(&req); err != nil {
-		if err == service.ErrAssignmentExists {
-			return c.JSON(http.StatusConflict, map[string]interface{}{"error": "assignment already exists"})
-		}
+	result, err := svc.AssignOrClear(ycId, userID, body.Role, actorID)
+	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
-	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
+	if result == nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{"data": nil, "message": "cleared"})
+	}
+	return c.JSON(http.StatusCreated, map[string]interface{}{"data": result, "message": "created"})
 }
 
 func getAssignedCompaniesForMe(c echo.Context) error {

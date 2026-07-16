@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY ux_assignment_unique (yearly_company_id, user_id)
+  UNIQUE KEY ux_assignment_yearly_company (yearly_company_id)
 );
 
 CREATE TABLE IF NOT EXISTS advisor_assignments (
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS advisor_assignments (
   assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY ux_advisor_year_member (year_id, member_id)
+  UNIQUE KEY ux_advisor_year_member_advisor (year_id, member_id, advisor_id)
 );
 
 CREATE TABLE IF NOT EXISTS activity_logs (

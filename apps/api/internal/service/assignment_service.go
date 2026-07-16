@@ -14,43 +14,65 @@ type AssignmentService struct {
 	repo *repository.AssignmentRepository
 }
 
-var ErrAssignmentExists = errors.New("assignment already exists")
-
 func NewAssignmentService() *AssignmentService {
 	return &AssignmentService{repo: repository.NewAssignmentRepository()}
 }
 
-func (s *AssignmentService) Create(a *model.Assignment) error {
-	// Check duplicate first
-	existing, _ := s.repo.ListByYearlyCompany(a.YearlyCompanyID)
-	for _, ex := range existing {
-		if ex.UserID == a.UserID {
-			return ErrAssignmentExists
+// AssignOrClear replaces the CompanyAssignment for a YearlyCompany (0..1).
+// Empty userId clears any existing assignment.
+func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, role, actorUserID string) (*model.CompanyAssignment, error) {
+	var result *model.CompanyAssignment
+	err := db.WithTx(func(tx *gorm.DB) error {
+		if err := s.repo.DeleteByYearlyCompany(tx, yearlyCompanyID); err != nil {
+			return err
 		}
-	}
-
-	return db.WithTx(func(tx *gorm.DB) error {
+		if userID == "" {
+			al := &model.ActivityLog{
+				YearlyCompanyID: yearlyCompanyID,
+				UserID:          actorUserID,
+				Action:          "CLEARED_MEMBER",
+				Description:     "CompanyAssignment cleared",
+				CreatedAt:       time.Now(),
+			}
+			return tx.Create(al).Error
+		}
+		a := &model.CompanyAssignment{
+			YearlyCompanyID: yearlyCompanyID,
+			UserID:          userID,
+			Role:            role,
+			AssignedAt:      time.Now(),
+		}
 		if err := tx.Create(a).Error; err != nil {
 			return err
 		}
+		result = a
+		logUser := actorUserID
+		if logUser == "" {
+			logUser = userID
+		}
 		al := &model.ActivityLog{
-			YearlyCompanyID: a.YearlyCompanyID,
-			UserID:          a.UserID,
+			YearlyCompanyID: yearlyCompanyID,
+			UserID:          logUser,
 			Action:          "ASSIGNED_MEMBER",
 			Description:     "Member assigned to YearlyCompany",
 			CreatedAt:       time.Now(),
 		}
-		if err := tx.Create(al).Error; err != nil {
-			return err
-		}
-		return nil
+		return tx.Create(al).Error
 	})
+	return result, err
 }
 
-func (s *AssignmentService) ListByYearlyCompany(yearlyCompanyId string) ([]model.Assignment, error) {
-	return s.repo.ListByYearlyCompany(yearlyCompanyId)
+func (s *AssignmentService) GetByYearlyCompany(yearlyCompanyId string) (*model.CompanyAssignment, error) {
+	a, err := s.repo.GetByYearlyCompany(yearlyCompanyId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return a, nil
 }
 
-func (s *AssignmentService) ListByUser(userId string) ([]model.Assignment, error) {
+func (s *AssignmentService) ListByUser(userId string) ([]model.CompanyAssignment, error) {
 	return s.repo.ListByUser(userId)
 }
