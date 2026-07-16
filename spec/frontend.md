@@ -36,7 +36,7 @@ Frontend
 │
 ├── Finance Management
 │
-└── System Administration
+└── Settings
 ```
 
 ---
@@ -527,7 +527,16 @@ Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` 
 
 ---
 
-# System Administration
+# Settings
+
+Actor: Administrator (see User Roles → Administrator).
+
+Groups the system-administration screens behind one sidebar entry (`/settings`), each as its own tab/sub-route rather than a separate top-level nav item:
+
+* User List (includes Role assignment)
+* Advisor Assignment
+
+Years is not part of Settings — switching the active Year is a frequent, business-critical operation (it scopes `/yearly-companies` and `/sponsorship-menus`), not an administrative configuration task, so it keeps its own top-level nav entry (see Year Management).
 
 ## User List
 
@@ -535,7 +544,9 @@ Purpose:
 
 Manage system users (UC-12). Actor: System Administrator.
 
-Display, one always-editable row per user (Principle 4):
+**Exception to Principle 4:** Student ID, Name, Email, Slack ID, and Role(s) are not edited inline. Unlike business/workflow data (Yearly Company, Contract Menu, ...), these fields change rarely once a user is set up, so exposing them as always-editable cells only adds risk of an accidental edit with no everyday editing benefit. Editing goes through a dialog instead — same reasoning, and same pattern, as Company List's "Edit company" action.
+
+Display, one row per user:
 
 | Information  |
 | ------------ |
@@ -543,15 +554,16 @@ Display, one always-editable row per user (Principle 4):
 | Name         |
 | Email        |
 | Slack ID     |
-| Active       |
+| Role(s)      |
+| Active (inline toggle) |
 
 Actions:
 
-* Add user (new row, mostly blank)
-* Edit any field inline
-* Disable / re-enable (Active toggle)
+* Add user — opens the edit dialog blank
+* Edit user — opens the edit dialog pre-filled with Student ID, Name, Email, Slack ID, and Role(s) (multi-select; `User *─* Role` is many-to-many, `spec/database.md#Role` — options are the fixed example set: GeneralMember, CompanyManagement, MenuManagement, Finance, Administrator)
+* Disable / re-enable (Active toggle, stays inline — this is a frequent, deliberate access-control action, not a profile edit)
 
-Current scope covers user creation, listing, and activation/deactivation only. Role assignment (UC-12 step 2) is deferred until `Role` (`spec/model.md#Role`) has its own management UI — there is no role picker on this screen yet.
+This covers all of UC-12: user creation, role assignment, listing, and activation/deactivation.
 
 ---
 
@@ -561,7 +573,7 @@ Purpose:
 
 Assign a Sponsorship Advisor to each Sponsorship Member (UC-03, FR-013). Actor: Company Management Team.
 
-Display, one row per User (there is no `Role` yet, so any User may act as a Sponsorship Member or an Advisor — see User List above):
+Display, one row per User (the Advisor dropdown is not restricted by Role — any User may act as a Sponsorship Member or an Advisor — see User List above):
 
 | Information                |
 | --------------------------- |
@@ -598,11 +610,11 @@ Sidebar
 │
 ├── Years
 │
-├── Users
-│
-├── Advisor Assignments
-│
 └── Settings
+     │
+     ├── Users (includes Role assignment)
+     │
+     └── Advisor Assignments
 ```
 
 ---

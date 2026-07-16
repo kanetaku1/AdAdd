@@ -28,10 +28,10 @@ import { getActiveYearId } from "@/lib/mock/years"
 const UNASSIGNED = "UNASSIGNED" as const
 
 /**
- * Advisor Assignment (spec/frontend.md#Advisor Assignment, UC-03/FR-013).
- * There is no Role yet (spec/usecase.md UC-12 Notes), so any User may act as
- * a Sponsorship Member or an Advisor — same simplification already made for
- * the assigned-member picker on /yearly-companies.
+ * Advisor Assignment (spec/frontend.md#Settings > Advisor Assignment,
+ * UC-03/FR-013). The Advisor dropdown is not restricted by Role — any User
+ * may act as a Sponsorship Member or an Advisor — same simplification
+ * already made for the assigned-member picker on /yearly-companies.
  *
  * TODO: replace mockAdvisorAssignments with GET /advisor-assignments, and
  * wire edits to POST /advisor-assignments once the backend endpoints exist
@@ -77,7 +77,7 @@ export default function AdvisorAssignmentsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Advisor Assignments</h1>
+        <h2 className="text-lg font-medium">Advisor Assignments</h2>
         <p className="text-muted-foreground">実働メンバーへのアドバイザー割り当て</p>
       </div>
 

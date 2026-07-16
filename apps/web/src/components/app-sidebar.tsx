@@ -11,8 +11,6 @@ import {
   Wallet,
   BarChart3,
   CalendarClock,
-  Users,
-  UserCheck,
   Settings,
 } from "lucide-react"
 
@@ -38,12 +36,6 @@ const NAV_ITEMS = [
   { title: "Finance", url: "/finance", icon: Wallet },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Years", url: "/years", icon: CalendarClock },
-  { title: "Users", url: "/users", icon: Users },
-  {
-    title: "Advisor Assignments",
-    url: "/advisor-assignments",
-    icon: UserCheck,
-  },
   { title: "Settings", url: "/settings", icon: Settings },
 ]
 
@@ -66,7 +58,10 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     render={<Link href={item.url} />}
-                    isActive={pathname === item.url}
+                    isActive={
+                      pathname === item.url ||
+                      pathname.startsWith(`${item.url}/`)
+                    }
                     tooltip={item.title}
                   >
                     <item.icon />
