@@ -11,6 +11,7 @@ import (
 func RegisterCompanyRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/companies", listCompanies)
+	r.GET("/companies/:id", getCompany)
 
 	rc := e.Group("")
 	rc.Use(RequireRoles("company_manager", "admin"))
@@ -25,6 +26,16 @@ func listCompanies(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": companies, "message": "success"})
+}
+
+func getCompany(c echo.Context) error {
+	id := c.Param("id")
+	svc := service.NewCompanyService()
+	company, err := svc.GetByID(id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "company not found"})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": company, "message": "success"})
 }
 
 func createCompany(c echo.Context) error {

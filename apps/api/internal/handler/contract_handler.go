@@ -11,7 +11,6 @@ import (
 func RegisterContractRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/yearly-companies/:id/contract", getContractByYearlyCompany)
-	// Create/update contracts: only staff or admin
 	rc := e.Group("")
 	rc.Use(RequireRoles("staff", "admin"))
 	rc.POST("/yearly-companies/:id/contract", createContract)
@@ -35,20 +34,26 @@ func createContract(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
 	req.YearlyCompanyID = yearlyId
-	// set assignee from assignment (contract never introduces a new assignment)
+	// assigneeId is never accepted from the client — only from CompanyAssignment
+	req.AssigneeID = ""
 	asvc := service.NewAssignmentService()
-	if assignments, err := asvc.ListByYearlyCompany(yearlyId); err == nil && len(assignments) > 0 {
-		req.AssigneeID = assignments[0].UserID
+	if a, err := asvc.GetByYearlyCompany(yearlyId); err == nil && a != nil {
+		req.AssigneeID = a.UserID
 	}
-	svc := service.NewContractService()
-	// input validation
+
 	if req.TotalAmount.IsNegative() {
 		return badRequest(c, "totalAmount must be non-negative")
 	}
 	if req.YearlyCompanyID == "" {
 		return badRequest(c, "yearlyCompanyId is required")
 	}
-	if err := svc.Create(&req); err != nil {
+
+	svc := service.NewContractService()
+	actorID := ""
+	if uid := c.Get("userId"); uid != nil {
+		actorID, _ = uid.(string)
+	}
+	if err := svc.CreateWithUser(&req, actorID); err != nil {
 		if err == service.ErrContractExists {
 			return c.JSON(http.StatusConflict, map[string]interface{}{"error": "contract already exists for this YearlyCompany"})
 		}
@@ -59,15 +64,26 @@ func createContract(c echo.Context) error {
 
 func updateContract(c echo.Context) error {
 	cid := c.Param("contractId")
-	var req model.SponsorshipContract
-	if err := c.Bind(&req); err != nil {
+	svc := service.NewContractService()
+	existing, err := svc.GetByID(cid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "contract not found"})
+	}
+
+	var patch model.SponsorshipContract
+	if err := c.Bind(&patch); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
 	}
-	// ensure ID
-	req.ID = cid
-	svc := service.NewContractService()
-	if err := svc.Update(&req); err != nil {
+	if patch.ContractDate != nil {
+		existing.ContractDate = patch.ContractDate
+	}
+	if patch.Remarks != "" {
+		existing.Remarks = patch.Remarks
+	}
+	// totalAmount and assigneeId remain server-owned
+
+	if err := svc.Update(existing); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": existing, "message": "updated"})
 }

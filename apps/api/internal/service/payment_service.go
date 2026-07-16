@@ -28,14 +28,13 @@ func (s *PaymentService) GetByID(id string) (*model.Payment, error) {
 func (s *PaymentService) Create(p *model.Payment) error { return s.repo.Create(p) }
 
 func (s *PaymentService) Update(p *model.Payment) error {
-	// Use transaction to update payment and create ActivityLog when status changes to CONFIRMED
 	return db.WithTx(func(tx *gorm.DB) error {
-		// load existing payment to detect status change
 		var existing model.Payment
 		if err := tx.First(&existing, "id = ?", p.ID).Error; err != nil {
 			return err
 		}
 		wasConfirmed := existing.Status == "CONFIRMED"
+
 		if p.Status == "CONFIRMED" && !wasConfirmed {
 			n := time.Now()
 			p.ConfirmedAt = &n
@@ -43,14 +42,17 @@ func (s *PaymentService) Update(p *model.Payment) error {
 				p.ConfirmedByID = existing.ConfirmedByID
 			}
 		}
-		// perform targeted update to avoid overwriting fields with zero values
-		updates := map[string]interface{}{
-			"status":       p.Status,
-			"confirmed_at": p.ConfirmedAt,
-			"confirmed_by_id": p.ConfirmedByID,
-			"updated_at":    time.Now(),
+		if p.Status == "WAITING" {
+			p.ConfirmedAt = nil
+			p.ConfirmedByID = ""
 		}
-		// only update amount if provided (non-zero)
+
+		updates := map[string]interface{}{
+			"status":          p.Status,
+			"confirmed_at":    p.ConfirmedAt,
+			"confirmed_by_id": p.ConfirmedByID,
+			"updated_at":      time.Now(),
+		}
 		if !p.Amount.IsZero() {
 			updates["amount"] = p.Amount
 		}
@@ -58,15 +60,18 @@ func (s *PaymentService) Update(p *model.Payment) error {
 			return err
 		}
 		if p.Status == "CONFIRMED" && !wasConfirmed {
-			// try to find contract to attach YearlyCompanyID for logging
+			contractID := existing.ContractID
+			if contractID == "" {
+				contractID = p.ContractID
+			}
 			var contract model.SponsorshipContract
-			if err := tx.First(&contract, "id = ?", p.ContractID).Error; err == nil {
+			if err := tx.First(&contract, "id = ?", contractID).Error; err == nil {
 				al := &model.ActivityLog{
 					YearlyCompanyID: contract.YearlyCompanyID,
 					UserID:          p.ConfirmedByID,
 					Action:          "PAYMENT_CONFIRMED",
 					Description:     "Payment confirmed",
-					CreatedAt: time.Now(),
+					CreatedAt:       time.Now(),
 				}
 				if err := tx.Create(al).Error; err != nil {
 					return err
