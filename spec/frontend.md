@@ -36,7 +36,7 @@ Frontend
 │
 ├── Finance Management
 │
-└── Settings
+└── System Administration
 ```
 
 ---
@@ -270,11 +270,11 @@ Filters:
 * Company status
 * Sponsorship phase
 * Assigned member (FR-010)
-* Advisor (FR-010; derived from the assigned member's `AdvisorAssignment` for the active Year)
+* Advisor (FR-010; matches if the assigned member has the selected Advisor among their `AdvisorAssignment` rows for the active Year — a member may have more than one)
 * Sponsorship Progress (FR-010)
 * Contract status (not yet implemented)
 
-The Assigned Member column/edit currently surfaces and edits **one** primary assignee per Yearly Company (inline, cell-level, per Principle 4), even though `Assignment` is domain-modeled as 1:* (`spec/model.md#Assignment` — a Yearly Company may have multiple assigned members). Multi-assignee UI is deferred to a later iteration; this is a stated frontend scope simplification, not a change to the domain model.
+The Assigned Member column/edit surfaces and edits the Yearly Company's single assignee (inline, cell-level, per Principle 4). `CompanyAssignment` is domain-modeled as 0..1 per Yearly Company (`spec/model.md#CompanyAssignment`) — a Yearly Company has at most one assigned member, so this is the actual cardinality, not a UI simplification.
 
 ---
 
@@ -313,7 +313,7 @@ Progress History
 
 Contract and Contract Menu are both shown directly on this screen (there is no separate Contract Detail route — `YearlyCompany`:`SponsorshipContract` is 1:1, per `spec/model.md`, so a dedicated detail page for the contract added nothing this screen couldn't already hold):
 
-* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed, and creates a `Payment` record (spec/model.md#Payment) when `totalAmount > 0` — goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
+* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately after Contract Menu が作成され `totalAmount > 0` の場合（`POST /contracts/{contractId}/payment`）、goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
 * A contract exists — the full Contract Menu table (quantity/price/production status, same as Contract Menu Management below), invoice generation (FR-015), and payment status (read-only here — status changes happen on Finance) are all shown inline.
 
 Progress History currently shows only the live `YearlyCompany.progress` badge (editable). A full change-history timeline is UC-14 (Activity Log) — not built yet.
@@ -433,7 +433,6 @@ Input:
 * Name
 * Default price
 * Required submission
-* Description
 
 ---
 
@@ -527,16 +526,7 @@ Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` 
 
 ---
 
-# Settings
-
-Actor: Administrator (see User Roles → Administrator).
-
-Groups the system-administration screens behind one sidebar entry (`/settings`), each as its own tab/sub-route rather than a separate top-level nav item:
-
-* User List (includes Role assignment)
-* Advisor Assignment
-
-Years is not part of Settings — switching the active Year is a frequent, business-critical operation (it scopes `/yearly-companies` and `/sponsorship-menus`), not an administrative configuration task, so it keeps its own top-level nav entry (see Year Management).
+# System Administration
 
 ## User List
 
@@ -544,9 +534,7 @@ Purpose:
 
 Manage system users (UC-12). Actor: System Administrator.
 
-**Exception to Principle 4:** Student ID, Name, Email, Slack ID, and Role(s) are not edited inline. Unlike business/workflow data (Yearly Company, Contract Menu, ...), these fields change rarely once a user is set up, so exposing them as always-editable cells only adds risk of an accidental edit with no everyday editing benefit. Editing goes through a dialog instead — same reasoning, and same pattern, as Company List's "Edit company" action.
-
-Display, one row per user:
+Display, one always-editable row per user (Principle 4):
 
 | Information  |
 | ------------ |
@@ -554,16 +542,15 @@ Display, one row per user:
 | Name         |
 | Email        |
 | Slack ID     |
-| Role(s)      |
-| Active (inline toggle) |
+| Active       |
 
 Actions:
 
-* Add user — opens the edit dialog blank
-* Edit user — opens the edit dialog pre-filled with Student ID, Name, Email, Slack ID, and Role(s) (multi-select; `User *─* Role` is many-to-many, `spec/database.md#Role` — options are the fixed example set: GeneralMember, CompanyManagement, MenuManagement, Finance, Administrator)
-* Disable / re-enable (Active toggle, stays inline — this is a frequent, deliberate access-control action, not a profile edit)
+* Add user (new row, mostly blank)
+* Edit any field inline
+* Disable / re-enable (Active toggle)
 
-This covers all of UC-12: user creation, role assignment, listing, and activation/deactivation.
+Current scope covers user creation, listing, and activation/deactivation only. Role assignment (UC-12 step 2) is deferred until `Role` (`spec/model.md#Role`) has its own management UI — there is no role picker on this screen yet.
 
 ---
 
@@ -571,21 +558,22 @@ This covers all of UC-12: user creation, role assignment, listing, and activatio
 
 Purpose:
 
-Assign a Sponsorship Advisor to each Sponsorship Member (UC-03, FR-013). Actor: Company Management Team.
+Assign one or more Sponsorship Advisors to each Sponsorship Member (UC-03, FR-013). A Member may have multiple Advisors at once. Actor: Company Management Team.
 
-Display, one row per User (the Advisor dropdown is not restricted by Role — any User may act as a Sponsorship Member or an Advisor — see User List above):
+Display, one row per User (there is no `Role` yet, so any User may act as a Sponsorship Member or an Advisor — see User List above):
 
-| Information                |
-| --------------------------- |
-| Sponsorship Member (name)  |
-| Advisor (inline-editable)  |
+| Information                          |
+| ------------------------------------- |
+| Sponsorship Member (name)            |
+| Advisors (chips, one per assignment) |
 
 Actions:
 
-* Click the Advisor cell to reassign it via a dropdown (Principle 4), scoped to the active Year (`AdvisorAssignment.yearId`) — a User cannot be selected as their own Advisor.
-* Selecting the empty option ("未設定") removes the assignment.
+* The Advisors cell shows one chip per current `AdvisorAssignment`, scoped to the active Year (`AdvisorAssignment.yearId`).
+* A "+" control on the cell opens a dropdown to add another Advisor (Principle 4) — a User cannot be selected as their own Advisor, and an Advisor already present as a chip is excluded from the dropdown.
+* Clicking a chip's "×" removes that single advisor assignment (`DELETE /advisor-assignments/{id}`) without affecting the Member's other Advisors.
 
-Below the table, a read-only summary groups members by their current Advisor, covering FR-013's "view the members supervised by a given Advisor." Viewing the companies an Advisor's members handle (FR-013's 4th bullet) is not built here — that belongs to a future Advisor Dashboard, out of scope for now (see Dashboard → Department view decision).
+Below the table, a read-only summary groups members by their current Advisor(s) — a member with multiple Advisors appears under each — covering FR-013's "view the members supervised by a given Advisor." Viewing the companies an Advisor's members handle (FR-013's 4th bullet) is not built here — that belongs to a future Advisor Dashboard, out of scope for now (see Dashboard → Department view decision).
 
 Assignments do not carry over when a new Year is created — reassignment is a fresh per-Year action, same as the Yearly Company assigned-member picker.
 
@@ -610,11 +598,11 @@ Sidebar
 │
 ├── Years
 │
+├── Users
+│
+├── Advisor Assignments
+│
 └── Settings
-     │
-     ├── Users (includes Role assignment)
-     │
-     └── Advisor Assignments
 ```
 
 ---

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
@@ -175,7 +176,7 @@ export function CompanyForm({
           <Button
             type="button"
             variant="outline"
-            render={<a href="/companies" />}
+            render={<Link href="/companies" />}
           >
             キャンセル
           </Button>

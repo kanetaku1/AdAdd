@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   ListChecks,
   Wallet,
-  BarChart3,
   CalendarClock,
   Settings,
 } from "lucide-react"
@@ -26,7 +25,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-/** Navigation Structure — spec/frontend.md */
+/** Navigation Structure — spec/frontend.md (YearlyCompany-centric). */
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Companies", url: "/companies", icon: Building2 },
@@ -34,7 +33,6 @@ const NAV_ITEMS = [
   { title: "Contract Menus", url: "/contract-menus", icon: ClipboardCheck },
   { title: "Sponsorship Menus", url: "/sponsorship-menus", icon: ListChecks },
   { title: "Finance", url: "/finance", icon: Wallet },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Years", url: "/years", icon: CalendarClock },
   { title: "Settings", url: "/settings", icon: Settings },
 ]

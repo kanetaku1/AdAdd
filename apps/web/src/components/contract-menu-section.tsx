@@ -24,8 +24,7 @@ import {
   ContractMenuItemFields,
   type ContractMenuItemValue,
 } from "@/components/contract-menu-item-fields"
-import { addContractMenu } from "@/lib/mock/contract-menus"
-import { updateContractTotalAmount } from "@/lib/mock/sponsorship-contracts"
+import { addContractMenuToContract } from "@/lib/data/sponsorship"
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import {
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
@@ -50,53 +49,50 @@ function emptyItem(): ContractMenuItemValue {
 }
 
 /**
- * Contract Menu table + total amount + "メニューを追加" (spec/usecase.md
- * UC-07), extracted into a client component so contracts/[id]/page.tsx can
- * stay a server component while this part stays interactive — same pattern
- * as contract-progress-badge.tsx.
+ * Contract Menu table + total amount + "メニューを追加"
+ * (spec/usecase.md UC-07 / spec/frontend.md#Yearly Company Detail).
  */
 export function ContractMenuSection({
   contractId,
   initialContractMenus,
   initialTotalAmount,
+  onChanged,
 }: {
   contractId: string
   initialContractMenus: ContractMenu[]
   initialTotalAmount: number
+  onChanged?: () => void
 }) {
   const [contractMenus, setContractMenus] = useState(initialContractMenus)
   const [totalAmount, setTotalAmount] = useState(initialTotalAmount)
   const [open, setOpen] = useState(false)
   const [newItem, setNewItem] = useState<ContractMenuItemValue>(emptyItem())
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!newItem.sponsorshipMenuId) return
-
-    const contractMenu: ContractMenu = {
-      id: crypto.randomUUID(),
-      contractId,
-      sponsorshipMenuId: newItem.sponsorshipMenuId,
-      quantity: newItem.quantity,
-      unitPrice: newItem.unitPrice,
-      isGoodsSponsorship: newItem.isGoodsSponsorship,
-      productionType: newItem.productionType,
-      status: "WAITING",
-      driveUrl: null,
-      remarks: "",
+    setBusy(true)
+    setError(null)
+    try {
+      const created = await addContractMenuToContract(contractId, newItem)
+      const nextContractMenus = [...contractMenus, created]
+      const nextTotal = nextContractMenus.reduce(
+        (sum, cm) => sum + cm.quantity * cm.unitPrice,
+        0
+      )
+      setContractMenus(nextContractMenus)
+      setTotalAmount(nextTotal)
+      setNewItem(emptyItem())
+      setOpen(false)
+      onChanged?.()
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "メニューの追加に失敗しました"
+      )
+    } finally {
+      setBusy(false)
     }
-    addContractMenu(contractMenu)
-
-    const nextContractMenus = [...contractMenus, contractMenu]
-    const nextTotal = nextContractMenus.reduce(
-      (sum, cm) => sum + cm.quantity * cm.unitPrice,
-      0
-    )
-    updateContractTotalAmount(contractId, nextTotal)
-
-    setContractMenus(nextContractMenus)
-    setTotalAmount(nextTotal)
-    setNewItem(emptyItem())
-    setOpen(false)
   }
 
   return (
@@ -117,14 +113,26 @@ export function ContractMenuSection({
                 setNewItem((prev) => ({ ...prev, ...patch }))
               }
             />
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
             <DialogFooter>
-              <Button onClick={handleAdd} disabled={!newItem.sponsorshipMenuId}>
+              <Button
+                onClick={() => void handleAdd()}
+                disabled={!newItem.sponsorshipMenuId || busy}
+              >
                 追加
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+
+      {error && !open && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       <div className="rounded-md border">
         <Table>

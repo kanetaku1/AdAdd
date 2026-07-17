@@ -135,7 +135,7 @@ This is the central business entity of AdAdd.
 
 A Yearly Company contains:
 
-* Assigned members
+* Assigned member (at most one)
 * Company status (Continuing / New / Dormant — relationship history)
 * Sponsorship phase (Phase1 / Phase2 / Phase3 — outreach priority ranking for this Year)
 * Sponsorship progress
@@ -343,7 +343,7 @@ A company may exist without a sponsorship contract.
 
 An Advisor is assigned to Sponsorship Members, not to Yearly Companies or Companies.
 
-A Sponsorship Member has at most one Advisor per festival year.
+A Sponsorship Member may have multiple Advisors within the same festival year (no upper bound).
 
 Advisors monitor sponsorship progress by reviewing the companies handled by their assigned members.
 
@@ -451,7 +451,7 @@ Users can search historical emails using company names.
 
 ## Slack
 
-Used to notify the Sponsorship Members assigned to a company when relevant business events occur (e.g. a sponsorship application is received via Google Forms).
+Used to notify the Sponsorship Member assigned to a company when relevant business events occur (e.g. a sponsorship application is received via Google Forms).
 
 Each User may have a linked Slack ID.
 
