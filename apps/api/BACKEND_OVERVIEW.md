@@ -99,6 +99,8 @@
 3. 環境変数を設定
    - `DATABASE_URL=mysql://root:pass@tcp(localhost:3306)/adadd?parseTime=true`
    - `MIGRATE_ON_START=true`
+   - `APP_ENV=development`
+   - `ALLOWED_ORIGINS=http://localhost:3000`
 4. サーバ起動
    - `go run ./cmd/server`
 5. API を呼ぶときは開発用ヘッダを付与
