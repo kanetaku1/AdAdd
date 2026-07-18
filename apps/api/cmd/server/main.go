@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/config"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
@@ -24,6 +25,26 @@ func main() {
 	db.Init(cfg)
 
 	e := echo.New()
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: cfg.AllowedOrigins,
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			"X-User-ID",
+			"X-User-Roles",
+			echo.HeaderAuthorization,
+		},
+		AllowMethods: []string{
+			echo.GET,
+			echo.PUT,
+			echo.POST,
+			echo.DELETE,
+			echo.OPTIONS,
+			echo.PATCH,
+		},
+	}))
 
 	handler.RegisterHealthRoutes(e)
 	handler.RegisterRoutes(e)
