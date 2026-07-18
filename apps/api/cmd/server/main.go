@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -37,12 +38,12 @@ func main() {
 			echo.HeaderAuthorization,
 		},
 		AllowMethods: []string{
-			echo.GET,
-			echo.PUT,
-			echo.POST,
-			echo.DELETE,
-			echo.OPTIONS,
-			echo.PATCH,
+			http.MethodGet,
+			http.MethodPut,
+			http.MethodPost,
+			http.MethodDelete,
+			http.MethodOptions,
+			http.MethodPatch,
 		},
 	}))
 
