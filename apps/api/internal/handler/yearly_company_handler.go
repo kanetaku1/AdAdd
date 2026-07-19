@@ -66,7 +66,7 @@ func updateProgress(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "yearly company not found"})
 	}
 	yc.Progress = body.Progress
-	if err := svc.Update(yc); err != nil {
+	if err := svc.Update(&yc.YearlyCompany); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
@@ -114,7 +114,7 @@ func updateCompanyStatus(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "yearly company not found"})
 	}
 	yc.CompanyStatus = body.CompanyStatus
-	if err := svc.Update(yc); err != nil {
+	if err := svc.Update(&yc.YearlyCompany); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
@@ -134,7 +134,7 @@ func updatePhase(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "yearly company not found"})
 	}
 	yc.Phase = body.Phase
-	if err := svc.Update(yc); err != nil {
+	if err := svc.Update(&yc.YearlyCompany); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
