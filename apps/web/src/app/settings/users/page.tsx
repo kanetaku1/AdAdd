@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { addUser, mockUsers, updateUser } from "@/lib/mock/users"
+import { ApiError, isApiEnabled } from "@/lib/api/client"
+import { createUser, listUsers, updateUser } from "@/lib/data/users"
 import { ROLES, type Role, type User } from "@/types/user"
 
 type UserForm = {
@@ -56,24 +57,56 @@ function formFromUser(user: User): UserForm {
  * Active stays an inline toggle: disabling/re-enabling is a frequent,
  * deliberate access-control action, not a profile edit.
  *
- * TODO: replace mockUsers with GET /users, and wire edits to POST/PATCH
- * /users once the backend endpoints exist (spec/api.md).
+ * Role assignment has no backend support yet (spec/model.md#Role has no CRUD
+ * API) — lib/data/users.ts always returns `roles: []` in API mode, so the
+ * role picker is hidden there rather than silently discarding a selection
+ * the user made (Issue #17 convention).
  */
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>(mockUsers)
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<UserForm>(emptyForm())
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      setLoadError(null)
+      try {
+        const list = await listUsers()
+        if (!cancelled) setUsers(list)
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(
+            e instanceof Error ? e.message : "読み込みに失敗しました"
+          )
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const isOpen = editingId !== null
   const isNew = editingId === "new"
 
   function openNew() {
     setForm(emptyForm())
+    setFormError(null)
     setEditingId("new")
   }
 
   function openEdit(user: User) {
     setForm(formFromUser(user))
+    setFormError(null)
     setEditingId(user.id)
   }
 
@@ -86,7 +119,7 @@ export default function UsersPage() {
     }))
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.studentId || !form.name || !form.email) return
 
     const fields = {
@@ -97,26 +130,41 @@ export default function UsersPage() {
       roles: form.roles,
     }
 
-    if (isNew) {
-      const user: User = { id: crypto.randomUUID(), isActive: true, ...fields }
-      addUser(user)
-      setUsers((prev) => [...prev, user])
-    } else if (editingId) {
-      updateUser(editingId, fields)
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === editingId ? { ...user, ...fields } : user
+    setSubmitting(true)
+    setFormError(null)
+    try {
+      if (isNew) {
+        const created = await createUser(fields)
+        setUsers((prev) => [...prev, created])
+      } else if (editingId) {
+        const updated = await updateUser(editingId, fields)
+        setUsers((prev) =>
+          prev.map((user) => (user.id === editingId ? updated : user))
         )
+      }
+      setEditingId(null)
+    } catch (e) {
+      setFormError(
+        e instanceof ApiError && e.status === 409
+          ? "このメールアドレスは既に使われています"
+          : e instanceof Error
+            ? e.message
+            : "保存に失敗しました"
       )
+    } finally {
+      setSubmitting(false)
     }
-    setEditingId(null)
   }
 
-  function toggleActive(user: User, checked: boolean) {
-    updateUser(user.id, { isActive: checked })
-    setUsers((prev) =>
-      prev.map((u) => (u.id === user.id ? { ...u, isActive: checked } : u))
-    )
+  async function toggleActive(user: User, checked: boolean) {
+    try {
+      const updated = await updateUser(user.id, { isActive: checked })
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)))
+    } catch (e) {
+      setLoadError(
+        e instanceof Error ? e.message : "有効/無効の切り替えに失敗しました"
+      )
+    }
   }
 
   return (
@@ -128,6 +176,12 @@ export default function UsersPage() {
         </div>
         <Button onClick={openNew}>ユーザーを追加</Button>
       </div>
+
+      {loadError && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {loadError}
+        </p>
+      )}
 
       <div className="rounded-md border">
         <Table>
@@ -143,42 +197,61 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.studentId}</TableCell>
-                <TableCell className="font-medium">{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.slackId ?? "未連携"}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {user.roles.length === 0 ? (
-                      <span className="text-muted-foreground">-</span>
-                    ) : (
-                      user.roles.map((role) => (
-                        <Badge key={role} variant="outline">
-                          {role}
-                        </Badge>
-                      ))
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Switch
-                    checked={user.isActive}
-                    onCheckedChange={(checked) => toggleActive(user, checked)}
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => openEdit(user)}
-                  >
-                    編集
-                  </Button>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-muted-foreground">
+                  読み込み中…
                 </TableCell>
               </TableRow>
-            ))}
+            ) : users.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="text-center text-muted-foreground"
+                >
+                  ユーザーがまだいません
+                </TableCell>
+              </TableRow>
+            ) : (
+              users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.studentId}</TableCell>
+                  <TableCell className="font-medium">{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.slackId ?? "未連携"}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles.length === 0 ? (
+                        <span className="text-muted-foreground">-</span>
+                      ) : (
+                        user.roles.map((role) => (
+                          <Badge key={role} variant="outline">
+                            {role}
+                          </Badge>
+                        ))
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={user.isActive}
+                      onCheckedChange={(checked) =>
+                        void toggleActive(user, checked)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEdit(user)}
+                    >
+                      編集
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -238,28 +311,44 @@ export default function UsersPage() {
                 }
               />
             </Field>
-            <Field>
-              <FieldLabel>ロール</FieldLabel>
-              <div className="flex flex-wrap gap-1">
-                {ROLES.map((role) => (
-                  <Badge
-                    key={role}
-                    variant={form.roles.includes(role) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleFormRole(role)}
-                  >
-                    {role}
-                  </Badge>
-                ))}
-              </div>
-            </Field>
+            {isApiEnabled() ? (
+              <Field>
+                <FieldLabel>ロール</FieldLabel>
+                <p className="text-sm text-muted-foreground">
+                  ロール管理は未実装です(バックエンドの対応待ち)。
+                </p>
+              </Field>
+            ) : (
+              <Field>
+                <FieldLabel>ロール</FieldLabel>
+                <div className="flex flex-wrap gap-1">
+                  {ROLES.map((role) => (
+                    <Badge
+                      key={role}
+                      variant={form.roles.includes(role) ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => toggleFormRole(role)}
+                    >
+                      {role}
+                    </Badge>
+                  ))}
+                </div>
+              </Field>
+            )}
           </FieldGroup>
+          {formError && (
+            <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {formError}
+            </p>
+          )}
           <DialogFooter>
             <Button
-              onClick={handleSave}
-              disabled={!form.studentId || !form.name || !form.email}
+              onClick={() => void handleSave()}
+              disabled={
+                !form.studentId || !form.name || !form.email || submitting
+              }
             >
-              保存
+              {submitting ? "保存中…" : "保存"}
             </Button>
           </DialogFooter>
         </DialogContent>

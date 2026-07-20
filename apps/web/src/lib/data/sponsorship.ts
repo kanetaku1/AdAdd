@@ -20,7 +20,6 @@ import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
-import type { User } from "@/types/user"
 import type {
   CompanyStatus,
   SponsorshipPhase,
@@ -246,12 +245,7 @@ export async function listSponsorshipMenus(
   return mockSponsorshipMenus.filter((m) => m.yearId === yearId)
 }
 
-export async function listUsers(): Promise<User[]> {
-  if (isApiEnabled()) {
-    return apiFetch<User[]>(`/users`)
-  }
-  return mockUsers
-}
+export { listUsers } from "@/lib/data/users"
 
 export async function assignMember(
   yearlyCompanyId: string,
