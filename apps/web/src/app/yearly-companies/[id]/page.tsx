@@ -9,14 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { AssignedMemberCell } from "@/components/assigned-member-cell"
 import {
   ContractMenuItemFields,
   type ContractMenuItemValue,
@@ -57,8 +51,6 @@ import type {
   SponsorshipProgress,
   YearlyCompany,
 } from "@/types/yearly-company"
-
-const UNASSIGNED = "UNASSIGNED" as const
 
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10)
@@ -380,29 +372,12 @@ export default function YearlyCompanyDetailPage() {
             <div className="mb-2 text-sm text-muted-foreground">
               協賛実働メンバー
             </div>
-            <Select
-              value={yearlyCompany.assignedMemberId ?? UNASSIGNED}
-              onValueChange={(value) =>
-                void handleAssign(value === UNASSIGNED ? null : value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="未割当" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNASSIGNED}>未割当</SelectItem>
-                {users
-                  .filter(
-                    (u) =>
-                      u.isActive || u.id === yearlyCompany.assignedMemberId
-                  )
-                  .map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+            <AssignedMemberCell
+              assignedMemberId={yearlyCompany.assignedMemberId}
+              assignedMemberName={yearlyCompany.assignedMemberName}
+              users={users}
+              onChange={(userId) => void handleAssign(userId)}
+            />
           </div>
           <div className="rounded-md border p-3">
             <div className="mb-2 text-sm text-muted-foreground">

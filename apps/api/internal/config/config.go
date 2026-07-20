@@ -3,11 +3,14 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
+	AppEnv         string
+	AllowedOrigins []string
 	AppPort        string
 	DBHost         string
 	DBPort         string
@@ -28,7 +31,24 @@ func Load() *Config {
 		migrateOnStart = true
 	}
 
+	appEnv := getEnv("APP_ENV", "development")
+
+	var allowedOrigins []string
+	if originsStr := getEnv("ALLOWED_ORIGINS", ""); originsStr != "" {
+		for _, o := range strings.Split(originsStr, ",") {
+			o = strings.TrimSpace(o)
+			if o != "" {
+				allowedOrigins = append(allowedOrigins, o)
+			}
+		}
+	}
+	if appEnv == "development" {
+		allowedOrigins = append(allowedOrigins, "http://localhost:3000", "http://localhost:3001")
+	}
+
 	return &Config{
+		AppEnv:         appEnv,
+		AllowedOrigins: allowedOrigins,
 		AppPort:        getEnv("APP_PORT", "8080"),
 		DBHost:         getEnv("DB_HOST", "127.0.0.1"),
 		DBPort:         getEnv("DB_PORT", "3306"),
