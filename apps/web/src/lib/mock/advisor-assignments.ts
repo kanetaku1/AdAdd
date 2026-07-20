@@ -1,12 +1,10 @@
 import type { AdvisorAssignment } from "@/types/advisor-assignment"
 
 /**
- * Placeholder data matching a future GET /advisor-assignments response shape
- * (spec/api.md has no AdvisorAssignment endpoints yet). Replace with a real
- * fetch once the backend endpoints exist.
- *
- * 山田 (user_005) supervises 田中 (user_001) and 鈴木 (user_002) — matches the
- * existing Advisor Dashboard example in spec/frontend.md.
+ * Placeholder data matching GET /advisor-assignments?yearId={yearId}
+ * (spec/api.md). A Member may have multiple Advisors within the same Year
+ * (spec/model.md#AdvisorAssignment) — 鈴木 (user_002) here has two, matching
+ * the existing Advisor Dashboard example in spec/frontend.md.
  */
 export const mockAdvisorAssignments: AdvisorAssignment[] = [
   {
@@ -23,60 +21,47 @@ export const mockAdvisorAssignments: AdvisorAssignment[] = [
     memberId: "user_002",
     assignedAt: "2026-04-05T00:00:00Z",
   },
+  {
+    id: "advisor_assignment_003",
+    yearId: "year_2026",
+    advisorId: "user_003",
+    memberId: "user_002",
+    assignedAt: "2026-04-06T00:00:00Z",
+  },
 ]
 
 /**
- * Mutates the shared mock array so assigning/changing an Advisor persists
- * for the rest of the browser session (spec/usecase.md UC-03).
- * A Member has at most one Advisor per Year (spec/model.md constraint), so
- * this upserts the existing record for yearId+memberId rather than adding a
- * duplicate. Passing advisorId: null removes the assignment.
- * TODO: replace with POST /advisor-assignments once the backend exists
- * (spec/api.md).
+ * Mutates the shared mock array so adding/removing an Advisor persists for
+ * the rest of the browser session (spec/usecase.md UC-03). Always adds a new
+ * row — a Member may have multiple Advisors at once — mirroring the backend
+ * rejecting a duplicate Year+Member+Advisor combination with 409.
  */
-export function assignAdvisor(
+export function addAdvisorAssignment(
   yearId: string,
   memberId: string,
-  advisorId: string | null
-): void {
-  const index = mockAdvisorAssignments.findIndex(
-    (a) => a.yearId === yearId && a.memberId === memberId
+  advisorId: string
+): AdvisorAssignment {
+  const exists = mockAdvisorAssignments.some(
+    (a) =>
+      a.yearId === yearId && a.memberId === memberId && a.advisorId === advisorId
   )
+  if (exists) throw new Error("advisor assignment already exists")
 
-  if (!advisorId) {
-    if (index !== -1) {
-      mockAdvisorAssignments.splice(index, 1)
-    }
-    return
+  const assignment: AdvisorAssignment = {
+    id: crypto.randomUUID(),
+    yearId,
+    memberId,
+    advisorId,
+    assignedAt: new Date().toISOString(),
   }
-
-  const assignedAt = new Date().toISOString()
-  if (index !== -1) {
-    mockAdvisorAssignments[index].advisorId = advisorId
-    mockAdvisorAssignments[index].assignedAt = assignedAt
-  } else {
-    mockAdvisorAssignments.push({
-      id: crypto.randomUUID(),
-      yearId,
-      advisorId,
-      memberId,
-      assignedAt,
-    })
-  }
+  mockAdvisorAssignments.push(assignment)
+  return assignment
 }
 
-/**
- * A Yearly Company's Advisor is derived, not stored directly (spec/domain.md
- * Rule 9): its assigned member's AdvisorAssignment for that Year, if any.
- */
-export function advisorIdForMember(
-  yearId: string,
-  memberId: string | null
-): string | null {
-  if (!memberId) return null
-  return (
-    mockAdvisorAssignments.find(
-      (a) => a.yearId === yearId && a.memberId === memberId
-    )?.advisorId ?? null
-  )
+/** Removes a single advisor assignment without affecting the member's others. */
+export function removeAdvisorAssignment(id: string): void {
+  const index = mockAdvisorAssignments.findIndex((a) => a.id === id)
+  if (index !== -1) {
+    mockAdvisorAssignments.splice(index, 1)
+  }
 }
