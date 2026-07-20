@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CompaniesTable } from "@/components/companies-table"
-import { mockCompanies } from "@/lib/mock/companies"
+import { listCompanies } from "@/lib/data/companies"
 
 /**
  * Company List (spec/frontend.md#Company Management).
@@ -9,9 +9,10 @@ import { mockCompanies } from "@/lib/mock/companies"
  * its search isn't scoped to the active Year (unlike Yearly Companies /
  * Contract Menus). The active Year used by the per-row registration action
  * is read inside CompaniesTable via the shared ActiveYearProvider (Issue #18).
- * TODO: replace mockCompanies with GET /companies once the backend endpoint exists (spec/api.md).
  */
-export default function CompaniesPage() {
+export default async function CompaniesPage() {
+  const companies = await listCompanies()
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -22,7 +23,7 @@ export default function CompaniesPage() {
         <Button render={<Link href="/companies/new" />}>企業を登録</Button>
       </div>
 
-      <CompaniesTable companies={mockCompanies} />
+      <CompaniesTable companies={companies} />
     </div>
   )
 }

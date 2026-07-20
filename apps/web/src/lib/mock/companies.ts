@@ -81,3 +81,31 @@ export const mockCompanies: Company[] = [
     updatedAt: "2026-06-20T00:00:00Z",
   },
 ]
+
+/**
+ * Mutates the shared mock array so newly added/edited Companies persist for
+ * the rest of the browser session (spec/frontend.md#Company Management).
+ */
+export function addCompany(
+  input: Omit<Company, "id" | "createdAt" | "updatedAt">
+): Company {
+  const now = new Date().toISOString()
+  const company: Company = {
+    id: crypto.randomUUID(),
+    ...input,
+    createdAt: now,
+    updatedAt: now,
+  }
+  mockCompanies.push(company)
+  return company
+}
+
+export function updateCompany(
+  id: string,
+  input: Omit<Company, "id" | "createdAt" | "updatedAt">
+): Company {
+  const company = mockCompanies.find((c) => c.id === id)
+  if (!company) throw new Error("company not found")
+  Object.assign(company, input, { updatedAt: new Date().toISOString() })
+  return company
+}

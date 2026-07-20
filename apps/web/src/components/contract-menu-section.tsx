@@ -25,20 +25,20 @@ import {
   type ContractMenuItemValue,
 } from "@/components/contract-menu-item-fields"
 import { addContractMenuToContract } from "@/lib/data/sponsorship"
-import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import {
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
 } from "@/lib/contract-menu-labels"
 import type { ContractMenu } from "@/types/contract-menu"
+import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
   currency: "JPY",
 })
 
-function emptyItem(): ContractMenuItemValue {
-  const firstMenu = mockSponsorshipMenus[0]
+function emptyItem(menus: SponsorshipMenu[]): ContractMenuItemValue {
+  const firstMenu = menus[0]
   return {
     sponsorshipMenuId: firstMenu?.id ?? "",
     quantity: 1,
@@ -56,17 +56,21 @@ export function ContractMenuSection({
   contractId,
   initialContractMenus,
   initialTotalAmount,
+  menus,
   onChanged,
 }: {
   contractId: string
   initialContractMenus: ContractMenu[]
   initialTotalAmount: number
+  menus: SponsorshipMenu[]
   onChanged?: () => void
 }) {
   const [contractMenus, setContractMenus] = useState(initialContractMenus)
   const [totalAmount, setTotalAmount] = useState(initialTotalAmount)
   const [open, setOpen] = useState(false)
-  const [newItem, setNewItem] = useState<ContractMenuItemValue>(emptyItem())
+  const [newItem, setNewItem] = useState<ContractMenuItemValue>(
+    emptyItem(menus)
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -83,7 +87,7 @@ export function ContractMenuSection({
       )
       setContractMenus(nextContractMenus)
       setTotalAmount(nextTotal)
-      setNewItem(emptyItem())
+      setNewItem(emptyItem(menus))
       setOpen(false)
       onChanged?.()
     } catch (e) {
@@ -109,6 +113,7 @@ export function ContractMenuSection({
             </DialogHeader>
             <ContractMenuItemFields
               value={newItem}
+              menus={menus}
               onChange={(patch) =>
                 setNewItem((prev) => ({ ...prev, ...patch }))
               }
@@ -148,9 +153,7 @@ export function ContractMenuSection({
           </TableHeader>
           <TableBody>
             {contractMenus.map((cm) => {
-              const menu = mockSponsorshipMenus.find(
-                (m) => m.id === cm.sponsorshipMenuId
-              )
+              const menu = menus.find((m) => m.id === cm.sponsorshipMenuId)
               return (
                 <TableRow key={cm.id}>
                   <TableCell className="font-medium">

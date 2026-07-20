@@ -9,19 +9,15 @@ import {
   mockSponsorshipContracts,
   updateContractTotalAmount,
 } from "@/lib/mock/sponsorship-contracts"
-import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import { mockPayments } from "@/lib/mock/payments"
 import { mockUsers } from "@/lib/mock/users"
 import {
   mockYearlyCompanies,
   updateAssignedMember,
 } from "@/lib/mock/yearly-companies"
-import type { Company } from "@/types/company"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
-import type { SponsorshipMenu } from "@/types/sponsorship-menu"
-import type { User } from "@/types/user"
 import type {
   CompanyStatus,
   SponsorshipPhase,
@@ -52,31 +48,31 @@ function enrichYearlyCompany(yc: YearlyCompany & { notes?: string }): YearlyComp
   }
 }
 
-/** Backend YearlyCompany model lacks joined display fields. */
+/** Backend joins Company name and the assigned member onto the DTO (Issue #10). */
 type ApiYearlyCompany = {
   id: string
   yearId: string
   companyId: string
+  companyName: string
   companyStatus: CompanyStatus
   phase: SponsorshipPhase
   progress: SponsorshipProgress
+  assignedMemberId: string | null
+  assignedMemberName: string | null
   notes?: string
 }
 
-async function mapApiYearlyCompany(raw: ApiYearlyCompany): Promise<YearlyCompany> {
-  const company = await apiFetch<Company>(`/companies/${raw.companyId}`)
-
+function mapApiYearlyCompany(raw: ApiYearlyCompany): YearlyCompany {
   return {
     id: raw.id,
     yearId: raw.yearId,
     companyId: raw.companyId,
-    companyName: company.companyName,
+    companyName: raw.companyName,
     companyStatus: raw.companyStatus,
     phase: raw.phase,
     progress: raw.progress,
-    // Assignment join is not on the YearlyCompany payload yet (backend Issue #10).
-    assignedMemberId: null,
-    assignedMemberName: null,
+    assignedMemberId: raw.assignedMemberId,
+    assignedMemberName: raw.assignedMemberName,
     notes: raw.notes ?? "",
   }
 }
@@ -134,7 +130,7 @@ export async function listYearlyCompaniesByYear(
     const list = await apiFetch<ApiYearlyCompany[]>(
       `/years/${yearId}/companies`
     )
-    return Promise.all(list.map(mapApiYearlyCompany))
+    return list.map(mapApiYearlyCompany)
   }
   return mockYearlyCompanies
     .filter((yc) => yc.yearId === yearId)
@@ -157,17 +153,7 @@ export async function getYearlyCompany(
   return yc ? enrichYearlyCompany(yc) : null
 }
 
-export async function getCompany(id: string): Promise<Company | null> {
-  if (isApiEnabled()) {
-    try {
-      return await apiFetch<Company>(`/companies/${id}`)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) return null
-      throw err
-    }
-  }
-  return mockCompanies.find((c) => c.id === id) ?? null
-}
+export { getCompany } from "@/lib/data/companies"
 
 export async function getContractByYearlyCompany(
   yearlyCompanyId: string
@@ -248,21 +234,9 @@ export async function getPaymentByContract(
   return mockPayments.find((p) => p.contractId === contractId) ?? null
 }
 
-export async function listSponsorshipMenus(
-  yearId: string
-): Promise<SponsorshipMenu[]> {
-  if (isApiEnabled()) {
-    return apiFetch<SponsorshipMenu[]>(`/years/${yearId}/sponsorship-menus`)
-  }
-  return mockSponsorshipMenus.filter((m) => m.yearId === yearId)
-}
+export { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
 
-export async function listUsers(): Promise<User[]> {
-  if (isApiEnabled()) {
-    return apiFetch<User[]>(`/users`)
-  }
-  return mockUsers
-}
+export { listUsers } from "@/lib/data/users"
 
 export async function assignMember(
   yearlyCompanyId: string,

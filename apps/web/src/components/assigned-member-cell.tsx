@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockUsers } from "@/lib/mock/users"
+import type { User } from "@/types/user"
 
 const UNASSIGNED = "UNASSIGNED" as const
 
@@ -19,14 +19,18 @@ const UNASSIGNED = "UNASSIGNED" as const
  * Principle 4) — shared by the Yearly Companies list and Yearly Company
  * Detail. Options are active Users plus the currently assigned one even if
  * it has since been disabled (so it doesn't silently vanish from its own cell).
+ * `users` comes from the caller (API or mock, per lib/data/sponsorship.ts)
+ * rather than being read here, so this stays mode-agnostic.
  */
 export function AssignedMemberCell({
   assignedMemberId,
   assignedMemberName,
+  users,
   onChange,
 }: {
   assignedMemberId: string | null
   assignedMemberName: string | null
+  users: User[]
   onChange: (userId: string | null) => void
 }) {
   const [editing, setEditing] = useState(false)
@@ -49,7 +53,7 @@ export function AssignedMemberCell({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={UNASSIGNED}>未割当</SelectItem>
-          {mockUsers
+          {users
             .filter((u) => u.isActive || u.id === assignedMemberId)
             .map((u) => (
               <SelectItem key={u.id} value={u.id}>

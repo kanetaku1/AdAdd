@@ -30,3 +30,25 @@ export const mockSponsorshipMenus: SponsorshipMenu[] = [
     isActive: true,
   },
 ]
+
+/**
+ * Mutates the shared mock array so newly added/edited menus persist for the
+ * rest of the browser session (spec/frontend.md#Sponsorship Menu Management).
+ */
+export function addSponsorshipMenu(
+  input: Omit<SponsorshipMenu, "id">
+): SponsorshipMenu {
+  const menu: SponsorshipMenu = { id: crypto.randomUUID(), ...input }
+  mockSponsorshipMenus.push(menu)
+  return menu
+}
+
+export function updateSponsorshipMenu(
+  id: string,
+  patch: Partial<Omit<SponsorshipMenu, "id" | "yearId">>
+): SponsorshipMenu {
+  const menu = mockSponsorshipMenus.find((m) => m.id === id)
+  if (!menu) throw new Error("sponsorship menu not found")
+  Object.assign(menu, patch)
+  return menu
+}
