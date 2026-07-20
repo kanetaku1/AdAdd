@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { CompanyForm } from "@/components/company-form"
-import { mockCompanies } from "@/lib/mock/companies"
+import { getCompany } from "@/lib/data/companies"
 
 export default async function EditCompanyPage({
   params,
@@ -9,7 +9,7 @@ export default async function EditCompanyPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const company = mockCompanies.find((c) => c.id === id)
+  const company = await getCompany(id)
 
   if (!company) {
     notFound()
