@@ -52,31 +52,31 @@ function enrichYearlyCompany(yc: YearlyCompany & { notes?: string }): YearlyComp
   }
 }
 
-/** Backend YearlyCompany model lacks joined display fields. */
+/** Backend joins Company name and the assigned member onto the DTO (Issue #10). */
 type ApiYearlyCompany = {
   id: string
   yearId: string
   companyId: string
+  companyName: string
   companyStatus: CompanyStatus
   phase: SponsorshipPhase
   progress: SponsorshipProgress
+  assignedMemberId: string | null
+  assignedMemberName: string | null
   notes?: string
 }
 
-async function mapApiYearlyCompany(raw: ApiYearlyCompany): Promise<YearlyCompany> {
-  const company = await apiFetch<Company>(`/companies/${raw.companyId}`)
-
+function mapApiYearlyCompany(raw: ApiYearlyCompany): YearlyCompany {
   return {
     id: raw.id,
     yearId: raw.yearId,
     companyId: raw.companyId,
-    companyName: company.companyName,
+    companyName: raw.companyName,
     companyStatus: raw.companyStatus,
     phase: raw.phase,
     progress: raw.progress,
-    // Assignment join is not on the YearlyCompany payload yet (backend Issue #10).
-    assignedMemberId: null,
-    assignedMemberName: null,
+    assignedMemberId: raw.assignedMemberId,
+    assignedMemberName: raw.assignedMemberName,
     notes: raw.notes ?? "",
   }
 }
@@ -134,7 +134,7 @@ export async function listYearlyCompaniesByYear(
     const list = await apiFetch<ApiYearlyCompany[]>(
       `/years/${yearId}/companies`
     )
-    return Promise.all(list.map(mapApiYearlyCompany))
+    return list.map(mapApiYearlyCompany)
   }
   return mockYearlyCompanies
     .filter((yc) => yc.yearId === yearId)
