@@ -23,6 +23,10 @@ func (s *ContractMenuService) ListByContract(contractId string) ([]model.Contrac
 	return s.repo.ListByContract(contractId)
 }
 
+func (s *ContractMenuService) ListAcrossYear(yearID string, filters map[string]interface{}) ([]model.ContractMenuResponse, error) {
+	return s.repo.ListAcrossYear(yearID, filters)
+}
+
 func (s *ContractMenuService) Create(m *model.ContractMenu, unitPriceProvided bool) error {
 	csvc := NewContractService()
 	contract, err := csvc.GetByID(m.ContractID)
