@@ -9,7 +9,6 @@ import {
   mockSponsorshipContracts,
   updateContractTotalAmount,
 } from "@/lib/mock/sponsorship-contracts"
-import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import { mockPayments } from "@/lib/mock/payments"
 import { mockUsers } from "@/lib/mock/users"
 import {
@@ -19,7 +18,6 @@ import {
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
-import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 import type {
   CompanyStatus,
   SponsorshipPhase,
@@ -236,14 +234,7 @@ export async function getPaymentByContract(
   return mockPayments.find((p) => p.contractId === contractId) ?? null
 }
 
-export async function listSponsorshipMenus(
-  yearId: string
-): Promise<SponsorshipMenu[]> {
-  if (isApiEnabled()) {
-    return apiFetch<SponsorshipMenu[]>(`/years/${yearId}/sponsorship-menus`)
-  }
-  return mockSponsorshipMenus.filter((m) => m.yearId === yearId)
-}
+export { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
 
 export { listUsers } from "@/lib/data/users"
 
