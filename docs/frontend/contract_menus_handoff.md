@@ -12,8 +12,9 @@
 
 **リクエスト例:**
 ```bash
-GET /years/y-seed-test/contract-menus?status=WAITING&productionType=COMPANY
+GET /years/{yearId}/contract-menus?status=WAITING&productionType=COMPANY
 ```
+※ `{yearId}` の部分は、フロントエンド側で保持しているグローバルステート（現在選択中の年度のアクティブYearなど）から取得した実際の UUID に置き換えてリクエストしてください。
 
 **クエリパラメータ（任意・絞り込み用）:**
 - `companyName`: 企業名（部分一致）
