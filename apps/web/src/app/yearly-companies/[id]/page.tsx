@@ -475,6 +475,7 @@ export default function YearlyCompanyDetailPage() {
                 <ContractMenuItemFields
                   key={index}
                   value={item}
+                  menus={menus}
                   onChange={(patch) =>
                     setItems((prev) =>
                       prev.map((row, i) =>
@@ -560,6 +561,7 @@ export default function YearlyCompanyDetailPage() {
               contractId={contract.id}
               initialContractMenus={contractMenus}
               initialTotalAmount={contract.totalAmount}
+              menus={menus}
               onChanged={() => void reload()}
             />
 

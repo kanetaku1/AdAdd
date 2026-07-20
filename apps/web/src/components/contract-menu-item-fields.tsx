@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { CONTRACT_MENU_PRODUCTION_TYPE_LABEL } from "@/lib/contract-menu-labels"
-import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import type { ContractMenuProductionType } from "@/types/contract-menu"
+import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 export type ContractMenuItemValue = {
   sponsorshipMenuId: string
@@ -31,22 +31,20 @@ export type ContractMenuItemValue = {
  */
 export function ContractMenuItemFields({
   value,
+  menus,
   onChange,
   onRemove,
 }: {
   value: ContractMenuItemValue
+  menus: SponsorshipMenu[]
   onChange: (patch: Partial<ContractMenuItemValue>) => void
   onRemove?: () => void
 }) {
-  const menu = mockSponsorshipMenus.find(
-    (m) => m.id === value.sponsorshipMenuId
-  )
+  const menu = menus.find((m) => m.id === value.sponsorshipMenuId)
 
   function handleMenuChange(sponsorshipMenuId: string | null) {
     if (!sponsorshipMenuId) return
-    const selected = mockSponsorshipMenus.find(
-      (m) => m.id === sponsorshipMenuId
-    )
+    const selected = menus.find((m) => m.id === sponsorshipMenuId)
     onChange({
       sponsorshipMenuId,
       unitPrice: selected?.defaultPrice ?? value.unitPrice,
@@ -64,14 +62,14 @@ export function ContractMenuItemFields({
           value={value.sponsorshipMenuId}
           onValueChange={handleMenuChange}
           items={Object.fromEntries(
-            mockSponsorshipMenus.map((m) => [m.id, m.name])
+            menus.map((m) => [m.id, m.name])
           )}
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="メニューを選択" />
           </SelectTrigger>
           <SelectContent>
-            {mockSponsorshipMenus.map((m) => (
+            {menus.map((m) => (
               <SelectItem key={m.id} value={m.id}>
                 {m.name}
               </SelectItem>
