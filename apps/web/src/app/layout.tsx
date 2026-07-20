@@ -4,6 +4,7 @@ import "./globals.css";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ActiveYearProvider } from "@/components/active-year-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,17 +32,19 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <TooltipProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <main className="flex min-h-svh flex-1 flex-col">
-              <div className="flex h-12 items-center border-b px-4">
-                <SidebarTrigger />
-              </div>
-              <div className="flex-1 p-6">{children}</div>
-            </main>
-          </SidebarProvider>
-        </TooltipProvider>
+        <ActiveYearProvider>
+          <TooltipProvider>
+            <SidebarProvider>
+              <AppSidebar />
+              <main className="flex min-h-svh flex-1 flex-col">
+                <div className="flex h-12 items-center border-b px-4">
+                  <SidebarTrigger />
+                </div>
+                <div className="flex-1 p-6">{children}</div>
+              </main>
+            </SidebarProvider>
+          </TooltipProvider>
+        </ActiveYearProvider>
       </body>
     </html>
   );

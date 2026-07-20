@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 
+import { useActiveYear } from "@/components/active-year-provider"
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -23,7 +24,6 @@ import {
   mockAdvisorAssignments,
 } from "@/lib/mock/advisor-assignments"
 import { mockUsers } from "@/lib/mock/users"
-import { getActiveYearId } from "@/lib/mock/years"
 
 const UNASSIGNED = "UNASSIGNED" as const
 
@@ -31,14 +31,20 @@ const UNASSIGNED = "UNASSIGNED" as const
  * Advisor Assignment (spec/frontend.md#Settings > Advisor Assignment,
  * UC-03/FR-013). The Advisor dropdown is not restricted by Role — any User
  * may act as a Sponsorship Member or an Advisor — same simplification
- * already made for the assigned-member picker on /yearly-companies.
+ * already made for the assigned-member picker on /yearly-companies. Active
+ * Year comes from the shared ActiveYearProvider (Issue #18).
  *
  * TODO: replace mockAdvisorAssignments with GET /advisor-assignments, and
  * wire edits to POST /advisor-assignments once the backend endpoints exist
  * (spec/api.md).
  */
 export default function AdvisorAssignmentsPage() {
-  const activeYearId = getActiveYearId()
+  const {
+    activeYear,
+    loading: yearLoading,
+    error: yearError,
+  } = useActiveYear()
+  const activeYearId = activeYear?.id ?? null
   const [assignments, setAssignments] = useState(mockAdvisorAssignments)
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
 
@@ -51,7 +57,8 @@ export default function AdvisorAssignmentsPage() {
   }
 
   function handleChange(memberId: string, advisorId: string | null) {
-    assignAdvisor(activeYearId ?? "", memberId, advisorId)
+    if (!activeYearId) return
+    assignAdvisor(activeYearId, memberId, advisorId)
     setAssignments([...mockAdvisorAssignments])
     setEditingMemberId(null)
   }
@@ -81,6 +88,12 @@ export default function AdvisorAssignmentsPage() {
         <p className="text-muted-foreground">実働メンバーへのアドバイザー割り当て</p>
       </div>
 
+      {yearError && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {yearError}
+        </p>
+      )}
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -90,7 +103,23 @@ export default function AdvisorAssignmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockUsers.map((member) => {
+            {yearLoading ? (
+              <TableRow>
+                <TableCell colSpan={2} className="text-muted-foreground">
+                  読み込み中…
+                </TableCell>
+              </TableRow>
+            ) : !activeYearId ? (
+              <TableRow>
+                <TableCell
+                  colSpan={2}
+                  className="text-center text-muted-foreground"
+                >
+                  年度が未作成です。Years から年度を作成してください。
+                </TableCell>
+              </TableRow>
+            ) : (
+              mockUsers.map((member) => {
               const currentAdvisorId = advisorIdFor(member.id)
               return (
                 <TableRow key={member.id}>
@@ -136,7 +165,8 @@ export default function AdvisorAssignmentsPage() {
                   </TableCell>
                 </TableRow>
               )
-            })}
+              })
+            )}
           </TableBody>
         </Table>
       </div>

@@ -14,10 +14,6 @@ export const mockYears: Year[] = [
   },
 ]
 
-export function getActiveYearId(): string | null {
-  return mockYears.find((y) => y.isActive)?.id ?? null
-}
-
 /**
  * companyStatus auto-computation rule (spec/domain.md → Company Status):
  * Continuing requires a Yearly Company in the immediately preceding Year
