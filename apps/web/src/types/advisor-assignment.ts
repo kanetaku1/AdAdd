@@ -5,8 +5,8 @@
  * (spec/domain.md Rule 9) — supervision of companies is indirect, through
  * whichever Yearly Companies the supervised Member is assigned to.
  *
- * A Member has at most one Advisor per Year (spec/model.md constraint:
- * Year + memberId must be unique).
+ * A Member may have multiple Advisors within the same Year, no upper bound
+ * (spec/model.md constraint: Year + memberId + advisorId must be unique).
  */
 export type AdvisorAssignment = {
   id: string
