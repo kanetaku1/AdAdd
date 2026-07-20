@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
+import { useActiveYear } from "@/components/active-year-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -14,13 +15,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
-import { getActiveYearId, mockYears } from "@/lib/mock/years"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
-function emptyMenu(): SponsorshipMenu {
+function emptyMenu(yearId: string): SponsorshipMenu {
   return {
     id: crypto.randomUUID(),
-    yearId: getActiveYearId() ?? "",
+    yearId,
     name: "",
     defaultPrice: 0,
     requiresSubmission: false,
@@ -33,18 +33,32 @@ function emptyMenu(): SponsorshipMenu {
  * Yearly master data (spec/domain.md Rule 10) — never belongs to a specific
  * Company or Contract. Every cell is directly editable (spec/frontend.md UI
  * Principle 4) since this master list is short and simple; "行を追加" adds a
- * blank row that can be filled in over time.
+ * blank row that can be filled in over time. Active Year comes from the
+ * shared ActiveYearProvider (Issue #18).
  *
  * TODO: replace mockSponsorshipMenus with GET /years/{yearId}/sponsorship-menus,
  * and wire edits to POST/PATCH /years/{yearId}/sponsorship-menus once the
  * backend endpoints exist (spec/api.md).
  */
 export default function SponsorshipMenusPage() {
-  const activeYearId = getActiveYearId()
-  const activeYearName = mockYears.find((y) => y.id === activeYearId)?.name
-  const [menus, setMenus] = useState<SponsorshipMenu[]>(
-    mockSponsorshipMenus.filter((menu) => menu.yearId === activeYearId)
-  )
+  const {
+    activeYear,
+    loading: yearLoading,
+    error: yearError,
+  } = useActiveYear()
+  const activeYearId = activeYear?.id ?? null
+  const [menus, setMenus] = useState<SponsorshipMenu[]>([])
+
+  useEffect(() => {
+    function load() {
+      setMenus(
+        activeYearId
+          ? mockSponsorshipMenus.filter((menu) => menu.yearId === activeYearId)
+          : []
+      )
+    }
+    load()
+  }, [activeYearId])
 
   function updateMenu(id: string, patch: Partial<SponsorshipMenu>) {
     setMenus((prev) =>
@@ -53,7 +67,8 @@ export default function SponsorshipMenusPage() {
   }
 
   function addMenu() {
-    setMenus((prev) => [...prev, emptyMenu()])
+    if (!activeYearId) return
+    setMenus((prev) => [...prev, emptyMenu(activeYearId)])
   }
 
   return (
@@ -62,11 +77,19 @@ export default function SponsorshipMenusPage() {
         <div>
           <h1 className="text-2xl font-semibold">Sponsorship Menus</h1>
           <p className="text-muted-foreground">
-            {activeYearName ?? ""}年度 協賛メニューマスタ
+            {activeYear?.name ?? ""}年度 協賛メニューマスタ
           </p>
         </div>
-        <Button onClick={addMenu}>行を追加</Button>
+        <Button onClick={addMenu} disabled={!activeYearId}>
+          行を追加
+        </Button>
       </div>
+
+      {yearError && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {yearError}
+        </p>
+      )}
 
       <div className="rounded-md border">
         <Table>
@@ -79,8 +102,24 @@ export default function SponsorshipMenusPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {menus.map((menu) => (
-              <TableRow key={menu.id}>
+            {yearLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-muted-foreground">
+                  読み込み中…
+                </TableCell>
+              </TableRow>
+            ) : !activeYearId ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-center text-muted-foreground"
+                >
+                  年度が未作成です。Years から年度を作成してください。
+                </TableCell>
+              </TableRow>
+            ) : (
+              menus.map((menu) => (
+                <TableRow key={menu.id}>
                 <TableCell>
                   <Input
                     value={menu.name}
@@ -121,7 +160,8 @@ export default function SponsorshipMenusPage() {
                   />
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

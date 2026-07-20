@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useActiveYear } from "@/components/active-year-provider"
 import { isApiEnabled } from "@/lib/api/client"
 import {
   assignMember,
@@ -30,7 +31,6 @@ import {
   updateYearlyCompanyStatus,
 } from "@/lib/data/sponsorship"
 import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
-import { getActiveYearId, mockYears } from "@/lib/mock/years"
 import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_BADGE_VARIANT,
@@ -53,8 +53,12 @@ type EditableColumn = "companyStatus" | "phase" | "assignedMember"
  * Yearly Company List (spec/frontend.md#Yearly Company Management).
  */
 export default function YearlyCompaniesPage() {
-  const activeYearId = getActiveYearId() ?? "year_2026"
-  const activeYearName = mockYears.find((y) => y.id === activeYearId)?.name
+  const {
+    activeYear,
+    loading: yearLoading,
+    error: yearError,
+  } = useActiveYear()
+  const activeYearId = activeYear?.id ?? null
   const [rows, setRows] = useState<YearlyCompany[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [contractYearlyIds, setContractYearlyIds] = useState<Set<string>>(
@@ -76,12 +80,20 @@ export default function YearlyCompaniesPage() {
 
   useEffect(() => {
     let cancelled = false
-    async function load() {
+    async function load(yearId: string | null) {
+      if (!yearId) {
+        setRows([])
+        setUsers([])
+        setContractYearlyIds(new Set())
+        setLoading(false)
+        setError(null)
+        return
+      }
       setLoading(true)
       setError(null)
       try {
         const [list, userList] = await Promise.all([
-          listYearlyCompaniesByYear(activeYearId),
+          listYearlyCompaniesByYear(yearId),
           listUsers(),
         ])
         if (cancelled) return
@@ -120,7 +132,7 @@ export default function YearlyCompaniesPage() {
         if (!cancelled) setLoading(false)
       }
     }
-    void load()
+    void load(activeYearId)
     return () => {
       cancelled = true
     }
@@ -194,7 +206,7 @@ export default function YearlyCompaniesPage() {
       <div>
         <h1 className="text-2xl font-semibold">Yearly Companies</h1>
         <p className="text-muted-foreground">
-          {activeYearName ?? ""}年度 協賛企業の管理
+          {activeYear?.name ?? ""}年度 協賛企業の管理
         </p>
       </div>
 
@@ -204,9 +216,9 @@ export default function YearlyCompaniesPage() {
         </p>
       )}
 
-      {error && (
+      {(yearError || error) && (
         <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error}
+          {yearError || error}
         </p>
       )}
 
@@ -273,10 +285,19 @@ export default function YearlyCompaniesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {yearLoading || loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-muted-foreground">
                   読み込み中…
+                </TableCell>
+              </TableRow>
+            ) : !activeYearId ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="text-center text-muted-foreground"
+                >
+                  年度が未作成です。Years から年度を作成してください。
                 </TableCell>
               </TableRow>
             ) : (

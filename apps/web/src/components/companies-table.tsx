@@ -14,23 +14,19 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { RegisterYearlyCompanyButton } from "@/components/register-yearly-company-button"
+import { useActiveYear } from "@/components/active-year-provider"
 import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
 import type { Company } from "@/types/company"
-import type { Year } from "@/types/year"
 
 /**
  * Company List table + search (spec/frontend.md#Company Management), split
  * out from the (server) Companies page so the search box can be client-side
  * — same "client wrapper around server-fetched data" pattern as
- * contract-menu-section.tsx.
+ * contract-menu-section.tsx. Reads the active Year from the shared
+ * ActiveYearProvider (Issue #18) rather than a prop.
  */
-export function CompaniesTable({
-  companies,
-  activeYear,
-}: {
-  companies: Company[]
-  activeYear: Year | undefined
-}) {
+export function CompaniesTable({ companies }: { companies: Company[] }) {
+  const { activeYear } = useActiveYear()
   const [nameQuery, setNameQuery] = useState("")
 
   const visibleCompanies = companies.filter((company) =>
