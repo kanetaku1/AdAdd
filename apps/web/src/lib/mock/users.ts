@@ -1,4 +1,4 @@
-import type { User } from "@/types/user"
+import type { Role, User } from "@/types/user"
 
 /**
  * Placeholder data matching a future GET /users response shape (spec/api.md
@@ -56,15 +56,22 @@ export const mockUsers: User[] = [
 /**
  * Mutates the shared mock array so newly added/edited Users persist for the
  * rest of the browser session (spec/usecase.md UC-12).
- * TODO: replace with POST /users once the backend exists (spec/api.md).
  */
-export function addUser(user: User): void {
+export function addUser(input: {
+  studentId: string
+  name: string
+  email: string
+  slackId: string | null
+  roles: Role[]
+}): User {
+  const user: User = { id: crypto.randomUUID(), isActive: true, ...input }
   mockUsers.push(user)
+  return user
 }
 
-export function updateUser(id: string, patch: Partial<User>): void {
+export function updateUser(id: string, patch: Partial<User>): User {
   const user = mockUsers.find((u) => u.id === id)
-  if (user) {
-    Object.assign(user, patch)
-  }
+  if (!user) throw new Error("user not found")
+  Object.assign(user, patch)
+  return user
 }
