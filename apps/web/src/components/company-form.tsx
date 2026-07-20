@@ -15,6 +15,7 @@ import {
   FieldSeparator,
   FieldSet,
 } from "@/components/ui/field"
+import { createCompany, updateCompany } from "@/lib/data/companies"
 import type { Company } from "@/types/company"
 
 type CompanyFormValues = Omit<Company, "id" | "createdAt" | "updatedAt">
@@ -35,8 +36,6 @@ const EMPTY_VALUES: CompanyFormValues = {
 /**
  * Create/edit form for Company (spec/model.md#Company).
  * Shared by /companies/new and /companies/[id] so the two screens never drift apart.
- * TODO: wire onSubmit to POST /companies / PATCH /companies/{companyId} once the
- * backend Company endpoints exist (spec/api.md). Currently a client-only stub.
  */
 export function CompanyForm({
   mode,
@@ -49,14 +48,30 @@ export function CompanyForm({
   const [values, setValues] = useState<CompanyFormValues>(
     initialValue ?? EMPTY_VALUES
   )
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function set<K extends keyof CompanyFormValues>(key: K, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }))
   }
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    router.push("/companies")
+    setSubmitting(true)
+    setError(null)
+    try {
+      if (mode === "create") {
+        await createCompany(values)
+      } else if (initialValue) {
+        await updateCompany(initialValue.id, values)
+      }
+      router.push("/companies")
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存に失敗しました")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -172,6 +187,12 @@ export function CompanyForm({
           </Field>
         </FieldSet>
 
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
         <div className="flex justify-end gap-2">
           <Button
             type="button"
@@ -180,8 +201,12 @@ export function CompanyForm({
           >
             キャンセル
           </Button>
-          <Button type="submit">
-            {mode === "create" ? "登録" : "保存"}
+          <Button type="submit" disabled={submitting}>
+            {submitting
+              ? "保存中…"
+              : mode === "create"
+                ? "登録"
+                : "保存"}
           </Button>
         </div>
       </FieldGroup>

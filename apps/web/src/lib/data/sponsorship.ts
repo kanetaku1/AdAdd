@@ -16,7 +16,6 @@ import {
   mockYearlyCompanies,
   updateAssignedMember,
 } from "@/lib/mock/yearly-companies"
-import type { Company } from "@/types/company"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
@@ -157,17 +156,7 @@ export async function getYearlyCompany(
   return yc ? enrichYearlyCompany(yc) : null
 }
 
-export async function getCompany(id: string): Promise<Company | null> {
-  if (isApiEnabled()) {
-    try {
-      return await apiFetch<Company>(`/companies/${id}`)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) return null
-      throw err
-    }
-  }
-  return mockCompanies.find((c) => c.id === id) ?? null
-}
+export { getCompany } from "@/lib/data/companies"
 
 export async function getContractByYearlyCompany(
   yearlyCompanyId: string

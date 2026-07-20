@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table"
 import { RegisterYearlyCompanyButton } from "@/components/register-yearly-company-button"
 import { useActiveYear } from "@/components/active-year-provider"
-import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
+import { listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
 import type { Company } from "@/types/company"
 
 /**
@@ -28,6 +28,27 @@ import type { Company } from "@/types/company"
 export function CompaniesTable({ companies }: { companies: Company[] }) {
   const { activeYear } = useActiveYear()
   const [nameQuery, setNameQuery] = useState("")
+  const [registeredCompanyIds, setRegisteredCompanyIds] = useState<
+    Set<string>
+  >(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      if (!activeYear) {
+        setRegisteredCompanyIds(new Set())
+        return
+      }
+      const list = await listYearlyCompaniesByYear(activeYear.id)
+      if (!cancelled) {
+        setRegisteredCompanyIds(new Set(list.map((yc) => yc.companyId)))
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [activeYear])
 
   const visibleCompanies = companies.filter((company) =>
     nameQuery.trim()
@@ -98,16 +119,12 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    {activeYear && (
+                    {activeYear && !registeredCompanyIds.has(company.id) && (
                       <RegisterYearlyCompanyButton
                         companyId={company.id}
                         yearId={activeYear.id}
                         yearName={activeYear.name}
-                        initiallyRegistered={mockYearlyCompanies.some(
-                          (yc) =>
-                            yc.companyId === company.id &&
-                            yc.yearId === activeYear.id
-                        )}
+                        initiallyRegistered={false}
                       />
                     )}
                     <Button
