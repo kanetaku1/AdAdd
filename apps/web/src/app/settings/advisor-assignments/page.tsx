@@ -1,16 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { useActiveYear } from "@/components/active-year-provider"
-import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { MemberAdvisorsCell } from "@/components/member-advisors-cell"
 import {
   Table,
   TableBody,
@@ -19,24 +12,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ApiError } from "@/lib/api/client"
 import {
-  assignAdvisor,
-  mockAdvisorAssignments,
-} from "@/lib/mock/advisor-assignments"
-import { mockUsers } from "@/lib/mock/users"
-
-const UNASSIGNED = "UNASSIGNED" as const
+  addAdvisorAssignment,
+  listAdvisorAssignmentsByYear,
+  removeAdvisorAssignment,
+} from "@/lib/data/advisor-assignments"
+import { listUsers } from "@/lib/data/users"
+import type { AdvisorAssignment } from "@/types/advisor-assignment"
+import type { User } from "@/types/user"
 
 /**
- * Advisor Assignment (spec/frontend.md#Settings > Advisor Assignment,
- * UC-03/FR-013). The Advisor dropdown is not restricted by Role — any User
- * may act as a Sponsorship Member or an Advisor — same simplification
- * already made for the assigned-member picker on /yearly-companies. Active
- * Year comes from the shared ActiveYearProvider (Issue #18).
- *
- * TODO: replace mockAdvisorAssignments with GET /advisor-assignments, and
- * wire edits to POST /advisor-assignments once the backend endpoints exist
- * (spec/api.md).
+ * Advisor Assignment (spec/frontend.md#Advisor Assignment, UC-03/FR-013).
+ * A Sponsorship Member may have multiple Advisors at once — each chip is one
+ * AdvisorAssignment row (spec/model.md#AdvisorAssignment, "no upper bound"),
+ * removable independently via its own `DELETE /advisor-assignments/{id}`.
+ * The Advisor dropdown is not restricted by Role — any User may act as a
+ * Sponsorship Member or an Advisor, same simplification already made for the
+ * assigned-member picker on /yearly-companies. Active Year comes from the
+ * shared ActiveYearProvider (Issue #18).
  */
 export default function AdvisorAssignmentsPage() {
   const {
@@ -45,40 +39,88 @@ export default function AdvisorAssignmentsPage() {
     error: yearError,
   } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
-  const [assignments, setAssignments] = useState(mockAdvisorAssignments)
-  const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
 
-  function advisorIdFor(memberId: string): string | null {
-    return (
-      assignments.find(
-        (a) => a.yearId === activeYearId && a.memberId === memberId
-      )?.advisorId ?? null
-    )
-  }
+  const [users, setUsers] = useState<User[]>([])
+  const [assignments, setAssignments] = useState<AdvisorAssignment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleChange(memberId: string, advisorId: string | null) {
+  useEffect(() => {
+    let cancelled = false
+    async function load(yearId: string | null) {
+      if (!yearId) {
+        setUsers([])
+        setAssignments([])
+        setLoading(false)
+        setError(null)
+        return
+      }
+      setLoading(true)
+      setError(null)
+      try {
+        const [userList, assignmentList] = await Promise.all([
+          listUsers(),
+          listAdvisorAssignmentsByYear(yearId),
+        ])
+        if (cancelled) return
+        setUsers(userList)
+        setAssignments(assignmentList)
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void load(activeYearId)
+    return () => {
+      cancelled = true
+    }
+  }, [activeYearId])
+
+  async function handleAdd(memberId: string, advisorId: string) {
     if (!activeYearId) return
-    assignAdvisor(activeYearId, memberId, advisorId)
-    setAssignments([...mockAdvisorAssignments])
-    setEditingMemberId(null)
-  }
-
-  function advisorName(id: string | null): string | null {
-    if (!id) return null
-    return mockUsers.find((u) => u.id === id)?.name ?? "(不明なユーザー)"
-  }
-
-  const advisorsWithMembers = mockUsers
-    .filter((advisor) =>
-      assignments.some(
-        (a) => a.yearId === activeYearId && a.advisorId === advisor.id
+    setError(null)
+    try {
+      const created = await addAdvisorAssignment(
+        activeYearId,
+        memberId,
+        advisorId
       )
-    )
+      setAssignments((prev) => [...prev, created])
+    } catch (e) {
+      setError(
+        e instanceof ApiError && e.status === 409
+          ? "すでに割り当て済みです"
+          : e instanceof Error
+            ? e.message
+            : "アドバイザーの追加に失敗しました"
+      )
+    }
+  }
+
+  async function handleRemove(assignmentId: string) {
+    setError(null)
+    try {
+      await removeAdvisorAssignment(assignmentId)
+      setAssignments((prev) => prev.filter((a) => a.id !== assignmentId))
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "アドバイザーの削除に失敗しました"
+      )
+    }
+  }
+
+  const advisorsWithMembers = users
+    .filter((advisor) => assignments.some((a) => a.advisorId === advisor.id))
     .map((advisor) => ({
       advisor,
       memberNames: assignments
-        .filter((a) => a.yearId === activeYearId && a.advisorId === advisor.id)
-        .map((a) => mockUsers.find((u) => u.id === a.memberId)?.name ?? "(不明なユーザー)"),
+        .filter((a) => a.advisorId === advisor.id)
+        .map(
+          (a) => users.find((u) => u.id === a.memberId)?.name ?? "(不明なユーザー)"
+        ),
     }))
 
   return (
@@ -88,9 +130,9 @@ export default function AdvisorAssignmentsPage() {
         <p className="text-muted-foreground">実働メンバーへのアドバイザー割り当て</p>
       </div>
 
-      {yearError && (
+      {(yearError || error) && (
         <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {yearError}
+          {yearError || error}
         </p>
       )}
 
@@ -103,7 +145,7 @@ export default function AdvisorAssignmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {yearLoading ? (
+            {yearLoading || loading ? (
               <TableRow>
                 <TableCell colSpan={2} className="text-muted-foreground">
                   読み込み中…
@@ -119,53 +161,22 @@ export default function AdvisorAssignmentsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              mockUsers.map((member) => {
-              const currentAdvisorId = advisorIdFor(member.id)
-              return (
+              users.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell className="rounded">
-                    {editingMemberId === member.id ? (
-                      <Select
-                        value={currentAdvisorId ?? UNASSIGNED}
-                        defaultOpen
-                        onValueChange={(value) =>
-                          handleChange(
-                            member.id,
-                            value === UNASSIGNED ? null : value
-                          )
-                        }
-                        onOpenChange={(open) => {
-                          if (!open) setEditingMemberId(null)
-                        }}
-                      >
-                        <SelectTrigger size="sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={UNASSIGNED}>未設定</SelectItem>
-                          {mockUsers
-                            .filter((u) => u.id !== member.id)
-                            .map((u) => (
-                              <SelectItem key={u.id} value={u.id}>
-                                {u.name}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer"
-                        onClick={() => setEditingMemberId(member.id)}
-                      >
-                        {advisorName(currentAdvisorId) ?? "未設定"}
-                      </Badge>
-                    )}
+                  <TableCell>
+                    <MemberAdvisorsCell
+                      member={member}
+                      assignments={assignments.filter(
+                        (a) => a.memberId === member.id
+                      )}
+                      users={users}
+                      onAdd={(advisorId) => void handleAdd(member.id, advisorId)}
+                      onRemove={(id) => void handleRemove(id)}
+                    />
                   </TableCell>
                 </TableRow>
-              )
-              })
+              ))
             )}
           </TableBody>
         </Table>
