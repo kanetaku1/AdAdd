@@ -19,6 +19,33 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
 	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
+
+	r.GET("/years/:yearId/contract-menus", listContractMenusAcrossYear)
+}
+
+func listContractMenusAcrossYear(c echo.Context) error {
+	yearId := c.Param("yearId")
+	filters := make(map[string]interface{})
+
+	if q := c.QueryParam("companyName"); q != "" {
+		filters["companyName"] = q
+	}
+	if q := c.QueryParam("sponsorshipMenuId"); q != "" {
+		filters["sponsorshipMenuId"] = q
+	}
+	if q := c.QueryParam("status"); q != "" {
+		filters["status"] = q
+	}
+	if q := c.QueryParam("productionType"); q != "" {
+		filters["productionType"] = q
+	}
+
+	svc := service.NewContractMenuService()
+	list, err := svc.ListAcrossYear(yearId, filters)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
 
 func listContractMenus(c echo.Context) error {
