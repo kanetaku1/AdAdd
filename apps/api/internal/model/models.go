@@ -73,6 +73,14 @@ func (y *YearlyCompany) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
+// YearlyCompanyResponse is the returned DTO containing joined fields
+type YearlyCompanyResponse struct {
+	YearlyCompany
+	CompanyName        string  `json:"companyName"`
+	AssignedMemberID   *string `json:"assignedMemberId"`
+	AssignedMemberName *string `json:"assignedMemberName"`
+}
+
 // SponsorshipContract
 type SponsorshipContract struct {
 	ID              string          `gorm:"type:char(36);primaryKey" json:"id"`
