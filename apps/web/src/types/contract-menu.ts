@@ -3,7 +3,7 @@
  * Only applies when the referenced Sponsorship Menu has requiresSubmission
  * = true; null for menus like Booth that never require submission.
  */
-export type ContractMenuProductionType = "COMPANY" | "INTERNAL"
+export type ContractMenuProductionType = "COMPANY" | "INTERNAL" | "CONTINUED"
 
 /**
  * ContractMenuStatus (spec/model.md#Enumerations).

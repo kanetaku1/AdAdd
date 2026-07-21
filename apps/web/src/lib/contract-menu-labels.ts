@@ -37,4 +37,5 @@ export const CONTRACT_MENU_PRODUCTION_TYPE_LABEL: Record<
 > = {
   COMPANY: "企業",
   INTERNAL: "委員",
+  CONTINUED: "継続",
 }
