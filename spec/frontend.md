@@ -215,6 +215,35 @@ Display:
 
 ---
 
+### Ad Material Progress (Sponsorship Menu Management Department)
+
+Purpose:
+
+Track Contract Menu production/submission status across every Sponsorship
+Menu for the active Year, and surface which Sponsorship Members to follow
+up with (UC-07/UC-08).
+
+Display:
+
+* Status summary — count of Contract Menus per `ContractMenuStatus`,
+  across all Sponsorship Menus.
+* Per-menu breakdown — one row per Sponsorship Menu (master data for the
+  active Year, spec/model.md#SponsorshipMenu), with a count per
+  `ContractMenuStatus` and a submitted/total ratio. Sorted by submitted
+  ratio ascending (menus needing the most attention first).
+* Follow-up list — every Company with at least one Contract Menu not yet
+  `SUBMITTED`, grouped by the assigned Sponsorship Member
+  (`YearlyCompany.assignedMemberName`, see Company Assignment API). A
+  Company with multiple pending items appears once, listing each.
+  Companies with no assigned Member are grouped separately, last.
+
+Data source: `GET /years/{yearId}/contract-menus` (see spec/api.md)
+joined client-side with `GET /years/{yearId}/companies` on
+`yearlyCompanyId` for the assigned Member's name — no additional backend
+endpoint required.
+
+---
+
 # Company Management
 
 ## Company List
