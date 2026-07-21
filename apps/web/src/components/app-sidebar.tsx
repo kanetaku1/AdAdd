@@ -11,6 +11,7 @@ import {
   Wallet,
   CalendarClock,
   Settings,
+  Image,
 } from "lucide-react"
 
 import {
@@ -32,6 +33,11 @@ const NAV_ITEMS = [
   { title: "Yearly Companies", url: "/yearly-companies", icon: CalendarRange },
   { title: "Contract Menus", url: "/contract-menus", icon: ClipboardCheck },
   { title: "Sponsorship Menus", url: "/sponsorship-menus", icon: ListChecks },
+  {
+    title: "Ad Material Progress",
+    url: "/ad-material-progress",
+    icon: Image,
+  },
   { title: "Finance", url: "/finance", icon: Wallet },
   { title: "Years", url: "/years", icon: CalendarClock },
   { title: "Settings", url: "/settings", icon: Settings },
