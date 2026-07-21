@@ -19,12 +19,18 @@ func (r *ContractMenuRepository) ListByContract(contractId string) ([]model.Cont
 
 func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[string]interface{}) ([]model.ContractMenuResponse, error) {
 	var list []model.ContractMenuResponse
+	// .Table() bypasses GORM's automatic soft-delete scoping (it only applies
+	// to the model passed via .Model()), and that scoping never covers joined
+	// tables anyway — so every joined table's deleted_at is checked explicitly.
+	// A row whose Sponsorship Menu (or any other joined parent) has been
+	// deleted is excluded rather than surfaced with a stale/missing name.
 	query := db.DB.Table("contract_menus").
 		Select("contract_menus.*, companies.company_name, yearly_companies.id as yearly_company_id, sponsorship_menus.name as sponsorship_menu_name").
-		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = contract_menus.contract_id").
-		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id").
-		Joins("JOIN companies ON companies.id = yearly_companies.company_id").
-		Joins("JOIN sponsorship_menus ON sponsorship_menus.id = contract_menus.sponsorship_menu_id").
+		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = contract_menus.contract_id AND sponsorship_contracts.deleted_at IS NULL").
+		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id AND yearly_companies.deleted_at IS NULL").
+		Joins("JOIN companies ON companies.id = yearly_companies.company_id AND companies.deleted_at IS NULL").
+		Joins("JOIN sponsorship_menus ON sponsorship_menus.id = contract_menus.sponsorship_menu_id AND sponsorship_menus.deleted_at IS NULL").
+		Where("contract_menus.deleted_at IS NULL").
 		Where("yearly_companies.year_id = ?", yearID)
 
 	if name, ok := filters["companyName"]; ok && name != "" {
