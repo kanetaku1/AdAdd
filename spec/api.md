@@ -616,7 +616,9 @@ Query:
 | status              | Filter by Contract Menu status   |
 | productionType      | Filter by production type        |
 
-Each item additionally includes `companyName` and `yearlyCompanyId` (joined from the owning Contract's Yearly Company) so the list doesn't require a second round trip per row.
+Each item additionally includes `companyName`, `yearlyCompanyId` (joined from the owning Contract's Yearly Company), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row.
+
+A Contract Menu whose Sponsorship Menu has since been deleted is excluded from this list — it never shows a stale or missing `sponsorshipMenuName`.
 
 ---
 
