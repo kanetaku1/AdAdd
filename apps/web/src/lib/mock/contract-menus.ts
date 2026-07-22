@@ -110,3 +110,18 @@ export const mockContractMenus: ContractMenu[] = [
 export function addContractMenu(menu: ContractMenu): void {
   mockContractMenus.push(menu)
 }
+
+/**
+ * Mirrors PATCH /contract-menus/{id}/status and .../production
+ * (spec/api.md) so mock mode persists edits the same way the API does.
+ */
+export function updateContractMenu(
+  id: string,
+  patch: Partial<ContractMenu>
+): ContractMenu {
+  const index = mockContractMenus.findIndex((cm) => cm.id === id)
+  if (index === -1) throw new Error("contract menu not found")
+  const updated = { ...mockContractMenus[index], ...patch }
+  mockContractMenus[index] = updated
+  return updated
+}

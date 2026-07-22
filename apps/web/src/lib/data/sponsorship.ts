@@ -3,6 +3,7 @@ import { mockCompanies } from "@/lib/mock/companies"
 import {
   addContractMenu,
   mockContractMenus,
+  updateContractMenu as updateMockContractMenu,
 } from "@/lib/mock/contract-menus"
 import {
   addSponsorshipContract,
@@ -10,12 +11,18 @@ import {
   updateContractTotalAmount,
 } from "@/lib/mock/sponsorship-contracts"
 import { mockPayments } from "@/lib/mock/payments"
+import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import { mockUsers } from "@/lib/mock/users"
 import {
   mockYearlyCompanies,
   updateAssignedMember,
 } from "@/lib/mock/yearly-companies"
-import type { ContractMenu } from "@/types/contract-menu"
+import type {
+  ContractMenu,
+  ContractMenuAcrossYear,
+  ContractMenuProductionType,
+  ContractMenuStatus,
+} from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
 import type {
@@ -202,6 +209,155 @@ export async function listContractMenus(
     return list.map(mapApiContractMenu)
   }
   return mockContractMenus.filter((cm) => cm.contractId === contractId)
+}
+
+export type ContractMenuAcrossYearFilters = {
+  companyName?: string
+  sponsorshipMenuId?: string
+  status?: ContractMenuStatus
+  productionType?: ContractMenuProductionType
+}
+
+/**
+ * Cross-contract view of every Contract Menu in a Year, joined with its
+ * Company / Sponsorship Menu (spec/frontend.md#Contract Menu List,
+ * #Ad Material Progress; spec/api.md#List Contract Menus Across a Year).
+ */
+export async function listContractMenusAcrossYear(
+  yearId: string,
+  filters: ContractMenuAcrossYearFilters = {}
+): Promise<ContractMenuAcrossYear[]> {
+  if (isApiEnabled()) {
+    const params = new URLSearchParams()
+    if (filters.companyName) params.set("companyName", filters.companyName)
+    if (filters.sponsorshipMenuId)
+      params.set("sponsorshipMenuId", filters.sponsorshipMenuId)
+    if (filters.status) params.set("status", filters.status)
+    if (filters.productionType)
+      params.set("productionType", filters.productionType)
+    const qs = params.toString()
+    const list = await apiFetch<
+      Array<{
+        id: string
+        contractId: string
+        sponsorshipMenuId: string
+        quantity: number
+        unitPrice: number | string
+        isGoodsSponsorship: boolean
+        productionType?: string
+        status: string
+        driveUrl?: string
+        remarks?: string
+        companyName: string
+        yearlyCompanyId: string
+        sponsorshipMenuName: string
+      }>
+    >(`/years/${yearId}/contract-menus${qs ? `?${qs}` : ""}`)
+    return list.map((cm) => ({
+      ...mapApiContractMenu(cm),
+      companyName: cm.companyName,
+      yearlyCompanyId: cm.yearlyCompanyId,
+      sponsorshipMenuName: cm.sponsorshipMenuName,
+    }))
+  }
+
+  return mockContractMenus
+    .map((cm): ContractMenuAcrossYear | null => {
+      const contract = mockSponsorshipContracts.find(
+        (c) => c.id === cm.contractId
+      )
+      if (!contract) return null
+      const yc = mockYearlyCompanies.find(
+        (row) => row.id === contract.yearlyCompanyId
+      )
+      if (!yc || yc.yearId !== yearId) return null
+      const menu = mockSponsorshipMenus.find(
+        (m) => m.id === cm.sponsorshipMenuId
+      )
+      return {
+        ...cm,
+        companyName: yc.companyName,
+        yearlyCompanyId: yc.id,
+        sponsorshipMenuName: menu?.name ?? "(不明なメニュー)",
+      }
+    })
+    .filter((cm): cm is ContractMenuAcrossYear => cm !== null)
+    .filter(
+      (cm) =>
+        !filters.companyName ||
+        cm.companyName.toLowerCase().includes(filters.companyName.toLowerCase())
+    )
+    .filter(
+      (cm) =>
+        !filters.sponsorshipMenuId ||
+        cm.sponsorshipMenuId === filters.sponsorshipMenuId
+    )
+    .filter((cm) => !filters.status || cm.status === filters.status)
+    .filter(
+      (cm) =>
+        !filters.productionType || cm.productionType === filters.productionType
+    )
+}
+
+/** PATCH /contract-menus/{id}/status (spec/api.md#Update Contract Menu Status). */
+export async function updateContractMenuStatus(
+  id: string,
+  status: ContractMenuStatus
+): Promise<ContractMenu> {
+  if (isApiEnabled()) {
+    const updated = await apiFetch<{
+      id: string
+      contractId: string
+      sponsorshipMenuId: string
+      quantity: number
+      unitPrice: number | string
+      isGoodsSponsorship: boolean
+      productionType?: string
+      status: string
+      driveUrl?: string
+      remarks?: string
+    }>(`/contract-menus/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    })
+    return mapApiContractMenu(updated)
+  }
+  return updateMockContractMenu(id, { status })
+}
+
+/**
+ * PATCH /contract-menus/{id}/production (spec/api.md#Upload Production
+ * Information). Registering a Drive folder always finalizes the item —
+ * the backend sets `status` to `SUBMITTED` as part of this call, it is
+ * never a plain metadata edit.
+ */
+export async function updateContractMenuProduction(
+  id: string,
+  input: { driveFolderUrl: string; remarks: string }
+): Promise<ContractMenu> {
+  if (isApiEnabled()) {
+    const updated = await apiFetch<{
+      id: string
+      contractId: string
+      sponsorshipMenuId: string
+      quantity: number
+      unitPrice: number | string
+      isGoodsSponsorship: boolean
+      productionType?: string
+      status: string
+      driveUrl?: string
+      remarks?: string
+    }>(`/contract-menus/${id}/production`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    })
+    return mapApiContractMenu(updated)
+  }
+  return updateMockContractMenu(id, {
+    driveUrl: input.driveFolderUrl,
+    remarks: input.remarks,
+    status: "SUBMITTED",
+  })
 }
 
 export async function getPaymentByContract(

@@ -401,12 +401,24 @@ Display:
 | Status          |
 | Drive URL       |
 
+Scoped to the active Year (`GET /years/{yearId}/contract-menus`, see
+spec/api.md#List Contract Menus Across a Year).
+
 Filters:
 
 * Company name (search, substring match)
 * Sponsorship Menu
 * Status
 * Production type
+
+Status is directly editable to any `ContractMenuStatus`, including
+`SUBMITTED` (`PATCH /contract-menus/{id}/status`). Production type has no
+update endpoint — it's set once at creation (`POST
+/contracts/{contractId}/menus`) — so it's read-only here. Registering a
+Drive URL always finalizes the item: `PATCH /contract-menus/{id}/production`
+sets `status` to `SUBMITTED` as part of the same call (spec/api.md#Upload
+Production Information), so saving a Drive URL here updates both fields
+together.
 
 ---
 
