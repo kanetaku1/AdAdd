@@ -33,6 +33,12 @@ export function isApiEnabled(): boolean {
   return getApiBaseUrl() !== null
 }
 
+/** Dev stub user ID — override via the `adadd.dev.userId` localStorage key. */
+export function getCurrentDevUserId(): string {
+  if (typeof window === "undefined") return "user_001"
+  return window.localStorage.getItem("adadd.dev.userId") ?? "user_001"
+}
+
 /** Dev stub credentials — override via localStorage keys when needed. */
 export function getDevAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") {
@@ -41,12 +47,10 @@ export function getDevAuthHeaders(): Record<string, string> {
       "X-User-Roles": "admin,staff",
     }
   }
-  const userId =
-    window.localStorage.getItem("adadd.dev.userId") ?? "user_001"
   const roles =
     window.localStorage.getItem("adadd.dev.roles") ?? "admin,staff"
   return {
-    "X-User-ID": userId,
+    "X-User-ID": getCurrentDevUserId(),
     "X-User-Roles": roles,
   }
 }

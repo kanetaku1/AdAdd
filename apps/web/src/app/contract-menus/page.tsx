@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -42,6 +43,12 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   currency: "JPY",
 })
 
+function isContractMenuStatus(
+  value: string | null
+): value is ContractMenuStatus {
+  return value !== null && value in CONTRACT_MENU_STATUS_LABEL
+}
+
 /**
  * Contract Menu List (spec/frontend.md#Contract Menu Management).
  * Cross-contract view of every contracted sponsorship item, for the
@@ -53,19 +60,37 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
  * matching the Sponsorship Menu / Payment screens rather than adding a
  * separate detail page.
  *
+ * Accepts `?menuId=&status=` query params as initial filter values, so the
+ * per-menu status breakdown in ad-material-progress/page.tsx can link
+ * straight into a menu+status-filtered view of this list.
+ *
  * TODO: replace mock lookups with GET /contracts/{contractId}/menus (or a
  * future list-all-contract-menus endpoint) and wire edits to
  * PATCH /contract-menus/{id}/status and .../production once the backend
  * exists (spec/api.md).
  */
 export default function ContractMenusPage() {
+  return (
+    <Suspense>
+      <ContractMenusList />
+    </Suspense>
+  )
+}
+
+function ContractMenusList() {
+  const searchParams = useSearchParams()
+  const initialMenuId = searchParams.get("menuId")
+  const initialStatus = searchParams.get("status")
+
   const [contractMenus, setContractMenus] =
     useState<ContractMenu[]>(mockContractMenus)
   const [companyNameQuery, setCompanyNameQuery] = useState("")
-  const [menuFilter, setMenuFilter] = useState<string | typeof ALL>(ALL)
+  const [menuFilter, setMenuFilter] = useState<string | typeof ALL>(
+    initialMenuId ?? ALL
+  )
   const [statusFilter, setStatusFilter] = useState<
     ContractMenuStatus | typeof ALL
-  >(ALL)
+  >(isContractMenuStatus(initialStatus) ? initialStatus : ALL)
   const [productionTypeFilter, setProductionTypeFilter] = useState<
     ContractMenuProductionType | typeof ALL
   >(ALL)

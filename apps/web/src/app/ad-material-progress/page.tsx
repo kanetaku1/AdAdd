@@ -5,6 +5,7 @@ import Link from "next/link"
 
 import { useActiveYear } from "@/components/active-year-provider"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -13,12 +14,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { getCurrentDevUserId } from "@/lib/api/client"
+import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   listContractMenusAcrossYear,
   listYearlyCompaniesByYear,
 } from "@/lib/data/sponsorship"
 import { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
 import { CONTRACT_MENU_STATUS_LABEL } from "@/lib/contract-menu-labels"
+import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { YearlyCompany } from "@/types/yearly-company"
 import type {
   ContractMenuAcrossYear,
@@ -89,6 +93,8 @@ type FollowUpCompany = {
   pending: Array<{ menuName: string; status: ContractMenuStatus }>
 }
 
+const UNASSIGNED_KEY = "UNASSIGNED"
+
 /**
  * Ad Material Progress (spec/frontend.md#Ad Material Progress, UC-07/UC-08).
  * Cross-menu view of Contract Menu production/submission status for the
@@ -104,8 +110,14 @@ export default function AdMaterialProgressPage() {
     []
   )
   const [yearlyCompanies, setYearlyCompanies] = useState<YearlyCompany[]>([])
+  const [advisorAssignments, setAdvisorAssignments] = useState<
+    AdvisorAssignment[]
+  >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [scopeOverride, setScopeOverride] = useState<boolean | null>(null)
+
+  const currentUserId = getCurrentDevUserId()
 
   useEffect(() => {
     let cancelled = false
@@ -114,6 +126,7 @@ export default function AdMaterialProgressPage() {
         setMenus([])
         setContractMenus([])
         setYearlyCompanies([])
+        setAdvisorAssignments([])
         setLoading(false)
         setError(null)
         return
@@ -121,15 +134,18 @@ export default function AdMaterialProgressPage() {
       setLoading(true)
       setError(null)
       try {
-        const [menuList, contractMenuList, ycList] = await Promise.all([
-          listSponsorshipMenus(yearId),
-          listContractMenusAcrossYear(yearId),
-          listYearlyCompaniesByYear(yearId),
-        ])
+        const [menuList, contractMenuList, ycList, advisorAssignmentList] =
+          await Promise.all([
+            listSponsorshipMenus(yearId),
+            listContractMenusAcrossYear(yearId),
+            listYearlyCompaniesByYear(yearId),
+            listAdvisorAssignmentsByYear(yearId),
+          ])
         if (cancelled) return
         setMenus(menuList)
         setContractMenus(contractMenuList)
         setYearlyCompanies(ycList)
+        setAdvisorAssignments(advisorAssignmentList)
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "読み込みに失敗しました")
@@ -179,14 +195,16 @@ export default function AdMaterialProgressPage() {
 
   const yearlyCompanyById = new Map(yearlyCompanies.map((yc) => [yc.id, yc]))
   const followUpByMember = new Map<string, Map<string, FollowUpCompany>>()
+  const memberNameByKey = new Map<string, string>()
   for (const cm of contractMenus) {
     if (cm.status === "SUBMITTED") continue
     const yc = yearlyCompanyById.get(cm.yearlyCompanyId)
-    const member = yc?.assignedMemberName ?? "未割当"
-    if (!followUpByMember.has(member)) {
-      followUpByMember.set(member, new Map())
+    const key = yc?.assignedMemberId ?? UNASSIGNED_KEY
+    memberNameByKey.set(key, yc?.assignedMemberName ?? "未割当")
+    if (!followUpByMember.has(key)) {
+      followUpByMember.set(key, new Map())
     }
-    const companies = followUpByMember.get(member)!
+    const companies = followUpByMember.get(key)!
     if (!companies.has(cm.yearlyCompanyId)) {
       companies.set(cm.yearlyCompanyId, {
         yearlyCompanyId: cm.yearlyCompanyId,
@@ -198,17 +216,42 @@ export default function AdMaterialProgressPage() {
       .get(cm.yearlyCompanyId)!
       .pending.push({ menuName: cm.sponsorshipMenuName, status: cm.status })
   }
+
+  // Members this User supervises as a Sponsorship Advisor (spec/domain.md
+  // Rule 9 — an Advisor is never assigned to a Company directly, only
+  // indirectly through the Members they supervise).
+  const supervisedMemberIds = new Set(
+    advisorAssignments
+      .filter((a) => a.advisorId === currentUserId)
+      .map((a) => a.memberId)
+  )
+  const myScopeMemberIds = new Set([currentUserId, ...supervisedMemberIds])
+
   // "未割当" last so an unassigned company is never the easiest one to miss.
   const followUpGroups = Array.from(followUpByMember.entries())
-    .map(([member, companies]) => ({
-      member,
+    .map(([key, companies]) => ({
+      memberId: key === UNASSIGNED_KEY ? null : key,
+      member: memberNameByKey.get(key)!,
       companies: Array.from(companies.values()),
     }))
     .sort((a, b) => {
-      if (a.member === "未割当") return 1
-      if (b.member === "未割当") return -1
+      if (a.memberId === null) return 1
+      if (b.memberId === null) return -1
       return b.companies.length - a.companies.length
     })
+
+  // Default to the scoped view only when the signed-in User actually has a
+  // stake (their own assignment, or a Member they supervise) in this Year —
+  // otherwise defaulting to "mine" would just show an empty list.
+  const hasOwnStake = followUpGroups.some(
+    (g) => g.memberId !== null && myScopeMemberIds.has(g.memberId)
+  )
+  const scopeToMine = scopeOverride ?? hasOwnStake
+  const visibleFollowUpGroups = scopeToMine
+    ? followUpGroups.filter(
+        (g) => g.memberId !== null && myScopeMemberIds.has(g.memberId)
+      )
+    : followUpGroups
 
   return (
     <div className="flex flex-col gap-6">
@@ -286,11 +329,12 @@ export default function AdMaterialProgressPage() {
                       {STATUS_ORDER.map((status) => (
                         <TableCell key={status} className="text-center">
                           {counts[status] > 0 ? (
-                            <span
-                              className={`font-semibold tabular-nums ${STATUS_TEXT_CLASS[status]}`}
+                            <Link
+                              href={`/contract-menus?menuId=${menu.id}&status=${status}`}
+                              className={`font-semibold tabular-nums hover:underline ${STATUS_TEXT_CLASS[status]}`}
                             >
                               {counts[status]}
-                            </span>
+                            </Link>
                           ) : (
                             <span className="text-muted-foreground">0</span>
                           )}
@@ -326,25 +370,42 @@ export default function AdMaterialProgressPage() {
           </div>
 
           <div className="rounded-md border p-4">
-            <h2 className="mb-1 font-medium">要フォロー — 担当メンバー別</h2>
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="font-medium">要フォロー — 担当メンバー別</h2>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                自分の担当のみ
+                <Switch
+                  checked={scopeToMine}
+                  onCheckedChange={(checked) => setScopeOverride(checked)}
+                />
+              </label>
+            </div>
             <p className="mb-3 text-sm text-muted-foreground">
               提出済み以外のContract
               Menuを1件以上持つ企業を、担当実働メンバーごとに表示しています。
+              {scopeToMine &&
+                "自分が担当、またはアドバイザーとしてsuperviseするメンバーの分のみ表示中です。"}
             </p>
-            {followUpGroups.length === 0 ? (
+            {visibleFollowUpGroups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                現在、未提出の広告データはありません。
+                {scopeToMine
+                  ? "自分の担当分に、現在フォローが必要な広告データはありません。"
+                  : "現在、未提出の広告データはありません。"}
               </p>
             ) : (
               <div className="flex flex-col gap-5">
-                {followUpGroups.map(({ member, companies }) => (
-                  <div key={member}>
+                {visibleFollowUpGroups.map(({ memberId, member, companies }) => (
+                  <div key={memberId ?? UNASSIGNED_KEY}>
                     <div className="mb-2 flex items-baseline justify-between">
                       <div className="font-medium">
                         {member}
-                        {member !== "未割当" && (
+                        {memberId !== null && (
                           <span className="ml-1.5 text-xs text-muted-foreground">
-                            実働メンバー
+                            {memberId === currentUserId
+                              ? "あなたの担当"
+                              : supervisedMemberIds.has(memberId)
+                                ? "supervise先の実働メンバー"
+                                : "実働メンバー"}
                           </span>
                         )}
                       </div>
