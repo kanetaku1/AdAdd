@@ -224,28 +224,6 @@ export default function ContractMenusPage() {
         </Select>
 
         <Select
-          value={statusFilter}
-          onValueChange={(value) =>
-            setStatusFilter(value as ContractMenuStatus | typeof ALL)
-          }
-          items={{ [ALL]: "すべてのステータス", ...CONTRACT_MENU_STATUS_LABEL }}
-        >
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="ステータス" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>すべてのステータス</SelectItem>
-            {Object.entries(CONTRACT_MENU_STATUS_LABEL).map(
-              ([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              )
-            )}
-          </SelectContent>
-        </Select>
-
-        <Select
           value={productionTypeFilter}
           onValueChange={(value) =>
             setProductionTypeFilter(
@@ -263,6 +241,28 @@ export default function ContractMenusPage() {
           <SelectContent>
             <SelectItem value={ALL}>すべての制作者</SelectItem>
             {Object.entries(CONTRACT_MENU_PRODUCTION_TYPE_LABEL).map(
+              ([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              )
+            )}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={statusFilter}
+          onValueChange={(value) =>
+            setStatusFilter(value as ContractMenuStatus | typeof ALL)
+          }
+          items={{ [ALL]: "すべてのステータス", ...CONTRACT_MENU_STATUS_LABEL }}
+        >
+          <SelectTrigger size="sm">
+            <SelectValue placeholder="ステータス" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>すべてのステータス</SelectItem>
+            {Object.entries(CONTRACT_MENU_STATUS_LABEL).map(
               ([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {label}
