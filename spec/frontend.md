@@ -343,7 +343,7 @@ Progress History
 Contract and Contract Menu are both shown directly on this screen (there is no separate Contract Detail route — `YearlyCompany`:`SponsorshipContract` is 1:1, per `spec/model.md`, so a dedicated detail page for the contract added nothing this screen couldn't already hold):
 
 * No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately after Contract Menu が作成され `totalAmount > 0` の場合（`POST /contracts/{contractId}/payment`）、goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
-* A contract exists — the full Contract Menu table (quantity/price/production status, same as Contract Menu Management below), invoice generation (FR-015), and payment status (read-only here — status changes happen on Finance) are all shown inline.
+* A contract exists — the full Contract Menu table (quantity/price/production status, same as Contract Menu Management below), invoice generation (FR-015), and payment status (read-only here — status changes happen on Finance) are all shown inline. Each row also has a "削除" action (`DELETE /contract-menus/{id}`, spec/api.md#Delete Contract Menu) that removes the line item and recalculates the Contract's `totalAmount`; this is the add/remove point for a Contract's Contract Menus — Contract Menu List (below) is a cross-contract monitoring view, not where items get added or removed.
 
 Progress History currently shows only the live `YearlyCompany.progress` badge (editable). A full change-history timeline is UC-14 (Activity Log) — not built yet.
 
@@ -401,12 +401,24 @@ Display:
 | Status          |
 | Drive URL       |
 
+Scoped to the active Year (`GET /years/{yearId}/contract-menus`, see
+spec/api.md#List Contract Menus Across a Year).
+
 Filters:
 
 * Company name (search, substring match)
 * Sponsorship Menu
 * Status
 * Production type
+
+Status is directly editable to any `ContractMenuStatus`, including
+`SUBMITTED` (`PATCH /contract-menus/{id}/status`). Production type has no
+update endpoint — it's set once at creation (`POST
+/contracts/{contractId}/menus`) — so it's read-only here. Registering a
+Drive URL always finalizes the item: `PATCH /contract-menus/{id}/production`
+sets `status` to `SUBMITTED` as part of the same call (spec/api.md#Upload
+Production Information), so saving a Drive URL here updates both fields
+together.
 
 ---
 

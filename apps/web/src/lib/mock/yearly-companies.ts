@@ -25,6 +25,11 @@ function memberName(userId: string | null): string | null {
  *
  * companyName is looked up from mockCompanies (rather than duplicated by hand) so the
  * two mock datasets can't drift apart — a real API response would join Company server-side.
+ *
+ * contractTotalAmount is always `null` here — lib/data/sponsorship.ts's
+ * enrichYearlyCompany() looks it up from the live mockSponsorshipContracts
+ * array on every call instead, so it stays in sync as contract menus are
+ * added/removed during the session rather than freezing a stale snapshot.
  */
 export const mockYearlyCompanies: YearlyCompany[] = [
   {
@@ -37,6 +42,7 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     progress: "INVOICE_SENT",
     assignedMemberId: "user_001",
     assignedMemberName: memberName("user_001"),
+    contractTotalAmount: null,
     notes: "",
   },
   {
@@ -49,6 +55,7 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     progress: "MATERIALS_SENT",
     assignedMemberId: "user_002",
     assignedMemberName: memberName("user_002"),
+    contractTotalAmount: null,
     notes: "",
   },
   {
@@ -61,6 +68,7 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     progress: "NOT_CONTACTED",
     assignedMemberId: null,
     assignedMemberName: null,
+    contractTotalAmount: null,
     notes: "昨年度は協賛なし",
   },
   {
@@ -73,6 +81,7 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     progress: "PAYMENT_RECEIVED",
     assignedMemberId: "user_001",
     assignedMemberName: memberName("user_001"),
+    contractTotalAmount: null,
     notes: "",
   },
   {
@@ -85,6 +94,7 @@ export const mockYearlyCompanies: YearlyCompany[] = [
     progress: "CONFIRMED",
     assignedMemberId: "user_002",
     assignedMemberName: memberName("user_002"),
+    contractTotalAmount: null,
     notes: "物品協賛のため入金・請求は発生しない",
   },
 ]

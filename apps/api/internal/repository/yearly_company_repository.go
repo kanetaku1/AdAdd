@@ -13,10 +13,11 @@ func NewYearlyCompanyRepository() *YearlyCompanyRepository { return &YearlyCompa
 func (r *YearlyCompanyRepository) ListByYear(yearId string) ([]model.YearlyCompanyResponse, error) {
 	var list []model.YearlyCompanyResponse
 	err := db.DB.Table("yearly_companies").
-		Select("yearly_companies.*, companies.company_name, assignments.user_id as assigned_member_id, users.name as assigned_member_name").
+		Select("yearly_companies.*, companies.company_name, assignments.user_id as assigned_member_id, users.name as assigned_member_name, sponsorship_contracts.total_amount as contract_total_amount").
 		Joins("JOIN companies ON companies.id = yearly_companies.company_id").
 		Joins("LEFT JOIN assignments ON assignments.yearly_company_id = yearly_companies.id").
 		Joins("LEFT JOIN users ON users.id = assignments.user_id").
+		Joins("LEFT JOIN sponsorship_contracts ON sponsorship_contracts.yearly_company_id = yearly_companies.id AND sponsorship_contracts.deleted_at IS NULL").
 		Where("yearly_companies.year_id = ? AND yearly_companies.deleted_at IS NULL", yearId).
 		Scan(&list).Error
 	if err != nil {
@@ -32,10 +33,11 @@ func (r *YearlyCompanyRepository) Create(yc *model.YearlyCompany) error {
 func (r *YearlyCompanyRepository) GetByID(id string) (*model.YearlyCompanyResponse, error) {
 	var yc model.YearlyCompanyResponse
 	err := db.DB.Table("yearly_companies").
-		Select("yearly_companies.*, companies.company_name, assignments.user_id as assigned_member_id, users.name as assigned_member_name").
+		Select("yearly_companies.*, companies.company_name, assignments.user_id as assigned_member_id, users.name as assigned_member_name, sponsorship_contracts.total_amount as contract_total_amount").
 		Joins("JOIN companies ON companies.id = yearly_companies.company_id").
 		Joins("LEFT JOIN assignments ON assignments.yearly_company_id = yearly_companies.id").
 		Joins("LEFT JOIN users ON users.id = assignments.user_id").
+		Joins("LEFT JOIN sponsorship_contracts ON sponsorship_contracts.yearly_company_id = yearly_companies.id AND sponsorship_contracts.deleted_at IS NULL").
 		Where("yearly_companies.id = ? AND yearly_companies.deleted_at IS NULL", id).
 		Scan(&yc).Error
 	if err != nil {

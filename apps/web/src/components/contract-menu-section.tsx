@@ -24,7 +24,10 @@ import {
   ContractMenuItemFields,
   type ContractMenuItemValue,
 } from "@/components/contract-menu-item-fields"
-import { addContractMenuToContract } from "@/lib/data/sponsorship"
+import {
+  addContractMenuToContract,
+  deleteContractMenu,
+} from "@/lib/data/sponsorship"
 import {
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
@@ -72,7 +75,31 @@ export function ContractMenuSection({
     emptyItem(menus)
   )
   const [busy, setBusy] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("このメニューを削除しますか？")) return
+    setDeletingId(id)
+    setError(null)
+    try {
+      await deleteContractMenu(id)
+      const nextContractMenus = contractMenus.filter((cm) => cm.id !== id)
+      const nextTotal = nextContractMenus.reduce(
+        (sum, cm) => sum + cm.quantity * cm.unitPrice,
+        0
+      )
+      setContractMenus(nextContractMenus)
+      setTotalAmount(nextTotal)
+      onChanged?.()
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "メニューの削除に失敗しました"
+      )
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   async function handleAdd() {
     if (!newItem.sponsorshipMenuId) return
@@ -149,6 +176,7 @@ export function ContractMenuSection({
               <TableHead>小計</TableHead>
               <TableHead>制作者</TableHead>
               <TableHead>進捗</TableHead>
+              <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -180,6 +208,17 @@ export function ContractMenuSection({
                     <Badge variant="outline">
                       {CONTRACT_MENU_STATUS_LABEL[cm.status]}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void handleDelete(cm.id)}
+                      disabled={deletingId === cm.id}
+                    >
+                      削除
+                    </Button>
                   </TableCell>
                 </TableRow>
               )
