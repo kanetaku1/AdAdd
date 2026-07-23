@@ -1,4 +1,4 @@
-import type { Payment } from "@/types/payment"
+import type { Payment, PaymentStatus } from "@/types/payment"
 
 /**
  * Placeholder data matching the GET /contracts/{contractId}/payment response
@@ -45,4 +45,37 @@ export const mockPayments: Payment[] = [
  */
 export function addPayment(payment: Payment): void {
   mockPayments.push(payment)
+}
+
+/**
+ * Mirrors PATCH /payments/{id} (spec/api.md#Update Payment Status):
+ * confirmedAt/confirmedById are set/cleared here exactly as the backend does
+ * server-side — callers never pass them directly for a CONFIRMED->WAITING move.
+ */
+export function updatePayment(
+  id: string,
+  status: PaymentStatus,
+  confirmedById: string | null,
+  confirmedByName: string | null
+): Payment {
+  const index = mockPayments.findIndex((p) => p.id === id)
+  if (index === -1) throw new Error("payment not found")
+  const updated: Payment =
+    status === "CONFIRMED"
+      ? {
+          ...mockPayments[index],
+          status,
+          confirmedAt: new Date().toISOString().slice(0, 10),
+          confirmedById,
+          confirmedByName,
+        }
+      : {
+          ...mockPayments[index],
+          status,
+          confirmedAt: null,
+          confirmedById: null,
+          confirmedByName: null,
+        }
+  mockPayments[index] = updated
+  return updated
 }

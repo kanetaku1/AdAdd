@@ -25,6 +25,10 @@ func (s *PaymentService) GetByID(id string) (*model.Payment, error) {
 	return s.repo.GetByID(id)
 }
 
+func (s *PaymentService) ListAcrossYear(yearID string, filters map[string]interface{}) ([]model.PaymentResponse, error) {
+	return s.repo.ListAcrossYear(yearID, filters)
+}
+
 func (s *PaymentService) Create(p *model.Payment) error { return s.repo.Create(p) }
 
 func (s *PaymentService) Update(p *model.Payment) error {

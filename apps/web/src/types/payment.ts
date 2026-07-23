@@ -26,3 +26,13 @@ export type Payment = {
   confirmedById: string | null
   confirmedByName: string | null
 }
+
+/**
+ * Payment joined with its owning Company/Yearly Company for cross-contract
+ * views (spec/frontend.md#Finance Management, #Dashboard) — see
+ * `GET /years/{yearId}/payments` in spec/api.md.
+ */
+export type PaymentAcrossYear = Payment & {
+  companyName: string
+  yearlyCompanyId: string
+}
