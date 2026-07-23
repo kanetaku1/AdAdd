@@ -19,7 +19,7 @@ func listActivityLogs(c echo.Context) error {
 	svc := service.NewActivityLogService()
 	list, err := svc.ListByYearlyCompany(ycId)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }

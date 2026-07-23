@@ -22,7 +22,7 @@ func createAssignment(c echo.Context) error {
 		Role   string  `json:"role"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 
 	userID := ""
@@ -38,7 +38,7 @@ func createAssignment(c echo.Context) error {
 	svc := service.NewAssignmentService()
 	result, err := svc.AssignOrClear(ycId, userID, body.Role, actorID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	if result == nil {
 		return c.JSON(http.StatusOK, map[string]interface{}{"data": nil, "message": "cleared"})
@@ -49,13 +49,13 @@ func createAssignment(c echo.Context) error {
 func getAssignedCompaniesForMe(c echo.Context) error {
 	userId := c.Get("userId")
 	if userId == nil || userId == "" {
-		return c.JSON(http.StatusUnauthorized, map[string]interface{}{"error": "unauthenticated"})
+		return respondUnauthorized(c, "unauthenticated")
 	}
 	uid := userId.(string)
 	asvc := service.NewAssignmentService()
 	list, err := asvc.ListByUser(uid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }

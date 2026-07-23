@@ -30,7 +30,7 @@ func getPaymentByContract(c echo.Context) error {
 	svc := service.NewPaymentService()
 	p, err := svc.GetByContractID(contractId)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "payment not found"})
+		return respondNotFound(c, "payment not found")
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": p, "message": "success"})
 }
@@ -44,7 +44,7 @@ func listPaymentsAcrossYear(c echo.Context) error {
 	svc := service.NewPaymentService()
 	list, err := svc.ListAcrossYear(yearId, filters)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
@@ -53,16 +53,14 @@ func updatePayment(c echo.Context) error {
 	pid := c.Param("paymentId")
 	var req model.Payment
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	req.ID = pid
-	// basic validation: status must be known
-	allowed := []string{"WAITING", "CONFIRMED"}
-	if !validateStatus(req.Status, allowed) {
-		return badRequest(c, "invalid status")
+	if err := ValidatePaymentStatus(c, req.Status); err != nil {
+		return err
 	}
 	if !req.Amount.IsZero() && !validateNonNegativeAmount(req.Amount) {
-		return badRequest(c, "amount must be non-negative")
+		return respondBadRequest(c, "amount must be non-negative")
 	}
 	// set confirmedAt/confirmedById server-side when status becomes CONFIRMED
 	if req.Status == "CONFIRMED" {
@@ -74,7 +72,7 @@ func updatePayment(c echo.Context) error {
 	}
 	svc := service.NewPaymentService()
 	if err := svc.Update(&req); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	// reload payment to return correct timestamps and stored values
 	updated, err := svc.GetByID(req.ID)
@@ -91,17 +89,17 @@ func createPayment(c echo.Context) error {
 	csvc := service.NewContractService()
 	contract, err := csvc.GetByID(contractId)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "contract not found"})
+		return respondNotFound(c, "contract not found")
 	}
 
 	if contract.TotalAmount.IsZero() {
-		return badRequest(c, "cannot create payment for contract with zero total amount")
+		return respondBadRequest(c, "cannot create payment for contract with zero total amount")
 	}
 
 	psvc := service.NewPaymentService()
 	// check if payment already exists
 	if existing, err := psvc.GetByContractID(contractId); err == nil && existing != nil {
-		return c.JSON(http.StatusConflict, map[string]interface{}{"error": "payment already exists for this contract"})
+		return respondConflict(c, "payment already exists for this contract")
 	}
 
 	payment := &model.Payment{
@@ -111,7 +109,7 @@ func createPayment(c echo.Context) error {
 	}
 
 	if err := psvc.Create(payment); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": payment, "message": "created"})

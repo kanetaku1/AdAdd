@@ -27,7 +27,7 @@ func getYearlyCompany(c echo.Context) error {
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.GetByID(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "yearly company not found"})
+		return respondNotFound(c, "yearly company not found")
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "success"})
 }
@@ -37,7 +37,7 @@ func getProgress(c echo.Context) error {
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.GetByID(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "yearly company not found"})
+		return respondNotFound(c, "yearly company not found")
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"data":    map[string]string{"progress": yc.Progress},
@@ -51,23 +51,19 @@ func updateProgress(c echo.Context) error {
 		Progress string `json:"progress"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
-	allowed := []string{
-		"NOT_CONTACTED", "MATERIALS_SENT", "CONFIRMED", "INVOICE_SENT",
-		"PAYMENT_RECEIVED", "RECEIPT_SENT", "DECLINED", "PENDING",
-	}
-	if !validateStatus(body.Progress, allowed) {
-		return badRequest(c, "invalid progress")
+	if err := ValidateProgress(c, body.Progress); err != nil {
+		return err
 	}
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.GetByID(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "yearly company not found"})
+		return respondNotFound(c, "yearly company not found")
 	}
 	yc.Progress = body.Progress
 	if err := svc.Update(&yc.YearlyCompany); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
 }
@@ -77,7 +73,7 @@ func listYearlyCompanies(c echo.Context) error {
 	svc := service.NewYearlyCompanyService()
 	list, err := svc.ListByYear(yearId)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
@@ -86,16 +82,16 @@ func createYearlyCompany(c echo.Context) error {
 	yearId := c.Param("yearId")
 	var req model.YearlyCompany
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	// validation
 	if req.CompanyID == "" {
-		return badRequest(c, "companyId is required")
+		return respondBadRequest(c, "companyId is required")
 	}
 	req.YearID = yearId
 	svc := service.NewYearlyCompanyService()
 	if err := svc.Create(&req); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
@@ -106,16 +102,19 @@ func updateCompanyStatus(c echo.Context) error {
 		CompanyStatus string `json:"companyStatus"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
+	}
+	if err := ValidateCompanyStatus(c, body.CompanyStatus); err != nil {
+		return err
 	}
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.GetByID(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "yearly company not found"})
+		return respondNotFound(c, "yearly company not found")
 	}
 	yc.CompanyStatus = body.CompanyStatus
 	if err := svc.Update(&yc.YearlyCompany); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
 }
@@ -126,16 +125,19 @@ func updatePhase(c echo.Context) error {
 		Phase string `json:"phase"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
+	}
+	if err := ValidatePhase(c, body.Phase); err != nil {
+		return err
 	}
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.GetByID(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "yearly company not found"})
+		return respondNotFound(c, "yearly company not found")
 	}
 	yc.Phase = body.Phase
 	if err := svc.Update(&yc.YearlyCompany); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
 }

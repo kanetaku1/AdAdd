@@ -29,13 +29,13 @@ func createAdvisorAssignment(c echo.Context) error {
 		MemberUserID  string `json:"memberUserId"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	if body.YearID == "" || body.AdvisorUserID == "" || body.MemberUserID == "" {
-		return badRequest(c, "yearId, advisorUserId, and memberUserId are required")
+		return respondBadRequest(c, "yearId, advisorUserId, and memberUserId are required")
 	}
 	if body.AdvisorUserID == body.MemberUserID {
-		return badRequest(c, "advisor and member must be different users")
+		return respondBadRequest(c, "advisor and member must be different users")
 	}
 
 	req := &model.AdvisorAssignment{
@@ -47,9 +47,9 @@ func createAdvisorAssignment(c echo.Context) error {
 	svc := service.NewAdvisorService()
 	if err := svc.Create(req); err != nil {
 		if err == service.ErrAdvisorAssignmentExists {
-			return c.JSON(http.StatusConflict, map[string]interface{}{"error": "advisor assignment already exists"})
+			return respondConflict(c, "advisor assignment already exists")
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
@@ -59,9 +59,9 @@ func deleteAdvisorAssignment(c echo.Context) error {
 	svc := service.NewAdvisorService()
 	if err := svc.Delete(id); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "advisor assignment not found"})
+			return respondNotFound(c, "advisor assignment not found")
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"message": "deleted"})
 }
@@ -69,12 +69,12 @@ func deleteAdvisorAssignment(c echo.Context) error {
 func listAdvisorAssignments(c echo.Context) error {
 	yearId := c.QueryParam("yearId")
 	if yearId == "" {
-		return badRequest(c, "yearId is required")
+		return respondBadRequest(c, "yearId is required")
 	}
 	svc := service.NewAdvisorService()
 	list, err := svc.ListByYear(yearId)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
@@ -84,7 +84,7 @@ func getAdvisorMembers(c echo.Context) error {
 	svc := service.NewAdvisorService()
 	list, err := svc.ListMembersByAdvisor(userId)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }

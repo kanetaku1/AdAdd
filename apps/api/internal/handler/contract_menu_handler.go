@@ -43,7 +43,7 @@ func listContractMenusAcrossYear(c echo.Context) error {
 	svc := service.NewContractMenuService()
 	list, err := svc.ListAcrossYear(yearId, filters)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
@@ -53,7 +53,7 @@ func listContractMenus(c echo.Context) error {
 	svc := service.NewContractMenuService()
 	list, err := svc.ListByContract(contractId)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
@@ -69,16 +69,16 @@ func addContractMenu(c echo.Context) error {
 		Remarks            string           `json:"remarks"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	if body.SponsorshipMenuID == "" {
-		return badRequest(c, "sponsorshipMenuId is required")
+		return respondBadRequest(c, "sponsorshipMenuId is required")
 	}
 	if body.Quantity <= 0 {
-		return badRequest(c, "quantity must be > 0")
+		return respondBadRequest(c, "quantity must be > 0")
 	}
 	if body.UnitPrice != nil && !validateNonNegativeAmount(*body.UnitPrice) {
-		return badRequest(c, "unitPrice must be non-negative")
+		return respondBadRequest(c, "unitPrice must be non-negative")
 	}
 
 	req := &model.ContractMenu{
@@ -95,7 +95,7 @@ func addContractMenu(c echo.Context) error {
 
 	svc := service.NewContractMenuService()
 	if err := svc.Create(req, body.UnitPrice != nil); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
@@ -104,7 +104,7 @@ func deleteContractMenu(c echo.Context) error {
 	id := c.Param("id")
 	svc := service.NewContractMenuService()
 	if err := svc.Delete(id); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"message": "deleted"})
 }
@@ -115,21 +115,20 @@ func updateContractMenuStatus(c echo.Context) error {
 		Status string `json:"status"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	// validate status
-	allowed := []string{"WAITING", "REQUESTED", "PRODUCING", "COMPLETED", "SUBMITTED"}
-	if !validateStatus(body.Status, allowed) {
-		return badRequest(c, "invalid status")
+	if err := ValidateContractMenuStatus(c, body.Status); err != nil {
+		return err
 	}
 	svc := service.NewContractMenuService()
 	cm, err := svc.GetByID(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "contract menu not found"})
+		return respondNotFound(c, "contract menu not found")
 	}
 	cm.Status = body.Status
 	if err := svc.Update(cm); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})
 }
@@ -141,12 +140,12 @@ func uploadContractMenuProduction(c echo.Context) error {
 		Remarks        string `json:"remarks"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	svc := service.NewContractMenuService()
 	cm, err := svc.GetByID(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "contract menu not found"})
+		return respondNotFound(c, "contract menu not found")
 	}
 	cm.DriveURL = body.DriveFolderUrl
 	cm.Remarks = body.Remarks
@@ -156,7 +155,7 @@ func uploadContractMenuProduction(c echo.Context) error {
 		userId = uid.(string)
 	}
 	if err := svc.UpdateWithUser(cm, userId); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})
 }
