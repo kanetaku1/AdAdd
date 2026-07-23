@@ -41,3 +41,14 @@ export type ContractMenu = {
   driveUrl: string | null
   remarks: string
 }
+
+/**
+ * ContractMenu joined with its owning Company/Sponsorship Menu for
+ * cross-contract views (spec/frontend.md#Contract Menu List, #Ad Material
+ * Progress) — see `GET /years/{yearId}/contract-menus` in spec/api.md.
+ */
+export type ContractMenuAcrossYear = ContractMenu & {
+  companyName: string
+  yearlyCompanyId: string
+  sponsorshipMenuName: string
+}
