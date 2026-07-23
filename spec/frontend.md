@@ -230,17 +230,32 @@ Display:
 * Per-menu breakdown — one row per Sponsorship Menu (master data for the
   active Year, spec/model.md#SponsorshipMenu), with a count per
   `ContractMenuStatus` and a submitted/total ratio. Sorted by submitted
-  ratio ascending (menus needing the most attention first).
+  ratio ascending (menus needing the most attention first). Each non-zero
+  status count links to Contract Menu List (see Contract Menu Management
+  below), pre-filtered to that Sponsorship Menu + `ContractMenuStatus`.
 * Follow-up list — every Company with at least one Contract Menu not yet
   `SUBMITTED`, grouped by the assigned Sponsorship Member
-  (`YearlyCompany.assignedMemberName`, see Company Assignment API). A
-  Company with multiple pending items appears once, listing each.
-  Companies with no assigned Member are grouped separately, last.
+  (`YearlyCompany.assignedMemberId`/`assignedMemberName`, see Company
+  Assignment API). A Company with multiple pending items appears once,
+  listing each. Companies with no assigned Member are grouped separately,
+  last.
+  By default, scoped to the signed-in User: their own assigned Companies,
+  plus — for a Sponsorship Advisor — every Company assigned to a Member
+  they supervise (`AdvisorAssignment`; an Advisor is never assigned to a
+  Company directly, only indirectly through a supervised Member — see
+  spec/domain.md Rule 9). A "自分の担当のみ / 全件" toggle switches to the
+  unscoped view showing every Member's group; the default is the scoped
+  view only if the signed-in User has a stake (an assignment, or a
+  supervised Member) in the active Year, otherwise the unscoped view.
 
 Data source: `GET /years/{yearId}/contract-menus` (see spec/api.md)
 joined client-side with `GET /years/{yearId}/companies` on
-`yearlyCompanyId` for the assigned Member's name — no additional backend
-endpoint required.
+`yearlyCompanyId` for the assigned Member, and with
+`GET /advisor-assignments?yearId={yearId}` for the signed-in User's
+supervised Members — no additional backend endpoint required. The
+signed-in User's identity comes from the dev-stub auth header
+(`X-User-ID`, see apps/web/src/lib/api/client.ts) pending real
+authentication.
 
 ---
 
@@ -410,6 +425,11 @@ Filters:
 * Sponsorship Menu
 * Status
 * Production type
+
+Sponsorship Menu and Status accept an initial value from the URL
+(`?menuId=&status=`), so the per-menu status breakdown on Ad Material
+Progress (see above) can link directly into this list pre-filtered to a
+given Sponsorship Menu + `ContractMenuStatus` cell.
 
 Status is directly editable to any `ContractMenuStatus`, including
 `SUBMITTED` (`PATCH /contract-menus/{id}/status`). Production type has no

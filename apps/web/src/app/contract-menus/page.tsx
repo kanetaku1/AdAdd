@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 import { useActiveYear } from "@/components/active-year-provider"
 import { Badge } from "@/components/ui/badge"
@@ -47,6 +48,12 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   currency: "JPY",
 })
 
+function isContractMenuStatus(
+  value: string | null
+): value is ContractMenuStatus {
+  return value !== null && value in CONTRACT_MENU_STATUS_LABEL
+}
+
 /**
  * Contract Menu List (spec/frontend.md#Contract Menu Management).
  * Cross-contract view of every Contract Menu in the active Year
@@ -64,8 +71,24 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
  * item: the backend's `PATCH .../production` sets `status` to `SUBMITTED`
  * as part of that same call (spec/api.md#Upload Production Information), so
  * saving a Drive URL here updates both fields together.
+ *
+ * Accepts `?menuId=&status=` query params as initial filter values, so the
+ * per-menu status breakdown in ad-material-progress/page.tsx can link
+ * straight into a menu+status-filtered view of this list.
  */
 export default function ContractMenusPage() {
+  return (
+    <Suspense>
+      <ContractMenusList />
+    </Suspense>
+  )
+}
+
+function ContractMenusList() {
+  const searchParams = useSearchParams()
+  const initialMenuId = searchParams.get("menuId")
+  const initialStatus = searchParams.get("status")
+
   const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
 
@@ -77,10 +100,12 @@ export default function ContractMenusPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [companyNameQuery, setCompanyNameQuery] = useState("")
-  const [menuFilter, setMenuFilter] = useState<string | typeof ALL>(ALL)
+  const [menuFilter, setMenuFilter] = useState<string | typeof ALL>(
+    initialMenuId ?? ALL
+  )
   const [statusFilter, setStatusFilter] = useState<
     ContractMenuStatus | typeof ALL
-  >(ALL)
+  >(isContractMenuStatus(initialStatus) ? initialStatus : ALL)
   const [productionTypeFilter, setProductionTypeFilter] = useState<
     ContractMenuProductionType | typeof ALL
   >(ALL)
