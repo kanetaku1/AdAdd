@@ -225,6 +225,13 @@ type ActivityLog struct {
 	CreatedAt       time.Time `json:"createdAt"`
 }
 
+func (a *ActivityLog) BeforeCreate(tx *gorm.DB) (err error) {
+	if a.ID == "" {
+		a.ID = uuid.NewString()
+	}
+	return nil
+}
+
 // User
 type User struct {
 	ID        string         `gorm:"type:char(36);primaryKey" json:"id"`
