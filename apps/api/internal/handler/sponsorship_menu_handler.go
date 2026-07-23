@@ -23,7 +23,7 @@ func listSponsorshipMenus(c echo.Context) error {
 	svc := service.NewSponsorshipMenuService()
 	list, err := svc.ListByYear(yearId)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
@@ -32,19 +32,19 @@ func createSponsorshipMenu(c echo.Context) error {
 	yearId := c.Param("yearId")
 	var req model.SponsorshipMenu
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	// validation
 	if req.Name == "" {
-		return badRequest(c, "name is required")
+		return respondBadRequest(c, "name is required")
 	}
 	if !validateNonNegativeAmount(req.DefaultPrice) {
-		return badRequest(c, "defaultPrice must be non-negative")
+		return respondBadRequest(c, "defaultPrice must be non-negative")
 	}
 	req.YearID = yearId
 	svc := service.NewSponsorshipMenuService()
 	if err := svc.Create(&req); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
@@ -53,12 +53,12 @@ func updateSponsorshipMenu(c echo.Context) error {
 	id := c.Param("menuId")
 	var req model.SponsorshipMenu
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	req.ID = id
 	svc := service.NewSponsorshipMenuService()
 	if err := svc.Update(&req); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
 }
