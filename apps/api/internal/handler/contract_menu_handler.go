@@ -118,8 +118,8 @@ func updateContractMenuStatus(c echo.Context) error {
 		return respondBadRequest(c, err.Error())
 	}
 	// validate status
-	if err := ValidateContractMenuStatus(c, body.Status); err != nil {
-		return err
+	if err := ValidateContractMenuStatus(body.Status); err != nil {
+		return respondBadRequest(c, err.Error())
 	}
 	svc := service.NewContractMenuService()
 	cm, err := svc.GetByID(id)

@@ -56,8 +56,8 @@ func updatePayment(c echo.Context) error {
 		return respondBadRequest(c, err.Error())
 	}
 	req.ID = pid
-	if err := ValidatePaymentStatus(c, req.Status); err != nil {
-		return err
+	if err := ValidatePaymentStatus(req.Status); err != nil {
+		return respondBadRequest(c, err.Error())
 	}
 	if !req.Amount.IsZero() && !validateNonNegativeAmount(req.Amount) {
 		return respondBadRequest(c, "amount must be non-negative")

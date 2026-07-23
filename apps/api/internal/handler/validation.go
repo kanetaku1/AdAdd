@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"github.com/labstack/echo/v4"
+	"errors"
+
 	"github.com/shopspring/decimal"
 )
 
@@ -30,44 +31,51 @@ func validateStatus(status string, allowed []string) bool {
 	return false
 }
 
-func ValidateCompanyStatus(c echo.Context, status string) error {
+// The Validate* functions below return a plain error describing what's
+// invalid — they never write the HTTP response themselves. A respond*
+// helper's returned error reflects whether writing the response body
+// succeeded, not whether validation passed, so callers must not treat it as
+// a validation result. Callers check the returned error and call
+// respondBadRequest(c, err.Error()) themselves.
+
+func ValidateCompanyStatus(status string) error {
 	if !validateStatus(status, ValidCompanyStatuses) {
-		return respondBadRequest(c, "invalid companyStatus")
+		return errors.New("invalid companyStatus")
 	}
 	return nil
 }
 
-func ValidatePhase(c echo.Context, phase string) error {
+func ValidatePhase(phase string) error {
 	if !validateStatus(phase, ValidPhases) {
-		return respondBadRequest(c, "invalid phase")
+		return errors.New("invalid phase")
 	}
 	return nil
 }
 
-func ValidateProgress(c echo.Context, progress string) error {
+func ValidateProgress(progress string) error {
 	if !validateStatus(progress, ValidProgresses) {
-		return respondBadRequest(c, "invalid progress")
+		return errors.New("invalid progress")
 	}
 	return nil
 }
 
-func ValidateProductionType(c echo.Context, pt string) error {
+func ValidateProductionType(pt string) error {
 	if !validateStatus(pt, ValidProductionTypes) {
-		return respondBadRequest(c, "invalid productionType")
+		return errors.New("invalid productionType")
 	}
 	return nil
 }
 
-func ValidateContractMenuStatus(c echo.Context, status string) error {
+func ValidateContractMenuStatus(status string) error {
 	if !validateStatus(status, ValidContractMenuStatuses) {
-		return respondBadRequest(c, "invalid status")
+		return errors.New("invalid status")
 	}
 	return nil
 }
 
-func ValidatePaymentStatus(c echo.Context, status string) error {
+func ValidatePaymentStatus(status string) error {
 	if !validateStatus(status, ValidPaymentStatuses) {
-		return respondBadRequest(c, "invalid status")
+		return errors.New("invalid status")
 	}
 	return nil
 }

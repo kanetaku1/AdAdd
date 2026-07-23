@@ -53,8 +53,8 @@ func updateProgress(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	if err := ValidateProgress(c, body.Progress); err != nil {
-		return err
+	if err := ValidateProgress(body.Progress); err != nil {
+		return respondBadRequest(c, err.Error())
 	}
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.GetByID(id)
@@ -104,8 +104,8 @@ func updateCompanyStatus(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	if err := ValidateCompanyStatus(c, body.CompanyStatus); err != nil {
-		return err
+	if err := ValidateCompanyStatus(body.CompanyStatus); err != nil {
+		return respondBadRequest(c, err.Error())
 	}
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.GetByID(id)
@@ -127,8 +127,8 @@ func updatePhase(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	if err := ValidatePhase(c, body.Phase); err != nil {
-		return err
+	if err := ValidatePhase(body.Phase); err != nil {
+		return respondBadRequest(c, err.Error())
 	}
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.GetByID(id)
