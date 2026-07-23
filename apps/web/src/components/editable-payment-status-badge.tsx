@@ -32,9 +32,11 @@ import type { PaymentStatus } from "@/types/payment"
 export function EditablePaymentStatusBadge({
   value,
   onChange,
+  disabled,
 }: {
   value: PaymentStatus
   onChange: (value: PaymentStatus) => void
+  disabled?: boolean
 }) {
   const [editing, setEditing] = useState(false)
 
@@ -68,8 +70,10 @@ export function EditablePaymentStatusBadge({
   return (
     <Badge
       variant={PAYMENT_STATUS_BADGE_VARIANT[value]}
-      className="cursor-pointer"
-      onClick={() => setEditing(true)}
+      className={disabled ? "opacity-50" : "cursor-pointer"}
+      onClick={() => {
+        if (!disabled) setEditing(true)
+      }}
     >
       {PAYMENT_STATUS_LABEL[value]}
     </Badge>
