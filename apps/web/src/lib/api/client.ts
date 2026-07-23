@@ -15,13 +15,31 @@ export type ApiEnvelope<T> = {
 
 export class ApiError extends Error {
   status: number
+  code: string | null
   body: unknown
 
-  constructor(status: number, message: string, body?: unknown) {
+  constructor(status: number, message: string, code: string | null, body?: unknown) {
     super(message)
     this.status = status
+    this.code = code
     this.body = body
   }
+}
+
+/** Standardized error envelope every 400-500 response now returns. */
+type ApiErrorEnvelope = {
+  error: { code: string; message: string }
+}
+
+function isApiErrorEnvelope(json: unknown): json is ApiErrorEnvelope {
+  return (
+    typeof json === "object" &&
+    json !== null &&
+    "error" in json &&
+    typeof (json as { error: unknown }).error === "object" &&
+    (json as { error: unknown }).error !== null &&
+    typeof (json as ApiErrorEnvelope).error.message === "string"
+  )
 }
 
 export function getApiBaseUrl(): string | null {
@@ -61,7 +79,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const base = getApiBaseUrl()
   if (!base) {
-    throw new ApiError(0, "API base URL is not configured")
+    throw new ApiError(0, "API base URL is not configured", null)
   }
 
   const headers = new Headers(init.headers)
@@ -85,14 +103,10 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    const errMsg =
-      typeof json === "object" &&
-      json !== null &&
-      "error" in json &&
-      typeof (json as { error: unknown }).error === "string"
-        ? (json as { error: string }).error
-        : res.statusText
-    throw new ApiError(res.status, errMsg, json)
+    if (isApiErrorEnvelope(json)) {
+      throw new ApiError(res.status, json.error.message, json.error.code, json)
+    }
+    throw new ApiError(res.status, res.statusText, null, json)
   }
 
   if (
