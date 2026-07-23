@@ -24,6 +24,7 @@ const (
 	ErrCodeConflict       = "CONFLICT"
 	ErrCodeInternal       = "INTERNAL_ERROR"
 	ErrCodeUnauthorized   = "UNAUTHORIZED"
+	ErrCodeForbidden      = "FORBIDDEN"
 )
 
 // respondError is a generic helper to send standardized error responses
@@ -54,6 +55,11 @@ func respondConflict(c echo.Context, message string) error {
 // respondUnauthorized shortcuts HTTP 401 errors
 func respondUnauthorized(c echo.Context, message string) error {
 	return respondError(c, http.StatusUnauthorized, ErrCodeUnauthorized, message)
+}
+
+// respondForbidden shortcuts HTTP 403 errors
+func respondForbidden(c echo.Context, message string) error {
+	return respondError(c, http.StatusForbidden, ErrCodeForbidden, message)
 }
 
 // respondInternalServerError parses the error. If it's a MySQL unique constraint violation (1062),

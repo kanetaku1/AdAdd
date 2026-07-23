@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -35,11 +34,11 @@ func RequireRoles(allowed ...string) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			v := c.Get("userRoles")
 			if v == nil {
-				return c.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
+				return respondForbidden(c, "forbidden")
 			}
 			userRoles, ok := v.([]string)
 			if !ok {
-				return c.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
+				return respondForbidden(c, "forbidden")
 			}
 			for _, ur := range userRoles {
 				for _, a := range allowed {
@@ -48,7 +47,7 @@ func RequireRoles(allowed ...string) echo.MiddlewareFunc {
 					}
 				}
 			}
-			return c.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
+			return respondForbidden(c, "forbidden")
 		}
 	}
 }
