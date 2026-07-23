@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -21,16 +20,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useActiveYear } from "@/components/active-year-provider"
+import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { isApiEnabled } from "@/lib/api/client"
 import {
   assignMember,
-  getContractByYearlyCompany,
   listUsers,
   listYearlyCompaniesByYear,
   updateYearlyCompanyPhase,
+  updateYearlyCompanyProgress,
   updateYearlyCompanyStatus,
 } from "@/lib/data/sponsorship"
-import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
 import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_BADGE_VARIANT,
@@ -41,6 +40,7 @@ import type { User } from "@/types/user"
 import type {
   CompanyStatus,
   SponsorshipPhase,
+  SponsorshipProgress,
   YearlyCompany,
 } from "@/types/yearly-company"
 
@@ -61,15 +61,15 @@ export default function YearlyCompaniesPage() {
   const activeYearId = activeYear?.id ?? null
   const [rows, setRows] = useState<YearlyCompany[]>([])
   const [users, setUsers] = useState<User[]>([])
-  const [contractYearlyIds, setContractYearlyIds] = useState<Set<string>>(
-    new Set()
-  )
   const [companyStatusFilter, setCompanyStatusFilter] = useState<
     CompanyStatus | typeof ALL
   >(ALL)
   const [phaseFilter, setPhaseFilter] = useState<SponsorshipPhase | typeof ALL>(
     ALL
   )
+  const [progressFilter, setProgressFilter] = useState<
+    SponsorshipProgress | typeof ALL
+  >(ALL)
   const [editingCell, setEditingCell] = useState<{
     id: string
     column: EditableColumn
@@ -84,7 +84,6 @@ export default function YearlyCompaniesPage() {
       if (!yearId) {
         setRows([])
         setUsers([])
-        setContractYearlyIds(new Set())
         setLoading(false)
         setError(null)
         return
@@ -99,33 +98,10 @@ export default function YearlyCompaniesPage() {
         if (cancelled) return
         setRows(list)
         setUsers(userList)
-
-        if (isApiEnabled()) {
-          const flags = await Promise.all(
-            list.map(async (yc) => {
-              const contract = await getContractByYearlyCompany(yc.id)
-              return contract ? yc.id : null
-            })
-          )
-          if (!cancelled) {
-            setContractYearlyIds(
-              new Set(flags.filter((id): id is string => id !== null))
-            )
-          }
-        } else {
-          setContractYearlyIds(
-            new Set(
-              mockSponsorshipContracts
-                .filter((c) => list.some((yc) => yc.id === c.yearlyCompanyId))
-                .map((c) => c.yearlyCompanyId)
-            )
-          )
-        }
       } catch (e) {
         if (!cancelled) {
           setRows([])
           setUsers([])
-          setContractYearlyIds(new Set())
           setError(e instanceof Error ? e.message : "読み込みに失敗しました")
         }
       } finally {
@@ -145,9 +121,10 @@ export default function YearlyCompaniesPage() {
           yc.yearId === activeYearId &&
           (companyStatusFilter === ALL ||
             yc.companyStatus === companyStatusFilter) &&
-          (phaseFilter === ALL || yc.phase === phaseFilter)
+          (phaseFilter === ALL || yc.phase === phaseFilter) &&
+          (progressFilter === ALL || yc.progress === progressFilter)
       ),
-    [rows, activeYearId, companyStatusFilter, phaseFilter]
+    [rows, activeYearId, companyStatusFilter, phaseFilter, progressFilter]
   )
 
   async function setCompanyStatus(id: string, value: CompanyStatus) {
@@ -174,6 +151,20 @@ export default function YearlyCompaniesPage() {
     } catch (e) {
       setActionError(
         e instanceof Error ? e.message : "フェーズの更新に失敗しました"
+      )
+    }
+  }
+
+  async function setProgress(id: string, value: SponsorshipProgress) {
+    setActionError(null)
+    try {
+      await updateYearlyCompanyProgress(id, value)
+      setRows((prev) =>
+        prev.map((yc) => (yc.id === id ? { ...yc, progress: value } : yc))
+      )
+    } catch (e) {
+      setActionError(
+        e instanceof Error ? e.message : "進捗の更新に失敗しました"
       )
     }
   }
@@ -234,6 +225,7 @@ export default function YearlyCompaniesPage() {
           onValueChange={(value) =>
             setCompanyStatusFilter(value as CompanyStatus | typeof ALL)
           }
+          items={{ [ALL]: "すべてのステータス", ...COMPANY_STATUS_LABEL }}
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="企業ステータス" />
@@ -253,6 +245,7 @@ export default function YearlyCompaniesPage() {
           onValueChange={(value) =>
             setPhaseFilter(value as SponsorshipPhase | typeof ALL)
           }
+          items={{ [ALL]: "すべてのフェーズ", ...SPONSORSHIP_PHASE_LABEL }}
         >
           <SelectTrigger size="sm">
             <SelectValue placeholder="フェーズ" />
@@ -267,9 +260,27 @@ export default function YearlyCompaniesPage() {
           </SelectContent>
         </Select>
 
-        <p className="text-xs text-muted-foreground">
-          ステータス・フェーズはクリックで編集できます
-        </p>
+        <Select
+          value={progressFilter}
+          onValueChange={(value) =>
+            setProgressFilter(value as SponsorshipProgress | typeof ALL)
+          }
+          items={{ [ALL]: "すべての進捗", ...SPONSORSHIP_PROGRESS_LABEL }}
+        >
+          <SelectTrigger size="sm">
+            <SelectValue placeholder="進捗" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>すべての進捗</SelectItem>
+            {Object.entries(SPONSORSHIP_PROGRESS_LABEL).map(
+              ([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              )
+            )}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-md border">
@@ -281,29 +292,26 @@ export default function YearlyCompaniesPage() {
               <TableHead>フェーズ</TableHead>
               <TableHead>担当メンバー</TableHead>
               <TableHead>進捗</TableHead>
-              <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground">
+                <TableCell colSpan={5} className="text-muted-foreground">
                   読み込み中…
                 </TableCell>
               </TableRow>
             ) : !activeYearId ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={5}
                   className="text-center text-muted-foreground"
                 >
                   年度が未作成です。Years から年度を作成してください。
                 </TableCell>
               </TableRow>
             ) : (
-              visibleRows.map((yc) => {
-                const hasContract = contractYearlyIds.has(yc.id)
-                return (
+              visibleRows.map((yc) => (
                   <TableRow key={yc.id}>
                     <TableCell className="font-medium">
                       <Link
@@ -447,22 +455,13 @@ export default function YearlyCompaniesPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {SPONSORSHIP_PROGRESS_LABEL[yc.progress]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        render={<Link href={`/yearly-companies/${yc.id}`} />}
-                      >
-                        {hasContract ? "詳細" : "契約を作成"}
-                      </Button>
+                      <EditableProgressBadge
+                        value={yc.progress}
+                        onChange={(value) => void setProgress(yc.id, value)}
+                      />
                     </TableCell>
                   </TableRow>
-                )
-              })
+              ))
             )}
           </TableBody>
         </Table>

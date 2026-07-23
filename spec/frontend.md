@@ -320,6 +320,8 @@ Filters:
 
 The Assigned Member column/edit surfaces and edits the Yearly Company's single assignee (inline, cell-level, per Principle 4). `CompanyAssignment` is domain-modeled as 0..1 per Yearly Company (`spec/model.md#CompanyAssignment`) — a Yearly Company has at most one assigned member, so this is the actual cardinality, not a UI simplification.
 
+Company status, Sponsorship phase, and Progress are each editable inline (cell-level, per Principle 4) directly from this list, the same as on Yearly Company Detail — there is no separate "actions" column, since the only other per-row action (viewing/creating the Contract) is already reachable via the Company name link.
+
 ---
 
 ## Yearly Company Detail
