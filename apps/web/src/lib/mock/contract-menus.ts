@@ -125,3 +125,11 @@ export function updateContractMenu(
   mockContractMenus[index] = updated
   return updated
 }
+
+/** Mirrors DELETE /contract-menus/{id} (spec/api.md#Delete Contract Menu). */
+export function removeContractMenu(id: string): ContractMenu | null {
+  const index = mockContractMenus.findIndex((cm) => cm.id === id)
+  if (index === -1) return null
+  const [removed] = mockContractMenus.splice(index, 1)
+  return removed
+}

@@ -3,6 +3,7 @@ import { mockCompanies } from "@/lib/mock/companies"
 import {
   addContractMenu,
   mockContractMenus,
+  removeContractMenu as removeMockContractMenu,
   updateContractMenu as updateMockContractMenu,
 } from "@/lib/mock/contract-menus"
 import {
@@ -587,6 +588,27 @@ export async function addContractMenuToContract(
   const total = menus.reduce((sum, cm) => sum + cm.quantity * cm.unitPrice, 0)
   updateContractTotalAmount(contractId, total)
   return menu
+}
+
+/**
+ * DELETE /contract-menus/{id} (spec/api.md#Delete Contract Menu) — removes a
+ * Contract Menu and recalculates the parent Contract's totalAmount.
+ */
+export async function deleteContractMenu(id: string): Promise<void> {
+  if (isApiEnabled()) {
+    await apiFetch(`/contract-menus/${id}`, { method: "DELETE" })
+    return
+  }
+  const removed = removeMockContractMenu(id)
+  if (!removed) return
+  const remaining = mockContractMenus.filter(
+    (cm) => cm.contractId === removed.contractId
+  )
+  const total = remaining.reduce(
+    (sum, cm) => sum + cm.quantity * cm.unitPrice,
+    0
+  )
+  updateContractTotalAmount(removed.contractId, total)
 }
 
 export async function createPayment(contractId: string): Promise<Payment> {
