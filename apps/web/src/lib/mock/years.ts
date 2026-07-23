@@ -66,6 +66,7 @@ export function registerCompanyToYear(companyId: string, yearId: string): void {
     progress: "NOT_CONTACTED",
     assignedMemberId: null,
     assignedMemberName: null,
+    contractTotalAmount: null,
     notes: "",
   })
 }

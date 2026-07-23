@@ -12,6 +12,7 @@ import (
 func RegisterPaymentRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/contracts/:contractId/payment", getPaymentByContract)
+	r.GET("/years/:yearId/payments", listPaymentsAcrossYear)
 
 	// Create payment records (staff or admin or finance)
 	rc := e.Group("")
@@ -32,6 +33,20 @@ func getPaymentByContract(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "payment not found"})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": p, "message": "success"})
+}
+
+func listPaymentsAcrossYear(c echo.Context) error {
+	yearId := c.Param("yearId")
+	filters := make(map[string]interface{})
+	if q := c.QueryParam("status"); q != "" {
+		filters["status"] = q
+	}
+	svc := service.NewPaymentService()
+	list, err := svc.ListAcrossYear(yearId, filters)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
 
 func updatePayment(c echo.Context) error {

@@ -30,6 +30,10 @@ export type SponsorshipProgress =
  *
  * assignedMemberId/assignedMemberName represent the single assignee from
  * CompanyAssignment (0..1 — spec/model.md#CompanyAssignment).
+ *
+ * contractTotalAmount is joined from the Yearly Company's SponsorshipContract
+ * (0..1, 1:1 — spec/model.md); null when no contract exists yet. See
+ * spec/api.md#List Yearly Companies.
  */
 export type YearlyCompany = {
   id: string
@@ -41,5 +45,6 @@ export type YearlyCompany = {
   progress: SponsorshipProgress
   assignedMemberId: string | null
   assignedMemberName: string | null
+  contractTotalAmount: number | null
   notes: string
 }

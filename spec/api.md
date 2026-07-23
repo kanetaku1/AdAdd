@@ -293,11 +293,14 @@ The response joins `Company.companyName` and the assigned member (`CompanyAssign
   "progress": "INVOICE_SENT",
   "assignedMemberId": "user_id",
   "assignedMemberName": "田中",
+  "contractTotalAmount": 95000,
   "notes": ""
 }
 ```
 
 `assignedMemberId`/`assignedMemberName` surface the Yearly Company's `CompanyAssignment`, which is domain-modeled as 0..1 (`spec/model.md#CompanyAssignment`) — there is at most one assignee, never a list.
+
+`contractTotalAmount` is joined from the Yearly Company's `SponsorshipContract` (0..1, 1:1 per `spec/model.md`) — `null` when no contract exists yet. Included so Dashboard-style aggregate views (spec/frontend.md#Dashboard) can sum contract amounts across a Year from this single list call, without an additional per-company round trip.
 
 ---
 
@@ -720,6 +723,26 @@ Example response:
 ```
 
 Returns `404` if the contract has no Payment (e.g. a goods-sponsorship-only contract with `totalAmount = 0` — see Create Payment below).
+
+---
+
+## List Payments Across a Year
+
+Returns every Payment for a Year's Contracts, joined with Company / Yearly Company / confirming User for cross-contract views (see `spec/frontend.md#Finance Management` — used by the Finance Department to track income confirmation across every Company at once, UC-09; also the data source for Dashboard's payment counts, spec/frontend.md#Dashboard).
+
+```
+GET /years/{yearId}/payments
+```
+
+Query:
+
+| Parameter | Description            |
+| --------- | ----------------------- |
+| status    | Filter by Payment status |
+
+Each item additionally includes `companyName` and `yearlyCompanyId` (joined from the owning Contract's Yearly Company) and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row.
+
+A Payment whose Contract's Yearly Company has since been deleted is excluded from this list.
 
 ---
 
