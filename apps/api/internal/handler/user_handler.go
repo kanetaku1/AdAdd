@@ -23,13 +23,13 @@ func RegisterUserRoutes(e *echo.Echo) {
 func getCurrentUser(c echo.Context) error {
 	uid := c.Get("userId")
 	if uid == nil || uid == "" {
-		return c.JSON(http.StatusUnauthorized, map[string]interface{}{"error": "unauthenticated"})
+		return respondUnauthorized(c, "unauthenticated")
 	}
 	userId := uid.(string)
 	repo := repository.NewUserRepository()
 	u, err := repo.GetByID(userId)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "user not found"})
+		return respondNotFound(c, "user not found")
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": u, "message": "success"})
 }
@@ -38,7 +38,7 @@ func listUsers(c echo.Context) error {
 	svc := service.NewUserService()
 	users, err := svc.ListAll()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": users, "message": "success"})
 }
@@ -46,15 +46,15 @@ func listUsers(c echo.Context) error {
 func createUser(c echo.Context) error {
 	var user model.User
 	if err := c.Bind(&user); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "invalid request body"})
+		return respondBadRequest(c, "invalid request body")
 	}
 
 	svc := service.NewUserService()
 	if err := svc.Create(&user); err != nil {
 		if errors.Is(err, service.ErrEmailAlreadyExists) {
-			return c.JSON(http.StatusConflict, map[string]interface{}{"error": err.Error()})
+			return respondConflict(c, err.Error())
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": user, "message": "success"})
 }
@@ -63,16 +63,16 @@ func updateUser(c echo.Context) error {
 	id := c.Param("id")
 	var req service.UserUpdateOpts
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "invalid request body"})
+		return respondBadRequest(c, "invalid request body")
 	}
 
 	svc := service.NewUserService()
 	user, err := svc.Update(id, req)
 	if err != nil {
 		if errors.Is(err, service.ErrEmailAlreadyExists) {
-			return c.JSON(http.StatusConflict, map[string]interface{}{"error": err.Error()})
+			return respondConflict(c, err.Error())
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": user, "message": "success"})
 }

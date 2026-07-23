@@ -23,7 +23,7 @@ func listCompanies(c echo.Context) error {
 	svc := service.NewCompanyService()
 	companies, err := svc.ListAll()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": companies, "message": "success"})
 }
@@ -33,7 +33,7 @@ func getCompany(c echo.Context) error {
 	svc := service.NewCompanyService()
 	company, err := svc.GetByID(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "company not found"})
+		return respondNotFound(c, "company not found")
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": company, "message": "success"})
 }
@@ -41,11 +41,11 @@ func getCompany(c echo.Context) error {
 func createCompany(c echo.Context) error {
 	var req model.Company
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	svc := service.NewCompanyService()
 	if err := svc.Create(&req); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
 }
@@ -54,12 +54,12 @@ func updateCompany(c echo.Context) error {
 	id := c.Param("id")
 	var req model.Company
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+		return respondBadRequest(c, err.Error())
 	}
 	req.ID = id
 	svc := service.NewCompanyService()
 	if err := svc.Update(&req); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
 }
