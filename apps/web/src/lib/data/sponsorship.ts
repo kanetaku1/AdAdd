@@ -1,15 +1,20 @@
-import { apiFetch, isApiEnabled, ApiError } from "@/lib/api/client"
+import { apiFetch, isApiEnabled, ApiError, getCurrentDevUserId } from "@/lib/api/client"
 import { mockCompanies } from "@/lib/mock/companies"
 import {
   addContractMenu,
   mockContractMenus,
+  removeContractMenu as removeMockContractMenu,
+  updateContractMenu as updateMockContractMenu,
 } from "@/lib/mock/contract-menus"
 import {
   addSponsorshipContract,
   mockSponsorshipContracts,
   updateContractTotalAmount,
 } from "@/lib/mock/sponsorship-contracts"
-import { mockPayments } from "@/lib/mock/payments"
+import {
+  mockPayments,
+  updatePayment as updateMockPayment,
+} from "@/lib/mock/payments"
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import { mockUsers } from "@/lib/mock/users"
 import {
@@ -22,7 +27,7 @@ import type {
   ContractMenuProductionType,
   ContractMenuStatus,
 } from "@/types/contract-menu"
-import type { Payment } from "@/types/payment"
+import type { Payment, PaymentAcrossYear, PaymentStatus } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
 import type {
   CompanyStatus,
@@ -45,11 +50,15 @@ import type { ContractMenuItemValue } from "@/components/contract-menu-item-fiel
 function enrichYearlyCompany(yc: YearlyCompany & { notes?: string }): YearlyCompany {
   const company = mockCompanies.find((c) => c.id === yc.companyId)
   const member = mockUsers.find((u) => u.id === yc.assignedMemberId)
+  const contract = mockSponsorshipContracts.find(
+    (c) => c.yearlyCompanyId === yc.id
+  )
   return {
     ...yc,
     companyName: yc.companyName || company?.companyName || "(不明な企業)",
     assignedMemberName:
       yc.assignedMemberName ?? member?.name ?? null,
+    contractTotalAmount: yc.contractTotalAmount ?? contract?.totalAmount ?? null,
     notes: yc.notes ?? "",
   }
 }
@@ -65,6 +74,7 @@ type ApiYearlyCompany = {
   progress: SponsorshipProgress
   assignedMemberId: string | null
   assignedMemberName: string | null
+  contractTotalAmount: number | string | null
   notes?: string
 }
 
@@ -79,6 +89,10 @@ function mapApiYearlyCompany(raw: ApiYearlyCompany): YearlyCompany {
     progress: raw.progress,
     assignedMemberId: raw.assignedMemberId,
     assignedMemberName: raw.assignedMemberName,
+    contractTotalAmount:
+      raw.contractTotalAmount === null || raw.contractTotalAmount === undefined
+        ? null
+        : Number(raw.contractTotalAmount),
     notes: raw.notes ?? "",
   }
 }
@@ -298,6 +312,67 @@ export async function listContractMenusAcrossYear(
     )
 }
 
+/** PATCH /contract-menus/{id}/status (spec/api.md#Update Contract Menu Status). */
+export async function updateContractMenuStatus(
+  id: string,
+  status: ContractMenuStatus
+): Promise<ContractMenu> {
+  if (isApiEnabled()) {
+    const updated = await apiFetch<{
+      id: string
+      contractId: string
+      sponsorshipMenuId: string
+      quantity: number
+      unitPrice: number | string
+      isGoodsSponsorship: boolean
+      productionType?: string
+      status: string
+      driveUrl?: string
+      remarks?: string
+    }>(`/contract-menus/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    })
+    return mapApiContractMenu(updated)
+  }
+  return updateMockContractMenu(id, { status })
+}
+
+/**
+ * PATCH /contract-menus/{id}/production (spec/api.md#Upload Production
+ * Information). Registering a Drive folder always finalizes the item —
+ * the backend sets `status` to `SUBMITTED` as part of this call, it is
+ * never a plain metadata edit.
+ */
+export async function updateContractMenuProduction(
+  id: string,
+  input: { driveFolderUrl: string; remarks: string }
+): Promise<ContractMenu> {
+  if (isApiEnabled()) {
+    const updated = await apiFetch<{
+      id: string
+      contractId: string
+      sponsorshipMenuId: string
+      quantity: number
+      unitPrice: number | string
+      isGoodsSponsorship: boolean
+      productionType?: string
+      status: string
+      driveUrl?: string
+      remarks?: string
+    }>(`/contract-menus/${id}/production`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    })
+    return mapApiContractMenu(updated)
+  }
+  return updateMockContractMenu(id, {
+    driveUrl: input.driveFolderUrl,
+    remarks: input.remarks,
+    status: "SUBMITTED",
+  })
+}
+
 export async function getPaymentByContract(
   contractId: string
 ): Promise<Payment | null> {
@@ -326,6 +401,107 @@ export async function getPaymentByContract(
     }
   }
   return mockPayments.find((p) => p.contractId === contractId) ?? null
+}
+
+export type PaymentAcrossYearFilters = {
+  status?: PaymentStatus
+}
+
+/**
+ * Cross-contract view of every Payment in a Year, joined with its Company
+ * (spec/frontend.md#Finance Management, #Dashboard; spec/api.md#List
+ * Payments Across a Year).
+ */
+export async function listPaymentsByYear(
+  yearId: string,
+  filters: PaymentAcrossYearFilters = {}
+): Promise<PaymentAcrossYear[]> {
+  if (isApiEnabled()) {
+    const params = new URLSearchParams()
+    if (filters.status) params.set("status", filters.status)
+    const qs = params.toString()
+    const list = await apiFetch<
+      Array<{
+        id: string
+        contractId: string
+        amount: number | string
+        status: string
+        confirmedAt?: string | null
+        confirmedById?: string | null
+        confirmedByName?: string | null
+        companyName: string
+        yearlyCompanyId: string
+      }>
+    >(`/years/${yearId}/payments${qs ? `?${qs}` : ""}`)
+    return list.map((p) => ({
+      id: p.id,
+      contractId: p.contractId,
+      amount: Number(p.amount),
+      status: p.status as PaymentStatus,
+      confirmedAt: p.confirmedAt ?? null,
+      confirmedById: p.confirmedById ?? null,
+      confirmedByName: p.confirmedByName ?? null,
+      companyName: p.companyName,
+      yearlyCompanyId: p.yearlyCompanyId,
+    }))
+  }
+
+  return mockPayments
+    .map((p): PaymentAcrossYear | null => {
+      const contract = mockSponsorshipContracts.find(
+        (c) => c.id === p.contractId
+      )
+      if (!contract) return null
+      const yc = mockYearlyCompanies.find(
+        (row) => row.id === contract.yearlyCompanyId
+      )
+      if (!yc || yc.yearId !== yearId) return null
+      return {
+        ...p,
+        companyName: yc.companyName,
+        yearlyCompanyId: yc.id,
+      }
+    })
+    .filter((p): p is PaymentAcrossYear => p !== null)
+    .filter((p) => !filters.status || p.status === filters.status)
+}
+
+/**
+ * PATCH /payments/{id} (spec/api.md#Update Payment Status). confirmedAt/
+ * confirmedById are set/cleared server-side from the authenticated user —
+ * never sent in the request body.
+ */
+export async function updatePaymentStatus(
+  id: string,
+  status: PaymentStatus
+): Promise<Payment> {
+  if (isApiEnabled()) {
+    const updated = await apiFetch<{
+      id: string
+      contractId: string
+      amount: number | string
+      status: string
+      confirmedAt?: string | null
+      confirmedById?: string | null
+    }>(`/payments/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    })
+    return {
+      id: updated.id,
+      contractId: updated.contractId,
+      amount: Number(updated.amount),
+      status: updated.status as PaymentStatus,
+      confirmedAt: updated.confirmedAt ?? null,
+      confirmedById: updated.confirmedById ?? null,
+      confirmedByName: null,
+    }
+  }
+  const currentUserId = status === "CONFIRMED" ? getCurrentDevUserId() : null
+  const currentUserName = currentUserId
+    ? (mockUsers.find((u) => u.id === currentUserId)?.name ?? null)
+    : null
+  return updateMockPayment(id, status, currentUserId, currentUserName)
 }
 
 export { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
@@ -525,6 +701,27 @@ export async function addContractMenuToContract(
   const total = menus.reduce((sum, cm) => sum + cm.quantity * cm.unitPrice, 0)
   updateContractTotalAmount(contractId, total)
   return menu
+}
+
+/**
+ * DELETE /contract-menus/{id} (spec/api.md#Delete Contract Menu) — removes a
+ * Contract Menu and recalculates the parent Contract's totalAmount.
+ */
+export async function deleteContractMenu(id: string): Promise<void> {
+  if (isApiEnabled()) {
+    await apiFetch(`/contract-menus/${id}`, { method: "DELETE" })
+    return
+  }
+  const removed = removeMockContractMenu(id)
+  if (!removed) return
+  const remaining = mockContractMenus.filter(
+    (cm) => cm.contractId === removed.contractId
+  )
+  const total = remaining.reduce(
+    (sum, cm) => sum + cm.quantity * cm.unitPrice,
+    0
+  )
+  updateContractTotalAmount(removed.contractId, total)
 }
 
 export async function createPayment(contractId: string): Promise<Payment> {

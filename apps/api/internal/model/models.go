@@ -76,9 +76,10 @@ func (y *YearlyCompany) BeforeCreate(tx *gorm.DB) (err error) {
 // YearlyCompanyResponse is the returned DTO containing joined fields
 type YearlyCompanyResponse struct {
 	YearlyCompany
-	CompanyName        string  `json:"companyName"`
-	AssignedMemberID   *string `json:"assignedMemberId"`
-	AssignedMemberName *string `json:"assignedMemberName"`
+	CompanyName         string           `json:"companyName"`
+	AssignedMemberID    *string          `json:"assignedMemberId"`
+	AssignedMemberName  *string          `json:"assignedMemberName"`
+	ContractTotalAmount *decimal.Decimal `gorm:"column:contract_total_amount" json:"contractTotalAmount"`
 }
 
 // SponsorshipContract
@@ -173,6 +174,15 @@ func (p *Payment) BeforeCreate(tx *gorm.DB) (err error) {
 		p.ID = uuid.NewString()
 	}
 	return nil
+}
+
+// PaymentResponse is the returned DTO for cross-contract views (List Payments
+// Across a Year), joined with fields not on Payment itself.
+type PaymentResponse struct {
+	Payment
+	CompanyName     string  `gorm:"column:company_name" json:"companyName"`
+	YearlyCompanyID string  `gorm:"column:yearly_company_id" json:"yearlyCompanyId"`
+	ConfirmedByName *string `gorm:"column:confirmed_by_name" json:"confirmedByName"`
 }
 
 // CompanyAssignment (table: assignments) — 0..1 per YearlyCompany
