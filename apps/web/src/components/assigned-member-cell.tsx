@@ -27,11 +27,13 @@ export function AssignedMemberCell({
   assignedMemberName,
   users,
   onChange,
+  disabled,
 }: {
   assignedMemberId: string | null
   assignedMemberName: string | null
   users: User[]
   onChange: (userId: string | null) => void
+  disabled?: boolean
 }) {
   const [editing, setEditing] = useState(false)
 
@@ -68,8 +70,10 @@ export function AssignedMemberCell({
   return (
     <Badge
       variant="outline"
-      className="cursor-pointer"
-      onClick={() => setEditing(true)}
+      className={disabled ? "opacity-50" : "cursor-pointer"}
+      onClick={() => {
+        if (!disabled) setEditing(true)
+      }}
     >
       {assignedMemberName ?? "未割当"}
     </Badge>

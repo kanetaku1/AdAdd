@@ -23,8 +23,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
 import { createYear } from "@/lib/data/years"
+import { getErrorMessage } from "@/lib/errors"
 
 function emptyForm() {
   return { name: "", startDate: "", endDate: "" }
@@ -57,7 +59,7 @@ export default function YearsPage() {
       setOpen(false)
     } catch (e) {
       setCreateError(
-        e instanceof Error ? e.message : "年度の作成に失敗しました"
+        getErrorMessage(e, { fallback: "年度の作成に失敗しました" })
       )
     } finally {
       setCreating(false)
@@ -125,11 +127,7 @@ export default function YearsPage() {
               現在運用中の年度の企業情報を引き継いで Yearly Company
               を一括生成します。
             </p>
-            {createError && (
-              <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {createError}
-              </p>
-            )}
+            <ErrorBanner message={createError} />
             <DialogFooter>
               <Button
                 onClick={handleCreate}
@@ -150,11 +148,7 @@ export default function YearsPage() {
         </p>
       )}
 
-      {error && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorBanner message={error} />
 
       <div className="rounded-md border">
         <Table>
@@ -168,20 +162,12 @@ export default function YearsPage() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-muted-foreground">
-                  読み込み中…
-                </TableCell>
-              </TableRow>
+              <LoadingRow colSpan={4} />
             ) : years.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center text-muted-foreground"
-                >
-                  年度がまだありません。「新しい年度を作成」から最初の年度を作成してください。
-                </TableCell>
-              </TableRow>
+              <EmptyRow
+                colSpan={4}
+                message="年度がまだありません。「新しい年度を作成」から最初の年度を作成してください。"
+              />
             ) : (
               years.map((year) => (
                 <TableRow key={year.id}>

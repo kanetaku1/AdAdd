@@ -24,9 +24,11 @@ import type { ContractMenuStatus } from "@/types/contract-menu"
 export function EditableContractMenuStatusBadge({
   value,
   onChange,
+  disabled,
 }: {
   value: ContractMenuStatus
   onChange: (value: ContractMenuStatus) => void
+  disabled?: boolean
 }) {
   const [editing, setEditing] = useState(false)
 
@@ -60,8 +62,10 @@ export function EditableContractMenuStatusBadge({
   return (
     <Badge
       variant={CONTRACT_MENU_STATUS_BADGE_VARIANT[value]}
-      className="cursor-pointer"
-      onClick={() => setEditing(true)}
+      className={disabled ? "opacity-50" : "cursor-pointer"}
+      onClick={() => {
+        if (!disabled) setEditing(true)
+      }}
     >
       {CONTRACT_MENU_STATUS_LABEL[value]}
     </Badge>

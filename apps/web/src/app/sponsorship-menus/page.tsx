@@ -14,11 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   createSponsorshipMenu,
   listSponsorshipMenus,
   updateSponsorshipMenu,
 } from "@/lib/data/sponsorship-menus"
+import { getErrorMessage } from "@/lib/errors"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 /**
@@ -46,6 +48,7 @@ export default function SponsorshipMenusPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -63,7 +66,7 @@ export default function SponsorshipMenusPage() {
         if (!cancelled) setMenus(list)
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -86,6 +89,7 @@ export default function SponsorshipMenusPage() {
     if (!current) return
     const fields = { ...current, ...patch }
     setError(null)
+    setSavingId(id)
     try {
       const updated = await updateSponsorshipMenu(id, {
         yearId: fields.yearId,
@@ -96,7 +100,9 @@ export default function SponsorshipMenusPage() {
       })
       setMenus((prev) => prev.map((menu) => (menu.id === id ? updated : menu)))
     } catch (e) {
-      setError(e instanceof Error ? e.message : "更新に失敗しました")
+      setError(getErrorMessage(e, { fallback: "更新に失敗しました" }))
+    } finally {
+      setSavingId(null)
     }
   }
 
@@ -118,7 +124,7 @@ export default function SponsorshipMenusPage() {
       })
       setMenus((prev) => [...prev, created])
     } catch (e) {
-      setError(e instanceof Error ? e.message : "追加に失敗しました")
+      setError(getErrorMessage(e, { fallback: "追加に失敗しました" }))
     } finally {
       setAdding(false)
     }
@@ -138,11 +144,7 @@ export default function SponsorshipMenusPage() {
         </Button>
       </div>
 
-      {(yearError || error) && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {yearError || error}
-        </p>
-      )}
+      <ErrorBanner message={yearError || error} />
 
       <div className="rounded-md border">
         <Table>
@@ -156,74 +158,75 @@ export default function SponsorshipMenusPage() {
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-muted-foreground">
-                  読み込み中…
-                </TableCell>
-              </TableRow>
+              <LoadingRow colSpan={4} />
             ) : !activeYearId ? (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center text-muted-foreground"
-                >
-                  年度が未作成です。Years から年度を作成してください。
-                </TableCell>
-              </TableRow>
+              <EmptyRow
+                colSpan={4}
+                message="年度が未作成です。Years から年度を作成してください。"
+              />
+            ) : menus.length === 0 ? (
+              <EmptyRow colSpan={4} message="協賛メニューがまだありません。" />
             ) : (
-              menus.map((menu) => (
-                <TableRow key={menu.id}>
-                  <TableCell>
-                    <Input
-                      value={menu.name}
-                      placeholder="メニュー名"
-                      onChange={(e) =>
-                        updateLocalMenu(menu.id, { name: e.target.value })
-                      }
-                      onBlur={(e) =>
-                        void persistMenu(menu.id, { name: e.target.value })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      step={1000}
-                      value={menu.defaultPrice}
-                      onChange={(e) =>
-                        updateLocalMenu(menu.id, {
-                          defaultPrice: Number(e.target.value) || 0,
-                        })
-                      }
-                      onBlur={(e) =>
-                        void persistMenu(menu.id, {
-                          defaultPrice: Number(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={menu.requiresSubmission}
-                      onCheckedChange={(checked) =>
-                        handleImmediateChange(menu.id, {
-                          requiresSubmission: checked,
-                        })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={menu.isActive}
-                      onCheckedChange={(checked) =>
-                        handleImmediateChange(menu.id, { isActive: checked })
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
+              menus.map((menu) => {
+                const rowSaving = savingId === menu.id
+                return (
+                  <TableRow key={menu.id}>
+                    <TableCell>
+                      <Input
+                        value={menu.name}
+                        placeholder="メニュー名"
+                        disabled={rowSaving}
+                        onChange={(e) =>
+                          updateLocalMenu(menu.id, { name: e.target.value })
+                        }
+                        onBlur={(e) =>
+                          void persistMenu(menu.id, { name: e.target.value })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step={1000}
+                        value={menu.defaultPrice}
+                        disabled={rowSaving}
+                        onChange={(e) =>
+                          updateLocalMenu(menu.id, {
+                            defaultPrice: Number(e.target.value) || 0,
+                          })
+                        }
+                        onBlur={(e) =>
+                          void persistMenu(menu.id, {
+                            defaultPrice: Number(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={menu.requiresSubmission}
+                        disabled={rowSaving}
+                        onCheckedChange={(checked) =>
+                          handleImmediateChange(menu.id, {
+                            requiresSubmission: checked,
+                          })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={menu.isActive}
+                        disabled={rowSaving}
+                        onCheckedChange={(checked) =>
+                          handleImmediateChange(menu.id, { isActive: checked })
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>

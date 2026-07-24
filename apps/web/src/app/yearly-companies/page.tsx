@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table"
 import { useActiveYear } from "@/components/active-year-provider"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
+import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
 import {
   assignMember,
@@ -30,6 +31,7 @@ import {
   updateYearlyCompanyProgress,
   updateYearlyCompanyStatus,
 } from "@/lib/data/sponsorship"
+import { getErrorMessage } from "@/lib/errors"
 import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_BADGE_VARIANT,
@@ -77,6 +79,7 @@ export default function YearlyCompaniesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -102,7 +105,7 @@ export default function YearlyCompaniesPage() {
         if (!cancelled) {
           setRows([])
           setUsers([])
-          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -129,6 +132,7 @@ export default function YearlyCompaniesPage() {
 
   async function setCompanyStatus(id: string, value: CompanyStatus) {
     setActionError(null)
+    setSavingId(id)
     try {
       await updateYearlyCompanyStatus(id, value)
       setRows((prev) =>
@@ -136,13 +140,16 @@ export default function YearlyCompaniesPage() {
       )
     } catch (e) {
       setActionError(
-        e instanceof Error ? e.message : "ステータスの更新に失敗しました"
+        getErrorMessage(e, { fallback: "ステータスの更新に失敗しました" })
       )
+    } finally {
+      setSavingId(null)
     }
   }
 
   async function setPhase(id: string, value: SponsorshipPhase) {
     setActionError(null)
+    setSavingId(id)
     try {
       await updateYearlyCompanyPhase(id, value)
       setRows((prev) =>
@@ -150,27 +157,31 @@ export default function YearlyCompaniesPage() {
       )
     } catch (e) {
       setActionError(
-        e instanceof Error ? e.message : "フェーズの更新に失敗しました"
+        getErrorMessage(e, { fallback: "フェーズの更新に失敗しました" })
       )
+    } finally {
+      setSavingId(null)
     }
   }
 
   async function setProgress(id: string, value: SponsorshipProgress) {
     setActionError(null)
+    setSavingId(id)
     try {
       await updateYearlyCompanyProgress(id, value)
       setRows((prev) =>
         prev.map((yc) => (yc.id === id ? { ...yc, progress: value } : yc))
       )
     } catch (e) {
-      setActionError(
-        e instanceof Error ? e.message : "進捗の更新に失敗しました"
-      )
+      setActionError(getErrorMessage(e, { fallback: "進捗の更新に失敗しました" }))
+    } finally {
+      setSavingId(null)
     }
   }
 
   async function setAssignedMember(id: string, userId: string | null) {
     setActionError(null)
+    setSavingId(id)
     try {
       await assignMember(id, userId)
       setRows((prev) =>
@@ -187,8 +198,10 @@ export default function YearlyCompaniesPage() {
       )
     } catch (e) {
       setActionError(
-        e instanceof Error ? e.message : "担当メンバーの更新に失敗しました"
+        getErrorMessage(e, { fallback: "担当メンバーの更新に失敗しました" })
       )
+    } finally {
+      setSavingId(null)
     }
   }
 
@@ -207,17 +220,8 @@ export default function YearlyCompaniesPage() {
         </p>
       )}
 
-      {(yearError || error) && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {yearError || error}
-        </p>
-      )}
-
-      {actionError && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
+      <ErrorBanner message={yearError || error} />
+      <ErrorBanner message={actionError} />
 
       <div className="flex flex-wrap items-center gap-3">
         <Select
@@ -296,22 +300,18 @@ export default function YearlyCompaniesPage() {
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground">
-                  読み込み中…
-                </TableCell>
-              </TableRow>
+              <LoadingRow colSpan={5} />
             ) : !activeYearId ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-center text-muted-foreground"
-                >
-                  年度が未作成です。Years から年度を作成してください。
-                </TableCell>
-              </TableRow>
+              <EmptyRow
+                colSpan={5}
+                message="年度が未作成です。Years から年度を作成してください。"
+              />
+            ) : visibleRows.length === 0 ? (
+              <EmptyRow colSpan={5} message="該当する企業がありません。" />
             ) : (
-              visibleRows.map((yc) => (
+              visibleRows.map((yc) => {
+                const rowSaving = savingId === yc.id
+                return (
                   <TableRow key={yc.id}>
                     <TableCell className="font-medium">
                       <Link
@@ -352,13 +352,16 @@ export default function YearlyCompaniesPage() {
                       ) : (
                         <Badge
                           variant="outline"
-                          className="cursor-pointer"
-                          onClick={() =>
+                          className={
+                            rowSaving ? "opacity-50" : "cursor-pointer"
+                          }
+                          onClick={() => {
+                            if (rowSaving) return
                             setEditingCell({
                               id: yc.id,
                               column: "companyStatus",
                             })
-                          }
+                          }}
                         >
                           {COMPANY_STATUS_LABEL[yc.companyStatus]}
                         </Badge>
@@ -395,10 +398,13 @@ export default function YearlyCompaniesPage() {
                       ) : (
                         <Badge
                           variant={SPONSORSHIP_PHASE_BADGE_VARIANT[yc.phase]}
-                          className="cursor-pointer"
-                          onClick={() =>
-                            setEditingCell({ id: yc.id, column: "phase" })
+                          className={
+                            rowSaving ? "opacity-50" : "cursor-pointer"
                           }
+                          onClick={() => {
+                            if (rowSaving) return
+                            setEditingCell({ id: yc.id, column: "phase" })
+                          }}
                         >
                           {SPONSORSHIP_PHASE_LABEL[yc.phase]}
                         </Badge>
@@ -442,13 +448,16 @@ export default function YearlyCompaniesPage() {
                       ) : (
                         <Badge
                           variant="outline"
-                          className="cursor-pointer"
-                          onClick={() =>
+                          className={
+                            rowSaving ? "opacity-50" : "cursor-pointer"
+                          }
+                          onClick={() => {
+                            if (rowSaving) return
                             setEditingCell({
                               id: yc.id,
                               column: "assignedMember",
                             })
-                          }
+                          }}
                         >
                           {yc.assignedMemberName ?? "未割当"}
                         </Badge>
@@ -458,10 +467,12 @@ export default function YearlyCompaniesPage() {
                       <EditableProgressBadge
                         value={yc.progress}
                         onChange={(value) => void setProgress(yc.id, value)}
+                        disabled={rowSaving}
                       />
                     </TableCell>
                   </TableRow>
-              ))
+                )
+              })
             )}
           </TableBody>
         </Table>

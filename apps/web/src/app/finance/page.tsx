@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/table"
 import { EditablePaymentStatusBadge } from "@/components/editable-payment-status-badge"
 import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
+import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { listPaymentsByYear, updatePaymentStatus } from "@/lib/data/sponsorship"
+import { getErrorMessage } from "@/lib/errors"
 import type { PaymentAcrossYear, PaymentStatus } from "@/types/payment"
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
@@ -64,7 +66,7 @@ export default function FinancePage() {
         if (!cancelled) setPayments(list)
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -85,7 +87,7 @@ export default function FinancePage() {
       const refreshed = await listPaymentsByYear(activeYearId)
       setPayments(refreshed)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "更新に失敗しました")
+      setError(getErrorMessage(e, { fallback: "更新に失敗しました" }))
     } finally {
       setSavingId(null)
     }
@@ -100,11 +102,7 @@ export default function FinancePage() {
         </p>
       </div>
 
-      {(yearError || error) && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {yearError || error}
-        </p>
-      )}
+      <ErrorBanner message={yearError || error} />
 
       <div className="rounded-md border">
         <Table>
@@ -120,29 +118,17 @@ export default function FinancePage() {
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground">
-                  読み込み中…
-                </TableCell>
-              </TableRow>
+              <LoadingRow colSpan={6} />
             ) : !activeYearId ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center text-muted-foreground"
-                >
-                  年度が未作成です。Years から年度を作成してください。
-                </TableCell>
-              </TableRow>
+              <EmptyRow
+                colSpan={6}
+                message="年度が未作成です。Years から年度を作成してください。"
+              />
             ) : payments.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center text-muted-foreground"
-                >
-                  この年度にはまだ入金レコードがありません。
-                </TableCell>
-              </TableRow>
+              <EmptyRow
+                colSpan={6}
+                message="この年度にはまだ入金レコードがありません。"
+              />
             ) : (
               payments.map((payment) => (
                 <TableRow key={payment.id}>
