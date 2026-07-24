@@ -29,7 +29,7 @@ Year
 Company
 
 User
-    ├──── Role
+    ├──── UserRole ──→ Role
     └──── AdvisorAssignment (as Advisor or as Member)
 ```
 
@@ -293,15 +293,43 @@ Represents a system user.
 
 ## Role
 
-Represents system permissions.
+Represents system permissions. Fixed, seeded master data — not user-creatable (see `spec/domain.md#Role` for the canonical set of 7).
 
 ### Attributes
 
 | Name        | Type   |
 | ----------- | ------ |
 | id          | UUID   |
+| code        | string |
 | name        | string |
 | description | string |
+
+`code` is the stable, machine-readable identifier used by API/authorization checks (e.g. `ADMINISTRATOR`, `SPONSORSHIP_MENU_MANAGEMENT_TEAM`) — it never changes even if `name` (the Japanese display label) is edited. One of:
+
+* `GENERAL_MEMBER`
+* `SPONSORSHIP_MEMBER`
+* `ADVISOR`
+* `COMPANY_MANAGEMENT_DEPARTMENT`
+* `SPONSORSHIP_MENU_MANAGEMENT_TEAM`
+* `FINANCE_DEPARTMENT`
+* `ADMINISTRATOR`
+
+---
+
+## UserRole
+
+Represents one Role granted to one User. A User may hold any number of Roles (including zero, e.g. immediately after being pre-registered and before an Administrator assigns a Role); a Role may be held by any number of Users.
+
+### Attributes
+
+| Name       | Type     |
+| ---------- | -------- |
+| id         | UUID     |
+| userId     | UUID     |
+| roleId     | UUID     |
+| assignedAt | datetime |
+
+`userId` + `roleId` is unique — a Role cannot be granted to the same User twice.
 
 ---
 
@@ -468,7 +496,13 @@ AdvisorAssignment (as Advisor)
 1 ----- *
 
 AdvisorAssignment (as Member)
+
+1 ----- *
+
+UserRole ----- 1  Role
 ```
+
+A User has zero or more UserRole rows, each pointing to one Role — i.e. User:Role is many-to-many through UserRole.
 
 ---
 
@@ -498,6 +532,14 @@ AdvisorAssignment (as Member)
 * A Sponsorship Member may have multiple Advisors within the same Year (no upper bound).
 * Year + memberId + advisorId must be unique (the same Advisor cannot be assigned twice to the same Member in the same Year).
 * A YearlyCompany must never store a direct reference to an Advisor.
+
+---
+
+## UserRole
+
+* `userId` + `roleId` must be unique — a Role cannot be granted to the same User twice.
+* Role is seeded master data (the 7 codes in `spec/model.md#Role`); Roles are never created through a user-facing API, only granted to/revoked from Users.
+* Administrator is a superuser: it satisfies every permission check independent of any other Role the User holds.
 
 ---
 
@@ -545,6 +587,8 @@ The following rules must always be satisfied.
 * MySQL is the only authoritative data source.
 * An Advisor is assigned to Sponsorship Members, never directly to a Yearly Company.
 * An assignee is set per Sponsorship Contract, never per Contract Menu.
+* A User must be pre-registered (by email, by an Administrator) before they can authenticate — there is no self-service signup, regardless of authentication provider.
+* Roles are granted by an Administrator through UserRole; a User is never able to grant themselves a Role.
 
 ---
 

@@ -245,14 +245,19 @@ A user may have multiple roles.
 
 ## Role
 
-Represents permissions.
+Represents permissions. A User may hold multiple Roles at once, and Roles may be granted or revoked at any time (see `spec/frontend.md` → System Administration → User List).
 
-Examples include:
+The canonical set (matching the actor roles in `spec/frontend.md` → User Roles) is:
 
+* General Member
 * Sponsorship Member
 * Advisor
+* Company Management Department
+* Sponsorship Menu Management Team
 * Finance Department
-* Sponsorship Menu Management
+* Administrator
+
+Administrator is a superuser — it satisfies every permission check regardless of what else is required. See `spec/model.md#Role` for the machine-readable `code` per Role and `spec/model.md#UserRole` for how a User is linked to zero or more Roles.
 
 ---
 

@@ -162,6 +162,25 @@ Accessible features:
 
 # Screen Structure
 
+## Login
+
+Purpose:
+
+Authenticate the user via Google, and gate every other screen behind a valid session.
+
+Flow (BFF pattern — the Next.js frontend and Go API run on separate domains in production, so the frontend, not the browser, holds the session):
+
+1. Unauthenticated visitor is redirected to `/login`, which starts Google's OAuth Authorization Code flow. There is no Google Workspace / hosted-domain restriction (see `spec/api.md#Login`) — committee members sign in with ordinary personal Google accounts, so this step only proves the visitor controls that email address, nothing more.
+2. Google redirects back to a Next.js route handler, which exchanges the code for a Google `id_token` server-side and posts it to `POST /auth/google` (`spec/api.md#Login`).
+3. On success, Next.js stores the returned AdAdd JWT as an httpOnly, Secure cookie on its own origin — the browser never has direct access to the raw token. Next.js's server-side code (Route Handlers / Server Actions) attaches it as `Authorization: Bearer` when calling the Go API on the user's behalf; the browser never calls the Go API directly for authenticated requests.
+4. On failure (email not pre-registered, per `spec/model.md` → Business Invariants), show "このメールアドレスは登録されていません。管理者に連絡してください" and do not create a session.
+
+Navigation/action visibility is driven by the roles returned in the login response (`spec/api.md#Login` → `roles`) — see Navigation Structure below.
+
+In local development, the `X-User-ID` / `X-User-Roles` dev headers (`DEV_AUTH_ENABLED=true`) bypass this flow entirely — see `spec/api.md#Authentication`.
+
+---
+
 ## Dashboard
 
 ## Purpose
@@ -606,14 +625,14 @@ Display, one always-editable row per user (Principle 4):
 | Email        |
 | Slack ID     |
 | Active       |
+| Roles        |
 
 Actions:
 
-* Add user (new row, mostly blank)
+* Add user (new row, mostly blank) — this is also how a User is pre-registered before they can ever log in (`spec/model.md` → Business Invariants: no self-service signup).
 * Edit any field inline
 * Disable / re-enable (Active toggle)
-
-Current scope covers user creation, listing, and activation/deactivation only. Role assignment (UC-12 step 2) is deferred until `Role` (`spec/model.md#Role`) has its own management UI — there is no role picker on this screen yet.
+* Roles cell: chips, one per current `UserRole` grant (`spec/model.md#UserRole`), matching the Advisor Assignment pattern below — a "+" opens a dropdown of the 7 fixed Roles (`GET /roles`, `spec/api.md#List Roles`) not already granted; clicking a chip's "×" revokes that Role (`DELETE /users/{userId}/roles/{roleId}`). A User may hold zero Roles (e.g. immediately after being added, before an Administrator grants one) — they can still authenticate but see none of the role-gated navigation (Navigation Structure below).
 
 ---
 
@@ -667,6 +686,8 @@ Sidebar
 │
 └── Settings
 ```
+
+Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, Users/Advisor Assignments/Settings unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). Today every item is unconditionally rendered regardless of Role — this gating does not exist yet (see Issue tracking for Login/roles).
 
 ---
 
