@@ -22,9 +22,11 @@ import type { SponsorshipProgress } from "@/types/yearly-company"
 export function EditableProgressBadge({
   value,
   onChange,
+  disabled,
 }: {
   value: SponsorshipProgress
   onChange: (value: SponsorshipProgress) => void
+  disabled?: boolean
 }) {
   const [editing, setEditing] = useState(false)
 
@@ -58,8 +60,10 @@ export function EditableProgressBadge({
   return (
     <Badge
       variant="secondary"
-      className="cursor-pointer"
-      onClick={() => setEditing(true)}
+      className={disabled ? "opacity-50" : "cursor-pointer"}
+      onClick={() => {
+        if (!disabled) setEditing(true)
+      }}
     >
       {SPONSORSHIP_PROGRESS_LABEL[value]}
     </Badge>

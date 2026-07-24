@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { EmptyBlock, EmptyRow, ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { getCurrentDevUserId } from "@/lib/api/client"
 import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
@@ -21,6 +22,7 @@ import {
   listYearlyCompaniesByYear,
 } from "@/lib/data/sponsorship"
 import { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
+import { getErrorMessage } from "@/lib/errors"
 import { CONTRACT_MENU_STATUS_LABEL } from "@/lib/contract-menu-labels"
 import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { YearlyCompany } from "@/types/yearly-company"
@@ -148,7 +150,7 @@ export default function AdMaterialProgressPage() {
         setAdvisorAssignments(advisorAssignmentList)
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -262,20 +264,12 @@ export default function AdMaterialProgressPage() {
         </p>
       </div>
 
-      {(yearError || error) && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {yearError || error}
-        </p>
-      )}
+      <ErrorBanner message={yearError || error} />
 
       {yearLoading || loading ? (
-        <p className="rounded-md border p-4 text-sm text-muted-foreground">
-          読み込み中…
-        </p>
+        <LoadingBlock />
       ) : !activeYearId ? (
-        <p className="rounded-md border p-4 text-sm text-muted-foreground">
-          年度が未作成です。Years から年度を作成してください。
-        </p>
+        <EmptyBlock message="年度が未作成です。Years から年度を作成してください。" />
       ) : (
         <>
           <div className="rounded-md border p-4">
@@ -312,14 +306,10 @@ export default function AdMaterialProgressPage() {
               </TableHeader>
               <TableBody>
                 {menuBreakdown.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={STATUS_ORDER.length + 3}
-                      className="text-center text-muted-foreground"
-                    >
-                      協賛メニューがまだありません。
-                    </TableCell>
-                  </TableRow>
+                  <EmptyRow
+                    colSpan={STATUS_ORDER.length + 3}
+                    message="協賛メニューがまだありません。"
+                  />
                 ) : (
                   menuBreakdown.map(({ menu, counts, total, submittedRatio }) => (
                     <TableRow key={menu.id}>

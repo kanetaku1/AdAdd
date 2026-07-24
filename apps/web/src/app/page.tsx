@@ -13,7 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { EmptyBlock, ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { listPaymentsByYear, listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
+import { getErrorMessage } from "@/lib/errors"
 import { SPONSORSHIP_PROGRESS_LABEL } from "@/lib/yearly-company-labels"
 import type { PaymentAcrossYear } from "@/types/payment"
 import type { SponsorshipProgress, YearlyCompany } from "@/types/yearly-company"
@@ -91,7 +93,7 @@ export default function DashboardPage() {
         setPayments(paymentList)
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -140,20 +142,12 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {(yearError || error) && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {yearError || error}
-        </p>
-      )}
+      <ErrorBanner message={yearError || error} />
 
       {yearLoading || loading ? (
-        <p className="rounded-md border p-4 text-sm text-muted-foreground">
-          読み込み中…
-        </p>
+        <LoadingBlock />
       ) : !activeYearId ? (
-        <p className="rounded-md border p-4 text-sm text-muted-foreground">
-          年度が未作成です。Years から年度を作成してください。
-        </p>
+        <EmptyBlock message="年度が未作成です。Years から年度を作成してください。" />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -215,9 +209,7 @@ export default function DashboardPage() {
           <div className="rounded-md border p-4">
             <h2 className="mb-3 font-medium">要対応の企業</h2>
             {attentionCompanies.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                現在、要対応の企業はありません。
-              </p>
+              <EmptyBlock message="現在、要対応の企業はありません。" />
             ) : (
               <Table>
                 <TableHeader>

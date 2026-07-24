@@ -9,6 +9,7 @@ import {
 } from "react"
 
 import { listYears } from "@/lib/data/years"
+import { getErrorMessage } from "@/lib/errors"
 import type { Year } from "@/types/year"
 
 type ActiveYearContextValue = {
@@ -44,7 +45,7 @@ export function ActiveYearProvider({
       setYears(list)
     } catch (e) {
       setYears([])
-      setError(e instanceof Error ? e.message : "年度の取得に失敗しました")
+      setError(getErrorMessage(e, { fallback: "年度の取得に失敗しました" }))
     } finally {
       setLoading(false)
     }

@@ -26,12 +26,14 @@ export function MemberAdvisorsCell({
   users,
   onAdd,
   onRemove,
+  disabled,
 }: {
   member: User
   assignments: AdvisorAssignment[]
   users: User[]
   onAdd: (advisorId: string) => void
   onRemove: (assignmentId: string) => void
+  disabled?: boolean
 }) {
   const [adding, setAdding] = useState(false)
 
@@ -50,7 +52,8 @@ export function MemberAdvisorsCell({
             <button
               type="button"
               onClick={() => onRemove(assignment.id)}
-              className="text-muted-foreground hover:text-foreground"
+              disabled={disabled}
+              className="text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
               aria-label={`${advisor?.name ?? "アドバイザー"}を削除`}
             >
               ×
@@ -87,7 +90,7 @@ export function MemberAdvisorsCell({
           variant="ghost"
           size="sm"
           onClick={() => setAdding(true)}
-          disabled={candidates.length === 0}
+          disabled={disabled || candidates.length === 0}
         >
           + 追加
         </Button>

@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/table"
 import { RegisterYearlyCompanyButton } from "@/components/register-yearly-company-button"
 import { useActiveYear } from "@/components/active-year-provider"
+import { ErrorBanner, EmptyRow } from "@/components/query-state"
 import { listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
+import { getErrorMessage } from "@/lib/errors"
 import type { Company } from "@/types/company"
 
 /**
@@ -31,17 +33,29 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
   const [registeredCompanyIds, setRegisteredCompanyIds] = useState<
     Set<string>
   >(new Set())
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       if (!activeYear) {
         setRegisteredCompanyIds(new Set())
+        setError(null)
         return
       }
-      const list = await listYearlyCompaniesByYear(activeYear.id)
-      if (!cancelled) {
-        setRegisteredCompanyIds(new Set(list.map((yc) => yc.companyId)))
+      try {
+        const list = await listYearlyCompaniesByYear(activeYear.id)
+        if (!cancelled) {
+          setRegisteredCompanyIds(new Set(list.map((yc) => yc.companyId)))
+          setError(null)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setRegisteredCompanyIds(new Set())
+          setError(
+            getErrorMessage(e, { fallback: "年度登録状況の取得に失敗しました" })
+          )
+        }
       }
     }
     void load()
@@ -64,6 +78,8 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
         onChange={(e) => setNameQuery(e.target.value)}
         className="max-w-56"
       />
+
+      <ErrorBanner message={error} />
 
       <div className="rounded-md border">
         <Table>
@@ -139,14 +155,7 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
               </TableRow>
             ))}
             {visibleCompanies.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center text-muted-foreground"
-                >
-                  該当する企業がありません
-                </TableCell>
-              </TableRow>
+              <EmptyRow colSpan={7} message="該当する企業がありません" />
             )}
           </TableBody>
         </Table>

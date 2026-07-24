@@ -18,6 +18,7 @@ import {
 import { ContractMenuSection } from "@/components/contract-menu-section"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { InvoiceGeneratorModal } from "@/components/invoice-generator-modal"
+import { ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
 import {
   assignMember,
@@ -32,6 +33,7 @@ import {
   listUsers,
   updateYearlyCompanyProgress,
 } from "@/lib/data/sponsorship"
+import { getErrorMessage } from "@/lib/errors"
 import type { InvoiceData } from "@/lib/pdf/invoice-document"
 import {
   PAYMENT_STATUS_BADGE_VARIANT,
@@ -130,7 +132,7 @@ export default function YearlyCompanyDetailPage() {
       } catch (e) {
         if (!cancelled) {
           setYearlyCompany(null)
-          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -175,7 +177,7 @@ export default function YearlyCompanyDetailPage() {
       }
     } catch (e) {
       setYearlyCompany(null)
-      setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+      setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
     } finally {
       setLoading(false)
     }
@@ -211,16 +213,14 @@ export default function YearlyCompanyDetailPage() {
   }, [yearlyCompany, company, contract, contractMenus, menus])
 
   if (loading) {
-    return <p className="text-muted-foreground">読み込み中…</p>
+    return <LoadingBlock />
   }
 
   if (error && !yearlyCompany) {
     return (
       <div className="flex flex-col gap-3">
         <h1 className="text-2xl font-semibold">読み込みエラー</h1>
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
+        <ErrorBanner message={error} />
         <Link href="/yearly-companies" className="text-sm hover:underline">
           Yearly Companies に戻る
         </Link>
@@ -243,6 +243,7 @@ export default function YearlyCompanyDetailPage() {
 
   async function handleAssign(userId: string | null) {
     setError(null)
+    setBusy(true)
     try {
       await assignMember(yc.id, userId)
       const name = users.find((u) => u.id === userId)?.name ?? null
@@ -257,18 +258,23 @@ export default function YearlyCompanyDetailPage() {
       )
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "担当メンバーの更新に失敗しました"
+        getErrorMessage(e, { fallback: "担当メンバーの更新に失敗しました" })
       )
+    } finally {
+      setBusy(false)
     }
   }
 
   async function handleProgress(progress: SponsorshipProgress) {
     setError(null)
+    setBusy(true)
     try {
       await updateYearlyCompanyProgress(yc.id, progress)
       setYearlyCompany((prev) => (prev ? { ...prev, progress } : prev))
     } catch (e) {
-      setError(e instanceof Error ? e.message : "進捗の更新に失敗しました")
+      setError(getErrorMessage(e, { fallback: "進捗の更新に失敗しました" }))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -285,7 +291,7 @@ export default function YearlyCompanyDetailPage() {
       setCreatingContract(false)
       await reload()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "契約の作成に失敗しました")
+      setError(getErrorMessage(e, { fallback: "契約の作成に失敗しました" }))
     } finally {
       setBusy(false)
     }
@@ -301,7 +307,7 @@ export default function YearlyCompanyDetailPage() {
       await reload()
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "入金レコードの作成に失敗しました"
+        getErrorMessage(e, { fallback: "入金レコードの作成に失敗しました" })
       )
     } finally {
       setBusy(false)
@@ -318,11 +324,7 @@ export default function YearlyCompanyDetailPage() {
         </p>
       )}
 
-      {error && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorBanner message={error} />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -340,6 +342,7 @@ export default function YearlyCompanyDetailPage() {
         <EditableProgressBadge
           value={yearlyCompany.progress}
           onChange={(value) => void handleProgress(value)}
+          disabled={busy}
         />
       </div>
 
@@ -377,6 +380,7 @@ export default function YearlyCompanyDetailPage() {
               assignedMemberName={yearlyCompany.assignedMemberName}
               users={users}
               onChange={(userId) => void handleAssign(userId)}
+              disabled={busy}
             />
           </div>
           <div className="rounded-md border p-3">

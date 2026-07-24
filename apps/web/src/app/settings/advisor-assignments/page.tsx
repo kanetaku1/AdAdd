@@ -12,13 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ApiError } from "@/lib/api/client"
+import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   addAdvisorAssignment,
   listAdvisorAssignmentsByYear,
   removeAdvisorAssignment,
 } from "@/lib/data/advisor-assignments"
 import { listUsers } from "@/lib/data/users"
+import { getErrorMessage } from "@/lib/errors"
 import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { User } from "@/types/user"
 
@@ -44,6 +45,7 @@ export default function AdvisorAssignmentsPage() {
   const [assignments, setAssignments] = useState<AdvisorAssignment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [busyMemberId, setBusyMemberId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -67,7 +69,7 @@ export default function AdvisorAssignmentsPage() {
         setAssignments(assignmentList)
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -82,6 +84,7 @@ export default function AdvisorAssignmentsPage() {
   async function handleAdd(memberId: string, advisorId: string) {
     if (!activeYearId) return
     setError(null)
+    setBusyMemberId(memberId)
     try {
       const created = await addAdvisorAssignment(
         activeYearId,
@@ -91,24 +94,28 @@ export default function AdvisorAssignmentsPage() {
       setAssignments((prev) => [...prev, created])
     } catch (e) {
       setError(
-        e instanceof ApiError && e.status === 409
-          ? "すでに割り当て済みです"
-          : e instanceof Error
-            ? e.message
-            : "アドバイザーの追加に失敗しました"
+        getErrorMessage(e, {
+          fallback: "アドバイザーの追加に失敗しました",
+          overrides: { CONFLICT: "すでに割り当て済みです" },
+        })
       )
+    } finally {
+      setBusyMemberId(null)
     }
   }
 
-  async function handleRemove(assignmentId: string) {
+  async function handleRemove(memberId: string, assignmentId: string) {
     setError(null)
+    setBusyMemberId(memberId)
     try {
       await removeAdvisorAssignment(assignmentId)
       setAssignments((prev) => prev.filter((a) => a.id !== assignmentId))
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "アドバイザーの削除に失敗しました"
+        getErrorMessage(e, { fallback: "アドバイザーの削除に失敗しました" })
       )
+    } finally {
+      setBusyMemberId(null)
     }
   }
 
@@ -130,11 +137,7 @@ export default function AdvisorAssignmentsPage() {
         <p className="text-muted-foreground">実働メンバーへのアドバイザー割り当て</p>
       </div>
 
-      {(yearError || error) && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {yearError || error}
-        </p>
-      )}
+      <ErrorBanner message={yearError || error} />
 
       <div className="rounded-md border">
         <Table>
@@ -146,20 +149,12 @@ export default function AdvisorAssignmentsPage() {
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
-              <TableRow>
-                <TableCell colSpan={2} className="text-muted-foreground">
-                  読み込み中…
-                </TableCell>
-              </TableRow>
+              <LoadingRow colSpan={2} />
             ) : !activeYearId ? (
-              <TableRow>
-                <TableCell
-                  colSpan={2}
-                  className="text-center text-muted-foreground"
-                >
-                  年度が未作成です。Years から年度を作成してください。
-                </TableCell>
-              </TableRow>
+              <EmptyRow
+                colSpan={2}
+                message="年度が未作成です。Years から年度を作成してください。"
+              />
             ) : (
               users.map((member) => (
                 <TableRow key={member.id}>
@@ -172,7 +167,8 @@ export default function AdvisorAssignmentsPage() {
                       )}
                       users={users}
                       onAdd={(advisorId) => void handleAdd(member.id, advisorId)}
-                      onRemove={(id) => void handleRemove(id)}
+                      onRemove={(id) => void handleRemove(member.id, id)}
+                      disabled={busyMemberId === member.id}
                     />
                   </TableCell>
                 </TableRow>

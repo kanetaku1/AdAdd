@@ -22,8 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ApiError, isApiEnabled } from "@/lib/api/client"
+import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
+import { isApiEnabled } from "@/lib/api/client"
 import { createUser, listUsers, updateUser } from "@/lib/data/users"
+import { getErrorMessage } from "@/lib/errors"
 import { ROLES, type Role, type User } from "@/types/user"
 
 type UserForm = {
@@ -70,6 +72,7 @@ export default function UsersPage() {
   const [form, setForm] = useState<UserForm>(emptyForm())
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -81,9 +84,7 @@ export default function UsersPage() {
         if (!cancelled) setUsers(list)
       } catch (e) {
         if (!cancelled) {
-          setLoadError(
-            e instanceof Error ? e.message : "読み込みに失敗しました"
-          )
+          setLoadError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -145,11 +146,10 @@ export default function UsersPage() {
       setEditingId(null)
     } catch (e) {
       setFormError(
-        e instanceof ApiError && e.status === 409
-          ? "このメールアドレスは既に使われています"
-          : e instanceof Error
-            ? e.message
-            : "保存に失敗しました"
+        getErrorMessage(e, {
+          fallback: "保存に失敗しました",
+          overrides: { CONFLICT: "このメールアドレスは既に使われています" },
+        })
       )
     } finally {
       setSubmitting(false)
@@ -157,13 +157,17 @@ export default function UsersPage() {
   }
 
   async function toggleActive(user: User, checked: boolean) {
+    setLoadError(null)
+    setTogglingId(user.id)
     try {
       const updated = await updateUser(user.id, { isActive: checked })
       setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)))
     } catch (e) {
       setLoadError(
-        e instanceof Error ? e.message : "有効/無効の切り替えに失敗しました"
+        getErrorMessage(e, { fallback: "有効/無効の切り替えに失敗しました" })
       )
+    } finally {
+      setTogglingId(null)
     }
   }
 
@@ -177,11 +181,7 @@ export default function UsersPage() {
         <Button onClick={openNew}>ユーザーを追加</Button>
       </div>
 
-      {loadError && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {loadError}
-        </p>
-      )}
+      <ErrorBanner message={loadError} />
 
       <div className="rounded-md border">
         <Table>
@@ -198,20 +198,9 @@ export default function UsersPage() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground">
-                  読み込み中…
-                </TableCell>
-              </TableRow>
+              <LoadingRow colSpan={7} />
             ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center text-muted-foreground"
-                >
-                  ユーザーがまだいません
-                </TableCell>
-              </TableRow>
+              <EmptyRow colSpan={7} message="ユーザーがまだいません" />
             ) : (
               users.map((user) => (
                 <TableRow key={user.id}>
@@ -235,6 +224,7 @@ export default function UsersPage() {
                   <TableCell>
                     <Switch
                       checked={user.isActive}
+                      disabled={togglingId === user.id}
                       onCheckedChange={(checked) =>
                         void toggleActive(user, checked)
                       }
@@ -336,11 +326,7 @@ export default function UsersPage() {
               </Field>
             )}
           </FieldGroup>
-          {formError && (
-            <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {formError}
-            </p>
-          )}
+          <ErrorBanner message={formError} />
           <DialogFooter>
             <Button
               onClick={() => void handleSave()}

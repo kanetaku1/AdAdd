@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { registerCompanyToYear } from "@/lib/data/years"
+import { getErrorMessage } from "@/lib/errors"
 
 /**
  * Client-state wrapper for the Company List's per-row "register into the
@@ -40,7 +41,7 @@ export function RegisterYearlyCompanyButton({
       setRegistered(true)
       router.refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "登録に失敗しました")
+      setError(getErrorMessage(e, { fallback: "登録に失敗しました" }))
     } finally {
       setSubmitting(false)
     }

@@ -15,7 +15,9 @@ import {
   FieldSeparator,
   FieldSet,
 } from "@/components/ui/field"
+import { ErrorBanner } from "@/components/query-state"
 import { createCompany, updateCompany } from "@/lib/data/companies"
+import { getErrorMessage } from "@/lib/errors"
 import type { Company } from "@/types/company"
 
 type CompanyFormValues = Omit<Company, "id" | "createdAt" | "updatedAt">
@@ -68,7 +70,7 @@ export function CompanyForm({
       router.push("/companies")
       router.refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "保存に失敗しました")
+      setError(getErrorMessage(e, { fallback: "保存に失敗しました" }))
     } finally {
       setSubmitting(false)
     }
@@ -187,11 +189,7 @@ export function CompanyForm({
           </Field>
         </FieldSet>
 
-        {error && (
-          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        <ErrorBanner message={error} />
 
         <div className="flex justify-end gap-2">
           <Button

@@ -24,12 +24,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EditableContractMenuStatusBadge } from "@/components/editable-contract-menu-status-badge"
+import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   listContractMenusAcrossYear,
   updateContractMenuProduction,
   updateContractMenuStatus,
 } from "@/lib/data/sponsorship"
 import { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
+import { getErrorMessage } from "@/lib/errors"
 import {
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
@@ -137,7 +139,7 @@ function ContractMenusList() {
         setContractMenus(contractMenuList)
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "読み込みに失敗しました")
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -165,6 +167,7 @@ function ContractMenusList() {
 
   async function handleStatusChange(id: string, status: ContractMenuStatus) {
     setError(null)
+    setSavingId(id)
     try {
       const updated = await updateContractMenuStatus(id, status)
       setContractMenus((prev) =>
@@ -172,8 +175,10 @@ function ContractMenusList() {
       )
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "ステータスの更新に失敗しました"
+        getErrorMessage(e, { fallback: "ステータスの更新に失敗しました" })
       )
+    } finally {
+      setSavingId(null)
     }
   }
 
@@ -197,7 +202,7 @@ function ContractMenusList() {
         return next
       })
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Drive URLの更新に失敗しました")
+      setError(getErrorMessage(e, { fallback: "Drive URLの更新に失敗しました" }))
     } finally {
       setSavingId(null)
     }
@@ -213,11 +218,7 @@ function ContractMenusList() {
         </p>
       </div>
 
-      {(yearError || error) && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {yearError || error}
-        </p>
-      )}
+      <ErrorBanner message={yearError || error} />
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
@@ -318,29 +319,14 @@ function ContractMenusList() {
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground">
-                  読み込み中…
-                </TableCell>
-              </TableRow>
+              <LoadingRow colSpan={7} />
             ) : !activeYearId ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center text-muted-foreground"
-                >
-                  年度が未作成です。Years から年度を作成してください。
-                </TableCell>
-              </TableRow>
+              <EmptyRow
+                colSpan={7}
+                message="年度が未作成です。Years から年度を作成してください。"
+              />
             ) : visibleContractMenus.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center text-muted-foreground"
-                >
-                  該当する契約メニューがありません。
-                </TableCell>
-              </TableRow>
+              <EmptyRow colSpan={7} message="該当する契約メニューがありません。" />
             ) : (
               visibleContractMenus.map((cm) => {
                 const draft = driveUrlDrafts[cm.id]
@@ -379,6 +365,7 @@ function ContractMenusList() {
                         onChange={(status) =>
                           void handleStatusChange(cm.id, status)
                         }
+                        disabled={savingId === cm.id}
                       />
                     </TableCell>
                     <TableCell>
@@ -386,6 +373,7 @@ function ContractMenusList() {
                         <Input
                           value={draft ?? cm.driveUrl ?? ""}
                           placeholder="Drive URL"
+                          disabled={savingId === cm.id}
                           onChange={(e) =>
                             setDriveUrlDrafts((prev) => ({
                               ...prev,
