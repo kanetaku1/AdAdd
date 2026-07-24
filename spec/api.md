@@ -45,6 +45,46 @@ Authentication information is provided through:
 Authorization: Bearer {token}
 ```
 
+`{token}` is an AdAdd-issued JWT, not a Google token — see Login below. In development only, `X-User-ID` / `X-User-Roles` headers may be sent instead when the server has `DEV_AUTH_ENABLED=true`; this path must be disabled in production.
+
+## Login
+
+```
+POST /auth/google
+```
+
+Exchanges a Google-issued `id_token` (obtained by the frontend via the standard OAuth Authorization Code flow with Google — see `spec/frontend.md#Login`) for an AdAdd session.
+
+Request:
+
+```json
+{
+  "idToken": "..."
+}
+```
+
+The server verifies the token's signature against Google's public keys, then looks up a `User` by the token's `email` claim (exact match, case-insensitive). There is no Google Workspace / hosted-domain restriction — AdAdd committee members sign in with ordinary personal `@gmail.com` accounts, so the only gate is whether that exact email was pre-registered by an Administrator (`spec/model.md` → Business Invariants).
+
+Response (email found):
+
+```json
+{
+  "data": {
+    "token": "...",
+    "user": {
+      "id": "user_id",
+      "name": "山田太郎",
+      "roles": ["SPONSORSHIP_MEMBER"]
+    }
+  },
+  "message": "success"
+}
+```
+
+`token` is a signed JWT containing `userId` and the User's current Role `code`s (resolved server-side from `UserRole`, never from anything the client supplies). Every subsequent request must send this token as `Authorization: Bearer {token}`.
+
+If the email has no matching `User`: `403 Forbidden`, `error.code = "FORBIDDEN"`, message indicating the email is not registered — the frontend must not create a session.
+
 ---
 
 # Common Response Format
@@ -63,11 +103,13 @@ Authorization: Bearer {token}
 ```json
 {
   "error": {
-    "code": "RESOURCE_NOT_FOUND",
+    "code": "NOT_FOUND",
     "message": "Company not found"
   }
 }
 ```
+
+The fixed set of `error.code` values is `INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR` (`apps/api/internal/handler/error.go`).
 
 ---
 
@@ -87,15 +129,13 @@ Response:
 {
   "id": "user_id",
   "name": "山田太郎",
-  "department": {
-    "id": "department_id",
-    "name": "企業管理部門"
-  },
   "roles": [
-    "COMPANY_MANAGER"
+    "COMPANY_MANAGEMENT_DEPARTMENT"
   ]
 }
 ```
+
+`roles` is the User's current `UserRole` grants, by Role `code` (`spec/model.md#Role`) — never a client-supplied value. There is no `department` field; a User's department-equivalent access is entirely expressed through Roles (e.g. `COMPANY_MANAGEMENT_DEPARTMENT`, `SPONSORSHIP_MENU_MANAGEMENT_TEAM`).
 
 ---
 
@@ -154,7 +194,59 @@ Example (deactivation):
 }
 ```
 
-Role assignment is not yet implemented — see `spec/usecase.md` UC-12 Notes.
+Role assignment is a separate call — see Grant Role / Revoke Role below (`spec/usecase.md` UC-12).
+
+Permission:
+
+* Admin
+
+---
+
+## List Roles
+
+Returns the fixed set of 7 Roles (`spec/model.md#Role`) — master data, not user-creatable.
+
+```
+GET /roles
+```
+
+Permission:
+
+* Admin
+
+---
+
+## Grant Role
+
+Grants a Role to a User (creates a `UserRole`).
+
+```
+POST /users/{userId}/roles
+```
+
+Request:
+
+```json
+{
+  "roleId": "role_id"
+}
+```
+
+Returns `409 Conflict` if the User already holds that Role (`userId` + `roleId` must be unique, `spec/model.md#UserRole`).
+
+Permission:
+
+* Admin
+
+---
+
+## Revoke Role
+
+Removes a Role from a User (deletes the `UserRole`).
+
+```
+DELETE /users/{userId}/roles/{roleId}
+```
 
 Permission:
 
@@ -871,13 +963,15 @@ POST /integrations/google/drive/link
 
 # Authorization Matrix
 
-| Function                | General | Sponsorship Member | Advisor | Department Manager | Finance | Admin |
-| ------------------------ | ------- | ------------------- | ------- | -------------------- | ------- | ----- |
-| View assigned companies | ○       | ○                   | ○       | ○                    | △       | ○     |
-| Assign companies        | -       | -                   | -       | ○                    | -       | ○     |
-| Manage menus            | -       | -                   | -       | ○                    | -       | ○     |
-| Update payment          | -       | -                   | -       | -                    | ○       | ○     |
-| Manage users            | -       | -                   | -       | -                    | -       | ○     |
+| Function                | General | Sponsorship Member | Advisor | Company Management Department | Sponsorship Menu Management Team | Finance | Admin |
+| ------------------------ | ------- | ------------------- | ------- | ------------------------------- | ---------------------------------- | ------- | ----- |
+| View assigned companies | ○       | ○                   | ○       | ○                               | ○                                   | △       | ○     |
+| Assign companies        | -       | -                   | -       | ○                               | -                                   | -       | ○     |
+| Manage menus            | -       | -                   | -       | -                               | ○                                   | -       | ○     |
+| Update payment          | -       | -                   | -       | -                               | -                                   | ○       | ○     |
+| Manage users            | -       | -                   | -       | -                               | -                                   | -       | ○     |
+
+These 7 columns are the canonical Role set — see `spec/domain.md#Role` and `spec/model.md#Role`. "Department Manager" (a single, collapsed column) previously appeared here even though `spec/frontend.md` always named these as two separate actor roles; that inconsistency is now resolved in favor of the 7-role split.
 
 ---
 
