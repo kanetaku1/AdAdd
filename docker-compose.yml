@@ -15,6 +15,10 @@ services:
       DB_USER: adadd
       DB_PASSWORD: adadd_password
       DB_NAME: adadd
+      # APP_ENV defaults to "development"; DEV_AUTH_ENABLED must still be
+      # explicitly opted into even then (spec/api.md#Authentication) — this
+      # is what lets the X-User-ID/X-User-Roles stub keep working locally.
+      DEV_AUTH_ENABLED: "true"
 
     ports:
       - "8080:8080"
