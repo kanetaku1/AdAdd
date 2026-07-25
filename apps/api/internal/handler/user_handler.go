@@ -31,7 +31,16 @@ func getCurrentUser(c echo.Context) error {
 	if err != nil {
 		return respondNotFound(c, "user not found")
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": u, "message": "success"})
+	roleSvc := service.NewRoleService()
+	roles, err := roleSvc.ListCodesByUserID(u.ID)
+	if err != nil {
+		return respondInternalServerError(c, err)
+	}
+	if roles == nil {
+		roles = []string{}
+	}
+	resp := model.UserResponse{User: *u, Roles: roles}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": resp, "message": "success"})
 }
 
 func listUsers(c echo.Context) error {
@@ -40,7 +49,24 @@ func listUsers(c echo.Context) error {
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": users, "message": "success"})
+	ids := make([]string, len(users))
+	for i, u := range users {
+		ids[i] = u.ID
+	}
+	roleSvc := service.NewRoleService()
+	roleMap, err := roleSvc.ListCodesByUserIDs(ids)
+	if err != nil {
+		return respondInternalServerError(c, err)
+	}
+	resp := make([]model.UserResponse, len(users))
+	for i, u := range users {
+		roles := roleMap[u.ID]
+		if roles == nil {
+			roles = []string{}
+		}
+		resp[i] = model.UserResponse{User: u, Roles: roles}
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": resp, "message": "success"})
 }
 
 func createUser(c echo.Context) error {
