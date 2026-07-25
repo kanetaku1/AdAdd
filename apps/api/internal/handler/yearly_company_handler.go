@@ -61,8 +61,21 @@ func updateProgress(c echo.Context) error {
 	if err != nil {
 		return respondNotFound(c, "yearly company not found")
 	}
+	oldVal := yc.Progress
 	yc.Progress = body.Progress
-	if err := svc.Update(&yc.YearlyCompany); err != nil {
+
+	userID := ""
+	if uid := c.Get("userId"); uid != nil {
+		userID = uid.(string)
+	}
+	logEntry := &model.ActivityLog{
+		YearlyCompanyID: yc.ID,
+		UserID:          userID,
+		Action:          "UPDATE_PROGRESS",
+		Description:     "Progress changed from " + oldVal + " to " + yc.Progress,
+	}
+
+	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
@@ -112,8 +125,21 @@ func updateCompanyStatus(c echo.Context) error {
 	if err != nil {
 		return respondNotFound(c, "yearly company not found")
 	}
+	oldVal := yc.CompanyStatus
 	yc.CompanyStatus = body.CompanyStatus
-	if err := svc.Update(&yc.YearlyCompany); err != nil {
+
+	userID := ""
+	if uid := c.Get("userId"); uid != nil {
+		userID = uid.(string)
+	}
+	logEntry := &model.ActivityLog{
+		YearlyCompanyID: yc.ID,
+		UserID:          userID,
+		Action:          "UPDATE_COMPANY_STATUS",
+		Description:     "CompanyStatus changed from " + oldVal + " to " + yc.CompanyStatus,
+	}
+
+	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
@@ -135,8 +161,21 @@ func updatePhase(c echo.Context) error {
 	if err != nil {
 		return respondNotFound(c, "yearly company not found")
 	}
+	oldVal := yc.Phase
 	yc.Phase = body.Phase
-	if err := svc.Update(&yc.YearlyCompany); err != nil {
+
+	userID := ""
+	if uid := c.Get("userId"); uid != nil {
+		userID = uid.(string)
+	}
+	logEntry := &model.ActivityLog{
+		YearlyCompanyID: yc.ID,
+		UserID:          userID,
+		Action:          "UPDATE_PHASE",
+		Description:     "Phase changed from " + oldVal + " to " + yc.Phase,
+	}
+
+	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
