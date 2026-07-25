@@ -91,7 +91,14 @@ export async function apiFetch<T>(
     headers.set(key, value)
   }
 
-  const res = await fetch(`${base}${path}`, { ...init, headers })
+  // Browser requests go through the Next.js BFF proxy (spec/frontend.md#Login)
+  // rather than the Go API directly, so a logged-in session's JWT is
+  // attached server-side instead of ever reaching client-side JS. Requests
+  // made during SSR (Server Components) call the Go API directly — there is
+  // no browser to proxy on behalf of.
+  const url =
+    typeof window !== "undefined" ? `/api/proxy${path}` : `${base}${path}`
+  const res = await fetch(url, { ...init, headers })
   const text = await res.text()
   let json: unknown = null
   if (text) {
