@@ -57,3 +57,20 @@ func (r *YearlyCompanyRepository) Update(yc *model.YearlyCompany) error {
 	}
 	return db.DB.Save(yc).Error
 }
+
+func (r *YearlyCompanyRepository) UpdateWithLog(yc *model.YearlyCompany, log *model.ActivityLog) error {
+	var existing model.YearlyCompany
+	if err := db.DB.First(&existing, "id = ?", yc.ID).Error; err == nil {
+		yc.CreatedAt = existing.CreatedAt
+	}
+
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(yc).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(log).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}

@@ -11,9 +11,14 @@ func NewActivityLogRepository() *ActivityLogRepository { return &ActivityLogRepo
 
 func (r *ActivityLogRepository) Create(al *model.ActivityLog) error { return db.DB.Create(al).Error }
 
-func (r *ActivityLogRepository) ListByYearlyCompany(yearlyCompanyId string) ([]model.ActivityLog, error) {
-	var list []model.ActivityLog
-	if err := db.DB.Where("yearly_company_id = ?", yearlyCompanyId).Order("created_at desc").Find(&list).Error; err != nil {
+func (r *ActivityLogRepository) ListByYearlyCompany(yearlyCompanyId string) ([]model.ActivityLogResponse, error) {
+	var list []model.ActivityLogResponse
+	if err := db.DB.Table("activity_logs").
+		Select("activity_logs.*, users.name as user_name").
+		Joins("JOIN users ON users.id = activity_logs.user_id").
+		Where("activity_logs.yearly_company_id = ?", yearlyCompanyId).
+		Order("activity_logs.created_at desc").
+		Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
