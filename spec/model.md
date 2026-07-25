@@ -215,6 +215,10 @@ Represents payment information for a contract's sponsorship amount.
 
 A `Payment` is created when it is registered for a contract whose current `totalAmount > 0` — a goods-sponsorship-only contract has no `Payment` row at all, not a `Payment` with `amount = 0`. Moving `status` back from `Confirmed` to `Waiting` clears `confirmedAt`/`confirmedById`.
 
+While a Payment is `Waiting`, its `amount` is not independently edited: it is kept in sync with the parent `SponsorshipContract.totalAmount`. Any Contract Menu add/update/delete recalculates the Contract total and, in the same transaction, updates the Waiting Payment amount to the same value.
+
+Once a Payment is `Confirmed`, its `amount` represents the Finance Department's confirmed amount. A Contract Menu add/update/delete that would change the parent Contract total must be rejected while the Payment remains Confirmed, rather than silently creating a mismatch. To change the contract amount after confirmation, the Payment must first be moved back to `Waiting`, which clears `confirmedAt`/`confirmedById`; the Contract Menu change can then resynchronize the Waiting Payment amount.
+
 ---
 
 ## CompanyAssignment
@@ -569,6 +573,8 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 
 * Every payment belongs to one contract.
 * A Sponsorship Contract has at most one Payment — `contractId` is unique on `Payment` (no split/installment payments).
+* A Waiting Payment's `amount` must equal its Contract's `totalAmount`.
+* A Confirmed Payment's `amount` must not be silently changed by Contract Menu edits; any Contract Menu change that would alter the Contract total while the Payment is Confirmed is rejected.
 
 ---
 

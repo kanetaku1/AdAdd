@@ -613,6 +613,8 @@ PATCH /contracts/{contractId}
 
 `totalAmount` is maintained by the server as the sum of `quantity * unitPrice` across the contract's Contract Menus (`spec/model.md#ContractMenu`) — it is accepted at creation as an initial value, but recalculated automatically whenever Contract Menus are added, updated, or removed (see Add Contract Menu below). Clients should treat it as read-only after creation.
 
+If the contract already has a `WAITING` Payment, that Payment's `amount` is synchronized to the recalculated `totalAmount` in the same transaction as the Contract Menu change. If the contract has a `CONFIRMED` Payment and the recalculated total would differ from the confirmed Payment amount, the Contract Menu change is rejected with `409 Conflict`; AdAdd must not silently leave a confirmed payment inconsistent with the contract.
+
 ---
 
 # Sponsorship Menu API
@@ -737,13 +739,13 @@ Request:
 }
 ```
 
-`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above).
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
 
 ---
 
 ## Delete Contract Menu
 
-Removes a Contract Menu and recalculates the parent Contract's `totalAmount`.
+Removes a Contract Menu and recalculates the parent Contract's `totalAmount`, applying the Payment synchronization / confirmed-payment conflict rule described in Update Contract.
 
 ```
 DELETE /contract-menus/{id}
@@ -841,6 +843,8 @@ A Payment whose Contract's Yearly Company has since been deleted is excluded fro
 ## Create Payment
 
 Creates the Payment record for a contract, once its Contract Menus are in place and `totalAmount > 0` (`spec/domain.md#Sponsorship Contract`). `amount` defaults to the contract's current `totalAmount`. A contract has at most one Payment — a second `POST` returns `409 Conflict`; contracts with `totalAmount = 0` (goods-sponsorship-only) should not call this endpoint.
+
+While the Payment remains `WAITING`, later Contract Menu changes keep `Payment.amount` synchronized with the contract total. After the Payment is `CONFIRMED`, Contract Menu changes that would alter the total return `409 Conflict` until Finance moves the Payment back to `WAITING`.
 
 ```
 POST /contracts/{contractId}/payment
