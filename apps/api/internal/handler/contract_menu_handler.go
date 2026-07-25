@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
@@ -95,6 +96,9 @@ func addContractMenu(c echo.Context) error {
 
 	svc := service.NewContractMenuService()
 	if err := svc.Create(req, body.UnitPrice != nil); err != nil {
+		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
+			return respondConflict(c, err.Error())
+		}
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
@@ -104,6 +108,9 @@ func deleteContractMenu(c echo.Context) error {
 	id := c.Param("id")
 	svc := service.NewContractMenuService()
 	if err := svc.Delete(id); err != nil {
+		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
+			return respondConflict(c, err.Error())
+		}
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"message": "deleted"})
@@ -128,6 +135,9 @@ func updateContractMenuStatus(c echo.Context) error {
 	}
 	cm.Status = body.Status
 	if err := svc.Update(cm); err != nil {
+		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
+			return respondConflict(c, err.Error())
+		}
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})
@@ -136,8 +146,8 @@ func updateContractMenuStatus(c echo.Context) error {
 func uploadContractMenuProduction(c echo.Context) error {
 	id := c.Param("id")
 	var body struct {
-		DriveFolderUrl string `json:"driveFolderUrl"`
-		Remarks        string `json:"remarks"`
+		DriveFolderUrl *string `json:"driveFolderUrl"`
+		Remarks        *string `json:"remarks"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -147,14 +157,21 @@ func uploadContractMenuProduction(c echo.Context) error {
 	if err != nil {
 		return respondNotFound(c, "contract menu not found")
 	}
-	cm.DriveURL = body.DriveFolderUrl
-	cm.Remarks = body.Remarks
+	if body.DriveFolderUrl != nil {
+		cm.DriveURL = *body.DriveFolderUrl
+	}
+	if body.Remarks != nil {
+		cm.Remarks = *body.Remarks
+	}
 	cm.Status = "SUBMITTED"
 	userId := ""
 	if uid := c.Get("userId"); uid != nil {
 		userId = uid.(string)
 	}
 	if err := svc.UpdateWithUser(cm, userId); err != nil {
+		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
+			return respondConflict(c, err.Error())
+		}
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})

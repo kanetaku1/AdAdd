@@ -6,6 +6,7 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
+	"github.com/shopspring/decimal"
 )
 
 func RegisterSponsorshipMenuRoutes(e *echo.Echo) {
@@ -51,14 +52,29 @@ func createSponsorshipMenu(c echo.Context) error {
 
 func updateSponsorshipMenu(c echo.Context) error {
 	id := c.Param("menuId")
-	var req model.SponsorshipMenu
+	var req struct {
+		Name               string          `json:"name"`
+		DefaultPrice       decimal.Decimal `json:"defaultPrice"`
+		RequiresSubmission bool            `json:"requiresSubmission"`
+		IsActive           bool            `json:"isActive"`
+	}
 	if err := c.Bind(&req); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	req.ID = id
+
 	svc := service.NewSponsorshipMenuService()
-	if err := svc.Update(&req); err != nil {
+	existing, err := svc.GetByID(id)
+	if err != nil {
+		return respondNotFound(c, "sponsorship menu not found")
+	}
+
+	existing.Name = req.Name
+	existing.DefaultPrice = req.DefaultPrice
+	existing.RequiresSubmission = req.RequiresSubmission
+	existing.IsActive = req.IsActive
+
+	if err := svc.Update(existing); err != nil {
 		return respondInternalServerError(c, err)
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": existing, "message": "updated"})
 }

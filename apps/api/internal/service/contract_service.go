@@ -9,11 +9,15 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
 	// ErrContractExists is returned when a YearlyCompany already has a contract
 	ErrContractExists = errors.New("contract already exists for this YearlyCompany")
+	// ErrConfirmedPaymentAmountMismatch is returned when a Contract Menu change
+	// would alter a Contract total after Finance has confirmed the Payment.
+	ErrConfirmedPaymentAmountMismatch = errors.New("confirmed payment amount would no longer match contract total")
 )
 
 type ContractService struct {
@@ -76,6 +80,9 @@ func (s *ContractService) CreateWithUser(c *model.SponsorshipContract, actorUser
 func (s *ContractService) Update(c *model.SponsorshipContract) error { return s.repo.Update(c) }
 
 // RecalculateTotalAmount sets totalAmount to sum(quantity * unitPrice) of Contract Menus.
+// If a Waiting Payment exists, its amount is synchronized in the same transaction.
+// If a Confirmed Payment exists and the new total differs from the confirmed amount,
+// the recalculation is rejected so the contract/payment pair cannot become inconsistent.
 func (s *ContractService) RecalculateTotalAmount(tx *gorm.DB, contractID string) error {
 	var menus []model.ContractMenu
 	if err := tx.Where("contract_id = ?", contractID).Find(&menus).Error; err != nil {
@@ -86,6 +93,32 @@ func (s *ContractService) RecalculateTotalAmount(tx *gorm.DB, contractID string)
 		line := m.UnitPrice.Mul(decimal.NewFromInt(int64(m.Quantity)))
 		total = total.Add(line)
 	}
+
+	var payment model.Payment
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("contract_id = ?", contractID).
+		First(&payment).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	if err == nil {
+		switch payment.Status {
+		case "WAITING":
+			if err := tx.Model(&model.Payment{}).
+				Where("id = ?", payment.ID).
+				Updates(map[string]interface{}{
+					"amount":     total,
+					"updated_at": time.Now(),
+				}).Error; err != nil {
+				return err
+			}
+		case "CONFIRMED":
+			if !payment.Amount.Equal(total) {
+				return ErrConfirmedPaymentAmountMismatch
+			}
+		}
+	}
+
 	return tx.Model(&model.SponsorshipContract{}).
 		Where("id = ?", contractID).
 		Update("total_amount", total).Error
