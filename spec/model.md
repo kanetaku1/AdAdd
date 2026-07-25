@@ -297,12 +297,11 @@ Represents system permissions. Fixed, seeded master data — not user-creatable 
 
 ### Attributes
 
-| Name        | Type   |
-| ----------- | ------ |
-| id          | UUID   |
-| code        | string |
-| name        | string |
-| description | string |
+| Name | Type   |
+| ---- | ------ |
+| id   | UUID   |
+| code | string |
+| name | string |
 
 `code` is the stable, machine-readable identifier used by API/authorization checks (e.g. `ADMINISTRATOR`, `SPONSORSHIP_MENU_MANAGEMENT_TEAM`) — it never changes even if `name` (the Japanese display label) is edited. One of:
 
