@@ -31,6 +31,14 @@ func (r *CompanyRepository) GetByID(id string) (*model.Company, error) {
 	return &c, nil
 }
 
+func (r *CompanyRepository) FindByCompanyName(name string) (*model.Company, error) {
+	var c model.Company
+	if err := db.DB.First(&c, "company_name = ?", name).Error; err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 func (r *CompanyRepository) Update(c *model.Company) error {
 	var existing model.Company
 	if err := db.DB.First(&existing, "id = ?", c.ID).Error; err == nil {

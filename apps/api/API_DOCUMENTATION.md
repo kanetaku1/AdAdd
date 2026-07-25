@@ -22,7 +22,21 @@
 
 ### Companies
 - GET /companies
-- 説明: 会社の一覧取得（公開）
+  - 説明: 会社の一覧取得（公開）
+- POST /companies/bulk (admin)
+  - 説明: CSVによる会社の一括登録。`multipart/form-data`で`file`キーにCSVを指定。
+  - パラメータ: `dryRun=true` を指定すると保存せずにプレビュー（検証結果のみ）を返す。
+  - ヘッダー: `companyName`(必須), `companyNameKana`, `postalCode`, `address`, `phoneNumber`, `website`, `contactPersonName`, `contactEmailOrForm`, `firstSponsorshipYear`, `memo`
+
+### Users
+- GET /users (admin)
+  - 説明: ユーザー一覧取得
+- POST /users (admin)
+  - 説明: ユーザー単一作成
+- POST /users/bulk (admin)
+  - 説明: CSVによるユーザー一括登録。`multipart/form-data`で`file`キーにCSVを指定。
+  - パラメータ: `dryRun=true` を指定すると保存せずにプレビューを返す。
+  - ヘッダー: `studentId`, `name`(必須), `email`(必須), `slackId`, `roles`(ロールのCodeをカンマ区切り)
 
 ### YearlyCompany
 - GET /years/:yearId/companies
