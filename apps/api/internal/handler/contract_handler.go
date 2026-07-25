@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
@@ -70,15 +71,18 @@ func updateContract(c echo.Context) error {
 		return respondNotFound(c, "contract not found")
 	}
 
-	var patch model.SponsorshipContract
+	var patch struct {
+		ContractDate *time.Time `json:"contractDate"`
+		Remarks      *string    `json:"remarks"`
+	}
 	if err := c.Bind(&patch); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
 	if patch.ContractDate != nil {
 		existing.ContractDate = patch.ContractDate
 	}
-	if patch.Remarks != "" {
-		existing.Remarks = patch.Remarks
+	if patch.Remarks != nil {
+		existing.Remarks = *patch.Remarks
 	}
 	// totalAmount and assigneeId remain server-owned
 
