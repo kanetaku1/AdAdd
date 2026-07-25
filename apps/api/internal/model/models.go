@@ -235,6 +235,13 @@ type ActivityLog struct {
 	CreatedAt       time.Time `json:"createdAt"`
 }
 
+// ActivityLogResponse is the returned DTO for ActivityLog endpoints,
+// joining the User table to include the user's name.
+type ActivityLogResponse struct {
+	ActivityLog
+	UserName string `gorm:"column:user_name" json:"userName"`
+}
+
 func (a *ActivityLog) BeforeCreate(tx *gorm.DB) (err error) {
 	if a.ID == "" {
 		a.ID = uuid.NewString()
