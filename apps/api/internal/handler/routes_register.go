@@ -17,4 +17,5 @@ func RegisterRoutes(e *echo.Echo) {
 	RegisterUserRoutes(e)
 	RegisterActivityLogRoutes(e)
 	RegisterAdvisorRoutes(e)
+	RegisterRoleRoutes(e)
 }

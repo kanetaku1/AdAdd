@@ -261,3 +261,46 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 	return nil
 }
+
+// UserResponse is the returned DTO for User endpoints — joins the User's
+// current Role codes (spec/api.md#Get Current User, #List Users).
+type UserResponse struct {
+	User
+	Roles []string `json:"roles"`
+}
+
+// Role — fixed, seeded master data (spec/model.md#Role, spec/domain.md#Role).
+// Never created through a user-facing API, only granted to/revoked from
+// Users via UserRole.
+type Role struct {
+	ID        string    `gorm:"type:char(36);primaryKey" json:"id"`
+	Code      string    `gorm:"size:64;not null;uniqueIndex" json:"code"`
+	Name      string    `gorm:"size:255;not null" json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (r *Role) BeforeCreate(tx *gorm.DB) (err error) {
+	if r.ID == "" {
+		r.ID = uuid.NewString()
+	}
+	return nil
+}
+
+// UserRole — one Role granted to one User (spec/model.md#UserRole). A User
+// may hold any number of Roles; a Role may be held by any number of Users.
+type UserRole struct {
+	ID         string         `gorm:"type:char(36);primaryKey" json:"id"`
+	UserID     string         `gorm:"type:char(36);not null;uniqueIndex:ux_user_role" json:"userId"`
+	RoleID     string         `gorm:"type:char(36);not null;uniqueIndex:ux_user_role" json:"roleId"`
+	AssignedAt time.Time      `json:"assignedAt"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	UpdatedAt  time.Time      `json:"updatedAt"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (ur *UserRole) BeforeCreate(tx *gorm.DB) (err error) {
+	if ur.ID == "" {
+		ur.ID = uuid.NewString()
+	}
+	return nil
+}
