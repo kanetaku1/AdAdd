@@ -52,14 +52,41 @@ func createCompany(c echo.Context) error {
 
 func updateCompany(c echo.Context) error {
 	id := c.Param("id")
-	var req model.Company
+	var req struct {
+		CompanyName          string `json:"companyName"`
+		CompanyNameKana      string `json:"companyNameKana"`
+		PostalCode           string `json:"postalCode"`
+		Address              string `json:"address"`
+		PhoneNumber          string `json:"phoneNumber"`
+		Website              string `json:"website"`
+		ContactPersonName    string `json:"contactPersonName"`
+		ContactEmailOrForm   string `json:"contactEmailOrForm"`
+		FirstSponsorshipYear string `json:"firstSponsorshipYear"`
+		Memo                 string `json:"memo"`
+	}
 	if err := c.Bind(&req); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	req.ID = id
+
 	svc := service.NewCompanyService()
-	if err := svc.Update(&req); err != nil {
+	existing, err := svc.GetByID(id)
+	if err != nil {
+		return respondNotFound(c, "company not found")
+	}
+
+	existing.CompanyName = req.CompanyName
+	existing.CompanyNameKana = req.CompanyNameKana
+	existing.PostalCode = req.PostalCode
+	existing.Address = req.Address
+	existing.PhoneNumber = req.PhoneNumber
+	existing.Website = req.Website
+	existing.ContactPersonName = req.ContactPersonName
+	existing.ContactEmailOrForm = req.ContactEmailOrForm
+	existing.FirstSponsorshipYear = req.FirstSponsorshipYear
+	existing.Memo = req.Memo
+
+	if err := svc.Update(existing); err != nil {
 		return respondInternalServerError(c, err)
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": existing, "message": "updated"})
 }
