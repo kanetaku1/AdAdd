@@ -17,17 +17,6 @@ func (r *UserRepository) GetByID(id string) (*model.User, error) {
 	return &u, nil
 }
 
-func (r *UserRepository) GetOrCreateByEmail(email string, user *model.User) (*model.User, error) {
-	var u model.User
-	if err := db.DB.First(&u, "email = ?", email).Error; err == nil {
-		return &u, nil
-	}
-	if err := db.DB.Create(user).Error; err != nil {
-		return nil, err
-	}
-	return user, nil
-}
-
 func (r *UserRepository) FindByEmail(email string) (*model.User, error) {
 	var u model.User
 	if err := db.DB.First(&u, "email = ?", email).Error; err != nil {
