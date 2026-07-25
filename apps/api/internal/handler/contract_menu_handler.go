@@ -146,8 +146,8 @@ func updateContractMenuStatus(c echo.Context) error {
 func uploadContractMenuProduction(c echo.Context) error {
 	id := c.Param("id")
 	var body struct {
-		DriveFolderUrl string `json:"driveFolderUrl"`
-		Remarks        string `json:"remarks"`
+		DriveFolderUrl *string `json:"driveFolderUrl"`
+		Remarks        *string `json:"remarks"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -157,8 +157,12 @@ func uploadContractMenuProduction(c echo.Context) error {
 	if err != nil {
 		return respondNotFound(c, "contract menu not found")
 	}
-	cm.DriveURL = body.DriveFolderUrl
-	cm.Remarks = body.Remarks
+	if body.DriveFolderUrl != nil {
+		cm.DriveURL = *body.DriveFolderUrl
+	}
+	if body.Remarks != nil {
+		cm.Remarks = *body.Remarks
+	}
 	cm.Status = "SUBMITTED"
 	userId := ""
 	if uid := c.Get("userId"); uid != nil {
