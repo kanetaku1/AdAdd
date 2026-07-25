@@ -32,6 +32,10 @@ func (s *YearlyCompanyService) GetByID(id string) (*model.YearlyCompanyResponse,
 
 func (s *YearlyCompanyService) Update(yc *model.YearlyCompany) error { return s.repo.Update(yc) }
 
+func (s *YearlyCompanyService) UpdateWithLog(yc *model.YearlyCompany, log *model.ActivityLog) error {
+	return s.repo.UpdateWithLog(yc, log)
+}
+
 // computeCompanyStatus returns CONTINUING only when the company had a SponsorshipContract
 // in the immediately preceding Year; otherwise NEW. Dormant is never auto-assigned.
 func computeCompanyStatus(yearID, companyID string) string {

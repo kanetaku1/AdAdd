@@ -15,6 +15,6 @@ func NewActivityLogService() *ActivityLogService {
 
 func (s *ActivityLogService) Create(al *model.ActivityLog) error { return s.repo.Create(al) }
 
-func (s *ActivityLogService) ListByYearlyCompany(yearlyCompanyId string) ([]model.ActivityLog, error) {
+func (s *ActivityLogService) ListByYearlyCompany(yearlyCompanyId string) ([]model.ActivityLogResponse, error) {
 	return s.repo.ListByYearlyCompany(yearlyCompanyId)
 }
