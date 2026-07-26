@@ -130,12 +130,12 @@ Response:
   "id": "user_id",
   "name": "山田太郎",
   "roles": [
-    "COMPANY_MANAGEMENT_DEPARTMENT"
+    "SPONSORSHIP_MEMBER"
   ]
 }
 ```
 
-`roles` is the User's current `UserRole` grants, by Role `code` (`spec/model.md#Role`) — never a client-supplied value. There is no `department` field; a User's department-equivalent access is entirely expressed through Roles (e.g. `COMPANY_MANAGEMENT_DEPARTMENT`, `SPONSORSHIP_MENU_MANAGEMENT_TEAM`).
+`roles` is the User's current `UserRole` grants, by Role `code` (`spec/model.md#Role`) — never a client-supplied value.
 
 ---
 
@@ -288,7 +288,7 @@ Side effect: bulk-generates a `YearlyCompany` for every existing `Company` (see 
 
 Permission:
 
-* Company Management Department / Admin
+* Administrator
 
 ---
 
@@ -340,7 +340,7 @@ POST /companies
 
 Permission:
 
-* Company Management Department
+* Sponsorship Member / Administrator
 
 ---
 
@@ -474,7 +474,7 @@ Request:
 
 Permission:
 
-* Company Management Department
+* Administrator
 
 ---
 
@@ -510,7 +510,7 @@ Request:
 
 Permission:
 
-* Company Management Department
+* Administrator
 
 ---
 
@@ -524,7 +524,7 @@ DELETE /advisor-assignments/{id}
 
 Permission:
 
-* Company Management Department
+* Administrator
 
 ---
 
@@ -652,7 +652,7 @@ POST /years/{yearId}/sponsorship-menus
 
 Permission:
 
-* Sponsorship Menu Management Team
+* Sponsorship Member / Administrator
 
 ---
 
@@ -698,7 +698,7 @@ Example response:
 
 ## List Contract Menus Across a Year
 
-Returns every Contract Menu contracted during a Year, joined with its Yearly Company / Contract for cross-contract views (see `spec/frontend.md#Contract Menu List` — used by the Sponsorship Menu Management Team to track production/submission status across all companies at once, UC-07/UC-08).
+Returns every Contract Menu contracted during a Year, joined with its Yearly Company / Contract for cross-contract views (see `spec/frontend.md#Contract Menu List` — used by Sponsorship Members to track production/submission status across all companies at once, UC-07/UC-08).
 
 ```
 GET /years/{yearId}/contract-menus
@@ -753,7 +753,7 @@ DELETE /contract-menus/{id}
 
 Permission:
 
-* Sponsorship Member / Company Management Department
+* Sponsorship Member / Administrator
 
 ---
 
@@ -967,15 +967,18 @@ POST /integrations/google/drive/link
 
 # Authorization Matrix
 
-| Function                | General | Sponsorship Member | Advisor | Company Management Department | Sponsorship Menu Management Team | Finance | Admin |
-| ------------------------ | ------- | ------------------- | ------- | ------------------------------- | ---------------------------------- | ------- | ----- |
-| View assigned companies | ○       | ○                   | ○       | ○                               | ○                                   | △       | ○     |
-| Assign companies        | -       | -                   | -       | ○                               | -                                   | -       | ○     |
-| Manage menus            | -       | -                   | -       | -                               | ○                                   | -       | ○     |
-| Update payment          | -       | -                   | -       | -                               | -                                   | ○       | ○     |
-| Manage users            | -       | -                   | -       | -                               | -                                   | -       | ○     |
+| Function                        | (no Role) | Sponsorship Member | Advisor | Finance | Administrator |
+| -------------------------------- | --------- | ------------------- | ------- | ------- | -------------- |
+| View assigned companies         | ○         | ○                   | ○       | △       | ○              |
+| Manage company master data      | -         | ○                   | -       | -       | ○              |
+| Create Year                     | -         | -                   | -       | -       | ○              |
+| Assign companies / advisors     | -         | -                   | -       | -       | ○              |
+| Manage menus (Sponsorship Menu / Contract Menu) | - | ○           | -       | -       | ○              |
+| Create payment                  | -         | ○                   | -       | ○       | ○              |
+| Update payment status            | -         | -                   | -       | ○       | ○              |
+| Manage users / Roles            | -         | -                   | -       | -       | ○              |
 
-These 7 columns are the canonical Role set — see `spec/domain.md#Role` and `spec/model.md#Role`. "Department Manager" (a single, collapsed column) previously appeared here even though `spec/frontend.md` always named these as two separate actor roles; that inconsistency is now resolved in favor of the 7-role split.
+These 4 columns are the canonical Role set — see `spec/domain.md#Role` and `spec/model.md#Role`. Holding none of them (the "(no Role)" column) is the view-only baseline that replaced the earlier General Member Role. Company Management Department and Sponsorship Menu Management Team, previously separate columns, were removed — their responsibilities folded into Sponsorship Member (company/menu master data) and Administrator (Year creation, company/advisor assignment).
 
 ---
 

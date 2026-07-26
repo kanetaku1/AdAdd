@@ -1,15 +1,14 @@
 /**
- * Role (spec/model.md#Role) — the 7 canonical codes, matching the Role
+ * Role (spec/model.md#Role) — the 4 canonical codes, matching the Role
  * table's fixed master data (spec/domain.md#Role, apps/api migrations
- * 0005_add_roles). `User.roles` holds these codes, resolved server-side
- * from real `UserRole` grants in API mode (lib/data/roles.ts, Issue #63).
+ * 0005_add_roles/0006_reduce_roles). `User.roles` holds these codes,
+ * resolved server-side from real `UserRole` grants in API mode
+ * (lib/data/roles.ts, Issue #63). Holding none is a valid, deliberate
+ * view-only baseline — not an error.
  */
 export const ROLES = [
-  "GENERAL_MEMBER",
   "SPONSORSHIP_MEMBER",
   "ADVISOR",
-  "COMPANY_MANAGEMENT_DEPARTMENT",
-  "SPONSORSHIP_MENU_MANAGEMENT_TEAM",
   "FINANCE_DEPARTMENT",
   "ADMINISTRATOR",
 ] as const

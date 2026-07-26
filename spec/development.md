@@ -490,7 +490,7 @@ Read:
 - spec/database.md
 
 Requirements:
-- Company Management Department only
+- Administrator only
 - Must create ActivityLog
 ```
 

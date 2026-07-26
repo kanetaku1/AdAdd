@@ -21,7 +21,7 @@ export const mockUsers: User[] = [
     name: "鈴木",
     email: "suzuki@example.com",
     slackId: null,
-    roles: ["COMPANY_MANAGEMENT_DEPARTMENT"],
+    roles: ["SPONSORSHIP_MEMBER"],
     isActive: true,
   },
   {
@@ -39,7 +39,7 @@ export const mockUsers: User[] = [
     name: "高橋",
     email: "takahashi@example.com",
     slackId: null,
-    roles: ["GENERAL_MEMBER"],
+    roles: [],
     isActive: false,
   },
   {
@@ -48,7 +48,7 @@ export const mockUsers: User[] = [
     name: "山田",
     email: "yamada@example.com",
     slackId: "U05YAMADA",
-    roles: ["SPONSORSHIP_MENU_MANAGEMENT_TEAM", "GENERAL_MEMBER"],
+    roles: ["SPONSORSHIP_MEMBER"],
     isActive: true,
   },
 ]
