@@ -1,9 +1,13 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 )
+
+var ErrRoleAlreadyGranted = errors.New("role already granted")
 
 type RoleService struct {
 	repo *repository.RoleRepository
@@ -18,6 +22,13 @@ func (s *RoleService) ListAll() ([]model.Role, error) {
 }
 
 func (s *RoleService) GrantToUser(userID, roleID string) (*model.UserRole, error) {
+	exists, err := s.repo.HasGrant(userID, roleID)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrRoleAlreadyGranted
+	}
 	return s.repo.GrantToUser(userID, roleID)
 }
 

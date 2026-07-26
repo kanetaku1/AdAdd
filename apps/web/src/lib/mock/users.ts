@@ -12,7 +12,7 @@ export const mockUsers: User[] = [
     name: "田中",
     email: "tanaka@example.com",
     slackId: "U01TANAKA",
-    roles: ["Administrator"],
+    roles: ["ADMINISTRATOR"],
     isActive: true,
   },
   {
@@ -21,7 +21,7 @@ export const mockUsers: User[] = [
     name: "鈴木",
     email: "suzuki@example.com",
     slackId: null,
-    roles: ["CompanyManagement"],
+    roles: ["COMPANY_MANAGEMENT_DEPARTMENT"],
     isActive: true,
   },
   {
@@ -30,7 +30,7 @@ export const mockUsers: User[] = [
     name: "佐藤",
     email: "sato@example.com",
     slackId: "U03SATO",
-    roles: ["Finance"],
+    roles: ["FINANCE_DEPARTMENT"],
     isActive: true,
   },
   {
@@ -39,7 +39,7 @@ export const mockUsers: User[] = [
     name: "高橋",
     email: "takahashi@example.com",
     slackId: null,
-    roles: ["GeneralMember"],
+    roles: ["GENERAL_MEMBER"],
     isActive: false,
   },
   {
@@ -48,7 +48,7 @@ export const mockUsers: User[] = [
     name: "山田",
     email: "yamada@example.com",
     slackId: "U05YAMADA",
-    roles: ["MenuManagement", "GeneralMember"],
+    roles: ["SPONSORSHIP_MENU_MANAGEMENT_TEAM", "GENERAL_MEMBER"],
     isActive: true,
   },
 ]

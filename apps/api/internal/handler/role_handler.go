@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
@@ -39,6 +40,9 @@ func grantRole(c echo.Context) error {
 	svc := service.NewRoleService()
 	ur, err := svc.GrantToUser(userId, body.RoleID)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleAlreadyGranted) {
+			return respondConflict(c, err.Error())
+		}
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": ur, "message": "created"})
