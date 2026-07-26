@@ -1,6 +1,5 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { CompaniesTable } from "@/components/companies-table"
+import { CreateCompanyButton } from "@/components/create-company-button"
 import { listCompanies } from "@/lib/data/companies"
 
 /**
@@ -20,7 +19,7 @@ export default async function CompaniesPage() {
           <h1 className="text-2xl font-semibold">Companies</h1>
           <p className="text-muted-foreground">企業マスタの管理</p>
         </div>
-        <Button render={<Link href="/companies/new" />}>企業を登録</Button>
+        <CreateCompanyButton />
       </div>
 
       <CompaniesTable companies={companies} />
