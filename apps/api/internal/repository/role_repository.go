@@ -27,6 +27,17 @@ func (r *RoleRepository) GetByID(id string) (*model.Role, error) {
 	return &role, nil
 }
 
+// HasGrant reports whether userID already holds roleID (ignoring the
+// hard-delete-on-revoke convention, so a revoked-then-not-yet-regranted
+// pair correctly reports false).
+func (r *RoleRepository) HasGrant(userID, roleID string) (bool, error) {
+	var count int64
+	err := db.DB.Model(&model.UserRole{}).
+		Where("user_id = ? AND role_id = ?", userID, roleID).
+		Count(&count).Error
+	return count > 0, err
+}
+
 func (r *RoleRepository) GrantToUser(userID, roleID string) (*model.UserRole, error) {
 	ur := &model.UserRole{
 		UserID:     userID,

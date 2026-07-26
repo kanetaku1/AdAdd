@@ -1,14 +1,17 @@
 /**
- * Role (spec/model.md#Role) — the fixed example set from spec/database.md#Role.
- * `Role` has its own `id`/`name`/`description` in the domain model, but there
- * is no Role CRUD UI yet, so the frontend treats it as this fixed literal set.
+ * Role (spec/model.md#Role) — the 7 canonical codes, matching the Role
+ * table's fixed master data (spec/domain.md#Role, apps/api migrations
+ * 0005_add_roles). `User.roles` holds these codes, resolved server-side
+ * from real `UserRole` grants in API mode (lib/data/roles.ts, Issue #63).
  */
 export const ROLES = [
-  "GeneralMember",
-  "CompanyManagement",
-  "MenuManagement",
-  "Finance",
-  "Administrator",
+  "GENERAL_MEMBER",
+  "SPONSORSHIP_MEMBER",
+  "ADVISOR",
+  "COMPANY_MANAGEMENT_DEPARTMENT",
+  "SPONSORSHIP_MENU_MANAGEMENT_TEAM",
+  "FINANCE_DEPARTMENT",
+  "ADMINISTRATOR",
 ] as const
 
 export type Role = (typeof ROLES)[number]

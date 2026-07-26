@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
+import { grantRole, listRoles, revokeRole, type RoleOption } from "@/lib/data/roles"
 import { createUser, listUsers, updateUser } from "@/lib/data/users"
 import { getErrorMessage } from "@/lib/errors"
 import { ROLES, type Role, type User } from "@/types/user"
@@ -59,10 +60,13 @@ function formFromUser(user: User): UserForm {
  * Active stays an inline toggle: disabling/re-enabling is a frequent,
  * deliberate access-control action, not a profile edit.
  *
- * Role assignment has no backend support yet (spec/model.md#Role has no CRUD
- * API) — lib/data/users.ts always returns `roles: []` in API mode, so the
- * role picker is hidden there rather than silently discarding a selection
- * the user made (Issue #17 convention).
+ * Role assignment is API calls separate from the User CRUD save
+ * (POST/DELETE /users/{userId}/roles/{roleId}, Issue #63), but the picker
+ * itself always edits local `form.roles` first — same as every other field
+ * in this dialog, and same as mock mode's picker — and only takes effect
+ * on "保存", where the diff against the User's prior roles is applied via
+ * grant/revoke calls. A new User has no id yet, so the picker only becomes
+ * interactive once editing an existing User.
  */
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -73,6 +77,7 @@ export default function UsersPage() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [roleCatalog, setRoleCatalog] = useState<RoleOption[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -96,8 +101,28 @@ export default function UsersPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isApiEnabled()) return
+    let cancelled = false
+    listRoles()
+      .then((list) => {
+        if (!cancelled) setRoleCatalog(list)
+      })
+      .catch(() => {
+        // Role picker degrades to empty rather than blocking the whole
+        // screen — the rest of User management still works without it.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const isOpen = editingId !== null
   const isNew = editingId === "new"
+
+  function roleName(code: string): string {
+    return roleCatalog.find((r) => r.code === code)?.name ?? code
+  }
 
   function openNew() {
     setForm(emptyForm())
@@ -120,6 +145,24 @@ export default function UsersPage() {
     }))
   }
 
+  /** Grants/revokes the difference between two Role-code sets via the API. */
+  async function applyRoleChanges(
+    userId: string,
+    before: Role[],
+    after: Role[]
+  ): Promise<void> {
+    const toGrant = after.filter((code) => !before.includes(code))
+    const toRevoke = before.filter((code) => !after.includes(code))
+    for (const code of toGrant) {
+      const role = roleCatalog.find((r) => r.code === code)
+      if (role) await grantRole(userId, role.id)
+    }
+    for (const code of toRevoke) {
+      const role = roleCatalog.find((r) => r.code === code)
+      if (role) await revokeRole(userId, role.id)
+    }
+  }
+
   async function handleSave() {
     if (!form.studentId || !form.name || !form.email) return
 
@@ -137,13 +180,49 @@ export default function UsersPage() {
       if (isNew) {
         const created = await createUser(fields)
         setUsers((prev) => [...prev, created])
-      } else if (editingId) {
-        const updated = await updateUser(editingId, fields)
+        setEditingId(null)
+        return
+      }
+      if (!editingId) return
+
+      const updated = await updateUser(editingId, fields)
+      if (!isApiEnabled()) {
         setUsers((prev) =>
           prev.map((user) => (user.id === editingId ? updated : user))
         )
+        setEditingId(null)
+        return
       }
-      setEditingId(null)
+
+      // API mode: PATCH /users doesn't touch roles (Issue #63's grant/revoke
+      // calls are the source of truth) — apply the picker's diff separately.
+      const before = users.find((u) => u.id === editingId)?.roles ?? []
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === editingId ? { ...updated, roles: user.roles } : user
+        )
+      )
+      try {
+        await applyRoleChanges(editingId, before, form.roles)
+        setUsers((prev) =>
+          prev.map((user) =>
+            user.id === editingId ? { ...user, roles: form.roles } : user
+          )
+        )
+        setEditingId(null)
+      } catch (e) {
+        try {
+          setUsers(await listUsers())
+        } catch {
+          // best-effort resync; the formError below still informs the user
+        }
+        setFormError(
+          getErrorMessage(e, {
+            fallback: "ロールの更新に失敗しました",
+            overrides: { CONFLICT: "既に付与されています" },
+          })
+        )
+      }
     } catch (e) {
       setFormError(
         getErrorMessage(e, {
@@ -161,7 +240,15 @@ export default function UsersPage() {
     setTogglingId(user.id)
     try {
       const updated = await updateUser(user.id, { isActive: checked })
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)))
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? isApiEnabled()
+              ? { ...updated, roles: u.roles }
+              : updated
+            : u
+        )
+      )
     } catch (e) {
       setLoadError(
         getErrorMessage(e, { fallback: "有効/無効の切り替えに失敗しました" })
@@ -215,7 +302,7 @@ export default function UsersPage() {
                       ) : (
                         user.roles.map((role) => (
                           <Badge key={role} variant="outline">
-                            {role}
+                            {roleName(role)}
                           </Badge>
                         ))
                       )}
@@ -304,9 +391,26 @@ export default function UsersPage() {
             {isApiEnabled() ? (
               <Field>
                 <FieldLabel>ロール</FieldLabel>
-                <p className="text-sm text-muted-foreground">
-                  ロール管理は未実装です(バックエンドの対応待ち)。
-                </p>
+                {isNew ? (
+                  <p className="text-sm text-muted-foreground">
+                    ユーザー作成後にロールを付与できます。
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {roleCatalog.map((role) => (
+                      <Badge
+                        key={role.id}
+                        variant={
+                          form.roles.includes(role.code) ? "default" : "outline"
+                        }
+                        className="cursor-pointer"
+                        onClick={() => toggleFormRole(role.code)}
+                      >
+                        {role.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </Field>
             ) : (
               <Field>
