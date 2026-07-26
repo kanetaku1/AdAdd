@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 
 import { useActiveYear } from "@/components/active-year-provider"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -15,7 +16,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyBlock, EmptyRow, ErrorBanner, LoadingBlock } from "@/components/query-state"
-import { getCurrentDevUserId } from "@/lib/api/client"
 import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   listContractMenusAcrossYear,
@@ -119,7 +119,8 @@ export default function AdMaterialProgressPage() {
   const [error, setError] = useState<string | null>(null)
   const [scopeOverride, setScopeOverride] = useState<boolean | null>(null)
 
-  const currentUserId = getCurrentDevUserId()
+  const { currentUser } = useCurrentUser()
+  const currentUserId = currentUser?.id ?? null
 
   useEffect(() => {
     let cancelled = false
@@ -227,7 +228,9 @@ export default function AdMaterialProgressPage() {
       .filter((a) => a.advisorId === currentUserId)
       .map((a) => a.memberId)
   )
-  const myScopeMemberIds = new Set([currentUserId, ...supervisedMemberIds])
+  const myScopeMemberIds = new Set(
+    [currentUserId, ...supervisedMemberIds].filter((id): id is string => id !== null)
+  )
 
   // "未割当" last so an unassigned company is never the easiest one to miss.
   const followUpGroups = Array.from(followUpByMember.entries())

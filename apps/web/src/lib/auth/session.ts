@@ -14,12 +14,21 @@ export async function getSessionToken(): Promise<string | null> {
  * Sets the session cookie on a route handler's response. Not usable from a
  * Server Component (Next.js only allows cookie writes from Route Handlers /
  * Server Actions) — see app/api/auth/google/callback/route.ts.
+ *
+ * sameSite must be "lax", not "strict": the cookie is first set on the
+ * OAuth callback response, which redirects to "/" as part of a navigation
+ * chain that originated cross-site (from accounts.google.com). Browsers
+ * treat that follow-up redirect as cross-site too, so a Strict cookie is
+ * silently dropped on it — the browser bounces back to /login even though
+ * login "succeeded". Lax still gets sent on top-level GET navigations from
+ * a cross-site origin, which is exactly this case, while still blocking
+ * the cookie on cross-site POST/embeds (the actual CSRF vector).
  */
 export function sessionCookieOptions() {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
   }

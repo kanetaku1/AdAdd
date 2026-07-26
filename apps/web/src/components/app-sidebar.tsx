@@ -12,11 +12,13 @@ import {
   CalendarClock,
   Settings,
   Image,
+  LogOut,
 } from "lucide-react"
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -25,6 +27,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useCurrentUser } from "@/components/current-user-provider"
 
 /** Navigation Structure — spec/frontend.md (YearlyCompany-centric). */
 const NAV_ITEMS = [
@@ -45,6 +49,7 @@ const NAV_ITEMS = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { currentUser } = useCurrentUser()
 
   return (
     <Sidebar collapsible="icon">
@@ -77,6 +82,28 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      {currentUser && (
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <div className="flex items-center gap-2 px-2 py-1.5">
+                <Avatar size="sm">
+                  <AvatarFallback>{currentUser.name.slice(0, 1)}</AvatarFallback>
+                </Avatar>
+                <span className="truncate text-sm">{currentUser.name}</span>
+              </div>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <form action="/api/auth/logout" method="POST">
+                <SidebarMenuButton type="submit" tooltip="ログアウト">
+                  <LogOut />
+                  <span>ログアウト</span>
+                </SidebarMenuButton>
+              </form>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
     </Sidebar>
   )
 }
