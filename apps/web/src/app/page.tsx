@@ -4,7 +4,9 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 
 import { useActiveYear } from "@/components/active-year-provider"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -14,9 +16,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyBlock, ErrorBanner, LoadingBlock } from "@/components/query-state"
+import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import { listPaymentsByYear, listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { SPONSORSHIP_PROGRESS_LABEL } from "@/lib/yearly-company-labels"
+import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { PaymentAcrossYear } from "@/types/payment"
 import type { SponsorshipProgress, YearlyCompany } from "@/types/yearly-company"
 
@@ -49,27 +53,32 @@ function StatTile({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Dashboard (spec/frontend.md#Dashboard). Company Management Department view
- * (auth/RBAC not yet implemented — see earlier decision to default to full
- * access until roles exist). Aggregates data already shown elsewhere
- * (Yearly Companies, Payments) rather than introducing new persisted state —
- * scoped to the active Year via `GET /years/{yearId}/companies` (which now
- * joins `contractTotalAmount`, spec/api.md#List Yearly Companies) and
- * `GET /years/{yearId}/payments` (spec/api.md#List Payments Across a Year).
- * All counts/sums below are computed client-side from those two lists —
- * no dedicated aggregation endpoint (see Issue #21 discussion).
+ * Dashboard (spec/frontend.md#Dashboard). Aggregates data already shown
+ * elsewhere (Yearly Companies, Payments) rather than introducing new
+ * persisted state — scoped to the active Year via `GET /years/{yearId}/companies`
+ * (which now joins `contractTotalAmount`, spec/api.md#List Yearly Companies)
+ * and `GET /years/{yearId}/payments` (spec/api.md#List Payments Across a
+ * Year). All counts/sums below are computed client-side from those two
+ * lists — no dedicated aggregation endpoint (see Issue #21 discussion).
  *
- * TODO: once auth exists, scope this to the logged-in user's role
- * (General Member / Advisor dashboards per spec/frontend.md).
+ * "要対応の企業" supports the same 自分の担当のみ/全件 scoping as
+ * ad-material-progress/page.tsx (own assignment, plus — for a Sponsorship
+ * Advisor — every Member they supervise via `AdvisorAssignment`).
  */
 export default function DashboardPage() {
   const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
+  const { currentUser } = useCurrentUser()
+  const currentUserId = currentUser?.id ?? null
 
   const [yearlyCompanies, setYearlyCompanies] = useState<YearlyCompany[]>([])
   const [payments, setPayments] = useState<PaymentAcrossYear[]>([])
+  const [advisorAssignments, setAdvisorAssignments] = useState<
+    AdvisorAssignment[]
+  >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [scopeOverride, setScopeOverride] = useState<boolean | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -77,6 +86,7 @@ export default function DashboardPage() {
       if (!yearId) {
         setYearlyCompanies([])
         setPayments([])
+        setAdvisorAssignments([])
         setLoading(false)
         setError(null)
         return
@@ -84,13 +94,15 @@ export default function DashboardPage() {
       setLoading(true)
       setError(null)
       try {
-        const [ycList, paymentList] = await Promise.all([
+        const [ycList, paymentList, advisorAssignmentList] = await Promise.all([
           listYearlyCompaniesByYear(yearId),
           listPaymentsByYear(yearId),
+          listAdvisorAssignmentsByYear(yearId),
         ])
         if (cancelled) return
         setYearlyCompanies(ycList)
         setPayments(paymentList)
+        setAdvisorAssignments(advisorAssignmentList)
       } catch (e) {
         if (!cancelled) {
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
@@ -118,20 +130,30 @@ export default function DashboardPage() {
   const progressCounts = PROGRESS_ORDER.map((progress) => ({
     progress,
     count: yearlyCompanies.filter((yc) => yc.progress === progress).length,
-  }))
+  })).filter(({ count }) => count > 0)
   const maxProgressCount = Math.max(1, ...progressCounts.map((p) => p.count))
 
-  const memberWorkload = Array.from(
-    yearlyCompanies.reduce((map, yc) => {
-      const member = yc.assignedMemberName ?? "未割当"
-      map.set(member, (map.get(member) ?? 0) + 1)
-      return map
-    }, new Map<string, number>())
-  ).sort((a, b) => b[1] - a[1])
+  const supervisedMemberIds = new Set(
+    advisorAssignments
+      .filter((a) => a.advisorId === currentUserId)
+      .map((a) => a.memberId)
+  )
+  const myScopeMemberIds = new Set(
+    [currentUserId, ...supervisedMemberIds].filter((id): id is string => id !== null)
+  )
 
-  const attentionCompanies = yearlyCompanies.filter((yc) =>
+  const allAttentionCompanies = yearlyCompanies.filter((yc) =>
     ATTENTION_PROGRESS.includes(yc.progress)
   )
+  const hasOwnStake = allAttentionCompanies.some(
+    (yc) => yc.assignedMemberId !== null && myScopeMemberIds.has(yc.assignedMemberId)
+  )
+  const scopeToMine = scopeOverride ?? hasOwnStake
+  const attentionCompanies = scopeToMine
+    ? allAttentionCompanies.filter(
+        (yc) => yc.assignedMemberId !== null && myScopeMemberIds.has(yc.assignedMemberId)
+      )
+    : allAttentionCompanies
 
   return (
     <div className="flex flex-col gap-6">
@@ -160,56 +182,49 @@ export default function DashboardPage() {
             <StatTile label="入金待ち" value={`${waitingPayments}件`} />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="rounded-md border p-4">
-              <h2 className="mb-3 font-medium">進捗の内訳</h2>
-              <div className="flex flex-col gap-2">
-                {progressCounts.map(({ progress, count }) => (
-                  <div key={progress} className="flex items-center gap-2">
-                    <div className="w-28 shrink-0 text-sm text-muted-foreground">
-                      {SPONSORSHIP_PROGRESS_LABEL[progress]}
-                    </div>
-                    <div className="h-4 flex-1 rounded bg-muted">
-                      <div
-                        className="h-4 rounded bg-primary"
-                        style={{
-                          width: `${(count / maxProgressCount) * 100}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="w-8 shrink-0 text-right text-sm">
-                      {count}
-                    </div>
+          <div className="rounded-md border p-4">
+            <h2 className="mb-2 font-medium">進捗の内訳</h2>
+            <div className="flex flex-col gap-1">
+              {progressCounts.map(({ progress, count }) => (
+                <div key={progress} className="flex items-center gap-2">
+                  <div className="w-24 shrink-0 text-xs text-muted-foreground">
+                    {SPONSORSHIP_PROGRESS_LABEL[progress]}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-md border p-4">
-              <h2 className="mb-3 font-medium">担当メンバーごとの持ち分</h2>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>担当メンバー</TableHead>
-                    <TableHead className="text-right">担当企業数</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {memberWorkload.map(([member, count]) => (
-                    <TableRow key={member}>
-                      <TableCell>{member}</TableCell>
-                      <TableCell className="text-right">{count}社</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  <div className="h-2 flex-1 max-w-xs rounded bg-muted">
+                    <div
+                      className="h-2 rounded bg-primary"
+                      style={{
+                        width: `${(count / maxProgressCount) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="w-6 shrink-0 text-right text-xs">
+                    {count}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="rounded-md border p-4">
-            <h2 className="mb-3 font-medium">要対応の企業</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-medium">要対応の企業</h2>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                自分の担当のみ
+                <Switch
+                  checked={scopeToMine}
+                  onCheckedChange={(checked) => setScopeOverride(checked)}
+                />
+              </label>
+            </div>
             {attentionCompanies.length === 0 ? (
-              <EmptyBlock message="現在、要対応の企業はありません。" />
+              <EmptyBlock
+                message={
+                  scopeToMine
+                    ? "自分の担当分に、現在要対応の企業はありません。"
+                    : "現在、要対応の企業はありません。"
+                }
+              />
             ) : (
               <Table>
                 <TableHeader>

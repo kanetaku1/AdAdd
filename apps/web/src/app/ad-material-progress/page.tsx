@@ -412,7 +412,7 @@ export default function AdMaterialProgressPage() {
                           <TableRow key={c.yearlyCompanyId}>
                             <TableCell className="w-56 font-medium">
                               <Link
-                                href={`/yearly-companies/${c.yearlyCompanyId}`}
+                                href={`/contract-menus?companyName=${encodeURIComponent(c.companyName)}`}
                                 className="hover:underline"
                               >
                                 {c.companyName}

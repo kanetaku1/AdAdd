@@ -28,10 +28,7 @@ import {
   addContractMenuToContract,
   deleteContractMenu,
 } from "@/lib/data/sponsorship"
-import {
-  CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
-  CONTRACT_MENU_STATUS_LABEL,
-} from "@/lib/contract-menu-labels"
+import { CONTRACT_MENU_PRODUCTION_TYPE_LABEL } from "@/lib/contract-menu-labels"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
@@ -175,7 +172,6 @@ export function ContractMenuSection({
               <TableHead>単価</TableHead>
               <TableHead>小計</TableHead>
               <TableHead>制作者</TableHead>
-              <TableHead>進捗</TableHead>
               <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -203,11 +199,6 @@ export function ContractMenuSection({
                     {cm.productionType
                       ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[cm.productionType]
                       : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {CONTRACT_MENU_STATUS_LABEL[cm.status]}
-                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Button
