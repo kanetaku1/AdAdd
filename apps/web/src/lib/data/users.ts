@@ -1,4 +1,4 @@
-import { apiFetch, isApiEnabled } from "@/lib/api/client"
+import { apiFetch, ApiError, isApiEnabled } from "@/lib/api/client"
 import {
   addUser as addMockUser,
   mockUsers,
@@ -28,6 +28,39 @@ export type UserFields = {
 }
 
 type ApiUser = Omit<User, "roles">
+
+/**
+ * The signed-in User's identity + Role codes (spec/api.md#Login, #Get
+ * Current User) — deliberately separate from `User`/`Role` above, which
+ * still track the pre-#59 mock-only role vocabulary (Issue #63 reconciles
+ * that). `roles` here are the real 7 canonical codes (e.g.
+ * "ADMINISTRATOR") the backend now returns.
+ */
+export type CurrentUser = {
+  id: string
+  name: string
+  roles: string[]
+}
+
+/**
+ * `GET /users/me` (spec/api.md#Get Current User) — used by
+ * CurrentUserProvider to resolve who's logged in and which Roles gate
+ * navigation (Issue #23). Returns `null` when there's no session (mock
+ * mode, or the request reached the backend unauthenticated) rather than
+ * throwing, since "nobody is logged in" is an expected state, not a
+ * failure.
+ */
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  if (!isApiEnabled()) return null
+  try {
+    return await apiFetch<CurrentUser>("/users/me")
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
+      return null
+    }
+    throw e
+  }
+}
 
 export async function listUsers(): Promise<User[]> {
   if (isApiEnabled()) {
