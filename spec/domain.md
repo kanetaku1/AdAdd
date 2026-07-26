@@ -249,13 +249,12 @@ Represents permissions. A User may hold multiple Roles at once, and Roles may be
 
 The canonical set (matching the actor roles in `spec/frontend.md` → User Roles) is:
 
-* General Member
 * Sponsorship Member
 * Advisor
-* Company Management Department
-* Sponsorship Menu Management Team
 * Finance Department
 * Administrator
+
+A User holding none of these has base-level, read-only access — this replaced the earlier "General Member" Role, which added nothing beyond that baseline. Company Management Department and Sponsorship Menu Management Team were removed as separate Roles: master-data management (Company, Year, Sponsorship Menu) is now Sponsorship Member's responsibility, and Year creation is Administrator-only (see `spec/api.md#Authorization Matrix`).
 
 Administrator is a superuser — it satisfies every permission check regardless of what else is required. See `spec/model.md#Role` for the machine-readable `code` per Role and `spec/model.md#UserRole` for how a User is linked to zero or more Roles.
 
@@ -265,7 +264,7 @@ Administrator is a superuser — it satisfies every permission check regardless 
 
 Represents the Sponsorship Member responsible for a Yearly Company.
 
-A Yearly Company has at most one Company Assignment — zero before the Company Management Team (or an Advisor) decides an assignee, one afterward. A single Sponsorship Member may be the assignee for multiple Yearly Companies.
+A Yearly Company has at most one Company Assignment — zero before an Administrator decides an assignee, one afterward. A single Sponsorship Member may be the assignee for multiple Yearly Companies.
 
 ### Responsibilities
 
@@ -334,7 +333,7 @@ When a Yearly Company is generated (UC-01, both the bulk per-Year generation and
 
 ## Sponsorship Phase
 
-Represents the outreach priority ranking assigned to a Yearly Company by the Company Management Team during the Year preparation period (see UC-02). Independent of Company Status — a Continuing company and a New company can both be assigned any Sponsorship Phase.
+Represents the outreach priority ranking assigned to a Yearly Company by a Sponsorship Member during the Year preparation period (see UC-02). Independent of Company Status — a Continuing company and a New company can both be assigned any Sponsorship Phase.
 
 Examples:
 
@@ -364,7 +363,7 @@ Typical values:
 Applies only when the referenced Sponsorship Menu requires submission. The company chooses between these when submitting the Google Forms application, and the choice determines what the company submits — a finished product, or raw material for the committee to build from.
 
 * Company Production — the company submits a finished, ready-to-use product (完成品).
-* Internal Production — the company submits raw material (素材, e.g. logo, text/copy), and the Sponsorship Menu Management Team has another department produce the finished product from it.
+* Internal Production — the company submits raw material (素材, e.g. logo, text/copy), and the committee produces the finished product from it.
 
 ---
 

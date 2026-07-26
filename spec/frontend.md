@@ -43,20 +43,30 @@ Frontend
 
 # User Roles
 
-## General Member
+The Role set was reduced from 7 to 4 canonical Roles (plus a no-Role
+baseline) — Company Management Department and Sponsorship Menu Management
+Team were removed as separate Roles; their responsibilities (Company/Year
+master data, Sponsorship Menu management) moved to Sponsorship Member
+(Year creation stays Administrator-only). General Member was removed too —
+holding no Role at all is now the baseline, view-only state.
+
+## (No Role)
 
 Purpose:
 
-* View assigned tasks
-* Update own sponsorship progress
+* View-only baseline for any authenticated User before an Administrator
+  grants a Role
 
 Accessible features:
 
-* Assigned company list
-* Company detail
-* Sponsorship progress update
+* Assigned company list, Company detail (view only)
 * Contract information view
-* Contract menu production update
+* Sponsorship progress view
+
+Restrictions:
+
+* Cannot update sponsorship progress, contracts, contract menus, or any
+  master data — these require the Sponsorship Member Role
 
 ---
 
@@ -64,14 +74,18 @@ Accessible features:
 
 Purpose:
 
-* Manage assigned companies
+* Manage assigned companies and day-to-day sponsorship operations
 
 Accessible features:
 
 * Assigned company dashboard
 * Company communication history
+* Company master management (create/edit Company)
+* Yearly company creation and phase management
 * Contract management
-* Contract menu progress
+* Contract menu progress and production update
+* Sponsorship menu management
+* Payment record creation
 
 ---
 
@@ -95,38 +109,6 @@ Restrictions:
 
 ---
 
-## Company Management Department
-
-Purpose:
-
-* Manage sponsorship operation
-
-Accessible features:
-
-* Company master management
-* Yearly company creation
-* Company phase management
-* Sponsorship member assignment
-* Advisor assignment
-* Overall progress monitoring
-
----
-
-## Sponsorship Menu Management Team
-
-Purpose:
-
-* Manage sponsorship products and production processes
-
-Accessible features:
-
-* Sponsorship menu management
-* Contract menu monitoring
-* Production status management
-* Drive information management
-
----
-
 ## Finance Department
 
 Purpose:
@@ -135,6 +117,7 @@ Purpose:
 
 Accessible features:
 
+* Payment record creation
 * Payment status management
 * Income confirmation
 * Payment history
@@ -150,10 +133,14 @@ Restrictions:
 
 Purpose:
 
-* Manage system configuration
+* Manage system configuration and hold every permission as a superuser
 
 Accessible features:
 
+* Every Sponsorship Member / Advisor / Finance Department feature
+* Year creation
+* Sponsorship member assignment
+* Advisor assignment
 * User management
 * Role management
 * System settings
@@ -189,7 +176,7 @@ Provide users with an overview of their responsibilities.
 
 ---
 
-### General Member Dashboard
+### Sponsorship Member Dashboard
 
 Display:
 
@@ -224,23 +211,25 @@ Members
 
 ---
 
-### Department Dashboard
+### Administrator Dashboard
 
 Display:
 
-* Department progress
-* Overall sponsorship status
+* Overall sponsorship status across every Sponsorship Member
 * Outstanding tasks
+* System-wide progress
 
 ---
 
-### Ad Material Progress (Sponsorship Menu Management Department)
+### Ad Material Progress
 
 Purpose:
 
 Track Contract Menu production/submission status across every Sponsorship
 Menu for the active Year, and surface which Sponsorship Members to follow
-up with (UC-07/UC-08).
+up with (UC-07/UC-08). Not restricted to a specific Role — any Sponsorship
+Member or Advisor can use it to track their own or their supervised
+Members' follow-ups.
 
 Display:
 
@@ -590,7 +579,7 @@ Supported:
 
 Purpose:
 
-Create and switch between festival years (UC-01). Actor: Company Management Team.
+Create and switch between festival years (UC-01). Actor: Administrator.
 
 Display:
 
@@ -640,9 +629,9 @@ Actions:
 
 Purpose:
 
-Assign one or more Sponsorship Advisors to each Sponsorship Member (UC-03, FR-013). A Member may have multiple Advisors at once. Actor: Company Management Team.
+Assign one or more Sponsorship Advisors to each Sponsorship Member (UC-03, FR-013). A Member may have multiple Advisors at once. Actor: Administrator.
 
-Display, one row per User (there is no `Role` yet, so any User may act as a Sponsorship Member or an Advisor — see User List above):
+Display, one row per User. Holding the Advisor Role (`spec/domain.md#Role`) is what qualifies a User to be picked as an advisor, but the dropdown does not yet filter by it — any User may currently be picked as a Sponsorship Member or an Advisor here (see User List above); restricting the picker to Advisor-Role holders is a possible future enhancement, not yet implemented.
 
 | Information                          |
 | ------------------------------------- |

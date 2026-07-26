@@ -113,7 +113,7 @@ YearlyCompany does not reference an Advisor. Advisors are assigned to Sponsorshi
 
 `companyStatus` (Continuing / New / Dormant) reflects the company's sponsorship history, independent of `phase`.
 
-`phase` (Phase1 / Phase2 / Phase3) is the outreach priority ranking set by the Company Management Team during the Year preparation period (see `spec/usecase.md` UC-02). It must never be confused with `companyStatus` — a company's history does not determine its phase.
+`phase` (Phase1 / Phase2 / Phase3) is the outreach priority ranking set by a Sponsorship Member during the Year preparation period (see `spec/usecase.md` UC-02). It must never be confused with `companyStatus` — a company's history does not determine its phase.
 
 ---
 
@@ -134,7 +134,7 @@ Represents one sponsorship agreement.
 
 The assignee is scoped to the contract, not to individual Contract Menus. Every Contract Menu under a contract shares the same assignee.
 
-`assigneeId` is not entered when the contract is created. It is carried over from the Sponsorship Member already assigned to the Yearly Company (`CompanyAssignment`, decided earlier by the Company Management Team or an Advisor — see `spec/usecase.md` UC-04) — a contract never introduces a new assignment of its own.
+`assigneeId` is not entered when the contract is created. It is carried over from the Sponsorship Member already assigned to the Yearly Company (`CompanyAssignment`, decided earlier by an Administrator — see `spec/usecase.md` UC-04) — a contract never introduces a new assignment of its own.
 
 A `SponsorshipContract` record is only created once an agreement is actually reached (see `spec/usecase.md` UC-06) — there is no separate draft state, so no `status` field is needed here. `contractDate` is the single date the agreement was reached. Overall progress (including whether the engagement is fully wrapped up) is tracked on `YearlyCompany.progress`, not duplicated on the contract.
 
@@ -297,7 +297,7 @@ Represents a system user.
 
 ## Role
 
-Represents system permissions. Fixed, seeded master data — not user-creatable (see `spec/domain.md#Role` for the canonical set of 7).
+Represents system permissions. Fixed, seeded master data — not user-creatable (see `spec/domain.md#Role` for the canonical set of 4).
 
 ### Attributes
 
@@ -307,15 +307,14 @@ Represents system permissions. Fixed, seeded master data — not user-creatable 
 | code | string |
 | name | string |
 
-`code` is the stable, machine-readable identifier used by API/authorization checks (e.g. `ADMINISTRATOR`, `SPONSORSHIP_MENU_MANAGEMENT_TEAM`) — it never changes even if `name` (the Japanese display label) is edited. One of:
+`code` is the stable, machine-readable identifier used by API/authorization checks (e.g. `ADMINISTRATOR`, `FINANCE_DEPARTMENT`) — it never changes even if `name` (the Japanese display label) is edited. One of:
 
-* `GENERAL_MEMBER`
 * `SPONSORSHIP_MEMBER`
 * `ADVISOR`
-* `COMPANY_MANAGEMENT_DEPARTMENT`
-* `SPONSORSHIP_MENU_MANAGEMENT_TEAM`
 * `FINANCE_DEPARTMENT`
 * `ADMINISTRATOR`
+
+Holding none of these is a valid, deliberate state (a pre-registered User before an Administrator grants a Role) — it is the view-only baseline, not an error.
 
 ---
 
@@ -350,7 +349,7 @@ The company's relationship history with the festival. Applies to `YearlyCompany.
 
 ## SponsorshipPhase
 
-The outreach priority ranking for a Yearly Company within the current Year, set by the Company Management Team during the preparation period. Applies to `YearlyCompany.phase`. Independent of `CompanyStatus`.
+The outreach priority ranking for a Yearly Company within the current Year, set by a Sponsorship Member during the preparation period. Applies to `YearlyCompany.phase`. Independent of `CompanyStatus`.
 
 * Phase1
 * Phase2

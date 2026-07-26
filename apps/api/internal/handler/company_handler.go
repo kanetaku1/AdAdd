@@ -17,7 +17,7 @@ func RegisterCompanyRoutes(e *echo.Echo) {
 	r.GET("/companies/:id", getCompany)
 
 	rc := e.Group("")
-	rc.Use(RequireRoles("COMPANY_MANAGEMENT_DEPARTMENT", "ADMINISTRATOR"))
+	rc.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rc.POST("/companies", createCompany)
 	rc.POST("/companies/bulk", bulkImportCompanies)
 	rc.PATCH("/companies/:id", updateCompany)
