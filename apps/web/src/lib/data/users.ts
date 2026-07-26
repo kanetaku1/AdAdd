@@ -13,11 +13,13 @@ import type { Role, User } from "@/types/user"
  * - API mode (`NEXT_PUBLIC_API_BASE_URL` set): MySQL/API only. Errors propagate.
  * - Mock mode (env unset): in-memory mock data for local UI development.
  *
- * The backend User model has no Role field yet (Role management is a future
- * backend feature — spec/model.md#Role has no CRUD API). In API mode, created
- * and updated Users always come back with `roles: []`; callers should hide
- * or disable role editing when `isApiEnabled()` is true rather than silently
- * discarding a role selection the user made.
+ * `GET /users` returns real `roles` (resolved server-side from `UserRole`
+ * grants, spec/api.md#List Users) — `listUsers` passes it through as-is.
+ * `POST`/`PATCH /users` do NOT return a `roles` field (Role grant/revoke is
+ * a separate call, lib/data/roles.ts, Issue #63) — a freshly created User
+ * genuinely has none yet, so `roles: []` there is correct; callers editing
+ * an existing User should preserve its already-known roles rather than
+ * overwrite them with this empty value.
  */
 
 export type UserFields = {
@@ -27,7 +29,7 @@ export type UserFields = {
   slackId: string | null
 }
 
-type ApiUser = Omit<User, "roles">
+type ApiUserNoRoles = Omit<User, "roles">
 
 /**
  * The signed-in User's identity + Role codes (spec/api.md#Login, #Get
@@ -64,8 +66,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
 export async function listUsers(): Promise<User[]> {
   if (isApiEnabled()) {
-    const list = await apiFetch<ApiUser[]>("/users")
-    return list.map((u) => ({ ...u, roles: [] }))
+    return apiFetch<User[]>("/users")
   }
   return mockUsers
 }
@@ -74,7 +75,7 @@ export async function createUser(
   input: UserFields & { roles: Role[] }
 ): Promise<User> {
   if (isApiEnabled()) {
-    const created = await apiFetch<ApiUser>("/users", {
+    const created = await apiFetch<ApiUserNoRoles>("/users", {
       method: "POST",
       body: JSON.stringify({
         studentId: input.studentId,
@@ -93,7 +94,7 @@ export async function updateUser(
   input: Partial<UserFields & { isActive: boolean; roles: Role[] }>
 ): Promise<User> {
   if (isApiEnabled()) {
-    const updated = await apiFetch<ApiUser>(`/users/${id}`, {
+    const updated = await apiFetch<ApiUserNoRoles>(`/users/${id}`, {
       method: "PATCH",
       body: JSON.stringify({
         studentId: input.studentId,

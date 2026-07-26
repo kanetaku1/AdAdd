@@ -203,7 +203,14 @@ export default function UsersPage() {
       } else if (editingId) {
         const updated = await updateUser(editingId, fields)
         setUsers((prev) =>
-          prev.map((user) => (user.id === editingId ? updated : user))
+          prev.map((user) => {
+            if (user.id !== editingId) return user
+            // API mode: PATCH /users doesn't return/touch roles (Issue #63's
+            // grant/revoke calls are the source of truth) — preserve what's
+            // already displayed rather than overwrite with updated's empty
+            // roles. Mock mode: updated.roles already reflects the picker.
+            return isApiEnabled() ? { ...updated, roles: user.roles } : updated
+          })
         )
       }
       setEditingId(null)
@@ -224,7 +231,15 @@ export default function UsersPage() {
     setTogglingId(user.id)
     try {
       const updated = await updateUser(user.id, { isActive: checked })
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)))
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? isApiEnabled()
+              ? { ...updated, roles: u.roles }
+              : updated
+            : u
+        )
+      )
     } catch (e) {
       setLoadError(
         getErrorMessage(e, { fallback: "有効/無効の切り替えに失敗しました" })
