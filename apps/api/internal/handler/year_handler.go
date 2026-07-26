@@ -13,7 +13,7 @@ func RegisterYearRoutes(e *echo.Echo) {
 	r.GET("/years", listYears)
 
 	rc := e.Group("")
-	rc.Use(RequireRoles("company_manager", "admin"))
+	rc.Use(RequireRoles("COMPANY_MANAGEMENT_DEPARTMENT", "ADMINISTRATOR"))
 	rc.POST("/years", createYear)
 }
 

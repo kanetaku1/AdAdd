@@ -5,7 +5,7 @@
 
 ## 認証
 - 簡易開発用認証: HTTP ヘッダに `X-User-ID`（ユーザーID）と `X-User-Roles`（カンマ区切りロール）を付与してください。
-- 例: `X-User-ID: user-admin`, `X-User-Roles: admin,staff`
+- 例: `X-User-ID: user-admin`, `X-User-Roles: ADMINISTRATOR,SPONSORSHIP_MEMBER`
 
 ## HTTP レスポンス概要
 - 成功: 200/201 と JSON `{ "data": ..., "message": "success|created|updated" }`

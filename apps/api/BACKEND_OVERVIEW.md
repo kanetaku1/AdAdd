@@ -105,7 +105,7 @@
    - `go run ./cmd/server`
 5. API を呼ぶときは開発用ヘッダを付与
    - `X-User-ID: 任意の ID`
-   - `X-User-Roles: staff,admin`
+   - `X-User-Roles: SPONSORSHIP_MEMBER,ADMINISTRATOR`
 
 ---
 

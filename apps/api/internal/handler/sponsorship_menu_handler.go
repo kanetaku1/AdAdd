@@ -14,7 +14,7 @@ func RegisterSponsorshipMenuRoutes(e *echo.Echo) {
 	r.GET("/years/:yearId/sponsorship-menus", listSponsorshipMenus)
 	// manage menus requires staff or admin
 	rStaff := e.Group("")
-	rStaff.Use(RequireRoles("staff", "admin"))
+	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/years/:yearId/sponsorship-menus", createSponsorshipMenu)
 	rStaff.PATCH("/sponsorship-menus/:menuId", updateSponsorshipMenu)
 }

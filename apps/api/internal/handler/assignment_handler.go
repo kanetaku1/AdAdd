@@ -10,7 +10,7 @@ import (
 func RegisterAssignmentRoutes(e *echo.Echo) {
 	r := e.Group("")
 	rAdmin := e.Group("")
-	rAdmin.Use(RequireRoles("admin"))
+	rAdmin.Use(RequireRoles("ADMINISTRATOR"))
 	rAdmin.POST("/yearly-companies/:id/assignments", createAssignment)
 	r.GET("/users/me/companies", getAssignedCompaniesForMe)
 }

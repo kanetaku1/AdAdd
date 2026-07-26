@@ -15,7 +15,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	r.GET("/contracts/:contractId/menus", listContractMenus)
 	// staff and admin manage contract menus
 	rStaff := e.Group("")
-	rStaff.Use(RequireRoles("staff", "admin"))
+	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/contracts/:contractId/menus", addContractMenu)
 	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
 	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)

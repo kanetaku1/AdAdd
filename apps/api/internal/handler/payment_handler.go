@@ -16,12 +16,12 @@ func RegisterPaymentRoutes(e *echo.Echo) {
 
 	// Create payment records (staff or admin or finance)
 	rc := e.Group("")
-	rc.Use(RequireRoles("staff", "admin", "finance"))
+	rc.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR", "FINANCE_DEPARTMENT"))
 	rc.POST("/contracts/:contractId/payment", createPayment)
 
 	// Only finance or admin can update payments
 	rp := e.Group("")
-	rp.Use(RequireRoles("finance", "admin"))
+	rp.Use(RequireRoles("FINANCE_DEPARTMENT", "ADMINISTRATOR"))
 	rp.PATCH("/payments/:paymentId", updatePayment)
 }
 

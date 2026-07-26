@@ -17,7 +17,7 @@ func RegisterUserRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/users/me", getCurrentUser)
 
-	admin := e.Group("/users", RequireRoles("admin"))
+	admin := e.Group("/users", RequireRoles("ADMINISTRATOR"))
 	admin.GET("", listUsers)
 	admin.POST("", createUser)
 	admin.POST("/bulk", bulkImportUsers)
