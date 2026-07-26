@@ -10,7 +10,7 @@ import (
 func RegisterActivityLogRoutes(e *echo.Echo) {
 	r := e.Group("")
 	// activity logs are limited to staff and admin
-	r.Use(RequireRoles("staff", "admin"))
+	r.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	r.GET("/yearly-companies/:id/activity-logs", listActivityLogs)
 }
 

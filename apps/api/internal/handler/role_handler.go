@@ -9,12 +9,8 @@ import (
 
 // RegisterRoleRoutes wires GET /roles and the User<->Role grant/revoke
 // endpoints (spec/api.md#List Roles, #Grant Role, #Revoke Role).
-//
-// Uses the existing "admin" RequireRoles string, matching every other
-// handler today — Issue #61 reconciles all of these to the 7 canonical Role
-// codes in one pass, this isn't the place to get ahead of that.
 func RegisterRoleRoutes(e *echo.Echo) {
-	admin := e.Group("", RequireRoles("admin"))
+	admin := e.Group("", RequireRoles("ADMINISTRATOR"))
 	admin.GET("/roles", listRoles)
 	admin.POST("/users/:userId/roles", grantRole)
 	admin.DELETE("/users/:userId/roles/:roleId", revokeRole)

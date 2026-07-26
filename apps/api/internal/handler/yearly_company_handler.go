@@ -15,7 +15,7 @@ func RegisterYearlyCompanyRoutes(e *echo.Echo) {
 	r.GET("/yearly-companies/:id/progress", getProgress)
 	// Create and updates require staff or admin
 	rStaff := e.Group("")
-	rStaff.Use(RequireRoles("staff", "admin"))
+	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/years/:yearId/companies", createYearlyCompany)
 	rStaff.PATCH("/yearly-companies/:id/company-status", updateCompanyStatus)
 	rStaff.PATCH("/yearly-companies/:id/phase", updatePhase)

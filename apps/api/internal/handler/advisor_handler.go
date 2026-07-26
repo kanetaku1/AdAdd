@@ -17,7 +17,7 @@ func RegisterAdvisorRoutes(e *echo.Echo) {
 	r.GET("/users/:userId/advisor-members", getAdvisorMembers)
 
 	rAdmin := e.Group("")
-	rAdmin.Use(RequireRoles("admin"))
+	rAdmin.Use(RequireRoles("ADMINISTRATOR"))
 	rAdmin.POST("/advisor-assignments", createAdvisorAssignment)
 	rAdmin.DELETE("/advisor-assignments/:id", deleteAdvisorAssignment)
 }

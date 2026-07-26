@@ -13,7 +13,7 @@ func RegisterContractRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/yearly-companies/:id/contract", getContractByYearlyCompany)
 	rc := e.Group("")
-	rc.Use(RequireRoles("staff", "admin"))
+	rc.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rc.POST("/yearly-companies/:id/contract", createContract)
 	rc.PATCH("/contracts/:contractId", updateContract)
 }

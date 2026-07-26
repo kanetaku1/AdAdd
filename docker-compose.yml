@@ -19,7 +19,6 @@ services:
       # explicitly opted into even then (spec/api.md#Authentication) — this
       # is what lets the X-User-ID/X-User-Roles stub keep working locally.
       DEV_AUTH_ENABLED: "true"
-
     ports:
       - "8080:8080"
 

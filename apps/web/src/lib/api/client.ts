@@ -62,11 +62,11 @@ export function getDevAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") {
     return {
       "X-User-ID": "user_001",
-      "X-User-Roles": "admin,staff",
+      "X-User-Roles": "ADMINISTRATOR,SPONSORSHIP_MEMBER",
     }
   }
   const roles =
-    window.localStorage.getItem("adadd.dev.roles") ?? "admin,staff"
+    window.localStorage.getItem("adadd.dev.roles") ?? "ADMINISTRATOR,SPONSORSHIP_MEMBER"
   return {
     "X-User-ID": getCurrentDevUserId(),
     "X-User-Roles": roles,
