@@ -18,8 +18,10 @@ import {
 import { ContractMenuSection } from "@/components/contract-menu-section"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { InvoiceGeneratorModal } from "@/components/invoice-generator-modal"
+import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
+import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   assignMember,
   createContractWithMenus,
@@ -43,6 +45,7 @@ import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_LABEL,
 } from "@/lib/yearly-company-labels"
+import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { Company } from "@/types/company"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
@@ -85,6 +88,9 @@ export default function YearlyCompanyDetailPage() {
   const [payment, setPayment] = useState<Payment | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [menus, setMenus] = useState<SponsorshipMenu[]>([])
+  const [advisorAssignments, setAdvisorAssignments] = useState<
+    AdvisorAssignment[]
+  >([])
   const [creatingContract, setCreatingContract] = useState(false)
   const [contractDate, setContractDate] = useState(formatDate(new Date()))
   const [remarks, setRemarks] = useState("")
@@ -106,17 +112,19 @@ export default function YearlyCompanyDetailPage() {
           return
         }
         setYearlyCompany(yc)
-        const [co, ct, us, sm] = await Promise.all([
+        const [co, ct, us, sm, aa] = await Promise.all([
           getCompany(yc.companyId),
           getContractByYearlyCompany(yc.id),
           listUsers(),
           listSponsorshipMenus(yc.yearId),
+          listAdvisorAssignmentsByYear(yc.yearId),
         ])
         if (cancelled) return
         setCompany(co)
         setContract(ct)
         setUsers(us)
         setMenus(sm)
+        setAdvisorAssignments(aa)
         if (ct) {
           const [cms, pay] = await Promise.all([
             listContractMenus(ct.id),
@@ -154,16 +162,18 @@ export default function YearlyCompanyDetailPage() {
         return
       }
       setYearlyCompany(yc)
-      const [co, ct, us, sm] = await Promise.all([
+      const [co, ct, us, sm, aa] = await Promise.all([
         getCompany(yc.companyId),
         getContractByYearlyCompany(yc.id),
         listUsers(),
         listSponsorshipMenus(yc.yearId),
+        listAdvisorAssignmentsByYear(yc.yearId),
       ])
       setCompany(co)
       setContract(ct)
       setUsers(us)
       setMenus(sm)
+      setAdvisorAssignments(aa)
       if (ct) {
         const [cms, pay] = await Promise.all([
           listContractMenus(ct.id),
@@ -182,6 +192,14 @@ export default function YearlyCompanyDetailPage() {
       setLoading(false)
     }
   }, [id])
+
+  const memberAdvisorNames = useMemo(() => {
+    const memberId = yearlyCompany?.assignedMemberId
+    if (!memberId) return []
+    return advisorAssignments
+      .filter((a) => a.memberId === memberId)
+      .map((a) => users.find((u) => u.id === a.advisorId)?.name ?? "(不明なユーザー)")
+  }, [advisorAssignments, users, yearlyCompany])
 
   const previewTotal = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
@@ -387,9 +405,24 @@ export default function YearlyCompanyDetailPage() {
             <div className="mb-2 text-sm text-muted-foreground">
               協賛アドバイザー
             </div>
-            <p className="text-sm text-muted-foreground">
-              Advisor はメンバー単位の割当です。Users 画面から管理します。
-            </p>
+            {!yearlyCompany.assignedMemberId ? (
+              <p className="text-sm text-muted-foreground">
+                担当メンバー未割当のため表示できません。
+              </p>
+            ) : memberAdvisorNames.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                アドバイザー未設定です。設定は Settings &gt; Advisor
+                Assignments で行います。
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {memberAdvisorNames.map((name, i) => (
+                  <Badge key={i} variant="outline">
+                    {name}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -414,6 +447,19 @@ export default function YearlyCompanyDetailPage() {
                 >
                   入金レコードを作成
                 </Button>
+              )}
+              {payment && (
+                <ReceiptGeneratorModal
+                  initialData={{
+                    companyName: yearlyCompany.companyName,
+                    amount: payment.amount,
+                    issuedDate: new Date().toISOString().slice(0, 10),
+                    paymentDate:
+                      payment.confirmedAt ??
+                      new Date().toISOString().slice(0, 10),
+                  }}
+                  fileName={`領収書_${yearlyCompany.companyName}.pdf`}
+                />
               )}
             </div>
           )}
@@ -559,6 +605,13 @@ export default function YearlyCompanyDetailPage() {
                 </div>
               </div>
             </div>
+
+            <Link
+              href={`/contract-menus?companyName=${encodeURIComponent(yearlyCompany.companyName)}`}
+              className="text-sm hover:underline"
+            >
+              協賛メニュー一覧で詳細を見る →
+            </Link>
 
             <ContractMenuSection
               key={`${contract.id}-${contract.totalAmount}-${contractMenus.length}`}

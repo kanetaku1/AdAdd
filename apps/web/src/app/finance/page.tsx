@@ -155,19 +155,17 @@ export default function FinancePage() {
                   <TableCell>{payment.confirmedAt ?? "-"}</TableCell>
                   <TableCell>{payment.confirmedByName ?? "-"}</TableCell>
                   <TableCell className="text-right">
-                    {payment.status === "CONFIRMED" && (
-                      <ReceiptGeneratorModal
-                        initialData={{
-                          companyName: payment.companyName,
-                          amount: payment.amount,
-                          issuedDate: new Date().toISOString().slice(0, 10),
-                          paymentDate:
-                            payment.confirmedAt ??
-                            new Date().toISOString().slice(0, 10),
-                        }}
-                        fileName={`領収書_${payment.companyName}.pdf`}
-                      />
-                    )}
+                    <ReceiptGeneratorModal
+                      initialData={{
+                        companyName: payment.companyName,
+                        amount: payment.amount,
+                        issuedDate: new Date().toISOString().slice(0, 10),
+                        paymentDate:
+                          payment.confirmedAt ??
+                          new Date().toISOString().slice(0, 10),
+                      }}
+                      fileName={`領収書_${payment.companyName}.pdf`}
+                    />
                   </TableCell>
                 </TableRow>
               ))

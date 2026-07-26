@@ -74,9 +74,10 @@ function isContractMenuStatus(
  * as part of that same call (spec/api.md#Upload Production Information), so
  * saving a Drive URL here updates both fields together.
  *
- * Accepts `?menuId=&status=` query params as initial filter values, so the
- * per-menu status breakdown in ad-material-progress/page.tsx can link
- * straight into a menu+status-filtered view of this list.
+ * Accepts `?menuId=&status=&companyName=` query params as initial filter
+ * values, so the per-menu status breakdown and the follow-up list in
+ * ad-material-progress/page.tsx can link straight into a filtered view of
+ * this list.
  */
 export default function ContractMenusPage() {
   return (
@@ -90,6 +91,7 @@ function ContractMenusList() {
   const searchParams = useSearchParams()
   const initialMenuId = searchParams.get("menuId")
   const initialStatus = searchParams.get("status")
+  const initialCompanyName = searchParams.get("companyName")
 
   const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
@@ -101,7 +103,9 @@ function ContractMenusList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [companyNameQuery, setCompanyNameQuery] = useState("")
+  const [companyNameQuery, setCompanyNameQuery] = useState(
+    initialCompanyName ?? ""
+  )
   const [menuFilter, setMenuFilter] = useState<string | typeof ALL>(
     initialMenuId ?? ALL
   )
