@@ -1,0 +1,4 @@
+companyName,companyNameKana,postalCode,address,phoneNumber,website,contactPersonName,contactEmailOrForm,firstSponsorshipYear,memo
+株式会社テストA,カブシキガイシャテストエー,100-0000,東京都テスト区,03-0000-0000,https://test.com,山田,contact@test.com,2026,これはテストです
+株式会社テストB,,,,,,,,,エラー確認用
+,名前なし会社,,,,,,,,

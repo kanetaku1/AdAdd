@@ -47,7 +47,9 @@ async function handler(
   const upstream = await fetch(target, {
     method: req.method,
     headers,
-    body: hasBody ? await req.text() : undefined,
+    body: hasBody ? ((req.method === "POST" || req.method === "PUT" || req.method === "PATCH") ? await req.arrayBuffer() : undefined) : undefined,
+    // @ts-ignore (Next.js internal fetch typing missing duplex in some versions)
+    duplex: 'half'
   })
 
   const responseBody = await upstream.text()

@@ -33,6 +33,7 @@ import {
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
 import { CONTRACT_MENU_PRODUCTION_TYPE_LABEL } from "@/lib/contract-menu-labels"
+import { DriveUploadDialog } from "@/components/drive-upload-dialog"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
@@ -81,6 +82,7 @@ export function ContractMenuSection({
   )
   const [busy, setBusy] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [uploadingMenuId, setUploadingMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function handleDelete(id: string) {
@@ -172,6 +174,7 @@ export function ContractMenuSection({
               <TableHead>単価</TableHead>
               <TableHead>小計</TableHead>
               <TableHead>制作者</TableHead>
+              <TableHead>資料(GoogleDrive)</TableHead>
               <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -201,6 +204,24 @@ export function ContractMenuSection({
                       : "-"}
                   </TableCell>
                   <TableCell>
+                    <div className="flex items-center gap-2">
+                      {cm.driveUrl && (
+                        <a href={cm.driveUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                          {cm.driveFileName || "確認"}
+                        </a>
+                      )}
+                      {canManage && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUploadingMenuId(cm.id)}
+                        >
+                          {cm.driveUrl ? "再アップロード" : "アップロード"}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     {canManage && (
                       <Button
                         type="button"
@@ -218,6 +239,18 @@ export function ContractMenuSection({
             })}
           </TableBody>
         </Table>
+
+        {uploadingMenuId && (
+          <DriveUploadDialog
+            menuId={uploadingMenuId}
+            open={!!uploadingMenuId}
+            onOpenChange={(open) => !open && setUploadingMenuId(null)}
+            onSuccess={() => {
+              setUploadingMenuId(null)
+              onChanged?.()
+            }}
+          />
+        )}
       </div>
 
       <div className="flex justify-end text-lg font-semibold">

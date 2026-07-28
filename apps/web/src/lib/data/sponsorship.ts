@@ -130,7 +130,9 @@ function mapApiContractMenu(cm: {
   isGoodsSponsorship: boolean
   productionType?: string
   status: string
+  driveFolderId?: string
   driveUrl?: string
+  driveFileName?: string
   remarks?: string
 }): ContractMenu {
   return {
@@ -143,7 +145,9 @@ function mapApiContractMenu(cm: {
     productionType:
       (cm.productionType as ContractMenu["productionType"]) ?? null,
     status: cm.status as ContractMenu["status"],
+    driveFolderId: cm.driveFolderId ?? null,
     driveUrl: cm.driveUrl ?? null,
+    driveFileName: cm.driveFileName ?? null,
     remarks: cm.remarks ?? "",
   }
 }
@@ -246,7 +250,9 @@ export async function listContractMenus(
         isGoodsSponsorship: boolean
         productionType?: string
         status: string
+        driveFolderId?: string
         driveUrl?: string
+        driveFileName?: string
         remarks?: string
       }>
     >(`/contracts/${contractId}/menus`)
@@ -290,7 +296,9 @@ export async function listContractMenusAcrossYear(
         isGoodsSponsorship: boolean
         productionType?: string
         status: string
+        driveFolderId?: string
         driveUrl?: string
+        driveFileName?: string
         remarks?: string
         companyName: string
         yearlyCompanyId: string
@@ -358,7 +366,9 @@ export async function updateContractMenuStatus(
       isGoodsSponsorship: boolean
       productionType?: string
       status: string
+      driveFolderId?: string
       driveUrl?: string
+      driveFileName?: string
       remarks?: string
     }>(`/contract-menus/${id}/status`, {
       method: "PATCH",
@@ -389,7 +399,9 @@ export async function updateContractMenuProduction(
       isGoodsSponsorship: boolean
       productionType?: string
       status: string
+      driveFolderId?: string
       driveUrl?: string
+      driveFileName?: string
       remarks?: string
     }>(`/contract-menus/${id}/production`, {
       method: "PATCH",
@@ -400,6 +412,46 @@ export async function updateContractMenuProduction(
   return updateMockContractMenu(id, {
     driveUrl: input.driveFolderUrl,
     remarks: input.remarks,
+    status: "SUBMITTED",
+  })
+}
+
+/**
+ * POST /contract-menus/{id}/drive-upload - Uploads a file to Google Drive and sets production type/submits
+ */
+export async function uploadContractMenuToDrive(
+  id: string,
+  file: File,
+  folderId: string,
+  accessToken: string
+): Promise<ContractMenu> {
+  if (isApiEnabled()) {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("folderId", folderId)
+    formData.append("accessToken", accessToken)
+
+    const updated = await apiFetch<{
+      id: string
+      contractId: string
+      sponsorshipMenuId: string
+      quantity: number
+      unitPrice: number | string
+      isGoodsSponsorship: boolean
+      productionType?: string
+      status: string
+      driveFolderId?: string
+      driveUrl?: string
+      driveFileName?: string
+      remarks?: string
+    }>(`/contract-menus/${id}/drive-upload`, {
+      method: "POST",
+      body: formData,
+    })
+    return mapApiContractMenu(updated)
+  }
+  return updateMockContractMenu(id, {
+    driveUrl: "http://mock.drive.url",
     status: "SUBMITTED",
   })
 }
@@ -694,7 +746,9 @@ export async function createContractWithMenus(
       isGoodsSponsorship: item.isGoodsSponsorship,
       productionType: item.productionType,
       status: "WAITING",
+      driveFolderId: null,
       driveUrl: null,
+      driveFileName: null,
       remarks: "",
     }
     addContractMenu(menu)
@@ -741,7 +795,9 @@ export async function addContractMenuToContract(
     isGoodsSponsorship: item.isGoodsSponsorship,
     productionType: item.productionType,
     status: "WAITING",
+    driveFolderId: null,
     driveUrl: null,
+    driveFileName: null,
     remarks: "",
   }
   addContractMenu(menu)

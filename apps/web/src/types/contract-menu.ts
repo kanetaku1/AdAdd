@@ -38,7 +38,9 @@ export type ContractMenu = {
   isGoodsSponsorship: boolean
   productionType: ContractMenuProductionType | null
   status: ContractMenuStatus
+  driveFolderId: string | null
   driveUrl: string | null
+  driveFileName: string | null
   remarks: string
 }
 

@@ -1,0 +1,5 @@
+studentId,name,email,slackId,roles
+B111,管理者太郎,admin_taro@example.com,U111,"admin,general_member"
+B222,一般花子,member_hanako@example.com,U222,general_member
+B333,重複次郎,admin_taro@example.com,U333,admin
+,名前なし,,,

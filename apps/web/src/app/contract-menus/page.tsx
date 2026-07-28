@@ -178,8 +178,8 @@ function ContractMenusList() {
         cm.productionType === productionTypeFilter) &&
       (companyNameQuery.trim()
         ? cm.companyName
-            .toLowerCase()
-            .includes(companyNameQuery.trim().toLowerCase())
+          .toLowerCase()
+          .includes(companyNameQuery.trim().toLowerCase())
         : true)
     )
   })
@@ -450,25 +450,12 @@ function ContractMenusList() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Input
-                          value={draft ?? cm.driveUrl ?? ""}
-                          placeholder="Drive URL"
-                          disabled={savingId === cm.id || !canManage}
-                          onChange={(e) =>
-                            setDriveUrlDrafts((prev) => ({
-                              ...prev,
-                              [cm.id]: e.target.value,
-                            }))
-                          }
-                        />
-                        {hasUnsavedDraft && canManage && (
-                          <Button
-                            size="sm"
-                            onClick={() => void handleDriveUrlSave(cm.id)}
-                            disabled={savingId === cm.id}
-                          >
-                            保存
-                          </Button>
+                        {cm.driveUrl ? (
+                          <a href={cm.driveUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                            {cm.driveFileName || "確認"}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </div>
                     </TableCell>

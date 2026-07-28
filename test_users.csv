@@ -1,0 +1,4 @@
+studentId,name,email,slackId,roles
+B2023001,テスト太郎,test1@example.com,U12345,staff
+B2023002,テスト花子,test2@example.com,,"staff,admin"
+,エラー次郎,,,

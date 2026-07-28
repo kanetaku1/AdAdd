@@ -1,0 +1,1 @@
+{"data":{"totalCount":4,"successCount":0,"errorCount":4,"successfulRows":[],"errors":[{"rowNumber":2,"message":"無効なロールが指定されています: admin"},{"rowNumber":3,"message":"無効なロールが指定されています: general_member"},{"rowNumber":4,"message":"無効なロールが指定されています: admin"},{"rowNumber":5,"message":"メールアドレスは必須です"}]},"message":"Import successful"}
