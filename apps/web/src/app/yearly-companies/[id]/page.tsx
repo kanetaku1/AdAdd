@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { AssignedMemberCell } from "@/components/assigned-member-cell"
 import {
   ContractMenuItemFields,
@@ -126,6 +126,10 @@ export default function YearlyCompanyDetailPage() {
   const [items, setItems] = useState<ContractMenuItemValue[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [contractDateError, setContractDateError] = useState<string | null>(
+    null
+  )
+  const [itemsError, setItemsError] = useState<string | null>(null)
 
   /* Data fetch for route param — setState after async I/O is intentional. */
   useEffect(() => {
@@ -331,18 +335,38 @@ export default function YearlyCompanyDetailPage() {
 
   async function handleCreateContract(event: React.FormEvent) {
     event.preventDefault()
-    setBusy(true)
     setError(null)
+    setContractDateError(null)
+    setItemsError(null)
+
+    let hasFieldError = false
+    if (!contractDate) {
+      setContractDateError("契約日を入力してください")
+      hasFieldError = true
+    }
+    const selectedItems = items.filter((item) => item.sponsorshipMenuId)
+    if (selectedItems.length === 0) {
+      setItemsError("協賛メニューを1件以上選択してください")
+      hasFieldError = true
+    }
+    if (hasFieldError) return
+
+    setBusy(true)
     try {
       await createContractWithMenus(yc.id, {
         contractDate,
         remarks,
-        items: items.filter((item) => item.sponsorshipMenuId),
+        items: selectedItems,
       })
       setCreatingContract(false)
       await reload()
     } catch (e) {
-      setError(getErrorMessage(e, { fallback: "契約の作成に失敗しました" }))
+      setError(
+        getErrorMessage(e, {
+          fallback: "契約の作成に失敗しました",
+          overrides: { CONFLICT: "この企業には既に契約が存在します。" },
+        })
+      )
     } finally {
       setBusy(false)
     }
@@ -541,16 +565,23 @@ export default function YearlyCompanyDetailPage() {
           <form
             onSubmit={(e) => void handleCreateContract(e)}
             className="flex flex-col gap-4 rounded-md border p-4"
+            noValidate
           >
             <FieldGroup>
-              <Field>
+              <Field data-invalid={!!contractDateError}>
                 <FieldLabel>契約日</FieldLabel>
                 <Input
                   type="date"
                   value={contractDate}
-                  onChange={(e) => setContractDate(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setContractDate(e.target.value)
+                    setContractDateError(null)
+                  }}
+                  aria-invalid={!!contractDateError}
                 />
+                {contractDateError && (
+                  <FieldError>{contractDateError}</FieldError>
+                )}
               </Field>
               <Field>
                 <FieldLabel>備考</FieldLabel>
@@ -569,9 +600,10 @@ export default function YearlyCompanyDetailPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() =>
+                  onClick={() => {
                     setItems((prev) => [...prev, emptyItem(menus)])
-                  }
+                    setItemsError(null)
+                  }}
                 >
                   行を追加
                 </Button>
@@ -581,13 +613,15 @@ export default function YearlyCompanyDetailPage() {
                   key={index}
                   value={item}
                   menus={menus}
-                  onChange={(patch) =>
+                  invalid={!!itemsError && !item.sponsorshipMenuId}
+                  onChange={(patch) => {
                     setItems((prev) =>
                       prev.map((row, i) =>
                         i === index ? { ...row, ...patch } : row
                       )
                     )
-                  }
+                    setItemsError(null)
+                  }}
                   onRemove={
                     items.length > 1
                       ? () =>
@@ -598,6 +632,7 @@ export default function YearlyCompanyDetailPage() {
                   }
                 />
               ))}
+              {itemsError && <FieldError>{itemsError}</FieldError>}
               <p className="text-right text-sm text-muted-foreground">
                 合計（表示専用・サーバ再計算）: ¥
                 {previewTotal.toLocaleString("ja-JP")}

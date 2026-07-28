@@ -42,7 +42,7 @@ func (s *ContractService) Create(c *model.SponsorshipContract) error {
 
 func (s *ContractService) CreateWithUser(c *model.SponsorshipContract, actorUserID string) error {
 	if c.ContractDate == nil {
-		t := time.Now()
+		t := model.Date(time.Now())
 		c.ContractDate = &t
 	}
 
