@@ -26,6 +26,7 @@ import { canAccess } from "@/lib/auth/roles"
 import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   assignMember,
+  createActivityLog,
   createContractWithMenus,
   createPayment,
   getCompany,
@@ -33,6 +34,7 @@ import {
   getPaymentByContract,
   getYearlyCompany,
   listContractMenus,
+  listActivityLogsByYearlyCompany,
   listSponsorshipMenus,
   listUsers,
   updateYearlyCompanyProgress,
@@ -48,6 +50,7 @@ import {
   SPONSORSHIP_PHASE_LABEL,
 } from "@/lib/yearly-company-labels"
 import type { AdvisorAssignment } from "@/types/advisor-assignment"
+import type { ActivityLog } from "@/types/activity-log"
 import type { Company } from "@/types/company"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
@@ -58,6 +61,13 @@ import type {
   SponsorshipProgress,
   YearlyCompany,
 } from "@/types/yearly-company"
+
+const ACTIVITY_EVENT_LABEL = {
+  MANUAL_NOTE: "手動メモ",
+  PROGRESS_UPDATED: "進捗更新",
+  ASSIGNMENT_UPDATED: "担当変更",
+  CONTRACT_CREATED: "契約作成",
+} as const
 
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10)
@@ -108,6 +118,8 @@ export default function YearlyCompanyDetailPage() {
   const [advisorAssignments, setAdvisorAssignments] = useState<
     AdvisorAssignment[]
   >([])
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
+  const [activityMessage, setActivityMessage] = useState("")
   const [creatingContract, setCreatingContract] = useState(false)
   const [contractDate, setContractDate] = useState(formatDate(new Date()))
   const [remarks, setRemarks] = useState("")
@@ -129,12 +141,13 @@ export default function YearlyCompanyDetailPage() {
           return
         }
         setYearlyCompany(yc)
-        const [co, ct, us, sm, aa] = await Promise.all([
+        const [co, ct, us, sm, aa, logs] = await Promise.all([
           getCompany(yc.companyId),
           getContractByYearlyCompany(yc.id),
           listUsers(),
           listSponsorshipMenus(yc.yearId),
           listAdvisorAssignmentsByYear(yc.yearId),
+          listActivityLogsByYearlyCompany(yc.id),
         ])
         if (cancelled) return
         setCompany(co)
@@ -142,6 +155,7 @@ export default function YearlyCompanyDetailPage() {
         setUsers(us)
         setMenus(sm)
         setAdvisorAssignments(aa)
+        setActivityLogs(logs)
         if (ct) {
           const [cms, pay] = await Promise.all([
             listContractMenus(ct.id),
@@ -179,18 +193,20 @@ export default function YearlyCompanyDetailPage() {
         return
       }
       setYearlyCompany(yc)
-      const [co, ct, us, sm, aa] = await Promise.all([
+      const [co, ct, us, sm, aa, logs] = await Promise.all([
         getCompany(yc.companyId),
         getContractByYearlyCompany(yc.id),
         listUsers(),
         listSponsorshipMenus(yc.yearId),
         listAdvisorAssignmentsByYear(yc.yearId),
+        listActivityLogsByYearlyCompany(yc.id),
       ])
       setCompany(co)
       setContract(ct)
       setUsers(us)
       setMenus(sm)
       setAdvisorAssignments(aa)
+      setActivityLogs(logs)
       if (ct) {
         const [cms, pay] = await Promise.all([
           listContractMenus(ct.id),
@@ -344,6 +360,28 @@ export default function YearlyCompanyDetailPage() {
       setError(
         getErrorMessage(e, { fallback: "入金レコードの作成に失敗しました" })
       )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleCreateActivityLog(event: React.FormEvent) {
+    event.preventDefault()
+    const trimmed = activityMessage.trim()
+    if (!trimmed) return
+    setBusy(true)
+    setError(null)
+    try {
+      const created = await createActivityLog(yc.id, {
+        eventType: "MANUAL_NOTE",
+        message: trimmed,
+      })
+      setActivityLogs((prev) =>
+        [created, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      )
+      setActivityMessage("")
+    } catch (e) {
+      setError(getErrorMessage(e, { fallback: "Activity Log の作成に失敗しました" }))
     } finally {
       setBusy(false)
     }
@@ -654,9 +692,58 @@ export default function YearlyCompanyDetailPage() {
       <section>
         <h2 className="mb-2 font-medium">進捗</h2>
         <p className="text-sm text-muted-foreground">
-          現在の進捗は上部バッジで確認・更新できます。変更履歴タイムラインは
-          UC-14（Activity Log）で後続実装予定です。
+          現在の進捗は上部バッジで更新できます。履歴とメモは Activity Log で管理します。
         </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-medium">Activity Log</h2>
+        <form
+          onSubmit={(e) => void handleCreateActivityLog(e)}
+          className="rounded-md border p-3"
+        >
+          <Field>
+            <FieldLabel>手動ログを追加</FieldLabel>
+            <Textarea
+              value={activityMessage}
+              onChange={(e) => setActivityMessage(e.target.value)}
+              placeholder="例）先方と電話。見積確認後に契約メニューを確定予定。"
+              rows={3}
+            />
+          </Field>
+          <div className="mt-3">
+            <Button type="submit" size="sm" disabled={busy || !activityMessage.trim()}>
+              Activity Log を追加
+            </Button>
+          </div>
+        </form>
+
+        <div className="rounded-md border">
+          {activityLogs.length === 0 ? (
+            <p className="px-3 py-4 text-sm text-muted-foreground">
+              Activity Log はまだありません。
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {activityLogs.map((log) => (
+                <li key={log.id} className="flex flex-col gap-1 px-3 py-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">
+                      {ACTIVITY_EVENT_LABEL[log.eventType]}
+                    </Badge>
+                    <span className="text-muted-foreground">
+                      {new Date(log.createdAt).toLocaleString("ja-JP")}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {log.createdByName ?? "(不明なユーザー)"}
+                    </span>
+                  </div>
+                  <p>{log.message}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
     </div>
   )

@@ -318,13 +318,22 @@ Display:
 
 Filters:
 
-* Company name (search, substring match)
+* Company name (FR-010) — typo-tolerant / similar-term search (not only exact substring), so users can find targets that plain browser `Ctrl+F` misses
 * Company status
 * Sponsorship phase
 * Assigned member (FR-010)
 * Advisor (FR-010; matches if the assigned member has the selected Advisor among their `AdvisorAssignment` rows for the active Year — a member may have more than one)
 * Sponsorship Progress (FR-010)
-* Contract status (not yet implemented)
+* Contract existence (FR-010; has contract / no contract)
+
+Filter UX for operational scale (about 20 committee members, about 500 companies):
+
+* Prioritize exploratory filtering over single-value selectors. Use faceted controls that can narrow candidates quickly (multi-select chips + candidate counts) instead of only opening long dropdown lists.
+* Advisor/Member filters should be searchable pickers with ranking by relevance and recent usage, so users can discover targets quickly even when they do not remember the exact display name.
+* Company-name filtering should support approximate matching (e.g., notation differences, partial typo, close token) and show matched-highlight snippets to explain why each row matched.
+* Keep the list optimized for "filter first, inspect later": filters stay visible while scrolling, and active conditions are always shown as removable chips.
+
+Contract existence is used only as a filter condition; it is not shown as a dedicated column in the table.
 
 The Assigned Member column/edit surfaces and edits the Yearly Company's single assignee (inline, cell-level, per Principle 4). `CompanyAssignment` is domain-modeled as 0..1 per Yearly Company (`spec/model.md#CompanyAssignment`) — a Yearly Company has at most one assigned member, so this is the actual cardinality, not a UI simplification.
 
@@ -370,7 +379,12 @@ Contract and Contract Menu are both shown directly on this screen (there is no s
 * No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately after Contract Menu が作成され `totalAmount > 0` の場合（`POST /contracts/{contractId}/payment`）、goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
 * A contract exists — the full Contract Menu table (quantity/price/production status, same as Contract Menu Management below), invoice generation (FR-015), and payment status (read-only here — status changes happen on Finance) are all shown inline. Each row also has a "削除" action (`DELETE /contract-menus/{id}`, spec/api.md#Delete Contract Menu) that removes the line item and recalculates the Contract's `totalAmount`; this is the add/remove point for a Contract's Contract Menus — Contract Menu List (below) is a cross-contract monitoring view, not where items get added or removed.
 
-Progress History currently shows only the live `YearlyCompany.progress` badge (editable). A full change-history timeline is UC-14 (Activity Log) — not built yet.
+Progress shows an editable live `YearlyCompany.progress` badge and an Activity Log timeline (UC-14) on this detail screen.
+
+Activity Log on detail:
+
+* Timeline view (newest first) for progress/assignment/contract-related events tied to this Yearly Company.
+* "Add Activity Log" action exists on this detail screen so users can create manual notes/events from here, without returning to list screens.
 
 ---
 

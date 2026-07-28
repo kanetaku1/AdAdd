@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { FileCheck, FileX, Users } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -20,11 +23,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useActiveYear } from "@/components/active-year-provider"
+import {
+  ColumnFilterOption,
+  ColumnFilterPopover,
+} from "@/components/column-filter-header"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
 import { canAccess } from "@/lib/auth/roles"
+import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   assignMember,
   listUsers,
@@ -40,6 +48,7 @@ import {
   SPONSORSHIP_PHASE_LABEL,
   SPONSORSHIP_PROGRESS_LABEL,
 } from "@/lib/yearly-company-labels"
+import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { User } from "@/types/user"
 import type {
   CompanyStatus,
@@ -50,8 +59,51 @@ import type {
 
 const ALL = "ALL" as const
 const UNASSIGNED = "UNASSIGNED" as const
+const CONTRACT_FILTER_HAS = "契約あり" as const
+const CONTRACT_FILTER_NONE = "契約なし" as const
+type ContractFilter =
+  | typeof CONTRACT_FILTER_HAS
+  | typeof CONTRACT_FILTER_NONE
+  | null
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[()（）・\-ー_]/g, "")
+}
+
+function buildBigrams(text: string): Set<string> {
+  const grams = new Set<string>()
+  if (text.length <= 1) {
+    grams.add(text)
+    return grams
+  }
+  for (let i = 0; i < text.length - 1; i += 1) {
+    grams.add(text.slice(i, i + 2))
+  }
+  return grams
+}
+
+function fuzzyMatchCompanyName(companyName: string, query: string): boolean {
+  const normalizedName = normalizeSearchText(companyName)
+  const normalizedQuery = normalizeSearchText(query)
+  if (!normalizedQuery) return true
+  if (normalizedName.includes(normalizedQuery)) return true
+
+  const nameGrams = buildBigrams(normalizedName)
+  const queryGrams = buildBigrams(normalizedQuery)
+  let intersection = 0
+  for (const gram of queryGrams) {
+    if (nameGrams.has(gram)) intersection += 1
+  }
+  const score = intersection / Math.max(queryGrams.size, 1)
+  return score >= 0.6
+}
 
 type EditableColumn = "companyStatus" | "phase" | "assignedMember"
+type ColumnFilterKey = "status" | "phase" | "member" | "progress"
 
 /**
  * Yearly Company List (spec/frontend.md#Yearly Company Management).
@@ -71,6 +123,13 @@ export default function YearlyCompaniesPage() {
   const canEditAssignee = canAccess(currentUser?.roles, ["ADMINISTRATOR"])
   const [rows, setRows] = useState<YearlyCompany[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [advisorAssignments, setAdvisorAssignments] = useState<
+    AdvisorAssignment[]
+  >([])
+  const [companyKeyword, setCompanyKeyword] = useState("")
+  const [memberFilter, setMemberFilter] = useState<string | typeof ALL>(ALL)
+  const [advisorFilter, setAdvisorFilter] = useState<string | typeof ALL>(ALL)
+  const [contractFilter, setContractFilter] = useState<ContractFilter>(null)
   const [companyStatusFilter, setCompanyStatusFilter] = useState<
     CompanyStatus | typeof ALL
   >(ALL)
@@ -80,6 +139,9 @@ export default function YearlyCompaniesPage() {
   const [progressFilter, setProgressFilter] = useState<
     SponsorshipProgress | typeof ALL
   >(ALL)
+  const [openColumnFilter, setOpenColumnFilter] =
+    useState<ColumnFilterKey | null>(null)
+  const [advisorFilterOpen, setAdvisorFilterOpen] = useState(false)
   const [editingCell, setEditingCell] = useState<{
     id: string
     column: EditableColumn
@@ -95,6 +157,7 @@ export default function YearlyCompaniesPage() {
       if (!yearId) {
         setRows([])
         setUsers([])
+        setAdvisorAssignments([])
         setLoading(false)
         setError(null)
         return
@@ -102,17 +165,20 @@ export default function YearlyCompaniesPage() {
       setLoading(true)
       setError(null)
       try {
-        const [list, userList] = await Promise.all([
+        const [list, userList, assignments] = await Promise.all([
           listYearlyCompaniesByYear(yearId),
           listUsers(),
+          listAdvisorAssignmentsByYear(yearId),
         ])
         if (cancelled) return
         setRows(list)
         setUsers(userList)
+        setAdvisorAssignments(assignments)
       } catch (e) {
         if (!cancelled) {
           setRows([])
           setUsers([])
+          setAdvisorAssignments([])
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
@@ -130,13 +196,100 @@ export default function YearlyCompaniesPage() {
       rows.filter(
         (yc) =>
           yc.yearId === activeYearId &&
+          fuzzyMatchCompanyName(yc.companyName, companyKeyword) &&
           (companyStatusFilter === ALL ||
             yc.companyStatus === companyStatusFilter) &&
           (phaseFilter === ALL || yc.phase === phaseFilter) &&
-          (progressFilter === ALL || yc.progress === progressFilter)
+          (progressFilter === ALL || yc.progress === progressFilter) &&
+          (memberFilter === ALL
+            ? true
+            : memberFilter === UNASSIGNED
+              ? yc.assignedMemberId === null
+              : yc.assignedMemberId === memberFilter) &&
+          (advisorFilter === ALL
+            ? true
+            : yc.assignedMemberId
+              ? advisorAssignments.some(
+                  (assignment) =>
+                    assignment.memberId === yc.assignedMemberId &&
+                    assignment.advisorId === advisorFilter
+                )
+              : false) &&
+          (contractFilter === null
+            ? true
+            : contractFilter === CONTRACT_FILTER_HAS
+              ? yc.contractTotalAmount !== null
+              : yc.contractTotalAmount === null)
       ),
-    [rows, activeYearId, companyStatusFilter, phaseFilter, progressFilter]
+    [
+      rows,
+      activeYearId,
+      companyKeyword,
+      companyStatusFilter,
+      phaseFilter,
+      progressFilter,
+      memberFilter,
+      advisorFilter,
+      advisorAssignments,
+      contractFilter,
+    ]
   )
+
+  const memberOptions = useMemo(
+    () => users.filter((u) => u.isActive),
+    [users]
+  )
+
+  const advisorOptions = useMemo(() => {
+    const advisorIds = new Set(advisorAssignments.map((a) => a.advisorId))
+    return users.filter((u) => advisorIds.has(u.id))
+  }, [advisorAssignments, users])
+
+  const companySuggestions = useMemo(() => {
+    const base = rows.filter((yc) => yc.yearId === activeYearId)
+    const names = Array.from(new Set(base.map((yc) => yc.companyName)))
+    if (!companyKeyword.trim()) return []
+    return names
+      .filter((name) => fuzzyMatchCompanyName(name, companyKeyword))
+      .slice(0, 8)
+  }, [rows, activeYearId, companyKeyword])
+
+  const memberFacetCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const yc of rows) {
+      if (yc.yearId !== activeYearId) continue
+      const key = yc.assignedMemberId ?? UNASSIGNED
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return counts
+  }, [rows, activeYearId])
+
+  const advisorFacetCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const yc of rows) {
+      if (yc.yearId !== activeYearId || !yc.assignedMemberId) continue
+      const advisors = advisorAssignments.filter(
+        (assignment) => assignment.memberId === yc.assignedMemberId
+      )
+      for (const advisor of advisors) {
+        counts.set(advisor.advisorId, (counts.get(advisor.advisorId) ?? 0) + 1)
+      }
+    }
+    return counts
+  }, [rows, activeYearId, advisorAssignments])
+
+  const hasActiveFilters =
+    companyKeyword.trim().length > 0 ||
+    memberFilter !== ALL ||
+    advisorFilter !== ALL ||
+    contractFilter !== null ||
+    companyStatusFilter !== ALL ||
+    phaseFilter !== ALL ||
+    progressFilter !== ALL
+
+  function toggleColumnFilter(key: ColumnFilterKey) {
+    setOpenColumnFilter((current) => (current === key ? null : key))
+  }
 
   async function setCompanyStatus(id: string, value: CompanyStatus) {
     setActionError(null)
@@ -231,79 +384,258 @@ export default function YearlyCompaniesPage() {
       <ErrorBanner message={yearError || error} />
       <ErrorBanner message={actionError} />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Select
-          value={companyStatusFilter}
-          onValueChange={(value) =>
-            setCompanyStatusFilter(value as CompanyStatus | typeof ALL)
-          }
-          items={{ [ALL]: "すべてのステータス", ...COMPANY_STATUS_LABEL }}
-        >
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="企業ステータス" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>すべてのステータス</SelectItem>
-            {Object.entries(COMPANY_STATUS_LABEL).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={phaseFilter}
-          onValueChange={(value) =>
-            setPhaseFilter(value as SponsorshipPhase | typeof ALL)
-          }
-          items={{ [ALL]: "すべてのフェーズ", ...SPONSORSHIP_PHASE_LABEL }}
-        >
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="フェーズ" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>すべてのフェーズ</SelectItem>
-            {Object.entries(SPONSORSHIP_PHASE_LABEL).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={progressFilter}
-          onValueChange={(value) =>
-            setProgressFilter(value as SponsorshipProgress | typeof ALL)
-          }
-          items={{ [ALL]: "すべての進捗", ...SPONSORSHIP_PROGRESS_LABEL }}
-        >
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="進捗" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>すべての進捗</SelectItem>
-            {Object.entries(SPONSORSHIP_PROGRESS_LABEL).map(
-              ([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              )
+      <div className="flex flex-col gap-3 rounded-md border bg-background p-3">
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-56 flex-1">
+            <Input
+              value={companyKeyword}
+              onChange={(e) => setCompanyKeyword(e.target.value)}
+              placeholder="企業名で検索"
+            />
+            {companyKeyword.trim().length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {companySuggestions.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">
+                    候補が見つかりません
+                  </span>
+                ) : (
+                  companySuggestions.map((name) => (
+                    <Button
+                      key={name}
+                      size="xs"
+                      variant="outline"
+                      onClick={() => setCompanyKeyword(name)}
+                    >
+                      {name}
+                    </Button>
+                  ))
+                )}
+              </div>
             )}
-          </SelectContent>
-        </Select>
+          </div>
+
+          <div className="flex rounded-md border p-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                contractFilter === CONTRACT_FILTER_HAS ? "secondary" : "ghost"
+              }
+              className="h-7 gap-1.5 rounded-sm px-2.5"
+              onClick={() =>
+                setContractFilter((current) =>
+                  current === CONTRACT_FILTER_HAS ? null : CONTRACT_FILTER_HAS
+                )
+              }
+            >
+              <FileCheck className="size-3.5" />
+              契約あり
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                contractFilter === CONTRACT_FILTER_NONE ? "secondary" : "ghost"
+              }
+              className="h-7 gap-1.5 rounded-sm px-2.5"
+              onClick={() =>
+                setContractFilter((current) =>
+                  current === CONTRACT_FILTER_NONE ? null : CONTRACT_FILTER_NONE
+                )
+              }
+            >
+              <FileX className="size-3.5" />
+              契約なし
+            </Button>
+          </div>
+
+          <ColumnFilterPopover
+            icon={<Users className="size-4" />}
+            label={
+              advisorFilter === ALL
+                ? undefined
+                : (users.find((u) => u.id === advisorFilter)?.name ?? "選択中")
+            }
+            active={advisorFilter !== ALL}
+            open={advisorFilterOpen}
+            onToggle={() => setAdvisorFilterOpen((prev) => !prev)}
+            onClose={() => setAdvisorFilterOpen(false)}
+          >
+            {advisorOptions.map((u) => (
+              <ColumnFilterOption
+                key={u.id}
+                selected={advisorFilter === u.id}
+                onSelect={() =>
+                  setAdvisorFilter((current) => (current === u.id ? ALL : u.id))
+                }
+              >
+                {u.name} ({advisorFacetCounts.get(u.id) ?? 0})
+              </ColumnFilterOption>
+            ))}
+          </ColumnFilterPopover>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>適用中:</span>
+            {companyKeyword && (
+              <Badge variant="secondary">会社名: {companyKeyword}</Badge>
+            )}
+            {memberFilter !== ALL && (
+              <Badge variant="secondary">
+                担当者:{" "}
+                {memberFilter === UNASSIGNED
+                  ? "未割当"
+                  : (users.find((u) => u.id === memberFilter)?.name ?? "不明")}
+              </Badge>
+            )}
+            {advisorFilter !== ALL && (
+              <Badge variant="secondary">
+                アドバイザー:{" "}
+                {users.find((u) => u.id === advisorFilter)?.name ?? "不明"}
+              </Badge>
+            )}
+            {contractFilter !== null && (
+              <Badge variant="secondary">{contractFilter}</Badge>
+            )}
+            {companyStatusFilter !== ALL && (
+              <Badge variant="secondary">
+                ステータス: {COMPANY_STATUS_LABEL[companyStatusFilter]}
+              </Badge>
+            )}
+            {phaseFilter !== ALL && (
+              <Badge variant="secondary">
+                フェーズ: {SPONSORSHIP_PHASE_LABEL[phaseFilter]}
+              </Badge>
+            )}
+            {progressFilter !== ALL && (
+              <Badge variant="secondary">
+                進捗: {SPONSORSHIP_PROGRESS_LABEL[progressFilter]}
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border [&_[data-slot=table-container]]:overflow-visible">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>会社名</TableHead>
-              <TableHead>ステータス</TableHead>
-              <TableHead>フェーズ</TableHead>
-              <TableHead>担当メンバー</TableHead>
-              <TableHead>進捗</TableHead>
+              <TableHead>
+                <ColumnFilterPopover
+                  label="ステータス"
+                  active={companyStatusFilter !== ALL}
+                  open={openColumnFilter === "status"}
+                  onToggle={() => toggleColumnFilter("status")}
+                  onClose={() => setOpenColumnFilter(null)}
+                >
+                  <ColumnFilterOption
+                    selected={companyStatusFilter === ALL}
+                    onSelect={() => setCompanyStatusFilter(ALL)}
+                  >
+                    すべて
+                  </ColumnFilterOption>
+                  {Object.entries(COMPANY_STATUS_LABEL).map(([value, label]) => (
+                    <ColumnFilterOption
+                      key={value}
+                      selected={companyStatusFilter === value}
+                      onSelect={() =>
+                        setCompanyStatusFilter(value as CompanyStatus)
+                      }
+                    >
+                      {label}
+                    </ColumnFilterOption>
+                  ))}
+                </ColumnFilterPopover>
+              </TableHead>
+              <TableHead>
+                <ColumnFilterPopover
+                  label="フェーズ"
+                  active={phaseFilter !== ALL}
+                  open={openColumnFilter === "phase"}
+                  onToggle={() => toggleColumnFilter("phase")}
+                  onClose={() => setOpenColumnFilter(null)}
+                >
+                  <ColumnFilterOption
+                    selected={phaseFilter === ALL}
+                    onSelect={() => setPhaseFilter(ALL)}
+                  >
+                    すべて
+                  </ColumnFilterOption>
+                  {Object.entries(SPONSORSHIP_PHASE_LABEL).map(
+                    ([value, label]) => (
+                      <ColumnFilterOption
+                        key={value}
+                        selected={phaseFilter === value}
+                        onSelect={() => setPhaseFilter(value as SponsorshipPhase)}
+                      >
+                        {label}
+                      </ColumnFilterOption>
+                    )
+                  )}
+                </ColumnFilterPopover>
+              </TableHead>
+              <TableHead>
+                <ColumnFilterPopover
+                  label="担当者"
+                  active={memberFilter !== ALL}
+                  open={openColumnFilter === "member"}
+                  onToggle={() => toggleColumnFilter("member")}
+                  onClose={() => setOpenColumnFilter(null)}
+                >
+                  <ColumnFilterOption
+                    selected={memberFilter === ALL}
+                    onSelect={() => setMemberFilter(ALL)}
+                  >
+                    すべて
+                  </ColumnFilterOption>
+                  <ColumnFilterOption
+                    selected={memberFilter === UNASSIGNED}
+                    onSelect={() => setMemberFilter(UNASSIGNED)}
+                  >
+                    未割当 ({memberFacetCounts.get(UNASSIGNED) ?? 0})
+                  </ColumnFilterOption>
+                  {memberOptions.map((u) => (
+                    <ColumnFilterOption
+                      key={u.id}
+                      selected={memberFilter === u.id}
+                      onSelect={() => setMemberFilter(u.id)}
+                    >
+                      {u.name} ({memberFacetCounts.get(u.id) ?? 0})
+                    </ColumnFilterOption>
+                  ))}
+                </ColumnFilterPopover>
+              </TableHead>
+              <TableHead>
+                <ColumnFilterPopover
+                  label="進捗"
+                  active={progressFilter !== ALL}
+                  open={openColumnFilter === "progress"}
+                  onToggle={() => toggleColumnFilter("progress")}
+                  onClose={() => setOpenColumnFilter(null)}
+                >
+                  <ColumnFilterOption
+                    selected={progressFilter === ALL}
+                    onSelect={() => setProgressFilter(ALL)}
+                  >
+                    すべて
+                  </ColumnFilterOption>
+                  {Object.entries(SPONSORSHIP_PROGRESS_LABEL).map(
+                    ([value, label]) => (
+                      <ColumnFilterOption
+                        key={value}
+                        selected={progressFilter === value}
+                        onSelect={() =>
+                          setProgressFilter(value as SponsorshipProgress)
+                        }
+                      >
+                        {label}
+                      </ColumnFilterOption>
+                    )
+                  )}
+                </ColumnFilterPopover>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
