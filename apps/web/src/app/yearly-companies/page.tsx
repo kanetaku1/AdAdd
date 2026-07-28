@@ -20,9 +20,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useActiveYear } from "@/components/active-year-provider"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
+import { canAccess } from "@/lib/auth/roles"
 import {
   assignMember,
   listUsers,
@@ -61,6 +63,12 @@ export default function YearlyCompaniesPage() {
     error: yearError,
   } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
+  const { currentUser } = useCurrentUser()
+  const canEditStatusPhaseProgress = canAccess(currentUser?.roles, [
+    "SPONSORSHIP_MEMBER",
+    "ADMINISTRATOR",
+  ])
+  const canEditAssignee = canAccess(currentUser?.roles, ["ADMINISTRATOR"])
   const [rows, setRows] = useState<YearlyCompany[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [companyStatusFilter, setCompanyStatusFilter] = useState<
@@ -353,10 +361,12 @@ export default function YearlyCompaniesPage() {
                         <Badge
                           variant="outline"
                           className={
-                            rowSaving ? "opacity-50" : "cursor-pointer"
+                            rowSaving || !canEditStatusPhaseProgress
+                              ? "opacity-50"
+                              : "cursor-pointer"
                           }
                           onClick={() => {
-                            if (rowSaving) return
+                            if (rowSaving || !canEditStatusPhaseProgress) return
                             setEditingCell({
                               id: yc.id,
                               column: "companyStatus",
@@ -399,10 +409,12 @@ export default function YearlyCompaniesPage() {
                         <Badge
                           variant={SPONSORSHIP_PHASE_BADGE_VARIANT[yc.phase]}
                           className={
-                            rowSaving ? "opacity-50" : "cursor-pointer"
+                            rowSaving || !canEditStatusPhaseProgress
+                              ? "opacity-50"
+                              : "cursor-pointer"
                           }
                           onClick={() => {
-                            if (rowSaving) return
+                            if (rowSaving || !canEditStatusPhaseProgress) return
                             setEditingCell({ id: yc.id, column: "phase" })
                           }}
                         >
@@ -449,10 +461,12 @@ export default function YearlyCompaniesPage() {
                         <Badge
                           variant="outline"
                           className={
-                            rowSaving ? "opacity-50" : "cursor-pointer"
+                            rowSaving || !canEditAssignee
+                              ? "opacity-50"
+                              : "cursor-pointer"
                           }
                           onClick={() => {
-                            if (rowSaving) return
+                            if (rowSaving || !canEditAssignee) return
                             setEditingCell({
                               id: yc.id,
                               column: "assignedMember",
@@ -467,7 +481,7 @@ export default function YearlyCompaniesPage() {
                       <EditableProgressBadge
                         value={yc.progress}
                         onChange={(value) => void setProgress(yc.id, value)}
-                        disabled={rowSaving}
+                        disabled={rowSaving || !canEditStatusPhaseProgress}
                       />
                     </TableCell>
                   </TableRow>

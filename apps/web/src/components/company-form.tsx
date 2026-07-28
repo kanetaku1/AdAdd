@@ -16,9 +16,13 @@ import {
   FieldSet,
 } from "@/components/ui/field"
 import { ErrorBanner } from "@/components/query-state"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { createCompany, updateCompany } from "@/lib/data/companies"
 import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
 import type { Company } from "@/types/company"
+
+const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 
 type CompanyFormValues = Omit<Company, "id" | "createdAt" | "updatedAt">
 
@@ -47,6 +51,8 @@ export function CompanyForm({
   initialValue?: Company
 }) {
   const router = useRouter()
+  const { currentUser } = useCurrentUser()
+  const canSubmit = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const [values, setValues] = useState<CompanyFormValues>(
     initialValue ?? EMPTY_VALUES
   )
@@ -190,6 +196,11 @@ export function CompanyForm({
         </FieldSet>
 
         <ErrorBanner message={error} />
+        {!canSubmit && (
+          <p className="text-sm text-muted-foreground">
+            企業マスタの登録・編集を行う権限がありません。
+          </p>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button
@@ -199,7 +210,7 @@ export function CompanyForm({
           >
             キャンセル
           </Button>
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" disabled={submitting || !canSubmit}>
             {submitting
               ? "保存中…"
               : mode === "create"

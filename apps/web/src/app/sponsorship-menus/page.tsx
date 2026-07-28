@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 import { useActiveYear } from "@/components/active-year-provider"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -21,7 +22,10 @@ import {
   updateSponsorshipMenu,
 } from "@/lib/data/sponsorship-menus"
 import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
+
+const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 
 /**
  * Sponsorship Menu master (spec/frontend.md#Sponsorship Menu Management).
@@ -44,6 +48,8 @@ export default function SponsorshipMenusPage() {
     error: yearError,
   } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
+  const { currentUser } = useCurrentUser()
+  const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const [menus, setMenus] = useState<SponsorshipMenu[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -139,9 +145,11 @@ export default function SponsorshipMenusPage() {
             {activeYear?.name ?? ""}年度 協賛メニューマスタ
           </p>
         </div>
-        <Button onClick={() => void addMenu()} disabled={!activeYearId || adding}>
-          {adding ? "追加中…" : "行を追加"}
-        </Button>
+        {canManage && (
+          <Button onClick={() => void addMenu()} disabled={!activeYearId || adding}>
+            {adding ? "追加中…" : "行を追加"}
+          </Button>
+        )}
       </div>
 
       <ErrorBanner message={yearError || error} />
@@ -175,7 +183,7 @@ export default function SponsorshipMenusPage() {
                       <Input
                         value={menu.name}
                         placeholder="メニュー名"
-                        disabled={rowSaving}
+                        disabled={rowSaving || !canManage}
                         onChange={(e) =>
                           updateLocalMenu(menu.id, { name: e.target.value })
                         }
@@ -191,7 +199,7 @@ export default function SponsorshipMenusPage() {
                         min={0}
                         step={1000}
                         value={menu.defaultPrice}
-                        disabled={rowSaving}
+                        disabled={rowSaving || !canManage}
                         onChange={(e) =>
                           updateLocalMenu(menu.id, {
                             defaultPrice: Number(e.target.value) || 0,
@@ -207,7 +215,7 @@ export default function SponsorshipMenusPage() {
                     <TableCell>
                       <Switch
                         checked={menu.requiresSubmission}
-                        disabled={rowSaving}
+                        disabled={rowSaving || !canManage}
                         onCheckedChange={(checked) =>
                           handleImmediateChange(menu.id, {
                             requiresSubmission: checked,
@@ -218,7 +226,7 @@ export default function SponsorshipMenusPage() {
                     <TableCell>
                       <Switch
                         checked={menu.isActive}
-                        disabled={rowSaving}
+                        disabled={rowSaving || !canManage}
                         onCheckedChange={(checked) =>
                           handleImmediateChange(menu.id, { isActive: checked })
                         }

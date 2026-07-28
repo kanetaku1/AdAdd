@@ -29,8 +29,13 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { canAccess } from "@/lib/auth/roles"
 
-/** Navigation Structure — spec/frontend.md (YearlyCompany-centric). */
+/**
+ * Navigation Structure — spec/frontend.md. `allowedRoles` matches
+ * spec/frontend.md#Navigation Structure's explicit gating (Finance/Settings
+ * only) — every other item stays visible to any authenticated User.
+ */
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Companies", url: "/companies", icon: Building2 },
@@ -42,14 +47,27 @@ const NAV_ITEMS = [
     url: "/ad-material-progress",
     icon: Image,
   },
-  { title: "Finance", url: "/finance", icon: Wallet },
+  {
+    title: "Finance",
+    url: "/finance",
+    icon: Wallet,
+    allowedRoles: ["FINANCE_DEPARTMENT", "ADMINISTRATOR"],
+  },
   { title: "Years", url: "/years", icon: CalendarClock },
-  { title: "Settings", url: "/settings", icon: Settings },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
+    allowedRoles: ["ADMINISTRATOR"],
+  },
 ]
 
 export function AppSidebar() {
   const pathname = usePathname()
   const { currentUser } = useCurrentUser()
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => !item.allowedRoles || canAccess(currentUser?.roles, item.allowedRoles)
+  )
 
   return (
     <Sidebar collapsible="icon">
@@ -63,7 +81,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Sponsorship Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     render={<Link href={item.url} />}

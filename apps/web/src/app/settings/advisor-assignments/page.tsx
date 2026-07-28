@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 import { useActiveYear } from "@/components/active-year-provider"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { MemberAdvisorsCell } from "@/components/member-advisors-cell"
 import {
   Table,
@@ -12,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
+import { EmptyBlock, EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   addAdvisorAssignment,
   listAdvisorAssignmentsByYear,
@@ -20,8 +21,11 @@ import {
 } from "@/lib/data/advisor-assignments"
 import { listUsers } from "@/lib/data/users"
 import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
 import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { User } from "@/types/user"
+
+const ALLOWED_ROLES = ["ADMINISTRATOR"]
 
 /**
  * Advisor Assignment (spec/frontend.md#Advisor Assignment, UC-03/FR-013).
@@ -40,6 +44,8 @@ export default function AdvisorAssignmentsPage() {
     error: yearError,
   } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
+  const { currentUser } = useCurrentUser()
+  const canManageAssignments = canAccess(currentUser?.roles, ALLOWED_ROLES)
 
   const [users, setUsers] = useState<User[]>([])
   const [assignments, setAssignments] = useState<AdvisorAssignment[]>([])
@@ -129,6 +135,10 @@ export default function AdvisorAssignmentsPage() {
           (a) => users.find((u) => u.id === a.memberId)?.name ?? "(不明なユーザー)"
         ),
     }))
+
+  if (!canManageAssignments) {
+    return <EmptyBlock message="この画面を利用する権限がありません。" />
+  }
 
   return (
     <div className="flex flex-col gap-4">

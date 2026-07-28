@@ -24,13 +24,19 @@ import {
   ContractMenuItemFields,
   type ContractMenuItemValue,
 } from "@/components/contract-menu-item-fields"
+import { useCurrentUser } from "@/components/current-user-provider"
+import { ErrorBanner } from "@/components/query-state"
 import {
   addContractMenuToContract,
   deleteContractMenu,
 } from "@/lib/data/sponsorship"
+import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
 import { CONTRACT_MENU_PRODUCTION_TYPE_LABEL } from "@/lib/contract-menu-labels"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
+
+const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
@@ -65,6 +71,8 @@ export function ContractMenuSection({
   menus: SponsorshipMenu[]
   onChanged?: () => void
 }) {
+  const { currentUser } = useCurrentUser()
+  const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const [contractMenus, setContractMenus] = useState(initialContractMenus)
   const [totalAmount, setTotalAmount] = useState(initialTotalAmount)
   const [open, setOpen] = useState(false)
@@ -90,9 +98,7 @@ export function ContractMenuSection({
       setTotalAmount(nextTotal)
       onChanged?.()
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "メニューの削除に失敗しました"
-      )
+      setError(getErrorMessage(e, { fallback: "メニューの削除に失敗しました" }))
     } finally {
       setDeletingId(null)
     }
@@ -115,9 +121,7 @@ export function ContractMenuSection({
       setOpen(false)
       onChanged?.()
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "メニューの追加に失敗しました"
-      )
+      setError(getErrorMessage(e, { fallback: "メニューの追加に失敗しました" }))
     } finally {
       setBusy(false)
     }
@@ -127,41 +131,37 @@ export function ContractMenuSection({
     <>
       <div className="flex items-center justify-between">
         <h2 className="font-medium">協賛メニュー</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button variant="outline" size="sm" />}>
-            メニューを追加
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>メニューを追加</DialogTitle>
-            </DialogHeader>
-            <ContractMenuItemFields
-              value={newItem}
-              menus={menus}
-              onChange={(patch) =>
-                setNewItem((prev) => ({ ...prev, ...patch }))
-              }
-            />
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-            <DialogFooter>
-              <Button
-                onClick={() => void handleAdd()}
-                disabled={!newItem.sponsorshipMenuId || busy}
-              >
-                追加
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {canManage && (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger render={<Button variant="outline" size="sm" />}>
+              メニューを追加
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>メニューを追加</DialogTitle>
+              </DialogHeader>
+              <ContractMenuItemFields
+                value={newItem}
+                menus={menus}
+                onChange={(patch) =>
+                  setNewItem((prev) => ({ ...prev, ...patch }))
+                }
+              />
+              <ErrorBanner message={error} />
+              <DialogFooter>
+                <Button
+                  onClick={() => void handleAdd()}
+                  disabled={!newItem.sponsorshipMenuId || busy}
+                >
+                  追加
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
-      {error && !open && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {!open && <ErrorBanner message={error} />}
 
       <div className="rounded-md border">
         <Table>
@@ -201,15 +201,17 @@ export function ContractMenuSection({
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void handleDelete(cm.id)}
-                      disabled={deletingId === cm.id}
-                    >
-                      削除
-                    </Button>
+                    {canManage && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void handleDelete(cm.id)}
+                        disabled={deletingId === cm.id}
+                      >
+                        削除
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               )
