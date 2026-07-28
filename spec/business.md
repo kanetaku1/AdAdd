@@ -14,7 +14,7 @@ AdAdd provides a shared platform where every stakeholder can access the same inf
 
 # Organization
 
-The sponsorship organization consists of several departments.
+The sponsorship organization consists of several departments. These are operational/informal team names, not necessarily distinct system Roles — see `# Roles` below for the canonical, implemented Role set.
 
 ## Company Management Team
 
@@ -95,17 +95,9 @@ Responsible for:
 
 # Roles
 
-The system provides the following roles.
+The canonical, implemented Role set is defined in `spec/domain.md#Role` (4 Roles: Sponsorship Member, Advisor, Finance Department, Administrator; holding none is the view-only baseline). Company Management Team and Sponsorship Menu Management Team (above) are not separate Roles — their responsibilities are covered by Sponsorship Member (company/menu master data, day-to-day ad-material management) and Administrator (Year creation, assignment, deletion — see `spec/api.md#Authorization Matrix`).
 
-* General Member
-* Sponsorship Member
-* Sponsorship Advisor
-* Company Management Team
-* Sponsorship Menu Management Team
-* Finance Department
-* System Administrator
-
-Permissions are defined separately.
+Permissions are defined in `spec/api.md#Authorization Matrix`.
 
 ---
 

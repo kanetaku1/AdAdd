@@ -152,16 +152,19 @@ This is master data, managed independently of any company or contract.
 
 ### Attributes
 
-| Name               | Type    |
-| ------------------ | ------- |
-| id                 | UUID    |
-| yearId             | UUID    |
-| name               | string  |
-| defaultPrice       | decimal |
-| requiresSubmission | boolean |
-| isActive           | boolean |
+| Name               | Type            |
+| ------------------ | --------------- |
+| id                 | UUID            |
+| yearId             | UUID            |
+| name               | string          |
+| defaultPrice       | decimal         |
+| requiresSubmission | boolean         |
+| isActive           | boolean         |
+| maxQuantity        | integer, nullable |
 
 `requiresSubmission` alone determines the Contract Menu's management workflow (submission/production tracking vs. none) — there is no separate category field. A previous `category` (Advertisement/Booth) enum was removed because it never carried information beyond what `requiresSubmission` already expressed (see `spec/domain.md`).
+
+`maxQuantity` is an optional sponsorship cap for menus with limited availability (e.g. a fixed number of booth slots). `null` means unlimited. It bounds the sum of `quantity` across that menu's Contract Menus for the Year — see `spec/frontend.md#Ad Material Progress` for how fill-against-cap is surfaced.
 
 ---
 
@@ -188,7 +191,7 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 
 ContractMenu does not have its own assignee. The assignee belongs to the parent `SponsorshipContract`.
 
-`unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus.
+`unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus. `quantity`, `unitPrice`, `isGoodsSponsorship`, and `productionType` remain editable after creation (not just at creation), each recalculating `totalAmount` per the rule above — see `spec/api.md#Update Contract Menu`.
 
 `isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
 
@@ -593,6 +596,8 @@ The following rules must always be satisfied.
 * An assignee is set per Sponsorship Contract, never per Contract Menu.
 * A User must be pre-registered (by email, by an Administrator) before they can authenticate — there is no self-service signup, regardless of authentication provider.
 * Roles are granted by an Administrator through UserRole; a User is never able to grant themselves a Role.
+* Deletion is Administrator-only across the system (e.g. Contract Menu, AdvisorAssignment, UserRole). Non-Administrator Roles may create and update but never delete — see `spec/api.md#Authorization Matrix`.
+* ActivityLog entries are created only by the system in response to a progress/Contract Menu status/Payment status change — there is no manual/user-authored entry point.
 
 ---
 
