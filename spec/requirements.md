@@ -184,6 +184,7 @@ The system shall:
 * Record important operations
 * Preserve history permanently
 * Display historical records
+* Allow manual Activity Log entry from the Yearly Company detail screen (for contextual notes/events)
 
 ### Related Use Cases
 
@@ -258,7 +259,12 @@ Users shall be able to search by:
 * Sponsorship Member
 * Advisor
 * Sponsorship Progress
-* Contract Menu Status
+* Contract existence (has contract / no contract)
+
+Search quality requirements:
+
+* Company name search shall support typo-tolerant / similar-term matching, not only exact substring matching, so users can find records that browser `Ctrl+F` would miss.
+* For Yearly Company operations (about 20 members, about 500 companies), filtering UX shall prioritize exploratory narrowing (multi-condition faceted filtering) over single long selector operations.
 
 ### Related Use Cases
 

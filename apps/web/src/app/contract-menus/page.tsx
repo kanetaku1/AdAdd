@@ -1,20 +1,17 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 
 import { useActiveYear } from "@/components/active-year-provider"
+import {
+  ColumnFilterOption,
+  ColumnFilterPopover,
+} from "@/components/column-filter-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -44,6 +41,7 @@ import type {
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const ALL = "ALL" as const
+type ColumnFilterKey = "menu" | "productionType" | "status"
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
@@ -115,6 +113,8 @@ function ContractMenusList() {
   const [productionTypeFilter, setProductionTypeFilter] = useState<
     ContractMenuProductionType | typeof ALL
   >(ALL)
+  const [openColumnFilter, setOpenColumnFilter] =
+    useState<ColumnFilterKey | null>(null)
 
   const [driveUrlDrafts, setDriveUrlDrafts] = useState<Record<string, string>>(
     {}
@@ -155,6 +155,15 @@ function ContractMenusList() {
     }
   }, [activeYearId])
 
+  const companySuggestions = useMemo(() => {
+    const names = Array.from(new Set(contractMenus.map((cm) => cm.companyName)))
+    const query = companyNameQuery.trim().toLowerCase()
+    if (!query) return []
+    return names
+      .filter((name) => name.toLowerCase().includes(query))
+      .slice(0, 8)
+  }, [contractMenus, companyNameQuery])
+
   const visibleContractMenus = contractMenus.filter((cm) => {
     return (
       (menuFilter === ALL || cm.sponsorshipMenuId === menuFilter) &&
@@ -168,6 +177,16 @@ function ContractMenusList() {
         : true)
     )
   })
+
+  const hasActiveFilters =
+    companyNameQuery.trim().length > 0 ||
+    menuFilter !== ALL ||
+    statusFilter !== ALL ||
+    productionTypeFilter !== ALL
+
+  function toggleColumnFilter(key: ColumnFilterKey) {
+    setOpenColumnFilter((current) => (current === key ? null : key))
+  }
 
   async function handleStatusChange(id: string, status: ContractMenuStatus) {
     setError(null)
@@ -224,95 +243,146 @@ function ContractMenusList() {
 
       <ErrorBanner message={yearError || error} />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="企業名で検索"
-          value={companyNameQuery}
-          onChange={(e) => setCompanyNameQuery(e.target.value)}
-          className="max-w-56"
-        />
+      <div className="flex flex-col gap-3 rounded-md border bg-background p-3">
+        <div className="min-w-56 max-w-md flex-1">
+          <Input
+            placeholder="企業名で検索"
+            value={companyNameQuery}
+            onChange={(e) => setCompanyNameQuery(e.target.value)}
+          />
+          {companyNameQuery.trim().length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {companySuggestions.length === 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  候補が見つかりません
+                </span>
+              ) : (
+                companySuggestions.map((name) => (
+                  <Button
+                    key={name}
+                    size="xs"
+                    variant="outline"
+                    onClick={() => setCompanyNameQuery(name)}
+                  >
+                    {name}
+                  </Button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
 
-        <Select
-          value={menuFilter}
-          onValueChange={(value) => setMenuFilter(value ?? ALL)}
-          items={{
-            [ALL]: "すべてのメニュー",
-            ...Object.fromEntries(menus.map((m) => [m.id, m.name])),
-          }}
-        >
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="メニュー" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>すべてのメニュー</SelectItem>
-            {menus.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={productionTypeFilter}
-          onValueChange={(value) =>
-            setProductionTypeFilter(
-              value as ContractMenuProductionType | typeof ALL
-            )
-          }
-          items={{
-            [ALL]: "すべての制作者",
-            ...CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
-          }}
-        >
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="制作者" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>すべての制作者</SelectItem>
-            {Object.entries(CONTRACT_MENU_PRODUCTION_TYPE_LABEL).map(
-              ([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              )
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>適用中:</span>
+            {companyNameQuery.trim() && (
+              <Badge variant="secondary">会社名: {companyNameQuery}</Badge>
             )}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={statusFilter}
-          onValueChange={(value) =>
-            setStatusFilter(value as ContractMenuStatus | typeof ALL)
-          }
-          items={{ [ALL]: "すべてのステータス", ...CONTRACT_MENU_STATUS_LABEL }}
-        >
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="ステータス" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>すべてのステータス</SelectItem>
-            {Object.entries(CONTRACT_MENU_STATUS_LABEL).map(
-              ([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              )
+            {menuFilter !== ALL && (
+              <Badge variant="secondary">
+                メニュー:{" "}
+                {menus.find((m) => m.id === menuFilter)?.name ?? "不明"}
+              </Badge>
             )}
-          </SelectContent>
-        </Select>
+            {productionTypeFilter !== ALL && (
+              <Badge variant="secondary">
+                制作者:{" "}
+                {CONTRACT_MENU_PRODUCTION_TYPE_LABEL[productionTypeFilter]}
+              </Badge>
+            )}
+            {statusFilter !== ALL && (
+              <Badge variant="secondary">
+                ステータス: {CONTRACT_MENU_STATUS_LABEL[statusFilter]}
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border [&_[data-slot=table-container]]:overflow-visible">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>会社名</TableHead>
-              <TableHead>メニュー</TableHead>
+              <TableHead>
+                <ColumnFilterPopover
+                  label="メニュー"
+                  active={menuFilter !== ALL}
+                  open={openColumnFilter === "menu"}
+                  onToggle={() => toggleColumnFilter("menu")}
+                  onClose={() => setOpenColumnFilter(null)}
+                >
+                  {menus.map((m) => (
+                    <ColumnFilterOption
+                      key={m.id}
+                      selected={menuFilter === m.id}
+                      onSelect={() =>
+                        setMenuFilter((current) =>
+                          current === m.id ? ALL : m.id
+                        )
+                      }
+                    >
+                      {m.name}
+                    </ColumnFilterOption>
+                  ))}
+                </ColumnFilterPopover>
+              </TableHead>
               <TableHead>数量</TableHead>
               <TableHead>単価</TableHead>
-              <TableHead>制作者</TableHead>
-              <TableHead>ステータス</TableHead>
+              <TableHead>
+                <ColumnFilterPopover
+                  label="制作者"
+                  active={productionTypeFilter !== ALL}
+                  open={openColumnFilter === "productionType"}
+                  onToggle={() => toggleColumnFilter("productionType")}
+                  onClose={() => setOpenColumnFilter(null)}
+                >
+                  {Object.entries(CONTRACT_MENU_PRODUCTION_TYPE_LABEL).map(
+                    ([value, label]) => (
+                      <ColumnFilterOption
+                        key={value}
+                        selected={productionTypeFilter === value}
+                        onSelect={() =>
+                          setProductionTypeFilter((current) =>
+                            current === value
+                              ? ALL
+                              : (value as ContractMenuProductionType)
+                          )
+                        }
+                      >
+                        {label}
+                      </ColumnFilterOption>
+                    )
+                  )}
+                </ColumnFilterPopover>
+              </TableHead>
+              <TableHead>
+                <ColumnFilterPopover
+                  label="ステータス"
+                  active={statusFilter !== ALL}
+                  open={openColumnFilter === "status"}
+                  onToggle={() => toggleColumnFilter("status")}
+                  onClose={() => setOpenColumnFilter(null)}
+                >
+                  {Object.entries(CONTRACT_MENU_STATUS_LABEL).map(
+                    ([value, label]) => (
+                      <ColumnFilterOption
+                        key={value}
+                        selected={statusFilter === value}
+                        onSelect={() =>
+                          setStatusFilter((current) =>
+                            current === value
+                              ? ALL
+                              : (value as ContractMenuStatus)
+                          )
+                        }
+                      >
+                        {label}
+                      </ColumnFilterOption>
+                    )
+                  )}
+                </ColumnFilterPopover>
+              </TableHead>
               <TableHead>
                 Drive URL
                 <span className="ml-1.5 font-normal text-muted-foreground">

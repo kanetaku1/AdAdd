@@ -359,10 +359,11 @@ Understand past business activities.
 1. Open Yearly Company.
 2. Open Activity History.
 3. Review recorded events.
+4. (Optional) Add a manual Activity Log entry from the detail screen when a business event should be recorded explicitly.
 
 ## Result
 
-Business history is visible.
+Business history is visible and can be supplemented with manual notes/events when needed.
 
 ---
 

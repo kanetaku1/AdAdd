@@ -18,9 +18,14 @@ import {
 import { mockSponsorshipMenus } from "@/lib/mock/sponsorship-menus"
 import { mockUsers } from "@/lib/mock/users"
 import {
+  addMockActivityLog,
+  listMockActivityLogs,
+} from "@/lib/mock/activity-logs"
+import {
   mockYearlyCompanies,
   updateAssignedMember,
 } from "@/lib/mock/yearly-companies"
+import type { ActivityEventType, ActivityLog } from "@/types/activity-log"
 import type {
   ContractMenu,
   ContractMenuAcrossYear,
@@ -155,6 +160,32 @@ export async function listYearlyCompaniesByYear(
   return mockYearlyCompanies
     .filter((yc) => yc.yearId === yearId)
     .map(enrichYearlyCompany)
+}
+
+export async function listActivityLogsByYearlyCompany(
+  yearlyCompanyId: string
+): Promise<ActivityLog[]> {
+  if (isApiEnabled()) {
+    return apiFetch<ActivityLog[]>(`/yearly-companies/${yearlyCompanyId}/activity-logs`)
+  }
+  return listMockActivityLogs(yearlyCompanyId)
+}
+
+export async function createActivityLog(
+  yearlyCompanyId: string,
+  input: { eventType: ActivityEventType; message: string }
+): Promise<ActivityLog> {
+  if (isApiEnabled()) {
+    return apiFetch<ActivityLog>(`/yearly-companies/${yearlyCompanyId}/activity-logs`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    })
+  }
+  return addMockActivityLog({
+    yearlyCompanyId,
+    eventType: input.eventType,
+    message: input.message,
+  })
 }
 
 export async function getYearlyCompany(
@@ -520,6 +551,11 @@ export async function assignMember(
     return
   }
   updateAssignedMember(yearlyCompanyId, userId)
+  addMockActivityLog({
+    yearlyCompanyId,
+    eventType: "ASSIGNMENT_UPDATED",
+    message: userId ? "担当メンバーを更新" : "担当メンバーを未割当に変更",
+  })
 }
 
 export async function updateYearlyCompanyProgress(
@@ -534,7 +570,14 @@ export async function updateYearlyCompanyProgress(
     return
   }
   const yc = mockYearlyCompanies.find((row) => row.id === yearlyCompanyId)
-  if (yc) yc.progress = progress
+  if (yc) {
+    yc.progress = progress
+    addMockActivityLog({
+      yearlyCompanyId,
+      eventType: "PROGRESS_UPDATED",
+      message: `進捗を「${progress}」に更新`,
+    })
+  }
 }
 
 export async function updateYearlyCompanyStatus(
@@ -634,6 +677,11 @@ export async function createContractWithMenus(
   }
   addSponsorshipContract(contract)
   if (yc) yc.progress = "CONFIRMED"
+  addMockActivityLog({
+    yearlyCompanyId,
+    eventType: "CONTRACT_CREATED",
+    message: `契約を作成（合計: ¥${previewTotal.toLocaleString("ja-JP")}）`,
+  })
 
   for (const item of input.items) {
     if (!item.sponsorshipMenuId) continue

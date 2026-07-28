@@ -366,11 +366,15 @@ GET /years/{yearId}/companies
 
 Query:
 
-| Parameter     | Description                              |
-| ------------- | ----------------------------------------- |
-| companyStatus | Company relationship history              |
-| phase         | Sponsorship outreach priority (this Year)  |
-| assignee      | Sponsorship member                         |
+| Parameter      | Description |
+| -------------- | ----------- |
+| keyword        | Company-name search (typo-tolerant / similar-term; not limited to exact substring) |
+| companyStatus  | Company relationship history |
+| phase          | Sponsorship outreach priority (this Year) |
+| assigneeUserId | Sponsorship member |
+| advisorUserId  | Advisor (match Yearly Companies whose assignee is supervised by this advisor in the same Year) |
+| progress       | Sponsorship progress |
+| hasContract    | Contract existence filter (`true` / `false`) |
 
 The response joins `Company.companyName` and the assigned member (`CompanyAssignment`, see Company Assignment API below) so each item is self-contained for list display:
 
@@ -393,6 +397,8 @@ The response joins `Company.companyName` and the assigned member (`CompanyAssign
 `assignedMemberId`/`assignedMemberName` surface the Yearly Company's `CompanyAssignment`, which is domain-modeled as 0..1 (`spec/model.md#CompanyAssignment`) — there is at most one assignee, never a list.
 
 `contractTotalAmount` is joined from the Yearly Company's `SponsorshipContract` (0..1, 1:1 per `spec/model.md`) — `null` when no contract exists yet. Included so Dashboard-style aggregate views (spec/frontend.md#Dashboard) can sum contract amounts across a Year from this single list call, without an additional per-company round trip.
+
+`advisorUserId` filtering is derived via `AdvisorAssignment` for the same `yearId`; Advisor names are not stored on YearlyCompany itself (see `spec/requirements.md` FR-003 / FR-013).
 
 ---
 
@@ -894,7 +900,7 @@ Example:
 }
 ```
 
-`progress` is one of `NOT_CONTACTED / MATERIALS_SENT / CONFIRMED / INVOICE_SENT / PAYMENT_RECEIVED / RECEIPT_SENT / DECLINED / PENDING` (`spec/model.md#Enumerations` → `SponsorshipProgress`). A full change-history timeline is not yet built (UC-14/Activity Log covers this later) — this endpoint returns only the current value.
+`progress` is one of `NOT_CONTACTED / MATERIALS_SENT / CONFIRMED / INVOICE_SENT / PAYMENT_RECEIVED / RECEIPT_SENT / DECLINED / PENDING` (`spec/model.md#Enumerations` → `SponsorshipProgress`). This endpoint returns only the current value; historical events are handled by Activity Log APIs below.
 
 ---
 
@@ -911,6 +917,51 @@ Example:
   "progress": "MATERIALS_SENT"
 }
 ```
+
+---
+
+# Activity Log API
+
+## List Activity Logs for a Yearly Company
+
+Returns Activity Log entries for the target Yearly Company, newest first.
+
+```
+GET /yearly-companies/{id}/activity-logs
+```
+
+Response item example:
+
+```json
+{
+  "id": "activity_log_id",
+  "yearlyCompanyId": "yearly_company_id",
+  "eventType": "PROGRESS_UPDATED",
+  "message": "進捗を MATERIALS_SENT に更新",
+  "createdAt": "2026-07-28T07:20:00Z",
+  "createdById": "user_id",
+  "createdByName": "田中"
+}
+```
+
+## Create Activity Log for a Yearly Company
+
+Creates a manual Activity Log entry from the Yearly Company detail screen.
+
+```
+POST /yearly-companies/{id}/activity-logs
+```
+
+Request:
+
+```json
+{
+  "eventType": "MANUAL_NOTE",
+  "message": "電話で先方担当者と調整。資料再送予定。"
+}
+```
+
+Automatic operations (e.g., progress/assignment/contract updates) may also append system-generated Activity Logs, but this endpoint is for explicit manual entry.
 
 ---
 
