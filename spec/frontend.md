@@ -181,8 +181,7 @@ Provide users with an overview of their responsibilities.
 Display:
 
 * Assigned companies
-* Pending tasks
-* Upcoming deadlines
+* 要対応 (needs attention) — `YearlyCompany.progress` for the signed-in Member's own assigned companies (`CompanyAssignment`) only. Same scoping as Ad Material Progress's default follow-up view (`spec/frontend.md#Ad Material Progress`) — no separate query.
 
 ---
 
@@ -191,8 +190,7 @@ Display:
 Display:
 
 * Managed members
-* Member progress
-* Companies requiring attention
+* 要対応 (needs attention) — progress for the Advisor's own assigned companies (if any) plus every company assigned to a Member they supervise (`AdvisorAssignment`, same scoped join as Ad Material Progress above).
 
 Example:
 
@@ -229,7 +227,8 @@ Track Contract Menu production/submission status across every Sponsorship
 Menu for the active Year, and surface which Sponsorship Members to follow
 up with (UC-07/UC-08). Not restricted to a specific Role — any Sponsorship
 Member or Advisor can use it to track their own or their supervised
-Members' follow-ups.
+Members' follow-ups (main users in practice: Sponsorship Members doing
+ad-material management, and Advisors).
 
 Display:
 
@@ -241,8 +240,14 @@ Display:
   ratio ascending (menus needing the most attention first). Each non-zero
   status count links to Contract Menu List (see Contract Menu Management
   below), pre-filtered to that Sponsorship Menu + `ContractMenuStatus`.
+  For a menu with `maxQuantity` set (`spec/model.md#SponsorshipMenu`),
+  additionally show contracted-quantity-so-far vs. `maxQuantity` (fill
+  ratio), so approaching-capacity menus are visible before they're full.
+  A Slack alert when a capped menu nears capacity is a Future Extension
+  (see below), not implemented now.
 * Follow-up list — every Company with at least one Contract Menu not yet
-  `SUBMITTED`, grouped by the assigned Sponsorship Member
+  `SUBMITTED`, along with that Contract Menu's `ContractMenuStatus`,
+  grouped by the assigned Sponsorship Member
   (`YearlyCompany.assignedMemberId`/`assignedMemberName`, see Company
   Assignment API). A Company with multiple pending items appears once,
   listing each. Companies with no assigned Member are grouped separately,
@@ -343,48 +348,56 @@ Company status, Sponsorship phase, and Progress are each editable inline (cell-l
 
 ## Yearly Company Detail
 
-Main operation screen.
+Main operation screen — the single working surface for a Sponsorship Member handling one company, consolidating everything previously spread across separate screens (company info, assignment, contract, Contract Menus, status history, invoice/receipt generation).
 
-Display:
+Display order:
 
 ```text
 Company Information
 
 ↓
 
-
-Assignment
-
-協賛実働メンバー
-協賛アドバイザー
-
+Assignment (担当 — member + advisor + progress, compact)
 
 ↓
 
-Contract
-
-
-↓
-
-Contract Menu
-
+Contract Menu (editable)
 
 ↓
 
-Progress History
+Contract (payment status + total, invoice/receipt actions)
+
+↓
+
+Activity Log (collapsible)
 ```
 
-Contract and Contract Menu are both shown directly on this screen (there is no separate Contract Detail route — `YearlyCompany`:`SponsorshipContract` is 1:1, per `spec/model.md`, so a dedicated detail page for the contract added nothing this screen couldn't already hold):
+### Company Information
 
-* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately after Contract Menu が作成され `totalAmount > 0` の場合（`POST /contracts/{contractId}/payment`）、goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record.
-* A contract exists — the full Contract Menu table (quantity/price/production status, same as Contract Menu Management below), invoice generation (FR-015), and payment status (read-only here — status changes happen on Finance) are all shown inline. Each row also has a "削除" action (`DELETE /contract-menus/{id}`, spec/api.md#Delete Contract Menu) that removes the line item and recalculates the Contract's `totalAmount`; this is the add/remove point for a Contract's Contract Menus — Contract Menu List (below) is a cross-contract monitoring view, not where items get added or removed.
+One consolidated block: contact person name, contact (email/phone), address, and `memo`(引継ぎ事項, handover notes — `spec/model.md#Company`).
 
-Progress shows an editable live `YearlyCompany.progress` badge and an Activity Log timeline (UC-14) on this detail screen.
+### Assignment (担当)
 
-Activity Log on detail:
+Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), and the current `YearlyCompany.progress` badge, together in one row/strip rather than three stacked sections.
 
-* Timeline view (newest first) for progress/assignment/contract-related events tied to this Yearly Company.
-* "Add Activity Log" action exists on this detail screen so users can create manual notes/events from here, without returning to list screens.
+### Contract Menu (editable)
+
+Shown before Contract (production/status work happens more often than contract-level edits). The Contract Menu table is both the creation point (no contract yet — see below) and the ongoing edit point for a Contract's Contract Menus:
+
+* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately once a Contract Menu exists and `totalAmount > 0` (`POST /contracts/{contractId}/payment`); goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record. Field-level validation errors are highlighted at the specific field, not just a generic banner (see UI Design Principles below).
+* A contract exists — each line is editable in place (`isGoodsSponsorship`, quantity, production type, status, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Upload Production Information`). No delete action is exposed here (removal is not a supported UI operation on this screen — `DELETE /contract-menus/{id}` remains Administrator-only, see `spec/api.md#Delete Contract Menu`). Contract Menu List (below, the cross-contract view) is unaffected — it never adds/removes items either.
+
+### Contract
+
+Below Contract Menu. Shows payment status and `totalAmount` only (line-item detail already lives in Contract Menu above) — status changes themselves happen on Finance (read-only here). Invoice/receipt generation actions (FR-015) sit next to this summary.
+
+### Activity Log
+
+Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (progress / Contract Menu status / Payment status changes — `spec/domain.md#Activity Log`); there is no manual entry action. A handover note that isn't a status change belongs on `Company.memo` instead.
+
+### Open questions (TODO — needs discussion before final field list)
+
+Exact required fields for Company Information / Contract / Contract Menu / Activity Log / company status / ad status blocks above are not yet finalized.
 
 ---
 
@@ -427,7 +440,9 @@ Display:
 
 Purpose:
 
-Manage each contracted sponsorship item.
+Manage each contracted sponsorship item — the primary working screen for Sponsorship Members handling ad-material production/collection (informally "広告管理"; not a separate Role, see `spec/business.md#Roles`) across every company at once.
+
+Producer (production type) and ad status are toggled directly on this list (`spec/api.md#Update Contract Menu Status`). Whether the deliverable is complete is read from Drive URL presence, not a separate flag. (Open consideration, not yet decided: a second Drive link for internal-production working files, separate from the company-facing submission `driveUrl` — see `spec/model.md#ContractMenu`.)
 
 Display:
 
@@ -518,6 +533,7 @@ Input:
 * Name
 * Default price
 * Required submission
+* Max quantity (optional — leave blank for unlimited; see `spec/model.md#SponsorshipMenu`)
 
 ---
 
@@ -527,16 +543,19 @@ Input:
 
 Purpose:
 
-Manage received sponsorship payments.
+Manage received sponsorship payments. Main editors: Finance Department (status confirmation) and Sponsorship Member (payment creation, per `spec/api.md#Authorization Matrix` — day-to-day company handling folded into this Role, see `spec/business.md#Roles`).
 
 Display:
 
-| Information     |
-| ---------------- |
-| Company         |
-| Contract amount |
-| Payment status  |
-| Payment date    |
+| Information             |
+| ------------------------ |
+| Company (+ companyNameKana, カタカナ表記 — for matching against bank passbook records) |
+| Assigned Sponsorship Member |
+| Contract amount         |
+| Payment status          |
+| Payment date            |
+
+Data source: `GET /years/{yearId}/payments` (`spec/api.md`), which already joins `companyNameKana` and `assignedMemberName`.
 
 Actions:
 
@@ -600,14 +619,16 @@ Display:
 | Information         |
 | -------------------- |
 | Name (e.g. 2026)     |
+| Edition (回次, e.g. 第45回 — display-only, computed client-side as `name`(西暦) − 1981; 2026 → 45th, 2027 → 46th) |
 | Start date / End date |
 | Active (運用中)      |
 
 Actions:
 
 * Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before.
+* Click a row to open that Year's Yearly Company List (`/yearly-companies?yearId=`, current or past), scoped to that Year regardless of which Year is active.
 
-Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year.
+Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year (or the clicked-through Year, per above).
 
 ---
 
@@ -667,30 +688,32 @@ Assignments do not carry over when a new Year is created — reassignment is a f
 # Navigation Structure
 
 ```text
-Sidebar
+サイドバー
 
-├── Dashboard
+├── ダッシュボード         Dashboard
 │
-├── Companies
+├── 企業一覧               Companies
 │
-├── Yearly Companies
+├── 協賛企業(年度別)        Yearly Companies
 │
-├── Sponsorship Menus
+├── 協賛メニュー           Sponsorship Menus
 │
-├── Finance
+├── 広告制作管理           Contract Menus
 │
-├── Reports
+├── 財務                   Finance
 │
-├── Years
+├── 年度                   Years
 │
-├── Users
+├── ユーザー               Users
 │
-├── Advisor Assignments
+├── アドバイザー割当       Advisor Assignments
 │
-└── Settings
+└── 設定                   Settings
 ```
 
-Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, Users/Advisor Assignments/Settings unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). Today every item is unconditionally rendered regardless of Role — this gating does not exist yet (see Issue tracking for Login/roles).
+Sidebar labels are Japanese (right column above is the internal/route name only, not shown to users). Items are ordered by expected frequency of use for the broadest role (Sponsorship Member) first, admin-only items last.
+
+Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, Users/Advisor Assignments/Settings unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is a firm requirement — not yet implemented (see Issue tracking for Login/roles).
 
 ---
 
@@ -751,11 +774,23 @@ AdAdd replaces a spreadsheet-based workflow. If editing business data in AdAdd i
 
 ---
 
+## Principle 5: Actions Are Icons, Not Text Buttons
+
+Row-level and toolbar actions (edit, delete, add, upload, etc.) use icons with a tooltip label, not text buttons — keeps dense tables (Yearly Company List, Contract Menu List) scannable at the ~500-company/20-member scale noted above.
+
+---
+
+## Principle 6: Point at the Error, Not Just at the Form
+
+When a submission is rejected (e.g. Create Contract validation), highlight the specific invalid field(s) inline, not just a generic top-of-form error banner — the user should not have to guess which of several inputs is wrong.
+
+---
+
 # Future Extensions
 
 Potential improvements:
 
 * Mobile-friendly sponsorship member interface
-* Notification system
+* Notification system — incl. a Slack alert when a capped Sponsorship Menu (`maxQuantity`) nears capacity, see Ad Material Progress above
 * Analytics dashboard
 * Calendar integration

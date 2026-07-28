@@ -181,10 +181,9 @@ Record business history.
 
 The system shall:
 
-* Record important operations
+* Record important operations automatically (progress, Contract Menu status, Payment status changes — no manual entry point)
 * Preserve history permanently
 * Display historical records
-* Allow manual Activity Log entry from the Yearly Company detail screen (for contextual notes/events)
 
 ### Related Use Cases
 
