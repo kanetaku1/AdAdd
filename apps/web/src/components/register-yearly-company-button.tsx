@@ -4,8 +4,13 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
+import { ErrorBanner } from "@/components/query-state"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { registerCompanyToYear } from "@/lib/data/years"
 import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
+
+const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 
 /**
  * Client-state wrapper for the Company List's per-row "register into the
@@ -27,11 +32,12 @@ export function RegisterYearlyCompanyButton({
   initiallyRegistered: boolean
 }) {
   const router = useRouter()
+  const { currentUser } = useCurrentUser()
   const [registered, setRegistered] = useState(initiallyRegistered)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  if (registered) return null
+  if (registered || !canAccess(currentUser?.roles, ALLOWED_ROLES)) return null
 
   async function handleClick() {
     setSubmitting(true)
@@ -57,7 +63,7 @@ export function RegisterYearlyCompanyButton({
       >
         {submitting ? "登録中…" : `${yearName}年度に登録`}
       </Button>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <ErrorBanner message={error} />
     </div>
   )
 }

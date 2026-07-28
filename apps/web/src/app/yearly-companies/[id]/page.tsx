@@ -16,11 +16,13 @@ import {
   type ContractMenuItemValue,
 } from "@/components/contract-menu-item-fields"
 import { ContractMenuSection } from "@/components/contract-menu-section"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { InvoiceGeneratorModal } from "@/components/invoice-generator-modal"
 import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
+import { canAccess } from "@/lib/auth/roles"
 import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   assignMember,
@@ -89,6 +91,21 @@ function emptyItem(menus: SponsorshipMenu[]): ContractMenuItemValue {
 export default function YearlyCompanyDetailPage() {
   const params = useParams<{ id: string }>()
   const id = params.id
+  const { currentUser } = useCurrentUser()
+  const canEditStatusPhaseProgress = canAccess(currentUser?.roles, [
+    "SPONSORSHIP_MEMBER",
+    "ADMINISTRATOR",
+  ])
+  const canEditAssignee = canAccess(currentUser?.roles, ["ADMINISTRATOR"])
+  const canManageContract = canAccess(currentUser?.roles, [
+    "SPONSORSHIP_MEMBER",
+    "ADMINISTRATOR",
+  ])
+  const canCreatePayment = canAccess(currentUser?.roles, [
+    "SPONSORSHIP_MEMBER",
+    "ADMINISTRATOR",
+    "FINANCE_DEPARTMENT",
+  ])
 
   const [loading, setLoading] = useState(true)
   const [yearlyCompany, setYearlyCompany] = useState<YearlyCompany | null>(null)
@@ -398,7 +415,7 @@ export default function YearlyCompanyDetailPage() {
         <EditableProgressBadge
           value={yearlyCompany.progress}
           onChange={(value) => void handleProgress(value)}
-          disabled={busy}
+          disabled={busy || !canEditStatusPhaseProgress}
         />
       </div>
 
@@ -436,7 +453,7 @@ export default function YearlyCompanyDetailPage() {
               assignedMemberName={yearlyCompany.assignedMemberName}
               users={users}
               onChange={(userId) => void handleAssign(userId)}
-              disabled={busy}
+              disabled={busy || !canEditAssignee}
             />
           </div>
           <div className="rounded-md border p-3">
@@ -476,7 +493,7 @@ export default function YearlyCompanyDetailPage() {
                 initialData={invoiceData}
                 fileName={`請求書_${invoiceData.companyName}.pdf`}
               />
-              {contract.totalAmount > 0 && !payment && (
+              {contract.totalAmount > 0 && !payment && canCreatePayment && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -503,7 +520,7 @@ export default function YearlyCompanyDetailPage() {
           )}
         </div>
 
-        {!contract && !creatingContract && (
+        {!contract && !creatingContract && canManageContract && (
           <div className="rounded-md border border-dashed p-4">
             <p className="mb-3 text-sm text-muted-foreground">
               まだ契約がありません。合意後にここで作成します（Payment
@@ -520,7 +537,7 @@ export default function YearlyCompanyDetailPage() {
           </div>
         )}
 
-        {!contract && creatingContract && (
+        {!contract && creatingContract && canManageContract && (
           <form
             onSubmit={(e) => void handleCreateContract(e)}
             className="flex flex-col gap-4 rounded-md border p-4"

@@ -3,6 +3,7 @@
 import { useState } from "react"
 
 import { useActiveYear } from "@/components/active-year-provider"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,6 +28,9 @@ import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
 import { createYear } from "@/lib/data/years"
 import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
+
+const ALLOWED_ROLES = ["ADMINISTRATOR"]
 
 function emptyForm() {
   return { name: "", startDate: "", endDate: "" }
@@ -43,6 +47,8 @@ function emptyForm() {
  */
 export default function YearsPage() {
   const { years, loading, error, refresh } = useActiveYear()
+  const { currentUser } = useCurrentUser()
+  const canCreateYear = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyForm())
   const [creating, setCreating] = useState(false)
@@ -73,6 +79,7 @@ export default function YearsPage() {
           <h1 className="text-2xl font-semibold">Years</h1>
           <p className="text-muted-foreground">技大祭の年度管理</p>
         </div>
+        {canCreateYear && (
         <Dialog
           open={open}
           onOpenChange={(next) => {
@@ -140,6 +147,7 @@ export default function YearsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {!isApiEnabled() && (

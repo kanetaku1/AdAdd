@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EditableContractMenuStatusBadge } from "@/components/editable-contract-menu-status-badge"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   listContractMenusAcrossYear,
@@ -29,6 +30,9 @@ import {
 } from "@/lib/data/sponsorship"
 import { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
 import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
+
+const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 import {
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
@@ -93,6 +97,8 @@ function ContractMenusList() {
 
   const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
+  const { currentUser } = useCurrentUser()
+  const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
 
   const [contractMenus, setContractMenus] = useState<ContractMenuAcrossYear[]>(
     []
@@ -439,7 +445,7 @@ function ContractMenusList() {
                         onChange={(status) =>
                           void handleStatusChange(cm.id, status)
                         }
-                        disabled={savingId === cm.id}
+                        disabled={savingId === cm.id || !canManage}
                       />
                     </TableCell>
                     <TableCell>
@@ -447,7 +453,7 @@ function ContractMenusList() {
                         <Input
                           value={draft ?? cm.driveUrl ?? ""}
                           placeholder="Drive URL"
-                          disabled={savingId === cm.id}
+                          disabled={savingId === cm.id || !canManage}
                           onChange={(e) =>
                             setDriveUrlDrafts((prev) => ({
                               ...prev,
@@ -455,7 +461,7 @@ function ContractMenusList() {
                             }))
                           }
                         />
-                        {hasUnsavedDraft && (
+                        {hasUnsavedDraft && canManage && (
                           <Button
                             size="sm"
                             onClick={() => void handleDriveUrlSave(cm.id)}

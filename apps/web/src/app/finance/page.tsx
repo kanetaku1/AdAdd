@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 
 import { useActiveYear } from "@/components/active-year-provider"
+import { useCurrentUser } from "@/components/current-user-provider"
 import {
   Table,
   TableBody,
@@ -17,7 +18,10 @@ import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { listPaymentsByYear, updatePaymentStatus } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
 import type { PaymentAcrossYear, PaymentStatus } from "@/types/payment"
+
+const ALLOWED_ROLES = ["FINANCE_DEPARTMENT", "ADMINISTRATOR"]
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
@@ -44,6 +48,8 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
 export default function FinancePage() {
   const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
+  const { currentUser } = useCurrentUser()
+  const canConfirm = canAccess(currentUser?.roles, ALLOWED_ROLES)
 
   const [payments, setPayments] = useState<PaymentAcrossYear[]>([])
   const [loading, setLoading] = useState(true)
@@ -149,7 +155,7 @@ export default function FinancePage() {
                       onChange={(status) =>
                         void handleStatusChange(payment.id, status)
                       }
-                      disabled={savingId === payment.id}
+                      disabled={savingId === payment.id || !canConfirm}
                     />
                   </TableCell>
                   <TableCell>{payment.confirmedAt ?? "-"}</TableCell>

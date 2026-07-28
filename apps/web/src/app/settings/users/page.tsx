@@ -22,12 +22,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
+import { EmptyBlock, EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
+import { useCurrentUser } from "@/components/current-user-provider"
 import { isApiEnabled } from "@/lib/api/client"
 import { grantRole, listRoles, revokeRole, type RoleOption } from "@/lib/data/roles"
 import { createUser, listUsers, updateUser } from "@/lib/data/users"
 import { getErrorMessage } from "@/lib/errors"
+import { canAccess } from "@/lib/auth/roles"
 import { ROLES, type Role, type User } from "@/types/user"
+
+const ALLOWED_ROLES = ["ADMINISTRATOR"]
 
 type UserForm = {
   studentId: string
@@ -69,6 +73,8 @@ function formFromUser(user: User): UserForm {
  * interactive once editing an existing User.
  */
 export default function UsersPage() {
+  const { currentUser } = useCurrentUser()
+  const canManageUsers = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -256,6 +262,10 @@ export default function UsersPage() {
     } finally {
       setTogglingId(null)
     }
+  }
+
+  if (!canManageUsers) {
+    return <EmptyBlock message="この画面を利用する権限がありません。" />
   }
 
   return (
