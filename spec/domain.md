@@ -73,6 +73,7 @@ This is master data. It defines what can be sponsored, not what a specific compa
 * Default price
 * Whether submission/production is required
 * Whether the menu is currently offered
+* Optional sponsorship cap (max quantity) for menus with limited availability
 
 ### Relationships
 
@@ -220,15 +221,13 @@ SponsorshipContract
 
 Represents business history.
 
-Every important action should generate an Activity Log.
-
-History should never be modified.
+Every important action should generate an Activity Log automatically — there is no manual/user-authored entry. History should never be modified.
 
 ### Examples
 
 * Member assigned
-* Materials sent
 * Contract confirmed
+* Contract Menu status changed (ad status)
 * Payment confirmed
 
 ---
