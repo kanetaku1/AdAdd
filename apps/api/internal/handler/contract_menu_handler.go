@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
@@ -246,7 +247,7 @@ func driveUploadContractMenu(c echo.Context) error {
 
 	mimeType := fileHeader.Header.Get("Content-Type")
 	originalExt := filepath.Ext(fileHeader.Filename)
-	rootFolderId := "1CebCi2Li5hSQd-F33Er3Nw0mFPYmXfLA"
+	rootFolderId := os.Getenv("GOOGLE_DRIVE_ROOT_FOLDER_ID")
 
 	driveSvc := service.NewDriveService()
 	uploadedFile, err := driveSvc.UploadFile(c.Request().Context(), accessToken, folderId, rootFolderId, suffix, originalExt, mimeType, fileReader)

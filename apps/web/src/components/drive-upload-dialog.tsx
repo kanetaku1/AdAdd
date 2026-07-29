@@ -39,6 +39,7 @@ export function DriveUploadDialog({
     // Notice: Google Developer Console Client ID and API Key required
     const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
     const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || ""
+    const GOOGLE_DRIVE_ROOT_FOLDER_ID = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_ROOT_FOLDER_ID || ""
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         maxFiles: 1,
@@ -59,7 +60,7 @@ export function DriveUploadDialog({
                 clientId: GOOGLE_CLIENT_ID,
                 developerKey: GOOGLE_API_KEY,
                 viewId: "FOLDERS",
-                setParentFolder: "1CebCi2Li5hSQd-F33Er3Nw0mFPYmXfLA",
+                setParentFolder: GOOGLE_DRIVE_ROOT_FOLDER_ID,
                 showUploadView: false,
                 showUploadFolders: true,
                 supportDrives: true,
