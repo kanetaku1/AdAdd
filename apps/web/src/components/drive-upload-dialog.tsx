@@ -31,7 +31,7 @@ export function DriveUploadDialog({
     const [error, setError] = useState<string | null>(null)
     const [openPicker, authResponse] = useDrivePicker()
 
-    const authRef = useRef<any>(null)
+    const authRef = useRef<unknown>(null)
     useEffect(() => {
         authRef.current = authResponse
     }, [authResponse])
@@ -66,12 +66,14 @@ export function DriveUploadDialog({
                 multiselect: false,
                 setSelectFolderEnabled: true,
                 customScopes: ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file"],
-                callbackFunction: async (data: any) => {
-                    if (data.action === "picked") {
-                        const folderId = data.docs[0].id
+                callbackFunction: async (data: unknown) => {
+                    if (data && typeof data === "object" && (data as { action?: string }).action === "picked") {
+                        const pickedData = data as { docs: { id: string }[], accessToken?: string }
+                        const folderId = pickedData.docs[0].id
 
-                        const actualAuth = authRef.current
-                        const tokenToUse = actualAuth?.access_token || data.accessToken || (window as any).gapi?.client?.getToken()?.access_token || ""
+                        const actualAuth = authRef.current as { access_token?: string } | null
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const tokenToUse = actualAuth?.access_token || pickedData.accessToken || (window as any).gapi?.client?.getToken()?.access_token || ""
 
                         if (!tokenToUse) {
                             setError("Google Driveの認証トークンが取得できませんでした。再度お試しください。")
@@ -89,7 +91,7 @@ export function DriveUploadDialog({
                             setBusy(false)
                         }
                     }
-                    if (data.action === "cancel") {
+                    if (data && typeof data === "object" && (data as { action?: string }).action === "cancel") {
                         setBusy(false)
                     }
                 },

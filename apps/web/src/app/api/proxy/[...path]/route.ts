@@ -48,7 +48,7 @@ async function handler(
     method: req.method,
     headers,
     body: hasBody ? ((req.method === "POST" || req.method === "PUT" || req.method === "PATCH") ? await req.arrayBuffer() : undefined) : undefined,
-    // @ts-ignore (Next.js internal fetch typing missing duplex in some versions)
+    // @ts-expect-error (Next.js internal fetch typing missing duplex in some versions)
     duplex: 'half'
   })
 
