@@ -39,27 +39,26 @@ func (s *PaymentService) Update(p *model.Payment) error {
 		}
 		wasConfirmed := existing.Status == "CONFIRMED"
 
-		if p.Status == "CONFIRMED" && !wasConfirmed {
-			n := time.Now()
-			p.ConfirmedAt = &n
-			if p.ConfirmedByID == "" {
-				p.ConfirmedByID = existing.ConfirmedByID
-			}
-		}
-		if p.Status == "WAITING" {
-			p.ConfirmedAt = nil
-			p.ConfirmedByID = ""
+		updates := map[string]interface{}{
+			"status":     p.Status,
+			"updated_at": time.Now(),
 		}
 
-		updates := map[string]interface{}{
-			"status":          p.Status,
-			"confirmed_at":    p.ConfirmedAt,
-			"confirmed_by_id": p.ConfirmedByID,
-			"updated_at":      time.Now(),
+		if p.Status == "CONFIRMED" && !wasConfirmed {
+			n := time.Now()
+			updates["confirmed_at"] = &n
+
+			confirmedByID := p.ConfirmedByID
+			if confirmedByID == "" {
+				confirmedByID = existing.ConfirmedByID
+			}
+			updates["confirmed_by_id"] = confirmedByID
+			p.ConfirmedByID = confirmedByID // Set for activity log
+		} else if p.Status == "WAITING" {
+			updates["confirmed_at"] = nil
+			updates["confirmed_by_id"] = ""
 		}
-		if !p.Amount.IsZero() {
-			updates["amount"] = p.Amount
-		}
+
 		if err := tx.Model(&model.Payment{}).Where("id = ?", p.ID).Updates(updates).Error; err != nil {
 			return err
 		}
