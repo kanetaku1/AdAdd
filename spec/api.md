@@ -641,10 +641,13 @@ Example response:
     "id": "menu_id",
     "name": "パンフレット広告1P",
     "requiresSubmission": true,
-    "defaultPrice": 80000
+    "defaultPrice": 80000,
+    "maxQuantity": null
   }
 ]
 ```
+
+`maxQuantity` is an optional sponsorship cap (`null` = unlimited) — see `spec/model.md#SponsorshipMenu`. Accepted on Create/Update; surfaced as a fill-ratio on `spec/frontend.md#Ad Material Progress`.
 
 ---
 
@@ -749,6 +752,33 @@ Request:
 
 ---
 
+## Update Contract Menu
+
+Edits an existing Contract Menu (e.g. quantity, goods-sponsorship flag, production type — corrected after creation, distinct from the status/production sub-resources below).
+
+```
+PATCH /contract-menus/{id}
+```
+
+Request (all fields optional):
+
+```json
+{
+  "quantity": 2,
+  "unitPrice": 80000,
+  "isGoodsSponsorship": false,
+  "productionType": "COMPANY"
+}
+```
+
+Same `unitPrice`/`isGoodsSponsorship` defaulting rule as Add Contract Menu. Recalculates the parent Contract's `totalAmount` and applies the Payment synchronization / confirmed-payment conflict rule described in Update Contract above.
+
+Permission:
+
+* Sponsorship Member / Administrator
+
+---
+
 ## Delete Contract Menu
 
 Removes a Contract Menu and recalculates the parent Contract's `totalAmount`, applying the Payment synchronization / confirmed-payment conflict rule described in Update Contract.
@@ -759,7 +789,7 @@ DELETE /contract-menus/{id}
 
 Permission:
 
-* Sponsorship Member / Administrator
+* Administrator only — see Authorization Matrix (deletion is Administrator-only system-wide). Not currently exposed as a UI action on Yearly Company Detail (`spec/frontend.md#Yearly Company Detail`).
 
 ---
 
@@ -840,7 +870,7 @@ Query:
 | --------- | ----------------------- |
 | status    | Filter by Payment status |
 
-Each item additionally includes `companyName` and `yearlyCompanyId` (joined from the owning Contract's Yearly Company) and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row.
+Each item additionally includes `companyName`, `companyNameKana` (for bank-transfer-record matching, see `spec/frontend.md#Payment List`) and `yearlyCompanyId` (joined from the owning Contract's Yearly Company), `assignedMemberName` (joined from the Yearly Company's `CompanyAssignment`), and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row.
 
 A Payment whose Contract's Yearly Company has since been deleted is excluded from this list.
 
@@ -944,24 +974,7 @@ Response item example:
 }
 ```
 
-## Create Activity Log for a Yearly Company
-
-Creates a manual Activity Log entry from the Yearly Company detail screen.
-
-```
-POST /yearly-companies/{id}/activity-logs
-```
-
-Request:
-
-```json
-{
-  "eventType": "MANUAL_NOTE",
-  "message": "電話で先方担当者と調整。資料再送予定。"
-}
-```
-
-Automatic operations (e.g., progress/assignment/contract updates) may also append system-generated Activity Logs, but this endpoint is for explicit manual entry.
+Entries are exclusively system-generated, on: Sponsorship Progress change, Contract Menu status change (ad status), and Payment status change. There is no manual/user-authored entry endpoint — a free-text handover note belongs on `Company.memo` instead (`spec/model.md#Company`).
 
 ---
 
@@ -1024,10 +1037,13 @@ POST /integrations/google/drive/link
 | Manage company master data      | -         | ○                   | -       | -       | ○              |
 | Create Year                     | -         | -                   | -       | -       | ○              |
 | Assign companies / advisors     | -         | -                   | -       | -       | ○              |
-| Manage menus (Sponsorship Menu / Contract Menu) | - | ○           | -       | -       | ○              |
+| Manage menus (Sponsorship Menu / Contract Menu) — create/update only | - | ○ | - | - | ○ |
 | Create payment                  | -         | ○                   | -       | ○       | ○              |
 | Update payment status            | -         | -                   | -       | ○       | ○              |
 | Manage users / Roles            | -         | -                   | -       | -       | ○              |
+| Delete any record (Contract Menu, AdvisorAssignment, UserRole, ...) | - | - | - | - | ○ |
+
+Deletion is Administrator-only system-wide — every other Role's "manage" access (row above) is create/update, never delete (`spec/model.md` Business Invariants).
 
 These 4 columns are the canonical Role set — see `spec/domain.md#Role` and `spec/model.md#Role`. Holding none of them (the "(no Role)" column) is the view-only baseline that replaced the earlier General Member Role. Company Management Department and Sponsorship Menu Management Team, previously separate columns, were removed — their responsibilities folded into Sponsorship Member (company/menu master data) and Administrator (Year creation, company/advisor assignment).
 

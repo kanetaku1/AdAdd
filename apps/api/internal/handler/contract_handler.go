@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
@@ -72,8 +71,8 @@ func updateContract(c echo.Context) error {
 	}
 
 	var patch struct {
-		ContractDate *time.Time `json:"contractDate"`
-		Remarks      *string    `json:"remarks"`
+		ContractDate *model.Date `json:"contractDate"`
+		Remarks      *string     `json:"remarks"`
 	}
 	if err := c.Bind(&patch); err != nil {
 		return respondBadRequest(c, err.Error())

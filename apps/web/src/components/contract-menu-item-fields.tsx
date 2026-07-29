@@ -34,11 +34,14 @@ export function ContractMenuItemFields({
   menus,
   onChange,
   onRemove,
+  invalid,
 }: {
   value: ContractMenuItemValue
   menus: SponsorshipMenu[]
   onChange: (patch: Partial<ContractMenuItemValue>) => void
   onRemove?: () => void
+  /** Highlights the menu picker, e.g. when submission failed because no menu was selected on this row. */
+  invalid?: boolean
 }) {
   const menu = menus.find((m) => m.id === value.sponsorshipMenuId)
 
@@ -65,7 +68,7 @@ export function ContractMenuItemFields({
             menus.map((m) => [m.id, m.name])
           )}
         >
-          <SelectTrigger size="sm">
+          <SelectTrigger size="sm" aria-invalid={invalid}>
             <SelectValue placeholder="メニューを選択" />
           </SelectTrigger>
           <SelectContent>

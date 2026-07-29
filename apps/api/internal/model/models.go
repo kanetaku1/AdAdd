@@ -86,7 +86,7 @@ type YearlyCompanyResponse struct {
 type SponsorshipContract struct {
 	ID              string          `gorm:"type:char(36);primaryKey" json:"id"`
 	YearlyCompanyID string          `gorm:"type:char(36);not null;uniqueIndex" json:"yearlyCompanyId"`
-	ContractDate    *time.Time      `json:"contractDate"`
+	ContractDate    *Date           `json:"contractDate"`
 	TotalAmount     decimal.Decimal `json:"totalAmount"`
 	AssigneeID      string          `gorm:"type:char(36)" json:"assigneeId"`
 	Remarks         string          `gorm:"type:text" json:"remarks"`
