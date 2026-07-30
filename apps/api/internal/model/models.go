@@ -134,6 +134,7 @@ type ContractMenu struct {
 	Status             string          `gorm:"size:32" json:"status"`
 	DriveFolderID      string          `gorm:"size:512" json:"driveFolderId"`
 	DriveURL           string          `gorm:"size:1024" json:"driveUrl"`
+	DriveFileName      string          `gorm:"size:1024" json:"driveFileName"`
 	SubmittedAt        *time.Time      `json:"submittedAt"`
 	Remarks            string          `gorm:"type:text" json:"remarks"`
 	CreatedAt          time.Time       `json:"createdAt"`
