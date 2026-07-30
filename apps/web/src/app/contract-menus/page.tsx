@@ -25,7 +25,6 @@ import { useCurrentUser } from "@/components/current-user-provider"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   listContractMenusAcrossYear,
-  updateContractMenuProduction,
   updateContractMenuStatus,
 } from "@/lib/data/sponsorship"
 import { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
@@ -122,9 +121,7 @@ function ContractMenusList() {
   const [openColumnFilter, setOpenColumnFilter] =
     useState<ColumnFilterKey | null>(null)
 
-  const [driveUrlDrafts, setDriveUrlDrafts] = useState<Record<string, string>>(
-    {}
-  )
+
   const [savingId, setSavingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -211,31 +208,7 @@ function ContractMenusList() {
     }
   }
 
-  async function handleDriveUrlSave(id: string) {
-    const draft = driveUrlDrafts[id]?.trim()
-    if (!draft) return
-    setSavingId(id)
-    setError(null)
-    try {
-      const current = contractMenus.find((cm) => cm.id === id)
-      const updated = await updateContractMenuProduction(id, {
-        driveFolderUrl: draft,
-        remarks: current?.remarks ?? "",
-      })
-      setContractMenus((prev) =>
-        prev.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
-      )
-      setDriveUrlDrafts((prev) => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
-    } catch (e) {
-      setError(getErrorMessage(e, { fallback: "Drive URLの更新に失敗しました" }))
-    } finally {
-      setSavingId(null)
-    }
-  }
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -409,9 +382,6 @@ function ContractMenusList() {
               <EmptyRow colSpan={7} message="該当する契約メニューがありません。" />
             ) : (
               visibleContractMenus.map((cm) => {
-                const draft = driveUrlDrafts[cm.id]
-                const hasUnsavedDraft =
-                  draft !== undefined && draft.trim() !== (cm.driveUrl ?? "")
                 return (
                   <TableRow key={cm.id}>
                     <TableCell className="font-medium">
