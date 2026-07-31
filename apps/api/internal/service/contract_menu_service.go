@@ -124,3 +124,54 @@ func (s *ContractMenuService) Delete(id string) error {
 func (s *ContractMenuService) GetByID(id string) (*model.ContractMenu, error) {
 	return s.repo.GetByID(id)
 }
+
+func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *decimal.Decimal, isGoodsSponsorship *bool, productionType *string) (*model.ContractMenu, error) {
+	csvc := NewContractService()
+	var m model.ContractMenu
+
+	err := db.WithTx(func(tx *gorm.DB) error {
+		if err := tx.First(&m, "id = ?", id).Error; err != nil {
+			return err
+		}
+
+		if quantity != nil {
+			m.Quantity = *quantity
+		}
+		if productionType != nil {
+			m.ProductionType = *productionType
+		}
+
+		wasGoods := m.IsGoodsSponsorship
+		if isGoodsSponsorship != nil {
+			m.IsGoodsSponsorship = *isGoodsSponsorship
+		}
+
+		unitPriceProvided := unitPrice != nil
+		if unitPriceProvided {
+			m.UnitPrice = *unitPrice
+		}
+
+		// Apply defaulting logic for UnitPrice analogous to POST endpoint
+		if m.IsGoodsSponsorship {
+			m.UnitPrice = decimal.Zero
+		} else if !unitPriceProvided && isGoodsSponsorship != nil && !*isGoodsSponsorship && wasGoods {
+			// Transitioning FROM goods sponsorship TO non-goods, and NO price specified
+			smsvc := NewSponsorshipMenuService()
+			smenu, err := smsvc.GetByID(m.SponsorshipMenuID)
+			if err != nil {
+				return err
+			}
+			m.UnitPrice = smenu.DefaultPrice
+		}
+
+		if err := tx.Save(&m).Error; err != nil {
+			return err
+		}
+		return csvc.RecalculateTotalAmount(tx, m.ContractID)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
