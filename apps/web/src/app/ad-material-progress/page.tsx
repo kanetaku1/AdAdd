@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyBlock, EmptyRow, ErrorBanner, LoadingBlock } from "@/components/query-state"
+import { useMyAssignmentScope } from "@/hooks/use-my-assignment-scope"
 import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   listContractMenusAcrossYear,
@@ -117,7 +118,6 @@ export default function AdMaterialProgressPage() {
   >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [scopeOverride, setScopeOverride] = useState<boolean | null>(null)
 
   const { currentUser } = useCurrentUser()
   const currentUserId = currentUser?.id ?? null
@@ -220,18 +220,6 @@ export default function AdMaterialProgressPage() {
       .pending.push({ menuName: cm.sponsorshipMenuName, status: cm.status })
   }
 
-  // Members this User supervises as a Sponsorship Advisor (spec/domain.md
-  // Rule 9 — an Advisor is never assigned to a Company directly, only
-  // indirectly through the Members they supervise).
-  const supervisedMemberIds = new Set(
-    advisorAssignments
-      .filter((a) => a.advisorId === currentUserId)
-      .map((a) => a.memberId)
-  )
-  const myScopeMemberIds = new Set(
-    [currentUserId, ...supervisedMemberIds].filter((id): id is string => id !== null)
-  )
-
   // "未割当" last so an unassigned company is never the easiest one to miss.
   const followUpGroups = Array.from(followUpByMember.entries())
     .map(([key, companies]) => ({
@@ -245,18 +233,21 @@ export default function AdMaterialProgressPage() {
       return b.companies.length - a.companies.length
     })
 
-  // Default to the scoped view only when the signed-in User actually has a
-  // stake (their own assignment, or a Member they supervise) in this Year —
-  // otherwise defaulting to "mine" would just show an empty list.
-  const hasOwnStake = followUpGroups.some(
-    (g) => g.memberId !== null && myScopeMemberIds.has(g.memberId)
+  // Scoped to this User's own assignment, plus — as a Sponsorship Advisor —
+  // every Member they supervise (spec/domain.md Rule 9). Defaults to the
+  // scoped view only when the User has a stake here, otherwise defaulting to
+  // "mine" would just show an empty list.
+  const {
+    scopeToMine,
+    setScopeOverride,
+    visibleItems: visibleFollowUpGroups,
+    supervisedMemberIds,
+  } = useMyAssignmentScope(
+    followUpGroups,
+    (g) => g.memberId,
+    advisorAssignments,
+    currentUserId
   )
-  const scopeToMine = scopeOverride ?? hasOwnStake
-  const visibleFollowUpGroups = scopeToMine
-    ? followUpGroups.filter(
-        (g) => g.memberId !== null && myScopeMemberIds.has(g.memberId)
-      )
-    : followUpGroups
 
   return (
     <div className="flex flex-col gap-6">

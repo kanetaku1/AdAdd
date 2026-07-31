@@ -41,3 +41,23 @@ export const SPONSORSHIP_PHASE_BADGE_VARIANT: Record<
   PHASE_3: "outline",
   PHASE_4: "destructive",
 }
+
+/**
+ * shadcn Badge variant per Sponsorship Progress — NOT_CONTACTED/PENDING are
+ * the stages a Member/Advisor needs to act on next (spec/frontend.md#Dashboard),
+ * DECLINED is terminal with nothing left to do, everything else is normal
+ * in-progress flow.
+ */
+export const SPONSORSHIP_PROGRESS_BADGE_VARIANT: Record<
+  SponsorshipProgress,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  NOT_CONTACTED: "destructive",
+  MATERIALS_SENT: "secondary",
+  CONFIRMED: "secondary",
+  INVOICE_SENT: "secondary",
+  PAYMENT_RECEIVED: "secondary",
+  RECEIPT_SENT: "secondary",
+  DECLINED: "outline",
+  PENDING: "destructive",
+}

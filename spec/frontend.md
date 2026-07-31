@@ -180,8 +180,18 @@ Provide users with an overview of their responsibilities.
 
 Display:
 
-* Assigned companies
-* 要対応 (needs attention) — `YearlyCompany.progress` for the signed-in Member's own assigned companies (`CompanyAssignment`) only. Same scoping as Ad Material Progress's default follow-up view (`spec/frontend.md#Ad Material Progress`) — no separate query.
+* 自分の担当企業 (my assigned companies) — every `YearlyCompany` assigned to the
+  signed-in Member (`CompanyAssignment`), always scoped (no unscoped
+  "全件" fallback — this is the Member's own working list for planning next
+  actions, not a shared aggregate; see Yearly Company List / Ad Material
+  Progress for the all-companies view). One row per company:
+  * 進捗 (`YearlyCompany.progress`) — sorted with action-needed stages
+    (未連絡/保留) first, then business pipeline order, 見送り(DECLINED) last.
+  * 広告進捗 — aggregate submitted/total Contract Menu count for the company
+    (e.g. "2/5"), from the same Contract Menu data source as Ad Material
+    Progress. "契約なし" when the company has no Contract Menu yet.
+  * 入金状況 — `Payment.status` badge. "-" when the Contract has no Payment
+    record (no contract yet, or goods-sponsorship-only with `totalAmount = 0`).
 
 ---
 
@@ -189,23 +199,22 @@ Display:
 
 Display:
 
-* Managed members
-* 要対応 (needs attention) — progress for the Advisor's own assigned companies (if any) plus every company assigned to a Member they supervise (`AdvisorAssignment`, same scoped join as Ad Material Progress above).
+* 自分の担当企業 — same as Sponsorship Member Dashboard above, plus every
+  company assigned to a Member the Advisor supervises (`AdvisorAssignment`;
+  spec/domain.md Rule 9 — an Advisor is never assigned to a Company
+  directly, only indirectly through the Members they supervise). Each row
+  also shows 担当メンバー so companies from different supervised Members are
+  distinguishable.
 
-Example:
-
-```text
-Advisor: 山田
-
-Members
-
-├── 田中
-│    ├── Company A
-│    └── Company B
-│
-└── 鈴木
-     └── Company C
-```
+Data source (both Dashboards): `GET /years/{yearId}/companies` joined
+client-side with `GET /years/{yearId}/contract-menus` and
+`GET /years/{yearId}/payments` on `yearlyCompanyId`, and with
+`GET /advisor-assignments?yearId={yearId}` for the signed-in User's
+supervised Members — no additional backend endpoint required. Same
+member-scoping join as Ad Material Progress's default follow-up view
+(`spec/frontend.md#Ad Material Progress`), factored out as
+`getMyScopeMemberIds` (`apps/web/src/lib/assignment-scope.ts`) and shared
+with that screen's 自分の担当のみ/全件 toggle.
 
 ---
 
