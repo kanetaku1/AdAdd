@@ -13,6 +13,7 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
 	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
 )
 
 func RegisterContractMenuRoutes(e *echo.Echo) {
@@ -23,6 +24,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/contracts/:contractId/menus", addContractMenu)
 	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
+	rStaff.PATCH("/contract-menus/:id", updateContractMenuDetails)
 	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 	rStaff.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
@@ -278,4 +280,37 @@ func driveUploadContractMenu(c echo.Context) error {
 		"data":     cm,
 		"fileName": uploadedFile.Name,
 	})
+}
+
+func updateContractMenuDetails(c echo.Context) error {
+	id := c.Param("id")
+	var body struct {
+		Quantity           *int             `json:"quantity"`
+		UnitPrice          *decimal.Decimal `json:"unitPrice"`
+		IsGoodsSponsorship *bool            `json:"isGoodsSponsorship"`
+		ProductionType     *string          `json:"productionType"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return respondBadRequest(c, err.Error())
+	}
+	if body.Quantity != nil && *body.Quantity <= 0 {
+		return respondBadRequest(c, "quantity must be > 0")
+	}
+	if body.UnitPrice != nil && !validateNonNegativeAmount(*body.UnitPrice) {
+		return respondBadRequest(c, "unitPrice must be non-negative")
+	}
+
+	svc := service.NewContractMenuService()
+	updated, err := svc.PatchDetails(id, body.Quantity, body.UnitPrice, body.IsGoodsSponsorship, body.ProductionType)
+	if err != nil {
+		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
+			return respondConflict(c, err.Error())
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return respondNotFound(c, "contract menu not found")
+		}
+		return respondInternalServerError(c, err)
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": updated, "message": "updated"})
 }
