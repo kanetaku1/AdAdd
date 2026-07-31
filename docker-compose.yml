@@ -20,6 +20,7 @@ services:
       # is what lets the X-User-ID/X-User-Roles stub keep working locally.
       DEV_AUTH_ENABLED: "true"
       MIGRATE_ON_START: "true"
+      MIGRATIONS_PATH: /app/migrations
       # # Google OAuth client ID, used to verify id_tokens on POST /auth/google.
       # # Sourced from a root .env file (gitignored) — see .env.example.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required, see .env.example}
