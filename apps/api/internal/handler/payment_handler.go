@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
@@ -51,34 +50,34 @@ func listPaymentsAcrossYear(c echo.Context) error {
 
 func updatePayment(c echo.Context) error {
 	pid := c.Param("paymentId")
-	var req model.Payment
+	var req struct {
+		Status string `json:"status"`
+	}
 	if err := c.Bind(&req); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	req.ID = pid
 	if err := ValidatePaymentStatus(req.Status); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	if !req.Amount.IsZero() && !validateNonNegativeAmount(req.Amount) {
-		return respondBadRequest(c, "amount must be non-negative")
+
+	updateModel := model.Payment{
+		ID:     pid,
+		Status: req.Status,
 	}
-	// set confirmedAt/confirmedById server-side when status becomes CONFIRMED
-	if req.Status == "CONFIRMED" {
-		now := time.Now()
-		req.ConfirmedAt = &now
-		if uid := c.Get("userId"); uid != nil && uid != "" {
-			req.ConfirmedByID = uid.(string)
-		}
+	if uid := c.Get("userId"); uid != nil && uid != "" {
+		updateModel.ConfirmedByID = uid.(string)
 	}
+
 	svc := service.NewPaymentService()
-	if err := svc.Update(&req); err != nil {
+	if err := svc.Update(&updateModel); err != nil {
 		return respondInternalServerError(c, err)
 	}
+
 	// reload payment to return correct timestamps and stored values
-	updated, err := svc.GetByID(req.ID)
+	updated, err := svc.GetByID(updateModel.ID)
 	if err != nil {
 		// if reload fails, still return success but include request payload
-		return c.JSON(http.StatusOK, map[string]interface{}{"data": req, "message": "updated"})
+		return c.JSON(http.StatusOK, map[string]interface{}{"data": updateModel, "message": "updated"})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": updated, "message": "updated"})
 }
