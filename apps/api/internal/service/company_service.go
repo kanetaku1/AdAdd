@@ -97,6 +97,9 @@ func (s *CompanyService) BulkImport(rows []CompanyCsvRow, dryRun bool) (*model.B
 			}
 		}
 	}
-
 	return result, nil
+}
+
+func (s *CompanyService) Delete(id string) error {
+	return s.repo.Delete(id)
 }

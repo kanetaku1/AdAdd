@@ -46,3 +46,7 @@ func (r *CompanyRepository) Update(c *model.Company) error {
 	}
 	return db.DB.Save(c).Error
 }
+
+func (r *CompanyRepository) Delete(id string) error {
+	return db.DB.Delete(&model.Company{}, "id = ?", id).Error
+}

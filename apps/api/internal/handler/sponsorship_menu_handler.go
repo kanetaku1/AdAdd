@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
 	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
 )
 
 func RegisterSponsorshipMenuRoutes(e *echo.Echo) {
@@ -17,6 +19,7 @@ func RegisterSponsorshipMenuRoutes(e *echo.Echo) {
 	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/years/:yearId/sponsorship-menus", createSponsorshipMenu)
 	rStaff.PATCH("/sponsorship-menus/:menuId", updateSponsorshipMenu)
+	rStaff.DELETE("/sponsorship-menus/:menuId", deleteSponsorshipMenu)
 }
 
 func listSponsorshipMenus(c echo.Context) error {
@@ -77,4 +80,16 @@ func updateSponsorshipMenu(c echo.Context) error {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": existing, "message": "updated"})
+}
+
+func deleteSponsorshipMenu(c echo.Context) error {
+	id := c.Param("menuId")
+	svc := service.NewSponsorshipMenuService()
+	if err := svc.Delete(id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return respondNotFound(c, "sponsorship menu not found")
+		}
+		return respondInternalServerError(c, err)
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"message": "deleted"})
 }
