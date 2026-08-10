@@ -48,5 +48,5 @@ func (r *CompanyRepository) Update(c *model.Company) error {
 }
 
 func (r *CompanyRepository) Delete(id string) error {
-	return db.DB.Delete(&model.Company{}, "id = ?", id).Error
+	return db.DB.Unscoped().Delete(&model.Company{}, "id = ?", id).Error
 }

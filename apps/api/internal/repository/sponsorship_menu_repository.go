@@ -31,7 +31,7 @@ func (r *SponsorshipMenuRepository) Update(m *model.SponsorshipMenu) error {
 }
 
 func (r *SponsorshipMenuRepository) Delete(id string) error {
-	return db.DB.Delete(&model.SponsorshipMenu{}, "id = ?", id).Error
+	return db.DB.Unscoped().Delete(&model.SponsorshipMenu{}, "id = ?", id).Error
 }
 
 func (r *SponsorshipMenuRepository) GetByID(id string) (*model.SponsorshipMenu, error) {

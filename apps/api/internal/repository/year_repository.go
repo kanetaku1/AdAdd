@@ -28,5 +28,5 @@ func (r *YearRepository) GetByID(id string) (*model.Year, error) {
 func (r *YearRepository) Create(y *model.Year) error { return db.DB.Create(y).Error }
 
 func (r *YearRepository) Delete(id string) error {
-	return db.DB.Delete(&model.Year{}, "id = ?", id).Error
+	return db.DB.Unscoped().Delete(&model.Year{}, "id = ?", id).Error
 }
