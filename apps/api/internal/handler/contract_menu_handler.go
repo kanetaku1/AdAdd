@@ -27,11 +27,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 	rStaff.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
-
-	// Admin only
-	rAdmin := e.Group("")
-	rAdmin.Use(RequireRoles("ADMINISTRATOR"))
-	rAdmin.DELETE("/contract-menus/:id", deleteContractMenu)
+	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
 
 	r.GET("/years/:yearId/contract-menus", listContractMenusAcrossYear)
 }
