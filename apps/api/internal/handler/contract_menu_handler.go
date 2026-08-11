@@ -23,11 +23,11 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff := e.Group("")
 	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/contracts/:contractId/menus", addContractMenu)
-	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
 	rStaff.PATCH("/contract-menus/:id", updateContractMenuDetails)
 	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 	rStaff.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
+	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
 
 	r.GET("/years/:yearId/contract-menus", listContractMenusAcrossYear)
 }

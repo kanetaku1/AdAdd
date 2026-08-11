@@ -30,6 +30,10 @@ func (r *SponsorshipMenuRepository) Update(m *model.SponsorshipMenu) error {
 	return db.DB.Save(m).Error
 }
 
+func (r *SponsorshipMenuRepository) Delete(id string) error {
+	return db.DB.Unscoped().Delete(&model.SponsorshipMenu{}, "id = ?", id).Error
+}
+
 func (r *SponsorshipMenuRepository) GetByID(id string) (*model.SponsorshipMenu, error) {
 	var m model.SponsorshipMenu
 	if err := db.DB.First(&m, "id = ?", id).Error; err != nil {

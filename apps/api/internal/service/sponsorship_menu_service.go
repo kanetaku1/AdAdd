@@ -21,6 +21,10 @@ func (s *SponsorshipMenuService) Create(m *model.SponsorshipMenu) error { return
 
 func (s *SponsorshipMenuService) Update(m *model.SponsorshipMenu) error { return s.repo.Update(m) }
 
+func (s *SponsorshipMenuService) Delete(id string) error {
+	return s.repo.Delete(id)
+}
+
 func (s *SponsorshipMenuService) GetByID(id string) (*model.SponsorshipMenu, error) {
 	return s.repo.GetByID(id)
 }
