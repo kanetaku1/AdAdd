@@ -351,6 +351,63 @@ export async function listContractMenusAcrossYear(
     )
 }
 
+/**
+ * PATCH /contract-menus/{id} (spec/api.md#Update Contract Menu) — edits
+ * quantity / unitPrice / isGoodsSponsorship / productionType after creation.
+ */
+export async function updateContractMenu(
+  id: string,
+  patch: {
+    quantity?: number
+    unitPrice?: number
+    isGoodsSponsorship?: boolean
+    productionType?: ContractMenuProductionType | null
+  }
+): Promise<ContractMenu> {
+  if (isApiEnabled()) {
+    const updated = await apiFetch<{
+      id: string
+      contractId: string
+      sponsorshipMenuId: string
+      quantity: number
+      unitPrice: number | string
+      isGoodsSponsorship: boolean
+      productionType?: string
+      status: string
+      driveFolderId?: string
+      driveUrl?: string
+      driveFileName?: string
+      remarks?: string
+    }>(`/contract-menus/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    })
+    return mapApiContractMenu(updated)
+  }
+
+  const existing = mockContractMenus.find((cm) => cm.id === id)
+  if (!existing) throw new Error("contract menu not found")
+
+  const nextIsGoods =
+    patch.isGoodsSponsorship ?? existing.isGoodsSponsorship
+  const next: Partial<ContractMenu> = { ...patch }
+  if (nextIsGoods) {
+    next.unitPrice = 0
+    next.isGoodsSponsorship = true
+  }
+
+  const updated = updateMockContractMenu(id, next)
+  const siblings = mockContractMenus.filter(
+    (cm) => cm.contractId === updated.contractId
+  )
+  const total = siblings.reduce(
+    (sum, cm) => sum + cm.quantity * cm.unitPrice,
+    0
+  )
+  updateContractTotalAmount(updated.contractId, total)
+  return updated
+}
+
 /** PATCH /contract-menus/{id}/status (spec/api.md#Update Contract Menu Status). */
 export async function updateContractMenuStatus(
   id: string,

@@ -704,12 +704,22 @@ export default function YearlyCompanyDetailPage() {
             </Link>
 
             <ContractMenuSection
-              key={`${contract.id}-${contract.totalAmount}-${contractMenus.length}`}
+              key={contract.id}
               contractId={contract.id}
               initialContractMenus={contractMenus}
               initialTotalAmount={contract.totalAmount}
               menus={menus}
-              onChanged={() => void reload()}
+              onChanged={({ contractMenus: nextMenus, totalAmount }) => {
+                setContractMenus(nextMenus)
+                setContract((prev) =>
+                  prev ? { ...prev, totalAmount } : prev
+                )
+                setPayment((prev) =>
+                  prev && prev.status === "WAITING"
+                    ? { ...prev, amount: totalAmount }
+                    : prev
+                )
+              }}
             />
 
             {contract.remarks && (

@@ -24,17 +24,21 @@ import {
   ContractMenuItemFields,
   type ContractMenuItemValue,
 } from "@/components/contract-menu-item-fields"
+import { EditableProductionTypeCell } from "@/components/editable-production-type-cell"
+import { EditableQuantityCell } from "@/components/editable-quantity-cell"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { ErrorBanner } from "@/components/query-state"
 import {
   addContractMenuToContract,
-  deleteContractMenu,
+  updateContractMenu,
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
-import { CONTRACT_MENU_PRODUCTION_TYPE_LABEL } from "@/lib/contract-menu-labels"
 import { DriveUploadDialog } from "@/components/drive-upload-dialog"
-import type { ContractMenu } from "@/types/contract-menu"
+import type {
+  ContractMenu,
+  ContractMenuProductionType,
+} from "@/types/contract-menu"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
@@ -55,9 +59,16 @@ function emptyItem(menus: SponsorshipMenu[]): ContractMenuItemValue {
   }
 }
 
+function recalcTotal(menus: ContractMenu[]): number {
+  return menus.reduce((sum, cm) => sum + cm.quantity * cm.unitPrice, 0)
+}
+
 /**
  * Contract Menu table + total amount + "メニューを追加"
  * (spec/usecase.md UC-07 / spec/frontend.md#Yearly Company Detail).
+ * Lines are editable in place (quantity, production type); delete is not
+ * exposed. `isGoodsSponsorship` is chosen only when adding a menu
+ * (`ContractMenuItemFields`) and shown as a badge when true.
  */
 export function ContractMenuSection({
   contractId,
@@ -70,7 +81,11 @@ export function ContractMenuSection({
   initialContractMenus: ContractMenu[]
   initialTotalAmount: number
   menus: SponsorshipMenu[]
-  onChanged?: () => void
+  /** Called after add/edit so the parent can sync contract total without a full-page reload. */
+  onChanged?: (next: {
+    contractMenus: ContractMenu[]
+    totalAmount: number
+  }) => void
 }) {
   const { currentUser } = useCurrentUser()
   const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
@@ -81,28 +96,43 @@ export function ContractMenuSection({
     emptyItem(menus)
   )
   const [busy, setBusy] = useState(false)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingMenuId, setUploadingMenuId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleDelete(id: string) {
-    if (!window.confirm("このメニューを削除しますか？")) return
-    setDeletingId(id)
+  function applyMenus(nextContractMenus: ContractMenu[]) {
+    const nextTotal = recalcTotal(nextContractMenus)
+    setContractMenus(nextContractMenus)
+    setTotalAmount(nextTotal)
+    onChanged?.({ contractMenus: nextContractMenus, totalAmount: nextTotal })
+  }
+
+  async function handlePatch(
+    id: string,
+    patch: {
+      quantity?: number
+      productionType?: ContractMenuProductionType | null
+    }
+  ) {
+    setSavingId(id)
     setError(null)
     try {
-      await deleteContractMenu(id)
-      const nextContractMenus = contractMenus.filter((cm) => cm.id !== id)
-      const nextTotal = nextContractMenus.reduce(
-        (sum, cm) => sum + cm.quantity * cm.unitPrice,
-        0
+      const updated = await updateContractMenu(id, patch)
+      applyMenus(
+        contractMenus.map((cm) => (cm.id === updated.id ? updated : cm))
       )
-      setContractMenus(nextContractMenus)
-      setTotalAmount(nextTotal)
-      onChanged?.()
     } catch (e) {
-      setError(getErrorMessage(e, { fallback: "メニューの削除に失敗しました" }))
+      setError(
+        getErrorMessage(e, {
+          fallback: "メニューの更新に失敗しました",
+          overrides: {
+            CONFLICT:
+              "入金確定済みのため、金額が変わる変更はできません。",
+          },
+        })
+      )
     } finally {
-      setDeletingId(null)
+      setSavingId(null)
     }
   }
 
@@ -112,16 +142,9 @@ export function ContractMenuSection({
     setError(null)
     try {
       const created = await addContractMenuToContract(contractId, newItem)
-      const nextContractMenus = [...contractMenus, created]
-      const nextTotal = nextContractMenus.reduce(
-        (sum, cm) => sum + cm.quantity * cm.unitPrice,
-        0
-      )
-      setContractMenus(nextContractMenus)
-      setTotalAmount(nextTotal)
+      applyMenus([...contractMenus, created])
       setNewItem(emptyItem(menus))
       setOpen(false)
-      onChanged?.()
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "メニューの追加に失敗しました" }))
     } finally {
@@ -175,12 +198,12 @@ export function ContractMenuSection({
               <TableHead>小計</TableHead>
               <TableHead>制作者</TableHead>
               <TableHead>資料(GoogleDrive)</TableHead>
-              <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {contractMenus.map((cm) => {
               const menu = menus.find((m) => m.id === cm.sponsorshipMenuId)
+              const rowBusy = savingId === cm.id
               return (
                 <TableRow key={cm.id}>
                   <TableCell className="font-medium">
@@ -191,7 +214,15 @@ export function ContractMenuSection({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{cm.quantity}</TableCell>
+                  <TableCell>
+                    <EditableQuantityCell
+                      value={cm.quantity}
+                      disabled={!canManage || rowBusy}
+                      onChange={(quantity) =>
+                        void handlePatch(cm.id, { quantity })
+                      }
+                    />
+                  </TableCell>
                   <TableCell>
                     {currencyFormatter.format(cm.unitPrice)}
                   </TableCell>
@@ -199,16 +230,27 @@ export function ContractMenuSection({
                     {currencyFormatter.format(cm.quantity * cm.unitPrice)}
                   </TableCell>
                   <TableCell>
-                    {cm.productionType
-                      ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[cm.productionType]
-                      : "-"}
+                    <EditableProductionTypeCell
+                      value={cm.productionType}
+                      disabled={!canManage || rowBusy}
+                      onChange={(productionType) =>
+                        void handlePatch(cm.id, { productionType })
+                      }
+                    />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {cm.driveUrl && (
-                        <a href={cm.driveUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                      {cm.driveUrl ? (
+                        <a
+                          href={cm.driveUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline text-sm"
+                        >
                           {cm.driveFileName || "確認"}
                         </a>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
                       {canManage && (
                         <Button
@@ -220,19 +262,6 @@ export function ContractMenuSection({
                         </Button>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    {canManage && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void handleDelete(cm.id)}
-                        disabled={deletingId === cm.id}
-                      >
-                        削除
-                      </Button>
-                    )}
                   </TableCell>
                 </TableRow>
               )
@@ -247,7 +276,7 @@ export function ContractMenuSection({
             onOpenChange={(open) => !open && setUploadingMenuId(null)}
             onSuccess={() => {
               setUploadingMenuId(null)
-              onChanged?.()
+              onChanged?.({ contractMenus, totalAmount })
             }}
           />
         )}

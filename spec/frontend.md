@@ -394,7 +394,7 @@ Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignme
 Shown before Contract (production/status work happens more often than contract-level edits). The Contract Menu table is both the creation point (no contract yet — see below) and the ongoing edit point for a Contract's Contract Menus:
 
 * No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately once a Contract Menu exists and `totalAmount > 0` (`POST /contracts/{contractId}/payment`); goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record. Field-level validation errors are highlighted at the specific field, not just a generic banner (see UI Design Principles below).
-* A contract exists — each line is editable in place (`isGoodsSponsorship`, quantity, production type, status, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Upload Production Information`). No delete action is exposed here (removal is not a supported UI operation on this screen — `DELETE /contract-menus/{id}` remains Administrator-only, see `spec/api.md#Delete Contract Menu`). Contract Menu List (below, the cross-contract view) is unaffected — it never adds/removes items either.
+* A contract exists — each line is editable in place (quantity, production type, status, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Upload Production Information`). `isGoodsSponsorship` is set only at creation or when adding a menu line (toggling it later would zero `unitPrice` and lose the negotiated price, so the Detail UI does not expose that toggle — the flag still displays as a badge when true). No delete action is exposed here (removal is not a supported UI operation on this screen — `DELETE /contract-menus/{id}` remains Administrator-only, see `spec/api.md#Delete Contract Menu`). Contract Menu List (below, the cross-contract view) is unaffected — it never adds/removes items either.
 
 ### Contract
 
@@ -451,7 +451,7 @@ Purpose:
 
 Manage each contracted sponsorship item — the primary working screen for Sponsorship Members handling ad-material production/collection (informally "広告管理"; not a separate Role, see `spec/business.md#Roles`) across every company at once.
 
-Producer (production type) and ad status are toggled directly on this list (`spec/api.md#Update Contract Menu Status`). Whether the deliverable is complete is read from Drive URL presence, not a separate flag. (Open consideration, not yet decided: a second Drive link for internal-production working files, separate from the company-facing submission `driveUrl` — see `spec/model.md#ContractMenu`.)
+Quantity and producer (production type) are edited inline on this list (`spec/api.md#Update Contract Menu`). Ad status is toggled via `spec/api.md#Update Contract Menu Status`. Whether the deliverable is complete is read from Drive URL presence, not a separate flag. (Open consideration, not yet decided: a second Drive link for internal-production working files, separate from the company-facing submission `driveUrl` — see `spec/model.md#ContractMenu`.)
 
 Display:
 
@@ -480,13 +480,15 @@ Progress (see above) can link directly into this list pre-filtered to a
 given Sponsorship Menu + `ContractMenuStatus` cell.
 
 Status is directly editable to any `ContractMenuStatus`, including
-`SUBMITTED` (`PATCH /contract-menus/{id}/status`). Production type has no
-update endpoint — it's set once at creation (`POST
-/contracts/{contractId}/menus`) — so it's read-only here. Registering a
-Drive URL always finalizes the item: `PATCH /contract-menus/{id}/production`
-sets `status` to `SUBMITTED` as part of the same call (spec/api.md#Upload
-Production Information), so saving a Drive URL here updates both fields
-together.
+`SUBMITTED` (`PATCH /contract-menus/{id}/status`). Quantity and production
+type are editable inline via `PATCH /contract-menus/{id}`
+(`spec/api.md#Update Contract Menu`) — the same cell-level pattern as
+status (Principle 4). Production type is only editable when the referenced
+Sponsorship Menu has `requiresSubmission = true` (otherwise it stays
+null/`-`). Registering a Drive URL always finalizes the item:
+`PATCH /contract-menus/{id}/production` sets `status` to `SUBMITTED` as
+part of the same call (spec/api.md#Upload Production Information), so
+saving a Drive URL here updates both fields together.
 
 ---
 
