@@ -29,11 +29,15 @@ export function EditableQuantityCell({
 
   useEffect(() => {
     if (editing) {
-      setDraft(String(value))
       inputRef.current?.focus()
       inputRef.current?.select()
     }
-  }, [editing, value])
+  }, [editing])
+
+  function startEditing() {
+    setDraft(String(value))
+    setEditing(true)
+  }
 
   function commit() {
     const next = Number(draft)
@@ -76,7 +80,7 @@ export function EditableQuantityCell({
         disabled ? "opacity-50" : "cursor-pointer hover:bg-muted"
       )}
       onClick={() => {
-        if (!disabled) setEditing(true)
+        if (!disabled) startEditing()
       }}
     >
       {value}
