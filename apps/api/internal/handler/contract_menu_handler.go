@@ -27,6 +27,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 	rStaff.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
+	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
 
 	// Deletion is Administrator-only system-wide (spec/api.md#Authorization
 	// Matrix) — Sponsorship Member's "manage menus" access stops at update.
