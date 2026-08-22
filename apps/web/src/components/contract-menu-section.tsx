@@ -274,9 +274,13 @@ export function ContractMenuSection({
             menuId={uploadingMenuId}
             open={!!uploadingMenuId}
             onOpenChange={(open) => !open && setUploadingMenuId(null)}
-            onSuccess={() => {
+            onSuccess={(updated) => {
               setUploadingMenuId(null)
-              onChanged?.({ contractMenus, totalAmount })
+              applyMenus(
+                contractMenus.map((cm) =>
+                  cm.id === updated.id ? updated : cm
+                )
+              )
             }}
           />
         )}

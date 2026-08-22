@@ -14,6 +14,7 @@ import {
 import { ErrorBanner } from "@/components/query-state"
 import { uploadContractMenuToDrive } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
+import type { ContractMenu } from "@/types/contract-menu"
 
 export function DriveUploadDialog({
     menuId,
@@ -24,7 +25,8 @@ export function DriveUploadDialog({
     menuId: string
     open: boolean
     onOpenChange: (open: boolean) => void
-    onSuccess?: () => void
+    /** Receives the updated Contract Menu so callers can refresh the row without refetching. */
+    onSuccess?: (updated: ContractMenu) => void
 }) {
     const [file, setFile] = useState<File | null>(null)
     const [busy, setBusy] = useState(false)
@@ -83,8 +85,8 @@ export function DriveUploadDialog({
                         }
 
                         try {
-                            await uploadContractMenuToDrive(menuId, file, folderId, tokenToUse)
-                            onSuccess?.()
+                            const updated = await uploadContractMenuToDrive(menuId, file, folderId, tokenToUse)
+                            onSuccess?.(updated)
                             onOpenChange(false)
                         } catch (err) {
                             setError(getErrorMessage(err, { fallback: "アップロードに失敗しました" }))

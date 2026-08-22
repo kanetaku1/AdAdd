@@ -3,14 +3,16 @@
 import { useEffect, useRef, useState } from "react"
 import { Pencil } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 /**
  * Inline-editable quantity cell (spec/frontend.md UI Principle 4;
  * Contract Menu List / Yearly Company Detail). Click-to-edit number;
- * saves on blur or Enter. Values <= 0 are rejected locally.
- * Dashed border + pencil mark that the cell is editable at rest.
+ * saves on blur or Enter. Values <= 0 are rejected locally. Uses the same
+ * badge affordance as EditableProductionTypeCell so every editable cell in
+ * the table reads alike at rest.
  */
 export function EditableQuantityCell({
   value,
@@ -65,28 +67,22 @@ export function EditableQuantityCell({
   }
 
   return (
-    <button
-      type="button"
+    <Badge
+      variant="outline"
       title={disabled ? undefined : "クリックして編集"}
       aria-label={`数量 ${value}${disabled ? "" : "（編集）"}`}
       className={cn(
-        "inline-flex h-8 min-w-12 items-center justify-between gap-1.5 rounded-md border border-dashed px-2 text-sm",
-        disabled
-          ? "cursor-default border-transparent opacity-50"
-          : "cursor-pointer border-muted-foreground/35 text-foreground hover:border-foreground/50 hover:bg-muted"
+        "gap-1 font-normal",
+        disabled ? "opacity-50" : "cursor-pointer hover:bg-muted"
       )}
-      disabled={disabled}
       onClick={() => {
         if (!disabled) setEditing(true)
       }}
     >
-      <span>{value}</span>
+      {value}
       {!disabled && (
-        <Pencil
-          className="size-3 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
+        <Pencil className="size-3 text-muted-foreground" aria-hidden />
       )}
-    </button>
+    </Badge>
   )
 }
