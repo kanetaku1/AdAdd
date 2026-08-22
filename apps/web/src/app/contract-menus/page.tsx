@@ -21,10 +21,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EditableContractMenuStatusBadge } from "@/components/editable-contract-menu-status-badge"
+import { EditableProductionTypeCell } from "@/components/editable-production-type-cell"
+import { EditableQuantityCell } from "@/components/editable-quantity-cell"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   listContractMenusAcrossYear,
+  updateContractMenu,
   updateContractMenuStatus,
 } from "@/lib/data/sponsorship"
 import { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
@@ -66,14 +69,10 @@ function isContractMenuStatus(
  * table embedded in yearly-companies/[id]/page.tsx.
  *
  * Status is freely editable to any `ContractMenuStatus`, including
- * `SUBMITTED` directly (`PATCH /contract-menus/{id}/status`,
- * spec/api.md#Update Contract Menu Status). Production type has no update
- * endpoint — it's only set at creation (`POST /contracts/{contractId}/menus`)
- * — so it's read-only here, matching ContractMenuSection on the Yearly
- * Company detail page. Registering a Drive folder URL always finalizes the
- * item: the backend's `PATCH .../production` sets `status` to `SUBMITTED`
- * as part of that same call (spec/api.md#Upload Production Information), so
- * saving a Drive URL here updates both fields together.
+ * `SUBMITTED` (`PATCH /contract-menus/{id}/status`). Quantity and
+ * production type are editable inline via `PATCH /contract-menus/{id}`
+ * (spec/api.md#Update Contract Menu). Deliverable completeness is read from
+ * Drive URL presence (no separate flag).
  *
  * Accepts `?menuId=&status=&companyName=` query params as initial filter
  * values, so the per-menu status breakdown and the follow-up list in
@@ -208,7 +207,34 @@ function ContractMenusList() {
     }
   }
 
-
+  async function handleDetailsChange(
+    id: string,
+    patch: {
+      quantity?: number
+      productionType?: ContractMenuProductionType
+    }
+  ) {
+    setError(null)
+    setSavingId(id)
+    try {
+      const updated = await updateContractMenu(id, patch)
+      setContractMenus((prev) =>
+        prev.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
+      )
+    } catch (e) {
+      setError(
+        getErrorMessage(e, {
+          fallback: "メニューの更新に失敗しました",
+          overrides: {
+            CONFLICT:
+              "入金確定済みのため、金額が変わる変更はできません。",
+          },
+        })
+      )
+    } finally {
+      setSavingId(null)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -400,14 +426,26 @@ function ContractMenusList() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{cm.quantity}</TableCell>
+                    <TableCell>
+                      <EditableQuantityCell
+                        value={cm.quantity}
+                        disabled={savingId === cm.id || !canManage}
+                        onChange={(quantity) =>
+                          void handleDetailsChange(cm.id, { quantity })
+                        }
+                      />
+                    </TableCell>
                     <TableCell>
                       {currencyFormatter.format(cm.unitPrice)}
                     </TableCell>
                     <TableCell>
-                      {cm.productionType
-                        ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[cm.productionType]
-                        : "-"}
+                      <EditableProductionTypeCell
+                        value={cm.productionType}
+                        disabled={savingId === cm.id || !canManage}
+                        onChange={(productionType) =>
+                          void handleDetailsChange(cm.id, { productionType })
+                        }
+                      />
                     </TableCell>
                     <TableCell>
                       <EditableContractMenuStatusBadge

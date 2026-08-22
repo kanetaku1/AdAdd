@@ -115,7 +115,31 @@ export async function apiFetch<T>(
     if (isApiErrorEnvelope(json)) {
       throw new ApiError(res.status, json.error.message, json.error.code, json)
     }
-    throw new ApiError(res.status, res.statusText, null, json)
+    // Echo's default 404 is `{"message":"Not Found"}` (no error.code).
+    // Map common statuses so getErrorMessage can show Japanese copy.
+    const bodyMessage =
+      typeof json === "object" &&
+      json !== null &&
+      "message" in json &&
+      typeof (json as { message: unknown }).message === "string"
+        ? (json as { message: string }).message
+        : null
+    const code =
+      res.status === 404
+        ? "NOT_FOUND"
+        : res.status === 409
+          ? "CONFLICT"
+          : res.status === 403
+            ? "FORBIDDEN"
+            : res.status === 401
+              ? "UNAUTHORIZED"
+              : null
+    throw new ApiError(
+      res.status,
+      bodyMessage || res.statusText,
+      code,
+      json
+    )
   }
 
   if (

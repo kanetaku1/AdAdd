@@ -126,7 +126,7 @@ export function addContractMenu(menu: ContractMenu): void {
 }
 
 /**
- * Mirrors PATCH /contract-menus/{id}/status and .../production
+ * Mirrors PATCH /contract-menus/{id}, .../status, and .../production
  * (spec/api.md) so mock mode persists edits the same way the API does.
  */
 export function updateContractMenu(
