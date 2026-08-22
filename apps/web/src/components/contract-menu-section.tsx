@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -30,6 +32,7 @@ import { useCurrentUser } from "@/components/current-user-provider"
 import { ErrorBanner } from "@/components/query-state"
 import {
   addContractMenuToContract,
+  deleteContractMenu,
   updateContractMenu,
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
@@ -42,6 +45,8 @@ import type {
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
+/** Deletion is Administrator-only system-wide (spec/api.md#Authorization Matrix). */
+const DELETE_ROLES = ["ADMINISTRATOR"]
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
@@ -66,8 +71,10 @@ function recalcTotal(menus: ContractMenu[]): number {
 /**
  * Contract Menu table + total amount + "メニューを追加"
  * (spec/usecase.md UC-07 / spec/frontend.md#Yearly Company Detail).
- * Lines are editable in place (quantity, production type); delete is not
- * exposed. `isGoodsSponsorship` is chosen only when adding a menu
+ * Lines are editable in place (quantity, production type). Deleting a line is
+ * Administrator-only and hidden for every other Role, matching the backend's
+ * `RequireRoles("ADMINISTRATOR")` on `DELETE /contract-menus/{id}`.
+ * `isGoodsSponsorship` is chosen only when adding a menu
  * (`ContractMenuItemFields`) and shown as a badge when true.
  */
 export function ContractMenuSection({
@@ -89,6 +96,7 @@ export function ContractMenuSection({
 }) {
   const { currentUser } = useCurrentUser()
   const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const canDelete = canAccess(currentUser?.roles, DELETE_ROLES)
   const [contractMenus, setContractMenus] = useState(initialContractMenus)
   const [totalAmount, setTotalAmount] = useState(initialTotalAmount)
   const [open, setOpen] = useState(false)
@@ -98,6 +106,8 @@ export function ContractMenuSection({
   const [busy, setBusy] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingMenuId, setUploadingMenuId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ContractMenu | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function applyMenus(nextContractMenus: ContractMenu[]) {
@@ -133,6 +143,28 @@ export function ContractMenuSection({
       )
     } finally {
       setSavingId(null)
+    }
+  }
+
+  async function handleDelete(target: ContractMenu) {
+    setDeleting(true)
+    setError(null)
+    try {
+      await deleteContractMenu(target.id)
+      applyMenus(contractMenus.filter((cm) => cm.id !== target.id))
+      setDeleteTarget(null)
+    } catch (e) {
+      setError(
+        getErrorMessage(e, {
+          fallback: "メニューの削除に失敗しました",
+          overrides: {
+            CONFLICT: "入金確定済みのため、金額が変わる削除はできません。",
+            FORBIDDEN: "削除は管理者のみが実行できます。",
+          },
+        })
+      )
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -186,7 +218,7 @@ export function ContractMenuSection({
         )}
       </div>
 
-      {!open && <ErrorBanner message={error} />}
+      {!open && !deleteTarget && <ErrorBanner message={error} />}
 
       <div className="rounded-md border">
         <Table>
@@ -198,6 +230,7 @@ export function ContractMenuSection({
               <TableHead>小計</TableHead>
               <TableHead>制作者</TableHead>
               <TableHead>資料(GoogleDrive)</TableHead>
+              {canDelete && <TableHead className="w-12" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -263,11 +296,65 @@ export function ContractMenuSection({
                       )}
                     </div>
                   </TableCell>
+                  {canDelete && (
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`${menu?.name ?? "メニュー"}を削除`}
+                        title="削除"
+                        disabled={rowBusy}
+                        onClick={() => {
+                          setError(null)
+                          setDeleteTarget(cm)
+                        }}
+                      >
+                        <Trash2 className="text-destructive" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               )
             })}
           </TableBody>
         </Table>
+
+        {deleteTarget && (
+          <Dialog
+            open
+            onOpenChange={(next) => {
+              if (!next && !deleting) setDeleteTarget(null)
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>メニューを削除しますか？</DialogTitle>
+                <DialogDescription>
+                  {menus.find((m) => m.id === deleteTarget.sponsorshipMenuId)
+                    ?.name ?? "(不明なメニュー)"}{" "}
+                  を削除します。この操作は取り消せず、合計金額が再計算されます。
+                </DialogDescription>
+              </DialogHeader>
+              <ErrorBanner message={error} />
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => void handleDelete(deleteTarget)}
+                  disabled={deleting}
+                >
+                  {deleting ? "削除中..." : "削除"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
         {uploadingMenuId && (
           <DriveUploadDialog

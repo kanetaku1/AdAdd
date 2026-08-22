@@ -19,7 +19,7 @@ import (
 func RegisterContractMenuRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/contracts/:contractId/menus", listContractMenus)
-	// staff and admin manage contract menus
+	// staff and admin manage contract menus — create/update only
 	rStaff := e.Group("")
 	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/contracts/:contractId/menus", addContractMenu)
@@ -28,6 +28,12 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 	rStaff.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
 	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
+
+	// Deletion is Administrator-only system-wide (spec/api.md#Authorization
+	// Matrix) — Sponsorship Member's "manage menus" access stops at update.
+	rAdmin := e.Group("")
+	rAdmin.Use(RequireRoles("ADMINISTRATOR"))
+	rAdmin.DELETE("/contract-menus/:id", deleteContractMenu)
 
 	r.GET("/years/:yearId/contract-menus", listContractMenusAcrossYear)
 }

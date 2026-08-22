@@ -789,7 +789,7 @@ DELETE /contract-menus/{id}
 
 Permission:
 
-* Administrator only — see Authorization Matrix (deletion is Administrator-only system-wide). Not currently exposed as a UI action on Yearly Company Detail (`spec/frontend.md#Yearly Company Detail`).
+* Administrator only — see Authorization Matrix (deletion is Administrator-only system-wide). Exposed as a per-line UI action on Yearly Company Detail, shown only to Administrator and guarded by a confirmation step (`spec/frontend.md#Yearly Company Detail`).
 
 ---
 
