@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/csv"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
 func RegisterCompanyRoutes(e *echo.Echo) {
@@ -21,6 +23,7 @@ func RegisterCompanyRoutes(e *echo.Echo) {
 	rc.POST("/companies", createCompany)
 	rc.POST("/companies/bulk", bulkImportCompanies)
 	rc.PATCH("/companies/:id", updateCompany)
+	rc.DELETE("/companies/:id", deleteCompany)
 }
 
 func listCompanies(c echo.Context) error {
@@ -169,4 +172,16 @@ func bulkImportCompanies(c echo.Context) error {
 		msg = "Preview successful"
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": result, "message": msg})
+}
+
+func deleteCompany(c echo.Context) error {
+	id := c.Param("id")
+	svc := service.NewCompanyService()
+	if err := svc.Delete(id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return respondNotFound(c, "company not found")
+		}
+		return respondInternalServerError(c, err)
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"message": "deleted"})
 }

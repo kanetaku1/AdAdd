@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
 func RegisterYearRoutes(e *echo.Echo) {
@@ -15,6 +17,7 @@ func RegisterYearRoutes(e *echo.Echo) {
 	rc := e.Group("")
 	rc.Use(RequireRoles("ADMINISTRATOR"))
 	rc.POST("/years", createYear)
+	rc.DELETE("/years/:yearId", deleteYear)
 }
 
 func listYears(c echo.Context) error {
@@ -36,4 +39,16 @@ func createYear(c echo.Context) error {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
+}
+
+func deleteYear(c echo.Context) error {
+	id := c.Param("yearId")
+	svc := service.NewYearService()
+	if err := svc.Delete(id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return respondNotFound(c, "year not found")
+		}
+		return respondInternalServerError(c, err)
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"message": "deleted"})
 }

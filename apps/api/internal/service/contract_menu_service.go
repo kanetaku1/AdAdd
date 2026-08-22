@@ -114,7 +114,7 @@ func (s *ContractMenuService) Delete(id string) error {
 		if err := tx.First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		if err := tx.Delete(&existing).Error; err != nil {
+		if err := tx.Unscoped().Delete(&existing).Error; err != nil {
 			return err
 		}
 		return csvc.RecalculateTotalAmount(tx, existing.ContractID)
