@@ -867,6 +867,8 @@ export async function addContractMenuToContract(
 /**
  * DELETE /contract-menus/{id} (spec/api.md#Delete Contract Menu) — removes a
  * Contract Menu and recalculates the parent Contract's totalAmount.
+ * Administrator only; callers must gate the action with
+ * `canAccess(roles, ["ADMINISTRATOR"])` to match the backend's RequireRoles.
  */
 export async function deleteContractMenu(id: string): Promise<void> {
   if (isApiEnabled()) {

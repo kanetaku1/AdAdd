@@ -89,8 +89,9 @@
   - 説明: 契約メニュー追加。追加後に親契約の totalAmount を再計算
   - unitPrice 省略時は defaultPrice。明示 0 は保持。isGoodsSponsorship=true なら unitPrice=0
   - バリデーション: sponsorshipMenuId 必須, quantity > 0, unitPrice 非負
-- DELETE /contract-menus/:id (staff, admin)
+- DELETE /contract-menus/:id (admin)
   - 説明: 契約メニュー削除。削除後に totalAmount を再計算
+  - 削除は全システムで Administrator 限定 (spec/api.md#Authorization Matrix)
 - PATCH /contract-menus/:id/status (staff, admin)
   - 説明: ステータス更新
   - ボディ: { "status": "SUBMITTED" }
