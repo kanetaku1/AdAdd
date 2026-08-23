@@ -3,9 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
+import { ChevronDown } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
@@ -26,7 +32,6 @@ import { canAccess } from "@/lib/auth/roles"
 import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   assignMember,
-  createActivityLog,
   createContractWithMenus,
   createPayment,
   getCompany,
@@ -49,6 +54,7 @@ import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_LABEL,
 } from "@/lib/yearly-company-labels"
+import { cn } from "@/lib/utils"
 import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { ActivityLog } from "@/types/activity-log"
 import type { Company } from "@/types/company"
@@ -119,7 +125,7 @@ export default function YearlyCompanyDetailPage() {
     AdvisorAssignment[]
   >([])
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
-  const [activityMessage, setActivityMessage] = useState("")
+  const [activityLogOpen, setActivityLogOpen] = useState(false)
   const [creatingContract, setCreatingContract] = useState(false)
   const [contractDate, setContractDate] = useState(formatDate(new Date()))
   const [remarks, setRemarks] = useState("")
@@ -384,28 +390,6 @@ export default function YearlyCompanyDetailPage() {
       setError(
         getErrorMessage(e, { fallback: "入金レコードの作成に失敗しました" })
       )
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleCreateActivityLog(event: React.FormEvent) {
-    event.preventDefault()
-    const trimmed = activityMessage.trim()
-    if (!trimmed) return
-    setBusy(true)
-    setError(null)
-    try {
-      const created = await createActivityLog(yc.id, {
-        eventType: "MANUAL_NOTE",
-        message: trimmed,
-      })
-      setActivityLogs((prev) =>
-        [created, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      )
-      setActivityMessage("")
-    } catch (e) {
-      setError(getErrorMessage(e, { fallback: "Activity Log の作成に失敗しました" }))
     } finally {
       setBusy(false)
     }
@@ -741,55 +725,58 @@ export default function YearlyCompanyDetailPage() {
         </p>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="font-medium">Activity Log</h2>
-        <form
-          onSubmit={(e) => void handleCreateActivityLog(e)}
-          className="rounded-md border p-3"
-        >
-          <Field>
-            <FieldLabel>手動ログを追加</FieldLabel>
-            <Textarea
-              value={activityMessage}
-              onChange={(e) => setActivityMessage(e.target.value)}
-              placeholder="例）先方と電話。見積確認後に契約メニューを確定予定。"
-              rows={3}
+      <Collapsible
+        open={activityLogOpen}
+        onOpenChange={setActivityLogOpen}
+        render={<section className="flex flex-col gap-3" />}
+      >
+        <h2 className="font-medium">
+          <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md text-left hover:text-foreground/80">
+            <ChevronDown
+              className={cn(
+                "size-4 text-muted-foreground transition-transform",
+                activityLogOpen && "rotate-180"
+              )}
             />
-          </Field>
-          <div className="mt-3">
-            <Button type="submit" size="sm" disabled={busy || !activityMessage.trim()}>
-              Activity Log を追加
-            </Button>
-          </div>
-        </form>
+            Activity Log
+            <span className="font-normal text-muted-foreground">
+              ({activityLogs.length})
+            </span>
+          </CollapsibleTrigger>
+        </h2>
 
-        <div className="rounded-md border">
-          {activityLogs.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-muted-foreground">
-              Activity Log はまだありません。
-            </p>
-          ) : (
-            <ul className="divide-y">
-              {activityLogs.map((log) => (
-                <li key={log.id} className="flex flex-col gap-1 px-3 py-3 text-sm">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">
-                      {ACTIVITY_EVENT_LABEL[log.eventType]}
-                    </Badge>
-                    <span className="text-muted-foreground">
-                      {new Date(log.createdAt).toLocaleString("ja-JP")}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {log.createdByName ?? "(不明なユーザー)"}
-                    </span>
-                  </div>
-                  <p>{log.message}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+        <CollapsibleContent>
+          <div className="rounded-md border">
+            {activityLogs.length === 0 ? (
+              <p className="px-3 py-4 text-sm text-muted-foreground">
+                Activity Log はまだありません。
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {activityLogs.map((log) => (
+                  <li
+                    key={log.id}
+                    className="flex flex-col gap-1 px-3 py-3 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">
+                        {ACTIVITY_EVENT_LABEL[log.eventType]}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {new Date(log.createdAt).toLocaleString("ja-JP")}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {log.createdByName ?? "(不明なユーザー)"}
+                      </span>
+                    </div>
+                    <p>{log.message}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   )
 }
