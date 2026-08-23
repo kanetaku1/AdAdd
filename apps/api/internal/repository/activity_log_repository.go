@@ -14,8 +14,8 @@ func (r *ActivityLogRepository) Create(al *model.ActivityLog) error { return db.
 func (r *ActivityLogRepository) ListByYearlyCompany(yearlyCompanyId string) ([]model.ActivityLogResponse, error) {
 	var list []model.ActivityLogResponse
 	if err := db.DB.Table("activity_logs").
-		Select("activity_logs.*, users.name as user_name").
-		Joins("JOIN users ON users.id = activity_logs.user_id").
+		Select("activity_logs.id, activity_logs.yearly_company_id, activity_logs.action, activity_logs.description, activity_logs.created_at, activity_logs.user_id, users.name as created_by_name").
+		Joins("LEFT JOIN users ON users.id = activity_logs.user_id").
 		Where("activity_logs.yearly_company_id = ?", yearlyCompanyId).
 		Order("activity_logs.created_at desc").
 		Find(&list).Error; err != nil {

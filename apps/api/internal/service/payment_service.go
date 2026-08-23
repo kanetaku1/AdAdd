@@ -72,8 +72,8 @@ func (s *PaymentService) Update(p *model.Payment) error {
 				al := &model.ActivityLog{
 					YearlyCompanyID: contract.YearlyCompanyID,
 					UserID:          p.ConfirmedByID,
-					Action:          "PAYMENT_CONFIRMED",
-					Description:     "Payment confirmed",
+					Action:          model.EventPaymentStatusUpdated,
+					Description:     "入金を確認",
 					CreatedAt:       time.Now(),
 				}
 				if err := tx.Create(al).Error; err != nil {

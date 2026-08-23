@@ -71,8 +71,8 @@ func updateProgress(c echo.Context) error {
 	logEntry := &model.ActivityLog{
 		YearlyCompanyID: yc.ID,
 		UserID:          userID,
-		Action:          "UPDATE_PROGRESS",
-		Description:     "Progress changed from " + oldVal + " to " + yc.Progress,
+		Action:          model.EventProgressUpdated,
+		Description:     "進捗を " + oldVal + " から " + yc.Progress + " に更新",
 	}
 
 	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
@@ -135,8 +135,8 @@ func updateCompanyStatus(c echo.Context) error {
 	logEntry := &model.ActivityLog{
 		YearlyCompanyID: yc.ID,
 		UserID:          userID,
-		Action:          "UPDATE_COMPANY_STATUS",
-		Description:     "CompanyStatus changed from " + oldVal + " to " + yc.CompanyStatus,
+		Action:          model.EventCompanyStatusUpdated,
+		Description:     "企業ステータスを " + oldVal + " から " + yc.CompanyStatus + " に更新",
 	}
 
 	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
@@ -171,8 +171,8 @@ func updatePhase(c echo.Context) error {
 	logEntry := &model.ActivityLog{
 		YearlyCompanyID: yc.ID,
 		UserID:          userID,
-		Action:          "UPDATE_PHASE",
-		Description:     "Phase changed from " + oldVal + " to " + yc.Phase,
+		Action:          model.EventPhaseUpdated,
+		Description:     "フェーズを " + oldVal + " から " + yc.Phase + " に更新",
 	}
 
 	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {

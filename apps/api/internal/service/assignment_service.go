@@ -30,8 +30,8 @@ func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, role, actorUs
 			al := &model.ActivityLog{
 				YearlyCompanyID: yearlyCompanyID,
 				UserID:          actorUserID,
-				Action:          "CLEARED_MEMBER",
-				Description:     "CompanyAssignment cleared",
+				Action:          model.EventAssignmentUpdated,
+				Description:     "担当メンバーを解除",
 				CreatedAt:       time.Now(),
 			}
 			return tx.Create(al).Error
@@ -53,8 +53,8 @@ func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, role, actorUs
 		al := &model.ActivityLog{
 			YearlyCompanyID: yearlyCompanyID,
 			UserID:          logUser,
-			Action:          "ASSIGNED_MEMBER",
-			Description:     "Member assigned to YearlyCompany",
+			Action:          model.EventAssignmentUpdated,
+			Description:     "担当メンバーを設定",
 			CreatedAt:       time.Now(),
 		}
 		return tx.Create(al).Error
