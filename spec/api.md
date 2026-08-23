@@ -974,7 +974,23 @@ Response item example:
 }
 ```
 
-Entries are exclusively system-generated, on: Sponsorship Progress change, Contract Menu status change (ad status), and Payment status change. There is no manual/user-authored entry endpoint — a free-text handover note belongs on `Company.memo` instead (`spec/model.md#Company`).
+Entries are exclusively system-generated. There is no manual/user-authored entry endpoint — a free-text handover note belongs on `Company.memo` instead (`spec/model.md#Company`).
+
+`eventType` is one of:
+
+| eventType | Written when |
+| --- | --- |
+| `PROGRESS_UPDATED` | `YearlyCompany.progress` changes |
+| `COMPANY_STATUS_UPDATED` | `YearlyCompany.companyStatus` changes |
+| `PHASE_UPDATED` | `YearlyCompany.phase` changes |
+| `ASSIGNMENT_UPDATED` | CompanyAssignment is set or cleared |
+| `CONTRACT_CREATED` | a Sponsorship Contract is created |
+| `CONTRACT_MENU_STATUS_UPDATED` | a Contract Menu's status changes |
+| `PAYMENT_STATUS_UPDATED` | a Payment is confirmed |
+
+`MANUAL_NOTE` may appear on rows written before manual entry was removed; new rows never use it.
+
+Persistence columns remain `action` / `description` / `user_id` (`spec/model.md#ActivityLog`). This endpoint maps them to `eventType` / `message` / `createdById`, and joins `createdByName`. Legacy `action` values (`UPDATE_PROGRESS`, `ASSIGNED_MEMBER`, `CONTRACT_MENU_SUBMITTED`, …) are normalized to the table above on read.
 
 ---
 

@@ -229,7 +229,8 @@ func (aa *AdvisorAssignment) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
-// ActivityLog
+// ActivityLog is the persistence model (spec/model.md#ActivityLog).
+// JSON tags here are unused for the list API — see ActivityLogResponse.
 type ActivityLog struct {
 	ID              string    `gorm:"type:char(36);primaryKey" json:"id"`
 	YearlyCompanyID string    `gorm:"type:char(36);not null;index" json:"yearlyCompanyId"`
@@ -239,11 +240,21 @@ type ActivityLog struct {
 	CreatedAt       time.Time `json:"createdAt"`
 }
 
-// ActivityLogResponse is the returned DTO for ActivityLog endpoints,
-// joining the User table to include the user's name.
+// ActivityLogResponse is the list DTO (spec/api.md#List Activity Logs).
+// Column names stay on the ActivityLog table; JSON names follow the spec.
 type ActivityLogResponse struct {
-	ActivityLog
-	UserName string `gorm:"column:user_name" json:"userName"`
+	ID              string    `gorm:"column:id" json:"id"`
+	YearlyCompanyID string    `gorm:"column:yearly_company_id" json:"yearlyCompanyId"`
+	EventType       string    `gorm:"column:action" json:"eventType"`
+	Message         string    `gorm:"column:description" json:"message"`
+	CreatedAt       time.Time `gorm:"column:created_at" json:"createdAt"`
+	CreatedByID     string    `gorm:"column:user_id" json:"createdById"`
+	CreatedByName   *string   `gorm:"column:created_by_name" json:"createdByName"`
+}
+
+func (r *ActivityLogResponse) AfterFind(_ *gorm.DB) error {
+	r.EventType = NormalizeEventType(r.EventType)
+	return nil
 }
 
 func (a *ActivityLog) BeforeCreate(tx *gorm.DB) (err error) {

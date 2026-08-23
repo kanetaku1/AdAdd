@@ -69,8 +69,8 @@ func (s *ContractService) CreateWithUser(c *model.SponsorshipContract, actorUser
 		al := &model.ActivityLog{
 			YearlyCompanyID: c.YearlyCompanyID,
 			UserID:          logUser,
-			Action:          "CONTRACT_CREATED",
-			Description:     "Contract created",
+			Action:          model.EventContractCreated,
+			Description:     "契約を作成",
 			CreatedAt:       time.Now(),
 		}
 		return tx.Create(al).Error

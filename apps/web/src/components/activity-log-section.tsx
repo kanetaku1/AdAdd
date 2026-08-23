@@ -10,14 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
-import type { ActivityLog } from "@/types/activity-log"
-
-const ACTIVITY_EVENT_LABEL = {
-  MANUAL_NOTE: "手動メモ",
-  PROGRESS_UPDATED: "進捗更新",
-  ASSIGNMENT_UPDATED: "担当変更",
-  CONTRACT_CREATED: "契約作成",
-} as const
+import { activityEventLabel, type ActivityLog } from "@/types/activity-log"
 
 /**
  * Activity Log block on Yearly Company Detail
@@ -64,7 +57,7 @@ export function ActivityLogSection({ logs }: { logs: ActivityLog[] }) {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">
-                      {ACTIVITY_EVENT_LABEL[log.eventType]}
+                      {activityEventLabel(log.eventType)}
                     </Badge>
                     <span className="text-muted-foreground">
                       {new Date(log.createdAt).toLocaleString("ja-JP")}
