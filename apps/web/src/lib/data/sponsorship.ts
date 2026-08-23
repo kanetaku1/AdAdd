@@ -553,7 +553,9 @@ export async function listPaymentsByYear(
         confirmedById?: string | null
         confirmedByName?: string | null
         companyName: string
+        companyNameKana?: string
         yearlyCompanyId: string
+        assignedMemberName?: string | null
       }>
     >(`/years/${yearId}/payments${qs ? `?${qs}` : ""}`)
     return list.map((p) => ({
@@ -565,7 +567,9 @@ export async function listPaymentsByYear(
       confirmedById: p.confirmedById ?? null,
       confirmedByName: p.confirmedByName ?? null,
       companyName: p.companyName,
+      companyNameKana: p.companyNameKana ?? "",
       yearlyCompanyId: p.yearlyCompanyId,
+      assignedMemberName: p.assignedMemberName ?? null,
     }))
   }
 
@@ -582,7 +586,11 @@ export async function listPaymentsByYear(
       return {
         ...p,
         companyName: yc.companyName,
+        companyNameKana:
+          mockCompanies.find((c) => c.id === yc.companyId)?.companyNameKana ??
+          "",
         yearlyCompanyId: yc.id,
+        assignedMemberName: yc.assignedMemberName,
       }
     })
     .filter((p): p is PaymentAcrossYear => p !== null)
