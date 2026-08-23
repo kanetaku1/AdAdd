@@ -378,7 +378,7 @@ Contract (payment status + total, invoice/receipt actions)
 
 ↓
 
-Activity Log (collapsible)
+活動記録 (collapsible)
 ```
 
 ### Company Information
@@ -402,13 +402,15 @@ Below Contract Menu. Shows payment status and `totalAmount` only (line-item deta
 
 `contractDate` is shown as a caption under `totalAmount`. It is not part of the summary proper, but Yearly Company Detail is the only screen that surfaces it at all, so dropping it entirely would make the agreed contract date unreachable from the UI. `remarks` is not shown here — it is carried into the generated invoice (FR-015) and does not drive day-to-day work on this screen. The Contract's committee assignee is not repeated either; it is the same value already shown in the Assignment strip above.
 
-### Activity Log
+### 活動記録
 
 Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (progress / Contract Menu status / Payment status changes — `spec/domain.md#Activity Log`); there is no manual entry action. A handover note that isn't a status change belongs on `Company.memo` instead.
 
+The heading and empty state use 活動記録. Each row shows `eventType` as a Japanese badge, `message` (already Japanese business language), `createdAt` in JST (`ja-JP` / `Asia/Tokyo`), and the actor's name.
+
 ### Open questions (TODO — needs discussion before final field list)
 
-Exact required fields for Company Information / Contract / Contract Menu / Activity Log / company status / ad status blocks above are not yet finalized.
+Exact required fields for Company Information / Contract / Contract Menu / 活動記録 / company status / ad status blocks above are not yet finalized.
 
 ---
 
@@ -783,7 +785,7 @@ AdAdd replaces a spreadsheet-based workflow. If editing business data in AdAdd i
 * Bulk initial data entry should go through Google Sheets Import (see `spec/api.md` → Google Sheets Import), not one-by-one UI entry.
 * Keep permission restrictions limited to what business rules actually require (see `spec/business.md` Organization, `spec/api.md` Authorization Matrix). Do not add new restrictions beyond documented business rules for the sake of caution.
 * Where a user can view a field but not edit it, show it (e.g. read-only/greyed out) rather than hiding it.
-* Rely on Activity Log (append-only, see `spec/domain.md` Rule 8) as the safety net for mistakes, instead of confirmation dialogs or overly cautious permission gates that slow down everyday editing.
+* Rely on 活動記録 (append-only Activity Log, see `spec/domain.md` Rule 8) as the safety net for mistakes, instead of confirmation dialogs or overly cautious permission gates that slow down everyday editing.
 
 ---
 

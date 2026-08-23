@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/label"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -254,6 +255,7 @@ type ActivityLogResponse struct {
 
 func (r *ActivityLogResponse) AfterFind(_ *gorm.DB) error {
 	r.EventType = NormalizeEventType(r.EventType)
+	r.Message = label.NormalizeActivityMessage(r.Message)
 	return nil
 }
 

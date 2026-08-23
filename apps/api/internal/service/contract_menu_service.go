@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/label"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"github.com/shopspring/decimal"
@@ -72,7 +73,7 @@ func contractMenuStatusLogMessage(menuName, from, to string) string {
 	if menuName == "" {
 		menuName = "協賛メニュー"
 	}
-	return menuName + "のステータスを " + from + " から " + to + " に更新"
+	return menuName + "のステータスを「" + label.ContractMenuStatus(from) + "」から「" + label.ContractMenuStatus(to) + "」に更新"
 }
 
 // UpdateWithUser updates the contract menu and, if status changed, writes one

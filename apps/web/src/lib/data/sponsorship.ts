@@ -25,6 +25,7 @@ import {
   mockYearlyCompanies,
   updateAssignedMember,
 } from "@/lib/mock/yearly-companies"
+import { SPONSORSHIP_PROGRESS_LABEL } from "@/lib/yearly-company-labels"
 import type { ActivityLog } from "@/types/activity-log"
 import type {
   ContractMenu,
@@ -667,7 +668,7 @@ export async function updateYearlyCompanyProgress(
     addMockActivityLog({
       yearlyCompanyId,
       eventType: "PROGRESS_UPDATED",
-      message: `進捗を「${progress}」に更新`,
+      message: `進捗を「${SPONSORSHIP_PROGRESS_LABEL[progress]}」に更新`,
     })
   }
 }

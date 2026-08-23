@@ -75,7 +75,7 @@ Important domain objects include:
 * Sponsorship Menu
 * Contract Menu
 * Payment
-* Activity Log
+* Activity Log（活動記録）
 
 ---
 
@@ -185,7 +185,7 @@ The system manages:
 * Sponsorship Contracts
 * Sponsorship Menus
 * Payments
-* Activity Logs
+* Activity Logs（活動記録）
 * Permissions
 * Invoice and Receipt PDF generation (on-demand, from existing Contract/Payment data — see FR-015)
 

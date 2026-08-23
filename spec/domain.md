@@ -32,7 +32,7 @@ Year
               │          ├──── Contract Menu ──→ references Sponsorship Menu
               │          └──── Payment
               │
-              └──── Activity Log
+              └──── Activity Log（活動記録）
 ```
 
 A Sponsorship Menu is the yearly master definition of what can be sponsored (e.g. Pamphlet advertisement, Homepage banner advertisement, Company booth). A Contract Menu is the concrete instance a company actually contracted for, carrying its own progress, assignee, and Drive folder. A Contract Menu may be a goods-sponsorship return (`isGoodsSponsorship`) rather than a paid item — see Contract Menu → Goods Sponsorship below.
@@ -217,11 +217,15 @@ SponsorshipContract
 
 ---
 
-## Activity Log
+## Activity Log（活動記録）
 
-Represents business history.
+Represents business history. The user-facing name is **活動記録**.
 
 Every important action should generate an Activity Log automatically — there is no manual/user-authored entry. History should never be modified.
+
+Messages are written in Japanese using business labels (`spec/frontend.md` Principle 2), not raw enum tokens. Example: `進捗を「資料送付」から「請求書送付」に更新`, not `進捗を MATERIALS_SENT から INVOICE_SENT に更新`.
+
+`createdAt` is shown in Japan Standard Time (JST, Asia/Tokyo). Persistence remains a timezone-aware datetime; the UI always renders JST so committee work is read in Japan time regardless of the viewer's browser timezone.
 
 ### Examples
 
@@ -553,7 +557,7 @@ Every Payment belongs to exactly one Sponsorship Contract.
 
 ## Rule 8
 
-Activity Logs are append-only.
+活動記録 (Activity Logs) are append-only.
 
 Existing history must never be modified or deleted.
 

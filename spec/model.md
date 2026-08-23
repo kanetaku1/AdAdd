@@ -262,7 +262,7 @@ An Advisor is assigned to a Member, not to a Yearly Company. A Sponsorship Membe
 
 ## ActivityLog
 
-Stores business history.
+Stores business history. User-facing name: **活動記録** (`spec/domain.md#Activity Log`).
 
 ### Attributes
 
@@ -274,6 +274,8 @@ Stores business history.
 | action          | string   |
 | description     | text     |
 | createdAt       | datetime |
+
+`description` (API `message`) is Japanese business language, not raw enum tokens. `createdAt` is displayed in JST (`spec/domain.md#Activity Log`).
 
 ActivityLog is append-only.
 

@@ -12,7 +12,7 @@
 - 契約（Contract）と契約メニュー（ContractMenu）管理
 - スポンサーシップメニュー（SponsorshipMenu）管理
 - 支払い（Payment）管理
-- 活動ログ（ActivityLog）記録
+- 活動記録（ActivityLog）記録
 - 開発用の簡易認証ミドルウェア
 - MySQL への接続とマイグレーション
 
@@ -88,7 +88,7 @@
 - `ContractMenu` — 契約に含まれるスポンサーシップメニュー項目
 - `SponsorshipMenu` — 年度ごとのマスター商品データ
 - `Payment` — 契約に紐づく支払い情報
-- `ActivityLog` — YearlyCompany に対する操作履歴
+- `ActivityLog` — YearlyCompany に対する活動記録
 
 ---
 

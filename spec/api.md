@@ -950,11 +950,11 @@ Example:
 
 ---
 
-# Activity Log API
+# Activity Log API（活動記録）
 
 ## List Activity Logs for a Yearly Company
 
-Returns Activity Log entries for the target Yearly Company, newest first.
+Returns 活動記録 entries for the target Yearly Company, newest first.
 
 ```
 GET /yearly-companies/{id}/activity-logs
@@ -967,7 +967,7 @@ Response item example:
   "id": "activity_log_id",
   "yearlyCompanyId": "yearly_company_id",
   "eventType": "PROGRESS_UPDATED",
-  "message": "進捗を MATERIALS_SENT に更新",
+  "message": "進捗を「資料送付」から「請求書送付」に更新",
   "createdAt": "2026-07-28T07:20:00Z",
   "createdById": "user_id",
   "createdByName": "田中"
@@ -975,6 +975,8 @@ Response item example:
 ```
 
 Entries are exclusively system-generated. There is no manual/user-authored entry endpoint — a free-text handover note belongs on `Company.memo` instead (`spec/model.md#Company`).
+
+`message` is written in Japanese using the same business labels as the UI (`spec/frontend.md` Principle 2). Legacy English messages (`Progress changed from …`, `Member assigned to YearlyCompany`, …) and raw-enum Japanese (`進捗を MATERIALS_SENT から …`) are normalized to business labels on read — rows are not UPDATEd. `createdAt` is ISO-8601; the UI always displays it in JST (Asia/Tokyo).
 
 `eventType` is one of:
 

@@ -198,9 +198,9 @@ Payments are confirmed manually by the Finance Department.
 
 ---
 
-## Activity Log
+## Activity Log（活動記録）
 
-Stores important business events.
+Stores important business events. The operator-facing name is 活動記録.
 
 Examples:
 
