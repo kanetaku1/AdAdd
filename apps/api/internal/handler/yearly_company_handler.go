@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/label"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
@@ -72,7 +73,7 @@ func updateProgress(c echo.Context) error {
 		YearlyCompanyID: yc.ID,
 		UserID:          userID,
 		Action:          model.EventProgressUpdated,
-		Description:     "進捗を " + oldVal + " から " + yc.Progress + " に更新",
+		Description:     label.StatusChange("進捗", label.Progress(oldVal), label.Progress(yc.Progress)),
 	}
 
 	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
@@ -136,7 +137,7 @@ func updateCompanyStatus(c echo.Context) error {
 		YearlyCompanyID: yc.ID,
 		UserID:          userID,
 		Action:          model.EventCompanyStatusUpdated,
-		Description:     "企業ステータスを " + oldVal + " から " + yc.CompanyStatus + " に更新",
+		Description:     label.StatusChange("企業ステータス", label.CompanyStatus(oldVal), label.CompanyStatus(yc.CompanyStatus)),
 	}
 
 	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
@@ -172,7 +173,7 @@ func updatePhase(c echo.Context) error {
 		YearlyCompanyID: yc.ID,
 		UserID:          userID,
 		Action:          model.EventPhaseUpdated,
-		Description:     "フェーズを " + oldVal + " から " + yc.Phase + " に更新",
+		Description:     label.StatusChange("フェーズ", label.Phase(oldVal), label.Phase(yc.Phase)),
 	}
 
 	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {

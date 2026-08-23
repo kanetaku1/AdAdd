@@ -357,12 +357,12 @@ Understand past business activities.
 ## Flow
 
 1. Open Yearly Company.
-2. Open Activity History.
+2. Open 活動記録.
 3. Review recorded events (system-generated only — progress, Contract Menu status, and Payment status changes; no manual entry — see `spec/domain.md#Activity Log`).
 
 ## Result
 
-Business history is visible. A handover note that isn't itself one of those status changes belongs on `Company.memo`, not Activity Log.
+Business history is visible. A handover note that isn't itself one of those status changes belongs on `Company.memo`, not 活動記録.
 
 ---
 

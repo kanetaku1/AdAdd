@@ -12,12 +12,12 @@ import (
 
 func TestContractMenuStatusLogMessage(t *testing.T) {
 	got := contractMenuStatusLogMessage("ホームページ広告", "WAITING", "PRODUCING")
-	want := "ホームページ広告のステータスを WAITING から PRODUCING に更新"
+	want := "ホームページ広告のステータスを「広告データ提出待ち」から「制作中」に更新"
 	if got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 	if contractMenuStatusLogMessage("", "WAITING", "SUBMITTED") !=
-		"協賛メニューのステータスを WAITING から SUBMITTED に更新" {
+		"協賛メニューのステータスを「広告データ提出待ち」から「提出済み」に更新" {
 		t.Fatal("empty menu name should fall back")
 	}
 }

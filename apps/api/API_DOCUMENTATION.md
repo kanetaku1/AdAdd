@@ -131,9 +131,9 @@
 - DELETE /advisor-assignments/:id (admin)
   - 説明: AdvisorAssignment 削除
 
-### Activity Logs
+### 活動記録 (Activity Logs)
 - GET /yearly-companies/:id/activity-logs (staff, admin)
-  - 説明: YearlyCompany の活動ログを新しい順で取得
+  - 説明: YearlyCompany の活動記録を新しい順で取得。`message` は日本語の業務ラベル。`createdAt` は UI で JST 表示
   - 各項目: `id`, `yearlyCompanyId`, `eventType`, `message`, `createdAt`, `createdById`, `createdByName`
   - `eventType` は `PROGRESS_UPDATED` / `COMPANY_STATUS_UPDATED` / `PHASE_UPDATED` / `ASSIGNMENT_UPDATED` / `CONTRACT_CREATED` / `CONTRACT_MENU_STATUS_UPDATED` / `PAYMENT_STATUS_UPDATED`（過去行に `MANUAL_NOTE` があり得る）
   - persistence の `action` / `description` / `user_id` を上記の JSON 名に写す。古い action 値は読み出し時に正規化する

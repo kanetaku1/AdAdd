@@ -32,7 +32,7 @@ func TestActivityLogResponse_JSONUsesSpecFieldNames(t *testing.T) {
 		ID:              "al-1",
 		YearlyCompanyID: "yc-1",
 		EventType:       EventProgressUpdated,
-		Message:         "進捗を MATERIALS_SENT に更新",
+		Message:         "進捗を「資料送付」から「請求書送付」に更新",
 		CreatedByID:     "u-1",
 		CreatedByName:   &name,
 	}
@@ -45,7 +45,7 @@ func TestActivityLogResponse_JSONUsesSpecFieldNames(t *testing.T) {
 
 	for _, must := range []string{
 		`"eventType":"PROGRESS_UPDATED"`,
-		`"message":"進捗を MATERIALS_SENT に更新"`,
+		`"message":"進捗を「資料送付」から「請求書送付」に更新"`,
 		`"createdById":"u-1"`,
 		`"createdByName":"田中"`,
 	} {

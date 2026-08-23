@@ -10,11 +10,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
-import { activityEventLabel, type ActivityLog } from "@/types/activity-log"
+import {
+  activityEventLabel,
+  formatActivityLogDateTime,
+  normalizeActivityMessage,
+  type ActivityLog,
+} from "@/types/activity-log"
 
 /**
- * Activity Log block on Yearly Company Detail
- * (spec/frontend.md#Yearly Company Detail → Activity Log).
+ * 活動記録 block on Yearly Company Detail
+ * (spec/frontend.md#Yearly Company Detail → 活動記録).
  * Collapsed by default — it is a supplementary view, not a primary one.
  * System-generated only; there is no manual entry action.
  */
@@ -35,7 +40,7 @@ export function ActivityLogSection({ logs }: { logs: ActivityLog[] }) {
               open && "rotate-180"
             )}
           />
-          Activity Log
+          活動記録
           <span className="font-normal text-muted-foreground">
             ({logs.length})
           </span>
@@ -46,7 +51,7 @@ export function ActivityLogSection({ logs }: { logs: ActivityLog[] }) {
         <div className="rounded-md border">
           {logs.length === 0 ? (
             <p className="px-3 py-4 text-sm text-muted-foreground">
-              Activity Log はまだありません。
+              活動記録はまだありません。
             </p>
           ) : (
             <ul className="divide-y">
@@ -60,13 +65,13 @@ export function ActivityLogSection({ logs }: { logs: ActivityLog[] }) {
                       {activityEventLabel(log.eventType)}
                     </Badge>
                     <span className="text-muted-foreground">
-                      {new Date(log.createdAt).toLocaleString("ja-JP")}
+                      {formatActivityLogDateTime(log.createdAt)}
                     </span>
                     <span className="text-muted-foreground">
                       {log.createdByName ?? "(不明なユーザー)"}
                     </span>
                   </div>
-                  <p>{log.message}</p>
+                  <p>{normalizeActivityMessage(log.message)}</p>
                 </li>
               ))}
             </ul>
