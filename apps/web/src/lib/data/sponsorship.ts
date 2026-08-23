@@ -25,7 +25,7 @@ import {
   mockYearlyCompanies,
   updateAssignedMember,
 } from "@/lib/mock/yearly-companies"
-import type { ActivityEventType, ActivityLog } from "@/types/activity-log"
+import type { ActivityLog } from "@/types/activity-log"
 import type {
   ContractMenu,
   ContractMenuAcrossYear,
@@ -173,23 +173,6 @@ export async function listActivityLogsByYearlyCompany(
     return apiFetch<ActivityLog[]>(`/yearly-companies/${yearlyCompanyId}/activity-logs`)
   }
   return listMockActivityLogs(yearlyCompanyId)
-}
-
-export async function createActivityLog(
-  yearlyCompanyId: string,
-  input: { eventType: ActivityEventType; message: string }
-): Promise<ActivityLog> {
-  if (isApiEnabled()) {
-    return apiFetch<ActivityLog>(`/yearly-companies/${yearlyCompanyId}/activity-logs`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    })
-  }
-  return addMockActivityLog({
-    yearlyCompanyId,
-    eventType: input.eventType,
-    message: input.message,
-  })
 }
 
 export async function getYearlyCompany(
