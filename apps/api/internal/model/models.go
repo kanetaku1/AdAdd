@@ -178,12 +178,15 @@ func (p *Payment) BeforeCreate(tx *gorm.DB) (err error) {
 }
 
 // PaymentResponse is the returned DTO for cross-contract views (List Payments
-// Across a Year), joined with fields not on Payment itself.
+// Across a Year), joined with fields not on Payment itself
+// (spec/api.md#List Payments Across a Year).
 type PaymentResponse struct {
 	Payment
-	CompanyName     string  `gorm:"column:company_name" json:"companyName"`
-	YearlyCompanyID string  `gorm:"column:yearly_company_id" json:"yearlyCompanyId"`
-	ConfirmedByName *string `gorm:"column:confirmed_by_name" json:"confirmedByName"`
+	CompanyName        string  `gorm:"column:company_name" json:"companyName"`
+	CompanyNameKana    string  `gorm:"column:company_name_kana" json:"companyNameKana"`
+	YearlyCompanyID    string  `gorm:"column:yearly_company_id" json:"yearlyCompanyId"`
+	AssignedMemberName *string `gorm:"column:assigned_member_name" json:"assignedMemberName"`
+	ConfirmedByName    *string `gorm:"column:confirmed_by_name" json:"confirmedByName"`
 }
 
 // CompanyAssignment (table: assignments) — 0..1 per YearlyCompany
