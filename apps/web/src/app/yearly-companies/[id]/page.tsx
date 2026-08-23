@@ -16,7 +16,6 @@ import {
 } from "@/components/contract-creation-form"
 import { ContractMenuSection } from "@/components/contract-menu-section"
 import { useCurrentUser } from "@/components/current-user-provider"
-import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { InvoiceGeneratorModal } from "@/components/invoice-generator-modal"
 import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { ErrorBanner, LoadingBlock } from "@/components/query-state"
@@ -59,6 +58,11 @@ import type {
   SponsorshipProgress,
   YearlyCompany,
 } from "@/types/yearly-company"
+
+const currencyFormatter = new Intl.NumberFormat("ja-JP", {
+  style: "currency",
+  currency: "JPY",
+})
 
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10)
@@ -363,11 +367,6 @@ export default function YearlyCompanyDetailPage() {
             {SPONSORSHIP_PHASE_LABEL[yearlyCompany.phase]}
           </p>
         </div>
-        <EditableProgressBadge
-          value={yearlyCompany.progress}
-          onChange={(value) => void handleProgress(value)}
-          disabled={busy || !canEditStatusPhaseProgress}
-        />
       </div>
 
       <CompanyInfoSection company={company} notes={yearlyCompany.notes} />
@@ -378,8 +377,49 @@ export default function YearlyCompanyDetailPage() {
         advisorNames={memberAdvisorNames}
         users={users}
         onAssign={(userId) => void handleAssign(userId)}
-        disabled={busy || !canEditAssignee}
+        assignDisabled={busy || !canEditAssignee}
+        progress={yearlyCompany.progress}
+        onProgressChange={(value) => void handleProgress(value)}
+        progressDisabled={busy || !canEditStatusPhaseProgress}
       />
+
+      <Separator />
+
+      <section className="flex flex-col gap-4">
+        {contract ? (
+          <ContractMenuSection
+            key={contract.id}
+            contractId={contract.id}
+            initialContractMenus={contractMenus}
+            initialTotalAmount={contract.totalAmount}
+            menus={menus}
+            onChanged={({ contractMenus: nextMenus, totalAmount }) => {
+              setContractMenus(nextMenus)
+              setContract((prev) => (prev ? { ...prev, totalAmount } : prev))
+              setPayment((prev) =>
+                prev && prev.status === "WAITING"
+                  ? { ...prev, amount: totalAmount }
+                  : prev
+              )
+            }}
+          />
+        ) : (
+          <>
+            <h2 className="font-medium">協賛メニュー</h2>
+            {canManageContract ? (
+              <ContractCreationForm
+                menus={menus}
+                busy={busy}
+                onCreate={handleCreateContract}
+              />
+            ) : (
+              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                まだ契約がありません。
+              </p>
+            )}
+          </>
+        )}
+      </section>
 
       <Separator />
 
@@ -419,99 +459,37 @@ export default function YearlyCompanyDetailPage() {
           )}
         </div>
 
-        {!contract && canManageContract && (
-          <ContractCreationForm
-            menus={menus}
-            busy={busy}
-            onCreate={handleCreateContract}
-          />
-        )}
-
-        {contract && (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-4">
+        {contract ? (
+          <div className="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2">
+            <div>
+              <div className="text-muted-foreground">入金状況</div>
               <div>
-                <div className="text-muted-foreground">契約日</div>
-                <div>{contract.contractDate}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">担当者（委員会）</div>
-                <div>
-                  {contract.assigneeName ??
-                    yearlyCompany.assignedMemberName ??
-                    "未割当"}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">入金状況</div>
-                <div>
-                  {payment ? (
-                    <Badge
-                      variant={PAYMENT_STATUS_BADGE_VARIANT[payment.status]}
-                    >
-                      {PAYMENT_STATUS_LABEL[payment.status]}
-                    </Badge>
-                  ) : contract.totalAmount > 0 ? (
-                    "未作成"
-                  ) : (
-                    "物品協賛（入金なし）"
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">合計金額</div>
-                <div>
-                  {new Intl.NumberFormat("ja-JP", {
-                    style: "currency",
-                    currency: "JPY",
-                  }).format(contract.totalAmount)}
-                </div>
+                {payment ? (
+                  <Badge variant={PAYMENT_STATUS_BADGE_VARIANT[payment.status]}>
+                    {PAYMENT_STATUS_LABEL[payment.status]}
+                  </Badge>
+                ) : contract.totalAmount > 0 ? (
+                  "未作成"
+                ) : (
+                  "物品協賛（入金なし）"
+                )}
               </div>
             </div>
-
-            <Link
-              href={`/contract-menus?companyName=${encodeURIComponent(yearlyCompany.companyName)}`}
-              className="text-sm hover:underline"
-            >
-              協賛メニュー一覧で詳細を見る →
-            </Link>
-
-            <ContractMenuSection
-              key={contract.id}
-              contractId={contract.id}
-              initialContractMenus={contractMenus}
-              initialTotalAmount={contract.totalAmount}
-              menus={menus}
-              onChanged={({ contractMenus: nextMenus, totalAmount }) => {
-                setContractMenus(nextMenus)
-                setContract((prev) =>
-                  prev ? { ...prev, totalAmount } : prev
-                )
-                setPayment((prev) =>
-                  prev && prev.status === "WAITING"
-                    ? { ...prev, amount: totalAmount }
-                    : prev
-                )
-              }}
-            />
-
-            {contract.remarks && (
-              <div className="text-sm">
-                <div className="text-muted-foreground">備考</div>
-                <div>{contract.remarks}</div>
+            <div>
+              <div className="text-muted-foreground">合計金額</div>
+              <div>
+                {currencyFormatter.format(contract.totalAmount)}
               </div>
-            )}
+              <div className="mt-1 text-xs text-muted-foreground">
+                契約日 {contract.contractDate}
+              </div>
+            </div>
           </div>
+        ) : (
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+            契約はまだありません。上の協賛メニューから作成します。
+          </p>
         )}
-      </section>
-
-      <Separator />
-
-      <section>
-        <h2 className="mb-2 font-medium">進捗</h2>
-        <p className="text-sm text-muted-foreground">
-          現在の進捗は上部バッジで更新できます。履歴とメモは Activity Log で管理します。
-        </p>
       </section>
 
       <ActivityLogSection logs={activityLogs} />
