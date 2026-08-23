@@ -33,10 +33,12 @@ func (r *PaymentRepository) GetByID(id string) (*model.Payment, error) {
 func (r *PaymentRepository) ListAcrossYear(yearID string, filters map[string]interface{}) ([]model.PaymentResponse, error) {
 	var list []model.PaymentResponse
 	query := db.DB.Table("payments").
-		Select("payments.*, companies.company_name, yearly_companies.id as yearly_company_id, users.name as confirmed_by_name").
+		Select("payments.*, companies.company_name, companies.company_name_kana, yearly_companies.id as yearly_company_id, assigned_users.name as assigned_member_name, users.name as confirmed_by_name").
 		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = payments.contract_id AND sponsorship_contracts.deleted_at IS NULL").
 		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id AND yearly_companies.deleted_at IS NULL").
 		Joins("JOIN companies ON companies.id = yearly_companies.company_id AND companies.deleted_at IS NULL").
+		Joins("LEFT JOIN assignments ON assignments.yearly_company_id = yearly_companies.id").
+		Joins("LEFT JOIN users AS assigned_users ON assigned_users.id = assignments.user_id").
 		Joins("LEFT JOIN users ON users.id = payments.confirmed_by_id").
 		Where("payments.deleted_at IS NULL").
 		Where("yearly_companies.year_id = ?", yearID)

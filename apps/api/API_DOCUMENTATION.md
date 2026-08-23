@@ -100,6 +100,11 @@
   - ボディ: { "driveFolderUrl": "...", "remarks": "..." }
 
 ### Payments
+- GET /years/:yearId/payments
+  - 説明: 年度横断の入金一覧。Company / YearlyCompany / CompanyAssignment / 確認者を結合
+  - クエリ: `status`（WAITING|CONFIRMED）
+  - 各項目に Payment 本体に加え `companyName`, `companyNameKana`, `yearlyCompanyId`, `assignedMemberName`, `confirmedByName` を含む
+  - `assignedMemberName` は未割当なら null。`companyNameKana` 未入力は空文字
 - GET /contracts/:contractId/payment
   - 説明: 指定契約の支払い情報取得
 - POST /contracts/:contractId/payment (staff, admin, finance)
