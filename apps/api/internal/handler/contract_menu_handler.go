@@ -148,7 +148,11 @@ func updateContractMenuStatus(c echo.Context) error {
 		return respondNotFound(c, "contract menu not found")
 	}
 	cm.Status = body.Status
-	if err := svc.Update(cm); err != nil {
+	userId := ""
+	if uid := c.Get("userId"); uid != nil {
+		userId, _ = uid.(string)
+	}
+	if err := svc.UpdateWithUser(cm, userId); err != nil {
 		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
 			return respondConflict(c, err.Error())
 		}

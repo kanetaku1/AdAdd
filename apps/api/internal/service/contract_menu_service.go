@@ -68,8 +68,16 @@ func (s *ContractMenuService) Update(m *model.ContractMenu) error {
 	return s.UpdateWithUser(m, "")
 }
 
-// UpdateWithUser updates the contract menu and, if the status transitions to SUBMITTED,
-// creates an ActivityLog linked to the given userID (if provided). This runs inside a transaction.
+func contractMenuStatusLogMessage(menuName, from, to string) string {
+	if menuName == "" {
+		menuName = "協賛メニュー"
+	}
+	return menuName + "のステータスを " + from + " から " + to + " に更新"
+}
+
+// UpdateWithUser updates the contract menu and, if status changed, writes one
+// ActivityLog (spec/domain.md#Activity Log — every Contract Menu status
+// transition, not only SUBMITTED). Same-status PATCHes write nothing.
 func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID string) error {
 	csvc := NewContractService()
 	return db.WithTx(func(tx *gorm.DB) error {
@@ -77,7 +85,7 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 		if err := tx.First(&existing, "id = ?", m.ID).Error; err != nil {
 			return err
 		}
-		wasSubmitted := existing.Status == "SUBMITTED"
+		statusChanged := existing.Status != m.Status
 		m.CreatedAt = existing.CreatedAt
 		if m.IsGoodsSponsorship {
 			m.UnitPrice = decimal.Zero
@@ -88,22 +96,26 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 		if err := csvc.RecalculateTotalAmount(tx, m.ContractID); err != nil {
 			return err
 		}
-		if m.Status == "SUBMITTED" && !wasSubmitted {
-			var contract model.SponsorshipContract
-			if err := tx.First(&contract, "id = ?", m.ContractID).Error; err == nil {
-				al := &model.ActivityLog{
-					YearlyCompanyID: contract.YearlyCompanyID,
-					UserID:          userID,
-					Action:          model.EventContractMenuStatusUpdated,
-					Description:     "協賛メニューのステータスを提出済みに更新",
-					CreatedAt:       time.Now(),
-				}
-				if err := tx.Create(al).Error; err != nil {
-					return err
-				}
-			}
+		if !statusChanged {
+			return nil
 		}
-		return nil
+		var contract model.SponsorshipContract
+		if err := tx.First(&contract, "id = ?", m.ContractID).Error; err != nil {
+			return err
+		}
+		menuName := "協賛メニュー"
+		var smenu model.SponsorshipMenu
+		if err := tx.First(&smenu, "id = ?", existing.SponsorshipMenuID).Error; err == nil && smenu.Name != "" {
+			menuName = smenu.Name
+		}
+		al := &model.ActivityLog{
+			YearlyCompanyID: contract.YearlyCompanyID,
+			UserID:          userID,
+			Action:          model.EventContractMenuStatusUpdated,
+			Description:     contractMenuStatusLogMessage(menuName, existing.Status, m.Status),
+			CreatedAt:       time.Now(),
+		}
+		return tx.Create(al).Error
 	})
 }
 
