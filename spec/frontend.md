@@ -400,6 +400,8 @@ Shown before Contract (production/status work happens more often than contract-l
 
 Below Contract Menu. Shows payment status and `totalAmount` only (line-item detail already lives in Contract Menu above) — status changes themselves happen on Finance (read-only here). Invoice/receipt generation actions (FR-015) sit next to this summary.
 
+`contractDate` is shown as a caption under `totalAmount`. It is not part of the summary proper, but Yearly Company Detail is the only screen that surfaces it at all, so dropping it entirely would make the agreed contract date unreachable from the UI. `remarks` is not shown here — it is carried into the generated invoice (FR-015) and does not drive day-to-day work on this screen. The Contract's committee assignee is not repeated either; it is the same value already shown in the Assignment strip above.
+
 ### Activity Log
 
 Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (progress / Contract Menu status / Payment status changes — `spec/domain.md#Activity Log`); there is no manual entry action. A handover note that isn't a status change belongs on `Company.memo` instead.

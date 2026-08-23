@@ -3,27 +3,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ChevronDown } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { AssignedMemberCell } from "@/components/assigned-member-cell"
+import { ActivityLogSection } from "@/components/activity-log-section"
+import { AssignmentSection } from "@/components/assignment-section"
+import { CompanyInfoSection } from "@/components/company-info-section"
 import {
-  ContractMenuItemFields,
-  type ContractMenuItemValue,
-} from "@/components/contract-menu-item-fields"
+  ContractCreationForm,
+  type ContractCreationInput,
+} from "@/components/contract-creation-form"
 import { ContractMenuSection } from "@/components/contract-menu-section"
 import { useCurrentUser } from "@/components/current-user-provider"
-import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { InvoiceGeneratorModal } from "@/components/invoice-generator-modal"
 import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { ErrorBanner, LoadingBlock } from "@/components/query-state"
@@ -54,7 +46,6 @@ import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_LABEL,
 } from "@/lib/yearly-company-labels"
-import { cn } from "@/lib/utils"
 import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { ActivityLog } from "@/types/activity-log"
 import type { Company } from "@/types/company"
@@ -68,26 +59,13 @@ import type {
   YearlyCompany,
 } from "@/types/yearly-company"
 
-const ACTIVITY_EVENT_LABEL = {
-  MANUAL_NOTE: "手動メモ",
-  PROGRESS_UPDATED: "進捗更新",
-  ASSIGNMENT_UPDATED: "担当変更",
-  CONTRACT_CREATED: "契約作成",
-} as const
+const currencyFormatter = new Intl.NumberFormat("ja-JP", {
+  style: "currency",
+  currency: "JPY",
+})
 
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10)
-}
-
-function emptyItem(menus: SponsorshipMenu[]): ContractMenuItemValue {
-  const firstMenu = menus[0]
-  return {
-    sponsorshipMenuId: firstMenu?.id ?? "",
-    quantity: 1,
-    unitPrice: firstMenu?.defaultPrice ?? 0,
-    isGoodsSponsorship: false,
-    productionType: firstMenu?.requiresSubmission ? "COMPANY" : null,
-  }
 }
 
 /**
@@ -125,17 +103,8 @@ export default function YearlyCompanyDetailPage() {
     AdvisorAssignment[]
   >([])
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
-  const [activityLogOpen, setActivityLogOpen] = useState(false)
-  const [creatingContract, setCreatingContract] = useState(false)
-  const [contractDate, setContractDate] = useState(formatDate(new Date()))
-  const [remarks, setRemarks] = useState("")
-  const [items, setItems] = useState<ContractMenuItemValue[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [contractDateError, setContractDateError] = useState<string | null>(
-    null
-  )
-  const [itemsError, setItemsError] = useState<string | null>(null)
 
   /* Data fetch for route param — setState after async I/O is intentional. */
   useEffect(() => {
@@ -244,11 +213,6 @@ export default function YearlyCompanyDetailPage() {
       .map((a) => users.find((u) => u.id === a.advisorId)?.name ?? "(不明なユーザー)")
   }, [advisorAssignments, users, yearlyCompany])
 
-  const previewTotal = useMemo(
-    () => items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
-    [items]
-  )
-
   const invoiceData: InvoiceData | null = useMemo(() => {
     if (!yearlyCompany || !contract) return null
     const today = new Date()
@@ -339,33 +303,15 @@ export default function YearlyCompanyDetailPage() {
     }
   }
 
-  async function handleCreateContract(event: React.FormEvent) {
-    event.preventDefault()
+  async function handleCreateContract(
+    input: ContractCreationInput
+  ): Promise<boolean> {
     setError(null)
-    setContractDateError(null)
-    setItemsError(null)
-
-    let hasFieldError = false
-    if (!contractDate) {
-      setContractDateError("契約日を入力してください")
-      hasFieldError = true
-    }
-    const selectedItems = items.filter((item) => item.sponsorshipMenuId)
-    if (selectedItems.length === 0) {
-      setItemsError("協賛メニューを1件以上選択してください")
-      hasFieldError = true
-    }
-    if (hasFieldError) return
-
     setBusy(true)
     try {
-      await createContractWithMenus(yc.id, {
-        contractDate,
-        remarks,
-        items: selectedItems,
-      })
-      setCreatingContract(false)
+      await createContractWithMenus(yc.id, input)
       await reload()
+      return true
     } catch (e) {
       setError(
         getErrorMessage(e, {
@@ -373,6 +319,7 @@ export default function YearlyCompanyDetailPage() {
           overrides: { CONFLICT: "この企業には既に契約が存在します。" },
         })
       )
+      return false
     } finally {
       setBusy(false)
     }
@@ -420,74 +367,58 @@ export default function YearlyCompanyDetailPage() {
             {SPONSORSHIP_PHASE_LABEL[yearlyCompany.phase]}
           </p>
         </div>
-        <EditableProgressBadge
-          value={yearlyCompany.progress}
-          onChange={(value) => void handleProgress(value)}
-          disabled={busy || !canEditStatusPhaseProgress}
-        />
       </div>
 
-      <section className="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <div className="text-muted-foreground">企業担当者（先方）</div>
-          <div>{company?.contactPersonName ?? "-"}</div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">連絡先</div>
-          <div className="break-all">{company?.contactEmailOrForm ?? "-"}</div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">住所</div>
-          <div>
-            {company?.postalCode ? `〒${company.postalCode} ` : ""}
-            {company?.address ?? "-"}
-          </div>
-        </div>
-        <div className="sm:col-span-2 lg:col-span-3">
-          <div className="text-muted-foreground">メモ</div>
-          <div>{yearlyCompany.notes || company?.memo || "-"}</div>
-        </div>
-      </section>
+      <CompanyInfoSection company={company} notes={yearlyCompany.notes} />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="font-medium">担当</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md border p-3">
-            <div className="mb-2 text-sm text-muted-foreground">
-              協賛実働メンバー
-            </div>
-            <AssignedMemberCell
-              assignedMemberId={yearlyCompany.assignedMemberId}
-              assignedMemberName={yearlyCompany.assignedMemberName}
-              users={users}
-              onChange={(userId) => void handleAssign(userId)}
-              disabled={busy || !canEditAssignee}
-            />
-          </div>
-          <div className="rounded-md border p-3">
-            <div className="mb-2 text-sm text-muted-foreground">
-              協賛アドバイザー
-            </div>
-            {!yearlyCompany.assignedMemberId ? (
-              <p className="text-sm text-muted-foreground">
-                担当メンバー未割当のため表示できません。
-              </p>
-            ) : memberAdvisorNames.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                アドバイザー未設定です。設定は Settings &gt; Advisor
-                Assignments で行います。
-              </p>
+      <AssignmentSection
+        assignedMemberId={yearlyCompany.assignedMemberId}
+        assignedMemberName={yearlyCompany.assignedMemberName}
+        advisorNames={memberAdvisorNames}
+        users={users}
+        onAssign={(userId) => void handleAssign(userId)}
+        assignDisabled={busy || !canEditAssignee}
+        progress={yearlyCompany.progress}
+        onProgressChange={(value) => void handleProgress(value)}
+        progressDisabled={busy || !canEditStatusPhaseProgress}
+      />
+
+      <Separator />
+
+      <section className="flex flex-col gap-4">
+        {contract ? (
+          <ContractMenuSection
+            key={contract.id}
+            contractId={contract.id}
+            initialContractMenus={contractMenus}
+            initialTotalAmount={contract.totalAmount}
+            menus={menus}
+            onChanged={({ contractMenus: nextMenus, totalAmount }) => {
+              setContractMenus(nextMenus)
+              setContract((prev) => (prev ? { ...prev, totalAmount } : prev))
+              setPayment((prev) =>
+                prev && prev.status === "WAITING"
+                  ? { ...prev, amount: totalAmount }
+                  : prev
+              )
+            }}
+          />
+        ) : (
+          <>
+            <h2 className="font-medium">協賛メニュー</h2>
+            {canManageContract ? (
+              <ContractCreationForm
+                menus={menus}
+                busy={busy}
+                onCreate={handleCreateContract}
+              />
             ) : (
-              <div className="flex flex-wrap gap-1">
-                {memberAdvisorNames.map((name, i) => (
-                  <Badge key={i} variant="outline">
-                    {name}
-                  </Badge>
-                ))}
-              </div>
+              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                まだ契約がありません。
+              </p>
             )}
-          </div>
-        </div>
+          </>
+        )}
       </section>
 
       <Separator />
@@ -528,255 +459,40 @@ export default function YearlyCompanyDetailPage() {
           )}
         </div>
 
-        {!contract && !creatingContract && canManageContract && (
-          <div className="rounded-md border border-dashed p-4">
-            <p className="mb-3 text-sm text-muted-foreground">
-              まだ契約がありません。合意後にここで作成します（Payment
-              はメニュー確定後に別途作成）。
-            </p>
-            <Button
-              onClick={() => {
-                setItems([emptyItem(menus)])
-                setCreatingContract(true)
-              }}
-            >
-              契約を作成
-            </Button>
-          </div>
-        )}
-
-        {!contract && creatingContract && canManageContract && (
-          <form
-            onSubmit={(e) => void handleCreateContract(e)}
-            className="flex flex-col gap-4 rounded-md border p-4"
-            noValidate
-          >
-            <FieldGroup>
-              <Field data-invalid={!!contractDateError}>
-                <FieldLabel>契約日</FieldLabel>
-                <Input
-                  type="date"
-                  value={contractDate}
-                  onChange={(e) => {
-                    setContractDate(e.target.value)
-                    setContractDateError(null)
-                  }}
-                  aria-invalid={!!contractDateError}
-                />
-                {contractDateError && (
-                  <FieldError>{contractDateError}</FieldError>
+        {contract ? (
+          <div className="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-2">
+            <div>
+              <div className="text-muted-foreground">入金状況</div>
+              <div>
+                {payment ? (
+                  <Badge variant={PAYMENT_STATUS_BADGE_VARIANT[payment.status]}>
+                    {PAYMENT_STATUS_LABEL[payment.status]}
+                  </Badge>
+                ) : contract.totalAmount > 0 ? (
+                  "未作成"
+                ) : (
+                  "物品協賛（入金なし）"
                 )}
-              </Field>
-              <Field>
-                <FieldLabel>備考</FieldLabel>
-                <Textarea
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  rows={3}
-                />
-              </Field>
-            </FieldGroup>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Contract Menu</h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setItems((prev) => [...prev, emptyItem(menus)])
-                    setItemsError(null)
-                  }}
-                >
-                  行を追加
-                </Button>
-              </div>
-              {items.map((item, index) => (
-                <ContractMenuItemFields
-                  key={index}
-                  value={item}
-                  menus={menus}
-                  invalid={!!itemsError && !item.sponsorshipMenuId}
-                  onChange={(patch) => {
-                    setItems((prev) =>
-                      prev.map((row, i) =>
-                        i === index ? { ...row, ...patch } : row
-                      )
-                    )
-                    setItemsError(null)
-                  }}
-                  onRemove={
-                    items.length > 1
-                      ? () =>
-                          setItems((prev) =>
-                            prev.filter((_, i) => i !== index)
-                          )
-                      : undefined
-                  }
-                />
-              ))}
-              {itemsError && <FieldError>{itemsError}</FieldError>}
-              <p className="text-right text-sm text-muted-foreground">
-                合計（表示専用・サーバ再計算）: ¥
-                {previewTotal.toLocaleString("ja-JP")}
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button type="submit" disabled={busy}>
-                作成する
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setCreatingContract(false)}
-              >
-                キャンセル
-              </Button>
-            </div>
-          </form>
-        )}
-
-        {contract && (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-4">
-              <div>
-                <div className="text-muted-foreground">契約日</div>
-                <div>{contract.contractDate}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">担当者（委員会）</div>
-                <div>
-                  {contract.assigneeName ??
-                    yearlyCompany.assignedMemberName ??
-                    "未割当"}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">入金状況</div>
-                <div>
-                  {payment ? (
-                    <Badge
-                      variant={PAYMENT_STATUS_BADGE_VARIANT[payment.status]}
-                    >
-                      {PAYMENT_STATUS_LABEL[payment.status]}
-                    </Badge>
-                  ) : contract.totalAmount > 0 ? (
-                    "未作成"
-                  ) : (
-                    "物品協賛（入金なし）"
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">合計金額</div>
-                <div>
-                  {new Intl.NumberFormat("ja-JP", {
-                    style: "currency",
-                    currency: "JPY",
-                  }).format(contract.totalAmount)}
-                </div>
               </div>
             </div>
-
-            <Link
-              href={`/contract-menus?companyName=${encodeURIComponent(yearlyCompany.companyName)}`}
-              className="text-sm hover:underline"
-            >
-              協賛メニュー一覧で詳細を見る →
-            </Link>
-
-            <ContractMenuSection
-              key={contract.id}
-              contractId={contract.id}
-              initialContractMenus={contractMenus}
-              initialTotalAmount={contract.totalAmount}
-              menus={menus}
-              onChanged={({ contractMenus: nextMenus, totalAmount }) => {
-                setContractMenus(nextMenus)
-                setContract((prev) =>
-                  prev ? { ...prev, totalAmount } : prev
-                )
-                setPayment((prev) =>
-                  prev && prev.status === "WAITING"
-                    ? { ...prev, amount: totalAmount }
-                    : prev
-                )
-              }}
-            />
-
-            {contract.remarks && (
-              <div className="text-sm">
-                <div className="text-muted-foreground">備考</div>
-                <div>{contract.remarks}</div>
+            <div>
+              <div className="text-muted-foreground">合計金額</div>
+              <div>
+                {currencyFormatter.format(contract.totalAmount)}
               </div>
-            )}
+              <div className="mt-1 text-xs text-muted-foreground">
+                契約日 {contract.contractDate}
+              </div>
+            </div>
           </div>
+        ) : (
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+            契約はまだありません。上の協賛メニューから作成します。
+          </p>
         )}
       </section>
 
-      <Separator />
-
-      <section>
-        <h2 className="mb-2 font-medium">進捗</h2>
-        <p className="text-sm text-muted-foreground">
-          現在の進捗は上部バッジで更新できます。履歴とメモは Activity Log で管理します。
-        </p>
-      </section>
-
-      <Collapsible
-        open={activityLogOpen}
-        onOpenChange={setActivityLogOpen}
-        render={<section className="flex flex-col gap-3" />}
-      >
-        <h2 className="font-medium">
-          <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md text-left hover:text-foreground/80">
-            <ChevronDown
-              className={cn(
-                "size-4 text-muted-foreground transition-transform",
-                activityLogOpen && "rotate-180"
-              )}
-            />
-            Activity Log
-            <span className="font-normal text-muted-foreground">
-              ({activityLogs.length})
-            </span>
-          </CollapsibleTrigger>
-        </h2>
-
-        <CollapsibleContent>
-          <div className="rounded-md border">
-            {activityLogs.length === 0 ? (
-              <p className="px-3 py-4 text-sm text-muted-foreground">
-                Activity Log はまだありません。
-              </p>
-            ) : (
-              <ul className="divide-y">
-                {activityLogs.map((log) => (
-                  <li
-                    key={log.id}
-                    className="flex flex-col gap-1 px-3 py-3 text-sm"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">
-                        {ACTIVITY_EVENT_LABEL[log.eventType]}
-                      </Badge>
-                      <span className="text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleString("ja-JP")}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {log.createdByName ?? "(不明なユーザー)"}
-                      </span>
-                    </div>
-                    <p>{log.message}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+      <ActivityLogSection logs={activityLogs} />
     </div>
   )
 }
