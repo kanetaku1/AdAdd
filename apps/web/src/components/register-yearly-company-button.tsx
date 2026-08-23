@@ -3,7 +3,9 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
-import { Button } from "@/components/ui/button"
+import { UserPlus } from "lucide-react"
+
+import { IconActionButton } from "@/components/icon-action-button"
 import { ErrorBanner } from "@/components/query-state"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { registerCompanyToYear } from "@/lib/data/years"
@@ -55,14 +57,14 @@ export function RegisterYearlyCompanyButton({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button
+      <IconActionButton
+        label={`${yearName}年度に登録`}
         variant="outline"
-        size="sm"
         onClick={handleClick}
         disabled={submitting}
       >
-        {submitting ? "登録中…" : `${yearName}年度に登録`}
-      </Button>
+        <UserPlus />
+      </IconActionButton>
       <ErrorBanner message={error} />
     </div>
   )

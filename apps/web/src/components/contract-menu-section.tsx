@@ -1,10 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Trash2 } from "lucide-react"
+import { Plus, Trash2, Upload } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  IconActionButton,
+  IconActionDialogTrigger,
+} from "@/components/icon-action-button"
 import {
   Dialog,
   DialogContent,
@@ -12,7 +16,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Table,
@@ -190,9 +193,9 @@ export function ContractMenuSection({
         <h2 className="font-medium">協賛メニュー</h2>
         {canManage && (
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger render={<Button variant="outline" size="sm" />}>
-              メニューを追加
-            </DialogTrigger>
+            <IconActionDialogTrigger label="メニューを追加">
+              <Plus />
+            </IconActionDialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>メニューを追加</DialogTitle>
@@ -286,23 +289,20 @@ export function ContractMenuSection({
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
                       {canManage && (
-                        <Button
+                        <IconActionButton
+                          label={cm.driveUrl ? "再アップロード" : "アップロード"}
                           variant="outline"
-                          size="sm"
                           onClick={() => setUploadingMenuId(cm.id)}
                         >
-                          {cm.driveUrl ? "再アップロード" : "アップロード"}
-                        </Button>
+                          <Upload />
+                        </IconActionButton>
                       )}
                     </div>
                   </TableCell>
                   {canDelete && (
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`${menu?.name ?? "メニュー"}を削除`}
-                        title="削除"
+                      <IconActionButton
+                        label={`${menu?.name ?? "メニュー"}を削除`}
                         disabled={rowBusy}
                         onClick={() => {
                           setError(null)
@@ -310,7 +310,7 @@ export function ContractMenuSection({
                         }}
                       >
                         <Trash2 className="text-destructive" />
-                      </Button>
+                      </IconActionButton>
                     </TableCell>
                   )}
                 </TableRow>
