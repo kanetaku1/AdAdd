@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 
-import { Button } from "@/components/ui/button"
+import { Pencil } from "lucide-react"
+
+import { IconActionButton } from "@/components/icon-action-button"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -143,13 +145,12 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
                         initiallyRegistered={false}
                       />
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <IconActionButton
+                      label="編集"
                       render={<Link href={`/companies/${company.id}`} />}
                     >
-                      編集
-                    </Button>
+                      <Pencil />
+                    </IconActionButton>
                   </div>
                 </TableCell>
               </TableRow>

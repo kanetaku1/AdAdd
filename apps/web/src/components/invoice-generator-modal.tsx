@@ -3,6 +3,9 @@
 import { useState } from "react"
 import { pdf, PDFViewer } from "@react-pdf/renderer"
 
+import { FileText } from "lucide-react"
+
+import { IconActionDialogTrigger } from "@/components/icon-action-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,7 +15,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { InvoiceDocument, type InvoiceData } from "@/lib/pdf/invoice-document"
@@ -57,9 +59,9 @@ export function InvoiceGeneratorModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" />}>
-        請求書を生成
-      </DialogTrigger>
+      <IconActionDialogTrigger label="請求書を生成">
+        <FileText />
+      </IconActionDialogTrigger>
       <DialogContent className="max-w-4xl sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>請求書の生成</DialogTitle>

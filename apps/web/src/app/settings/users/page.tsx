@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react"
 
+import { Pencil, Plus } from "lucide-react"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { IconActionButton } from "@/components/icon-action-button"
 import {
   Dialog,
   DialogContent,
@@ -275,7 +278,9 @@ export default function UsersPage() {
           <h2 className="text-lg font-medium">Users</h2>
           <p className="text-muted-foreground">システム利用者の管理</p>
         </div>
-        <Button onClick={openNew}>ユーザーを追加</Button>
+        <IconActionButton label="ユーザーを追加" variant="default" onClick={openNew}>
+          <Plus />
+        </IconActionButton>
       </div>
 
       <ErrorBanner message={loadError} />
@@ -328,13 +333,12 @@ export default function UsersPage() {
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <IconActionButton
+                      label="編集"
                       onClick={() => openEdit(user)}
                     >
-                      編集
-                    </Button>
+                      <Pencil />
+                    </IconActionButton>
                   </TableCell>
                 </TableRow>
               ))

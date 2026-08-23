@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react"
 
+import { Plus } from "lucide-react"
+
 import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
-import { Button } from "@/components/ui/button"
+import { IconActionButton } from "@/components/icon-action-button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -146,9 +148,14 @@ export default function SponsorshipMenusPage() {
           </p>
         </div>
         {canManage && (
-          <Button onClick={() => void addMenu()} disabled={!activeYearId || adding}>
-            {adding ? "追加中…" : "行を追加"}
-          </Button>
+          <IconActionButton
+            label={adding ? "追加中…" : "行を追加"}
+            variant="default"
+            onClick={() => void addMenu()}
+            disabled={!activeYearId || adding}
+          >
+            <Plus />
+          </IconActionButton>
         )}
       </div>
 

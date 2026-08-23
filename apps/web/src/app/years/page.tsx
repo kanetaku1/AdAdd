@@ -2,8 +2,11 @@
 
 import { useState } from "react"
 
+import { CalendarPlus } from "lucide-react"
+
 import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { IconActionDialogTrigger } from "@/components/icon-action-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,7 +15,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -90,7 +92,9 @@ export default function YearsPage() {
             }
           }}
         >
-          <DialogTrigger render={<Button />}>新しい年度を作成</DialogTrigger>
+          <IconActionDialogTrigger label="新しい年度を作成" variant="default">
+            <CalendarPlus />
+          </IconActionDialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>新しい年度を作成</DialogTitle>

@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import { Plus } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { IconActionButton } from "@/components/icon-action-button"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { canAccess } from "@/lib/auth/roles"
 
@@ -17,5 +18,13 @@ export function CreateCompanyButton() {
   const { currentUser } = useCurrentUser()
   if (!canAccess(currentUser?.roles, ALLOWED_ROLES)) return null
 
-  return <Button render={<Link href="/companies/new" />}>企業を登録</Button>
+  return (
+    <IconActionButton
+      label="企業を登録"
+      variant="default"
+      render={<Link href="/companies/new" />}
+    >
+      <Plus />
+    </IconActionButton>
+  )
 }

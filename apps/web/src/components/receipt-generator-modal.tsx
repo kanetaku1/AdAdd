@@ -3,6 +3,9 @@
 import { useState } from "react"
 import { pdf, PDFViewer } from "@react-pdf/renderer"
 
+import { Receipt } from "lucide-react"
+
+import { IconActionDialogTrigger } from "@/components/icon-action-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -11,7 +14,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { ReceiptDocument, type ReceiptData } from "@/lib/pdf/receipt-document"
@@ -56,9 +58,9 @@ export function ReceiptGeneratorModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        領収書を生成
-      </DialogTrigger>
+      <IconActionDialogTrigger label="領収書を生成">
+        <Receipt />
+      </IconActionDialogTrigger>
       <DialogContent className="max-w-4xl sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>領収書の生成</DialogTitle>

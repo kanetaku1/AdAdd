@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 
+import { Plus, X } from "lucide-react"
+
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { IconActionButton } from "@/components/icon-action-button"
 import {
   Select,
   SelectContent,
@@ -49,15 +51,14 @@ export function MemberAdvisorsCell({
         return (
           <Badge key={assignment.id} variant="outline" className="gap-1">
             {advisor?.name ?? "(不明なユーザー)"}
-            <button
-              type="button"
-              onClick={() => onRemove(assignment.id)}
+            <IconActionButton
+              label={`${advisor?.name ?? "アドバイザー"}を削除`}
+              size="icon-xs"
               disabled={disabled}
-              className="text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-              aria-label={`${advisor?.name ?? "アドバイザー"}を削除`}
+              onClick={() => onRemove(assignment.id)}
             >
-              ×
-            </button>
+              <X />
+            </IconActionButton>
           </Badge>
         )
       })}
@@ -85,15 +86,14 @@ export function MemberAdvisorsCell({
           </SelectContent>
         </Select>
       ) : (
-        <Button
+        <IconActionButton
           type="button"
-          variant="ghost"
-          size="sm"
+          label="アドバイザーを追加"
           onClick={() => setAdding(true)}
           disabled={disabled || candidates.length === 0}
         >
-          + 追加
-        </Button>
+          <Plus />
+        </IconActionButton>
       )}
     </div>
   )
