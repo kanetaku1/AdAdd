@@ -34,5 +34,7 @@ export type Payment = {
  */
 export type PaymentAcrossYear = Payment & {
   companyName: string
+  companyNameKana: string
   yearlyCompanyId: string
+  assignedMemberName: string | null
 }

@@ -115,6 +115,7 @@ export default function FinancePage() {
           <TableHeader>
             <TableRow>
               <TableHead>会社名</TableHead>
+              <TableHead>担当</TableHead>
               <TableHead className="text-right">契約金額</TableHead>
               <TableHead>入金状況</TableHead>
               <TableHead>入金確認日</TableHead>
@@ -124,15 +125,15 @@ export default function FinancePage() {
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
-              <LoadingRow colSpan={6} />
+              <LoadingRow colSpan={7} />
             ) : !activeYearId ? (
               <EmptyRow
-                colSpan={6}
+                colSpan={7}
                 message="年度が未作成です。Years から年度を作成してください。"
               />
             ) : payments.length === 0 ? (
               <EmptyRow
-                colSpan={6}
+                colSpan={7}
                 message="この年度にはまだ入金レコードがありません。"
               />
             ) : (
@@ -145,6 +146,14 @@ export default function FinancePage() {
                     >
                       {payment.companyName}
                     </Link>
+                    {payment.companyNameKana ? (
+                      <div className="text-xs font-normal text-muted-foreground">
+                        {payment.companyNameKana}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    {payment.assignedMemberName ?? "未割当"}
                   </TableCell>
                   <TableCell className="text-right">
                     {currencyFormatter.format(payment.amount)}
