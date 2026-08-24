@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Plus } from "lucide-react"
 
@@ -65,8 +65,6 @@ export default function SponsorshipMenusPage() {
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
-  const menusRef = useRef(menus)
-  menusRef.current = menus
 
   useEffect(() => {
     let cancelled = false
@@ -103,7 +101,7 @@ export default function SponsorshipMenusPage() {
   }
 
   async function persistMenu(id: string, patch: Partial<SponsorshipMenu>) {
-    const current = menusRef.current.find((menu) => menu.id === id)
+    const current = menus.find((menu) => menu.id === id)
     if (!current) return
     const fields = { ...current, ...patch }
     setError(null)
