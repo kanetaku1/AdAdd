@@ -12,6 +12,7 @@ export const mockSponsorshipMenus: SponsorshipMenu[] = [
     defaultPrice: 80000,
     requiresSubmission: true,
     isActive: true,
+    maxQuantity: null,
   },
   {
     id: "menu_002",
@@ -20,6 +21,7 @@ export const mockSponsorshipMenus: SponsorshipMenu[] = [
     defaultPrice: 50000,
     requiresSubmission: false,
     isActive: true,
+    maxQuantity: 8,
   },
   {
     id: "menu_003",
@@ -28,6 +30,7 @@ export const mockSponsorshipMenus: SponsorshipMenu[] = [
     defaultPrice: 15000,
     requiresSubmission: true,
     isActive: true,
+    maxQuantity: null,
   },
 ]
 

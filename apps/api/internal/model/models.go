@@ -111,6 +111,7 @@ type SponsorshipMenu struct {
 	DefaultPrice       decimal.Decimal `json:"defaultPrice"`
 	RequiresSubmission bool            `gorm:"not null;default:false" json:"requiresSubmission"`
 	IsActive           bool            `gorm:"not null;default:true" json:"isActive"`
+	MaxQuantity        *int            `json:"maxQuantity"`
 	CreatedAt          time.Time       `json:"createdAt"`
 	UpdatedAt          time.Time       `json:"updatedAt"`
 	DeletedAt          gorm.DeletedAt  `gorm:"index" json:"-"`

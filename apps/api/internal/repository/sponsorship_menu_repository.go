@@ -22,12 +22,21 @@ func (r *SponsorshipMenuRepository) Create(m *model.SponsorshipMenu) error {
 }
 
 func (r *SponsorshipMenuRepository) Update(m *model.SponsorshipMenu) error {
-	// preserve existing CreatedAt to avoid writing zero DATETIME
+	// preserve existing CreatedAt to avoid writing zero DATETIME. Select
+	// includes MaxQuantity so a nil cap (unlimited) is written as NULL
+	// instead of being skipped as a zero value.
 	var existing model.SponsorshipMenu
-	if err := db.DB.First(&existing, "id = ?", m.ID).Error; err == nil {
-		m.CreatedAt = existing.CreatedAt
+	if err := db.DB.First(&existing, "id = ?", m.ID).Error; err != nil {
+		return err
 	}
-	return db.DB.Save(m).Error
+	m.CreatedAt = existing.CreatedAt
+	return db.DB.Model(m).Select(
+		"Name",
+		"DefaultPrice",
+		"RequiresSubmission",
+		"IsActive",
+		"MaxQuantity",
+	).Updates(m).Error
 }
 
 func (r *SponsorshipMenuRepository) Delete(id string) error {

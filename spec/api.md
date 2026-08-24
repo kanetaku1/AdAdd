@@ -647,7 +647,7 @@ Example response:
 ]
 ```
 
-`maxQuantity` is an optional sponsorship cap (`null` = unlimited) — see `spec/model.md#SponsorshipMenu`. Accepted on Create/Update; surfaced as a fill-ratio on `spec/frontend.md#Ad Material Progress`.
+`maxQuantity` is an optional sponsorship cap (`null` = unlimited) — see `spec/model.md#SponsorshipMenu`. Accepted on Create/Update; omitted or `null` means unlimited. Values must be an integer ≥ 1. Surfaced as a fill-ratio on `spec/frontend.md#Ad Material Progress`.
 
 ---
 
@@ -663,6 +663,20 @@ Permission:
 
 * Sponsorship Member / Administrator
 
+Example request:
+
+```json
+{
+  "name": "企業ブース",
+  "defaultPrice": 50000,
+  "requiresSubmission": false,
+  "isActive": true,
+  "maxQuantity": 8
+}
+```
+
+Omit `maxQuantity` (or send `null`) for an unlimited menu.
+
 ---
 
 ## Update Sponsorship Menu
@@ -670,6 +684,8 @@ Permission:
 ```
 PATCH /sponsorship-menus/{menuId}
 ```
+
+Accepts the same fields as Create, including `maxQuantity` (`null` clears the cap).
 
 ---
 

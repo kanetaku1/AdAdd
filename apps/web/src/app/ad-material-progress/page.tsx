@@ -83,10 +83,40 @@ function StatTile({
   )
 }
 
+function FillMeter({
+  contracted,
+  cap,
+}: {
+  contracted: number
+  cap: number | null
+}) {
+  if (cap === null) {
+    return <span className="text-sm text-muted-foreground">—</span>
+  }
+  const over = contracted > cap
+  const ratio = cap > 0 ? contracted / cap : 0
+  return (
+    <div className="flex min-w-36 flex-col gap-1">
+      <div className="h-1.5 rounded bg-muted">
+        <div
+          className={`h-1.5 rounded ${over ? "bg-amber-500" : "bg-primary"}`}
+          style={{ width: `${Math.min(ratio, 1) * 100}%` }}
+        />
+      </div>
+      <span
+        className={`text-xs tabular-nums ${over ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}
+      >
+        {contracted} / {cap}
+      </span>
+    </div>
+  )
+}
+
 type MenuBreakdown = {
   menu: SponsorshipMenu
   counts: Record<ContractMenuStatus, number>
   total: number
+  contractedQuantity: number
   submittedRatio: number | null
 }
 
@@ -181,11 +211,16 @@ export default function AdMaterialProgressPage() {
         {} as Record<ContractMenuStatus, number>
       )
       const total = rows.length
+      const contractedQuantity = rows.reduce(
+        (sum, row) => sum + row.quantity,
+        0
+      )
       const submitted = counts.SUBMITTED
       return {
         menu,
         counts,
         total,
+        contractedQuantity,
         submittedRatio: total > 0 ? submitted / total : null,
       }
     })
@@ -283,7 +318,7 @@ export default function AdMaterialProgressPage() {
           <div className="rounded-md border p-4">
             <h2 className="mb-1 font-medium">協賛メニュー別ステータス内訳</h2>
             <p className="mb-3 text-sm text-muted-foreground">
-              提出率が低いメニューほど上に表示しています。
+              提出率が低いメニューほど上に表示しています。上限があるメニューは契約数量の埋まりも表示します。
             </p>
             <Table className="min-w-[720px]">
               <TableHeader>
@@ -295,17 +330,19 @@ export default function AdMaterialProgressPage() {
                     </TableHead>
                   ))}
                   <TableHead>提出率</TableHead>
+                  <TableHead>埋まり</TableHead>
                   <TableHead className="text-right">契約数</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {menuBreakdown.length === 0 ? (
                   <EmptyRow
-                    colSpan={STATUS_ORDER.length + 3}
+                    colSpan={STATUS_ORDER.length + 4}
                     message="協賛メニューがまだありません。"
                   />
                 ) : (
-                  menuBreakdown.map(({ menu, counts, total, submittedRatio }) => (
+                  menuBreakdown.map(
+                    ({ menu, counts, total, contractedQuantity, submittedRatio }) => (
                     <TableRow key={menu.id}>
                       <TableCell className="font-medium whitespace-nowrap">
                         {menu.name}
@@ -342,6 +379,12 @@ export default function AdMaterialProgressPage() {
                             </span>
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <FillMeter
+                          contracted={contractedQuantity}
+                          cap={menu.maxQuantity}
+                        />
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {total}

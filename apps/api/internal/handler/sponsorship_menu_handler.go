@@ -45,6 +45,9 @@ func createSponsorshipMenu(c echo.Context) error {
 	if !validateNonNegativeAmount(req.DefaultPrice) {
 		return respondBadRequest(c, "defaultPrice must be non-negative")
 	}
+	if err := validateMaxQuantity(req.MaxQuantity); err != nil {
+		return respondBadRequest(c, err.Error())
+	}
 	req.YearID = yearId
 	svc := service.NewSponsorshipMenuService()
 	if err := svc.Create(&req); err != nil {
@@ -60,8 +63,12 @@ func updateSponsorshipMenu(c echo.Context) error {
 		DefaultPrice       decimal.Decimal `json:"defaultPrice"`
 		RequiresSubmission bool            `json:"requiresSubmission"`
 		IsActive           bool            `json:"isActive"`
+		MaxQuantity        *int            `json:"maxQuantity"`
 	}
 	if err := c.Bind(&req); err != nil {
+		return respondBadRequest(c, err.Error())
+	}
+	if err := validateMaxQuantity(req.MaxQuantity); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
 
@@ -75,6 +82,7 @@ func updateSponsorshipMenu(c echo.Context) error {
 	existing.DefaultPrice = req.DefaultPrice
 	existing.RequiresSubmission = req.RequiresSubmission
 	existing.IsActive = req.IsActive
+	existing.MaxQuantity = req.MaxQuantity
 
 	if err := svc.Update(existing); err != nil {
 		return respondInternalServerError(c, err)

@@ -25,7 +25,11 @@ type ApiSponsorshipMenu = Omit<SponsorshipMenu, "defaultPrice"> & {
 }
 
 function mapApiSponsorshipMenu(raw: ApiSponsorshipMenu): SponsorshipMenu {
-  return { ...raw, defaultPrice: Number(raw.defaultPrice) }
+  return {
+    ...raw,
+    defaultPrice: Number(raw.defaultPrice),
+    maxQuantity: raw.maxQuantity ?? null,
+  }
 }
 
 export async function listSponsorshipMenus(
@@ -58,11 +62,11 @@ export async function createSponsorshipMenu(
 }
 
 /**
- * The backend's PATCH handler binds straight into a full SponsorshipMenu and
- * `Save`s it (no fetch-then-merge) — `yearId` isn't taken from the URL here
- * the way it is for create, so omitting it would silently detach the menu
- * from its Year. Callers must always pass the complete field set (including
- * `yearId`) — merge the patch onto the current menu first.
+ * The backend PATCH replaces the editable fields (name, defaultPrice,
+ * requiresSubmission, isActive, maxQuantity). Callers must send the complete
+ * field set — merge the patch onto the current menu first. `yearId` is not
+ * taken from the URL on update; include it so the client always has a full
+ * row even though the repository does not overwrite YearID.
  */
 export async function updateSponsorshipMenu(
   id: string,
