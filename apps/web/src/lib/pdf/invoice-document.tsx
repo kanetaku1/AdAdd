@@ -191,14 +191,14 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
               <Text>{FESTIVAL_ADDRESS_LINE}</Text>
               <Text>{FESTIVAL_ADDRESS_LINE2}</Text>
             </View>
-            <Text style={styles.text_S}>E-Mail : {FESTIVAL_EMAIL}</Text>
+            <Text style={styles.text_S}>メール : {FESTIVAL_EMAIL}</Text>
             <Text>担当 : {data.staffName}</Text>
           </View>
         </View>
 
         <View style={styles.table}>
           <View style={styles.tableRow}>
-            <Text style={[styles.cell, styles.colNo]}>No.</Text>
+            <Text style={[styles.cell, styles.colNo]}>番号</Text>
             <Text style={[styles.cell, styles.colName]}>概要</Text>
             <Text style={[styles.cell, styles.colQty]}>数量</Text>
             <Text style={[styles.cell, styles.colUnitPrice]}>単価</Text>

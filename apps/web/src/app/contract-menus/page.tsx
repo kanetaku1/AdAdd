@@ -239,7 +239,7 @@ function ContractMenusList() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Contract Menus</h1>
+        <h1 className="text-2xl font-semibold">広告管理</h1>
         <p className="text-muted-foreground">
           {activeYear?.name ?? ""}
           年度・契約済みの協賛メニューの制作・提出状況を横断管理
@@ -389,7 +389,7 @@ function ContractMenusList() {
                 </ColumnFilterPopover>
               </TableHead>
               <TableHead>
-                Drive URL
+                資料(Google Drive)
                 <span className="ml-1.5 font-normal text-muted-foreground">
                   （登録すると提出済みになります）
                 </span>
@@ -402,7 +402,7 @@ function ContractMenusList() {
             ) : !activeYearId ? (
               <EmptyRow
                 colSpan={7}
-                message="年度が未作成です。Years から年度を作成してください。"
+                message="年度が未作成です。年度画面から作成してください。"
               />
             ) : visibleContractMenus.length === 0 ? (
               <EmptyRow colSpan={7} message="該当する契約メニューがありません。" />

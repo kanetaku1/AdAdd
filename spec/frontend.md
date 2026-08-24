@@ -713,22 +713,24 @@ Assignments do not carry over when a new Year is created — reassignment is a f
 │
 ├── 協賛メニュー           Sponsorship Menus
 │
-├── 広告制作管理           Contract Menus
+├── 広告管理               Contract Menus
+│
+├── 広告進捗               Ad Material Progress
 │
 ├── 財務                   Finance
 │
 ├── 年度                   Years
 │
-├── ユーザー               Users
-│
-├── アドバイザー割当       Advisor Assignments
-│
 └── 設定                   Settings
+      ├── ユーザー           Users
+      └── アドバイザー割当   Advisor Assignments
 ```
 
 Sidebar labels are Japanese (right column above is the internal/route name only, not shown to users). Items are ordered by expected frequency of use for the broadest role (Sponsorship Member) first, admin-only items last.
 
-Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, Users/Advisor Assignments/Settings unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is a firm requirement — not yet implemented (see Issue tracking for Login/roles).
+`広告進捗` sits with `広告管理` because both are daily production work (UC-07/UC-08), not master-data management. Users and Advisor Assignments are Settings tabs, not top-level sidebar items — one Administrator-only entry keeps the sidebar short.
+
+Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, Settings (and its Users / Advisor Assignments tabs) unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is implemented (`apps/web/src/components/app-sidebar.tsx` `allowedRoles` + `canAccess`, matching backend `RequireRoles`).
 
 ---
 

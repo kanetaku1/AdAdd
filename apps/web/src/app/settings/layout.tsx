@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button"
  * screens behind one sidebar entry, each as its own sub-route/tab.
  */
 const SETTINGS_TABS = [
-  { title: "Users", url: "/settings/users" },
-  { title: "Advisor Assignments", url: "/settings/advisor-assignments" },
+  { title: "ユーザー", url: "/settings/users" },
+  { title: "アドバイザー割当", url: "/settings/advisor-assignments" },
 ]
 
 export default function SettingsLayout({
@@ -24,7 +24,7 @@ export default function SettingsLayout({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
+        <h1 className="text-2xl font-semibold">設定</h1>
         <p className="text-muted-foreground">システム管理</p>
       </div>
 

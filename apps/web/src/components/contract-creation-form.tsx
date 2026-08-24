@@ -74,8 +74,7 @@ export function ContractCreationForm({
     return (
       <div className="rounded-md border border-dashed p-4">
         <p className="mb-3 text-sm text-muted-foreground">
-          まだ契約がありません。合意後にここで作成します（Payment
-          はメニュー確定後に別途作成）。
+          まだ契約がありません。合意後にここで作成します（入金レコードはメニュー確定後に別途作成）。
         </p>
         <Button
           onClick={() => {
@@ -146,7 +145,7 @@ export function ContractCreationForm({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Contract Menu</h3>
+          <h3 className="text-sm font-medium">協賛メニュー</h3>
           <Button
             type="button"
             variant="outline"
@@ -180,7 +179,7 @@ export function ContractCreationForm({
         ))}
         {itemsError && <FieldError>{itemsError}</FieldError>}
         <p className="text-right text-sm text-muted-foreground">
-          合計（表示専用・サーバ再計算）: ¥{previewTotal.toLocaleString("ja-JP")}
+          合計（表示専用・サーバー再計算）: ¥{previewTotal.toLocaleString("ja-JP")}
         </p>
       </div>
 

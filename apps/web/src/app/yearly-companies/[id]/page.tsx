@@ -247,7 +247,7 @@ export default function YearlyCompanyDetailPage() {
         <h1 className="text-2xl font-semibold">読み込みエラー</h1>
         <ErrorBanner message={error} />
         <Link href="/yearly-companies" className="text-sm hover:underline">
-          Yearly Companies に戻る
+          協賛企業(年度別)に戻る
         </Link>
       </div>
     )
@@ -258,7 +258,7 @@ export default function YearlyCompanyDetailPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">見つかりません</h1>
         <Link href="/yearly-companies" className="text-sm hover:underline">
-          Yearly Companies に戻る
+          協賛企業(年度別)に戻る
         </Link>
       </div>
     )
@@ -347,8 +347,7 @@ export default function YearlyCompanyDetailPage() {
       {!isApiEnabled() && (
         <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
           開発モード: `NEXT_PUBLIC_API_BASE_URL`
-          未設定のため mock データを使用しています。認証は X-User-ID /
-          X-User-Roles スタブです。
+          が未設定のためモックデータを使用しています。認証は開発用のスタブです。
         </p>
       )}
 
@@ -358,7 +357,7 @@ export default function YearlyCompanyDetailPage() {
         <div>
           <p className="text-sm text-muted-foreground">
             <Link href="/yearly-companies" className="hover:underline">
-              Yearly Companies
+              協賛企業(年度別)
             </Link>
           </p>
           <h1 className="text-2xl font-semibold">{yearlyCompany.companyName}</h1>

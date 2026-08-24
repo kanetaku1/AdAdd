@@ -252,7 +252,7 @@ export default function AdMaterialProgressPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Ad Material Progress</h1>
+        <h1 className="text-2xl font-semibold">広告進捗</h1>
         <p className="text-muted-foreground">
           {activeYear?.name ?? ""}年度・全{menus.length}協賛メニューの広告データ提出状況
         </p>
@@ -263,7 +263,7 @@ export default function AdMaterialProgressPage() {
       {yearLoading || loading ? (
         <LoadingBlock />
       ) : !activeYearId ? (
-        <EmptyBlock message="年度が未作成です。Years から年度を作成してください。" />
+        <EmptyBlock message="年度が未作成です。年度画面から作成してください。" />
       ) : (
         <>
           <div className="rounded-md border p-4">
@@ -365,10 +365,9 @@ export default function AdMaterialProgressPage() {
               </label>
             </div>
             <p className="mb-3 text-sm text-muted-foreground">
-              提出済み以外のContract
-              Menuを1件以上持つ企業を、担当実働メンバーごとに表示しています。
+              提出済み以外の契約メニューを1件以上持つ企業を、担当実働メンバーごとに表示しています。
               {scopeToMine &&
-                "自分が担当、またはアドバイザーとしてsuperviseするメンバーの分のみ表示中です。"}
+                "自分が担当、またはアドバイザーとして担当しているメンバーの分のみ表示中です。"}
             </p>
             {visibleFollowUpGroups.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -388,7 +387,7 @@ export default function AdMaterialProgressPage() {
                             {memberId === currentUserId
                               ? "あなたの担当"
                               : supervisedMemberIds.has(memberId)
-                                ? "supervise先の実働メンバー"
+                                ? "担当している実働メンバー"
                                 : "実働メンバー"}
                           </span>
                         )}

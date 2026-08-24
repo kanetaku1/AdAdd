@@ -369,7 +369,7 @@ export default function YearlyCompaniesPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Yearly Companies</h1>
+        <h1 className="text-2xl font-semibold">協賛企業(年度別)</h1>
         <p className="text-muted-foreground">
           {activeYear?.name ?? ""}年度 協賛企業の管理
         </p>
@@ -377,7 +377,7 @@ export default function YearlyCompaniesPage() {
 
       {!isApiEnabled() && (
         <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-          開発モード: mock データを使用（`NEXT_PUBLIC_API_BASE_URL` で API 接続）。
+          開発モード: モックデータを使用しています（`NEXT_PUBLIC_API_BASE_URL` で API 接続）。
         </p>
       )}
 
@@ -644,7 +644,7 @@ export default function YearlyCompaniesPage() {
             ) : !activeYearId ? (
               <EmptyRow
                 colSpan={5}
-                message="年度が未作成です。Years から年度を作成してください。"
+                message="年度が未作成です。年度画面から作成してください。"
               />
             ) : visibleRows.length === 0 ? (
               <EmptyRow colSpan={5} message="該当する企業がありません。" />
