@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AdAdd",
-  description: "Sponsor Collaboration Platform for 技大祭",
+  description: "技大祭 協賛管理システム",
 };
 
 export default function RootLayout({

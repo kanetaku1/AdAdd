@@ -143,7 +143,7 @@ export default function AdvisorAssignmentsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-medium">Advisor Assignments</h2>
+        <h2 className="text-lg font-medium">アドバイザー割当</h2>
         <p className="text-muted-foreground">実働メンバーへのアドバイザー割り当て</p>
       </div>
 
@@ -163,7 +163,7 @@ export default function AdvisorAssignmentsPage() {
             ) : !activeYearId ? (
               <EmptyRow
                 colSpan={2}
-                message="年度が未作成です。Years から年度を作成してください。"
+                message="年度が未作成です。年度画面から作成してください。"
               />
             ) : (
               users.map((member) => (

@@ -37,25 +37,21 @@ import { canAccess } from "@/lib/auth/roles"
  * only) — every other item stays visible to any authenticated User.
  */
 const NAV_ITEMS = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Companies", url: "/companies", icon: Building2 },
-  { title: "Yearly Companies", url: "/yearly-companies", icon: CalendarRange },
-  { title: "Contract Menus", url: "/contract-menus", icon: ClipboardCheck },
-  { title: "Sponsorship Menus", url: "/sponsorship-menus", icon: ListChecks },
+  { title: "ダッシュボード", url: "/", icon: LayoutDashboard },
+  { title: "企業一覧", url: "/companies", icon: Building2 },
+  { title: "協賛企業(年度別)", url: "/yearly-companies", icon: CalendarRange },
+  { title: "協賛メニュー", url: "/sponsorship-menus", icon: ListChecks },
+  { title: "広告管理", url: "/contract-menus", icon: ClipboardCheck },
+  { title: "広告進捗", url: "/ad-material-progress", icon: Image },
   {
-    title: "Ad Material Progress",
-    url: "/ad-material-progress",
-    icon: Image,
-  },
-  {
-    title: "Finance",
+    title: "財務",
     url: "/finance",
     icon: Wallet,
     allowedRoles: ["FINANCE_DEPARTMENT", "ADMINISTRATOR"],
   },
-  { title: "Years", url: "/years", icon: CalendarClock },
+  { title: "年度", url: "/years", icon: CalendarClock },
   {
-    title: "Settings",
+    title: "設定",
     url: "/settings",
     icon: Settings,
     allowedRoles: ["ADMINISTRATOR"],
@@ -78,7 +74,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Sponsorship Management</SidebarGroupLabel>
+          <SidebarGroupLabel>協賛管理</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleNavItems.map((item) => (

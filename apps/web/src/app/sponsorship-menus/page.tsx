@@ -142,7 +142,7 @@ export default function SponsorshipMenusPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Sponsorship Menus</h1>
+          <h1 className="text-2xl font-semibold">協賛メニュー</h1>
           <p className="text-muted-foreground">
             {activeYear?.name ?? ""}年度 協賛メニューマスタ
           </p>
@@ -177,7 +177,7 @@ export default function SponsorshipMenusPage() {
             ) : !activeYearId ? (
               <EmptyRow
                 colSpan={4}
-                message="年度が未作成です。Years から年度を作成してください。"
+                message="年度が未作成です。年度画面から作成してください。"
               />
             ) : menus.length === 0 ? (
               <EmptyRow colSpan={4} message="協賛メニューがまだありません。" />

@@ -15,6 +15,18 @@ export const ROLES = [
 
 export type Role = (typeof ROLES)[number]
 
+/** Japanese display names (spec/model.md#Role `name`). Codes stay English. */
+export const ROLE_LABEL: Record<Role, string> = {
+  SPONSORSHIP_MEMBER: "協賛実働メンバー",
+  ADVISOR: "協賛アドバイザー",
+  FINANCE_DEPARTMENT: "財務部門",
+  ADMINISTRATOR: "管理者",
+}
+
+export function roleLabel(code: string): string {
+  return ROLE_LABEL[code as Role] ?? code
+}
+
 /**
  * User (spec/model.md#User) — a system user.
  *

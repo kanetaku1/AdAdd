@@ -32,7 +32,7 @@ import { grantRole, listRoles, revokeRole, type RoleOption } from "@/lib/data/ro
 import { createUser, listUsers, updateUser } from "@/lib/data/users"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
-import { ROLES, type Role, type User } from "@/types/user"
+import { ROLES, roleLabel, type Role, type User } from "@/types/user"
 
 const ALLOWED_ROLES = ["ADMINISTRATOR"]
 
@@ -130,7 +130,7 @@ export default function UsersPage() {
   const isNew = editingId === "new"
 
   function roleName(code: string): string {
-    return roleCatalog.find((r) => r.code === code)?.name ?? code
+    return roleCatalog.find((r) => r.code === code)?.name ?? roleLabel(code)
   }
 
   function openNew() {
@@ -275,7 +275,7 @@ export default function UsersPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-medium">Users</h2>
+          <h2 className="text-lg font-medium">ユーザー</h2>
           <p className="text-muted-foreground">システム利用者の管理</p>
         </div>
         <IconActionButton label="ユーザーを追加" variant="default" onClick={openNew}>
@@ -437,7 +437,7 @@ export default function UsersPage() {
                       className="cursor-pointer"
                       onClick={() => toggleFormRole(role)}
                     >
-                      {role}
+                      {roleLabel(role)}
                     </Badge>
                   ))}
                 </div>

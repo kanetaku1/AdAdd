@@ -78,7 +78,7 @@ export default function YearsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Years</h1>
+          <h1 className="text-2xl font-semibold">年度</h1>
           <p className="text-muted-foreground">技大祭の年度管理</p>
         </div>
         {canCreateYear && (
@@ -135,8 +135,7 @@ export default function YearsPage() {
               </Field>
             </FieldGroup>
             <p className="text-xs text-muted-foreground">
-              現在運用中の年度の企業情報を引き継いで Yearly Company
-              を一括生成します。
+              現在運用中の年度の企業情報を引き継いで、協賛企業(年度別)を一括生成します。
             </p>
             <ErrorBanner message={createError} />
             <DialogFooter>
@@ -156,7 +155,7 @@ export default function YearsPage() {
 
       {!isApiEnabled() && (
         <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-          開発モード: mock データを使用（`NEXT_PUBLIC_API_BASE_URL` で API 接続）。
+          開発モード: モックデータを使用しています（`NEXT_PUBLIC_API_BASE_URL` で API 接続）。
         </p>
       )}
 

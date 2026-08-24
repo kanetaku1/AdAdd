@@ -100,7 +100,7 @@ export function DriveUploadDialog({
                 },
             })
         } catch (e) {
-            setError(getErrorMessage(e, { fallback: "Pickerの起動に失敗しました" }))
+            setError(getErrorMessage(e, { fallback: "ファイル選択の起動に失敗しました" }))
             setBusy(false)
         }
     }

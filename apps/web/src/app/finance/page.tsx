@@ -102,7 +102,7 @@ export default function FinancePage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Finance</h1>
+        <h1 className="text-2xl font-semibold">財務</h1>
         <p className="text-muted-foreground">
           {activeYear?.name ?? ""}年度 入金状況の管理
         </p>
@@ -128,7 +128,7 @@ export default function FinancePage() {
             ) : !activeYearId ? (
               <EmptyRow
                 colSpan={6}
-                message="年度が未作成です。Years から年度を作成してください。"
+                message="年度が未作成です。年度画面から作成してください。"
               />
             ) : payments.length === 0 ? (
               <EmptyRow

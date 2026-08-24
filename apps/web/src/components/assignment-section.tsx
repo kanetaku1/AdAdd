@@ -60,7 +60,7 @@ export function AssignmentSection({
         ) : advisorNames.length === 0 ? (
           <span
             className="text-muted-foreground"
-            title="設定は Settings > Advisor Assignments で行います"
+            title="設定画面のアドバイザー割当で行います"
           >
             未設定
           </span>

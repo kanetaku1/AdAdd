@@ -191,7 +191,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <h1 className="text-2xl font-semibold">ダッシュボード</h1>
         <p className="text-muted-foreground">
           {activeYear?.name ?? ""}年度 協賛活動サマリ
         </p>
@@ -202,7 +202,7 @@ export default function DashboardPage() {
       {yearLoading || loading ? (
         <LoadingBlock />
       ) : !activeYearId ? (
-        <EmptyBlock message="年度が未作成です。Years から年度を作成してください。" />
+        <EmptyBlock message="年度が未作成です。年度画面から作成してください。" />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -243,7 +243,7 @@ export default function DashboardPage() {
             <div className="mb-3">
               <h2 className="font-medium">自分の担当企業</h2>
               <p className="text-sm text-muted-foreground">
-                担当企業（アドバイザーはsuperviseする実働メンバーの担当企業を含む）の進捗・広告制作・入金状況をまとめて確認できます。
+                担当企業（アドバイザーは担当している実働メンバーの企業を含む）の進捗・広告・入金状況をまとめて確認できます。
               </p>
             </div>
             {myCompanies.length === 0 ? (

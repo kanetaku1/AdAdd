@@ -132,7 +132,7 @@ export function ReceiptDocument({ data }: { data: ReceiptData }) {
             <Text>{FESTIVAL_POSTAL_CODE}</Text>
             <Text>{FESTIVAL_ADDRESS_LINE}</Text>
             <Text>{FESTIVAL_ADDRESS_LINE2}</Text>
-            <Text>E-Mail : {FESTIVAL_EMAIL}</Text>
+            <Text>メール : {FESTIVAL_EMAIL}</Text>
           </View>
         </View>
       </Page>
