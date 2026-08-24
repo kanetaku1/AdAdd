@@ -14,4 +14,6 @@ export type SponsorshipMenu = {
   defaultPrice: number
   requiresSubmission: boolean
   isActive: boolean
+  /** Optional cap for the Year. `null` means unlimited (spec/model.md#SponsorshipMenu). */
+  maxQuantity: number | null
 }

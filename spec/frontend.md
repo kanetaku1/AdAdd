@@ -250,8 +250,9 @@ Display:
   status count links to Contract Menu List (see Contract Menu Management
   below), pre-filtered to that Sponsorship Menu + `ContractMenuStatus`.
   For a menu with `maxQuantity` set (`spec/model.md#SponsorshipMenu`),
-  additionally show contracted-quantity-so-far vs. `maxQuantity` (fill
-  ratio), so approaching-capacity menus are visible before they're full.
+  additionally show contracted-quantity-so-far (sum of `ContractMenu.quantity`
+  for that menu, not the row count) vs. `maxQuantity` (fill ratio), so
+  approaching-capacity menus are visible before they're full.
   A Slack alert when a capped menu nears capacity is a Future Extension
   (see below), not implemented now.
 * Follow-up list — every Company with at least one Contract Menu not yet
@@ -537,6 +538,7 @@ Display:
 | Menu name           |
 | Price               |
 | Submission required |
+| Max quantity (optional) |
 | Active status       |
 
 ---

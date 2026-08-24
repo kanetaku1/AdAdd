@@ -19,6 +19,17 @@ func validateNonNegativeAmount(val decimal.Decimal) bool {
 	return !val.IsNegative()
 }
 
+// null = unlimited (spec/model.md#SponsorshipMenu). 0 is not a valid cap.
+func validateMaxQuantity(q *int) error {
+	if q == nil {
+		return nil
+	}
+	if *q < 1 {
+		return errors.New("maxQuantity must be null or at least 1")
+	}
+	return nil
+}
+
 func validateStatus(status string, allowed []string) bool {
 	if status == "" {
 		return false

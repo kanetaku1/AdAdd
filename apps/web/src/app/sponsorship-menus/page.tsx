@@ -29,6 +29,14 @@ import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 
+function parseMaxQuantity(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (trimmed === "") return null
+  const n = Number(trimmed)
+  if (!Number.isInteger(n) || n < 1) return null
+  return n
+}
+
 /**
  * Sponsorship Menu master (spec/frontend.md#Sponsorship Menu Management).
  * Yearly master data (spec/domain.md Rule 10) — never belongs to a specific
@@ -39,9 +47,9 @@ const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
  * ActiveYearProvider (Issue #18).
  *
  * Text/number fields update local state on every keystroke but only persist
- * on blur; toggles persist immediately. The backend's PATCH `Save`s the full
- * row (no fetch-then-merge), so every persisted call sends the complete
- * field set — see lib/data/sponsorship-menus.ts.
+ * on blur (Enter also blurs). Toggles persist immediately. PATCH replaces
+ * the listed fields, so every persisted call sends the complete field set
+ * — see lib/data/sponsorship-menus.ts.
  */
 export default function SponsorshipMenusPage() {
   const {
@@ -105,6 +113,7 @@ export default function SponsorshipMenusPage() {
         defaultPrice: fields.defaultPrice,
         requiresSubmission: fields.requiresSubmission,
         isActive: fields.isActive,
+        maxQuantity: fields.maxQuantity,
       })
       setMenus((prev) => prev.map((menu) => (menu.id === id ? updated : menu)))
     } catch (e) {
@@ -129,6 +138,7 @@ export default function SponsorshipMenusPage() {
         defaultPrice: 0,
         requiresSubmission: false,
         isActive: true,
+        maxQuantity: null,
       })
       setMenus((prev) => [...prev, created])
     } catch (e) {
@@ -167,20 +177,21 @@ export default function SponsorshipMenusPage() {
             <TableRow>
               <TableHead>メニュー名</TableHead>
               <TableHead>標準価格</TableHead>
+              <TableHead>上限数</TableHead>
               <TableHead>提出要否</TableHead>
               <TableHead>募集中</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
-              <LoadingRow colSpan={4} />
+              <LoadingRow colSpan={5} />
             ) : !activeYearId ? (
               <EmptyRow
-                colSpan={4}
+                colSpan={5}
                 message="年度が未作成です。年度画面から作成してください。"
               />
             ) : menus.length === 0 ? (
-              <EmptyRow colSpan={4} message="協賛メニューがまだありません。" />
+              <EmptyRow colSpan={5} message="協賛メニューがまだありません。" />
             ) : (
               menus.map((menu) => {
                 const rowSaving = savingId === menu.id
@@ -197,6 +208,9 @@ export default function SponsorshipMenusPage() {
                         onBlur={(e) =>
                           void persistMenu(menu.id, { name: e.target.value })
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur()
+                        }}
                       />
                     </TableCell>
                     <TableCell>
@@ -217,6 +231,33 @@ export default function SponsorshipMenusPage() {
                             defaultPrice: Number(e.target.value) || 0,
                           })
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur()
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        placeholder="なし"
+                        aria-label={`${menu.name}の上限数`}
+                        value={menu.maxQuantity ?? ""}
+                        disabled={rowSaving || !canManage}
+                        onChange={(e) =>
+                          updateLocalMenu(menu.id, {
+                            maxQuantity: parseMaxQuantity(e.target.value),
+                          })
+                        }
+                        onBlur={(e) => {
+                          const maxQuantity = parseMaxQuantity(e.target.value)
+                          updateLocalMenu(menu.id, { maxQuantity })
+                          void persistMenu(menu.id, { maxQuantity })
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur()
+                        }}
                       />
                     </TableCell>
                     <TableCell>
