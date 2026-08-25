@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 
-import { Pencil } from "lucide-react"
+import { Download, Pencil } from "lucide-react"
 
 import { IconActionButton } from "@/components/icon-action-button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import {
 import { RegisterYearlyCompanyButton } from "@/components/register-yearly-company-button"
 import { useActiveYear } from "@/components/active-year-provider"
 import { ErrorBanner, EmptyRow } from "@/components/query-state"
+import { downloadCompanyCsv } from "@/lib/company-csv"
 import { listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import type { Company } from "@/types/company"
@@ -27,7 +28,8 @@ import type { Company } from "@/types/company"
  * out from the (server) Companies page so the search box can be client-side
  * — same "client wrapper around server-fetched data" pattern as
  * contract-menu-section.tsx. Reads the active Year from the shared
- * ActiveYearProvider (Issue #18) rather than a prop.
+ * ActiveYearProvider (Issue #18) rather than a prop. CSV export writes
+ * `visibleCompanies` (spec/frontend.md#CSV Import / Export, Issue #134).
  */
 export function CompaniesTable({ companies }: { companies: Company[] }) {
   const { activeYear } = useActiveYear()
@@ -36,6 +38,7 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
     Set<string>
   >(new Set())
   const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -72,14 +75,37 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
       : true
   )
 
+  function handleExportCsv() {
+    if (exporting) return
+    setError(null)
+    setExporting(true)
+    try {
+      downloadCompanyCsv(visibleCompanies)
+    } catch (e) {
+      setError(getErrorMessage(e, { fallback: "CSVの出力に失敗しました" }))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <Input
-        placeholder="企業名で検索"
-        value={nameQuery}
-        onChange={(e) => setNameQuery(e.target.value)}
-        className="max-w-56"
-      />
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="企業名で検索"
+          value={nameQuery}
+          onChange={(e) => setNameQuery(e.target.value)}
+          className="max-w-56"
+        />
+        <IconActionButton
+          label={exporting ? "出力中…" : "CSVを出力"}
+          variant="outline"
+          disabled={exporting}
+          onClick={handleExportCsv}
+        >
+          <Download />
+        </IconActionButton>
+      </div>
 
       <ErrorBanner message={error} />
 
