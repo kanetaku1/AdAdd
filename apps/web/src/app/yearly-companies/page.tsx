@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { FileCheck, FileX, Users } from "lucide-react"
+import { FileCheck, FileX, Users, Download } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,9 +29,11 @@ import {
 } from "@/components/column-filter-header"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
+import { IconActionButton } from "@/components/icon-action-button"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
 import { canAccess } from "@/lib/auth/roles"
+import { listCompanies } from "@/lib/data/companies"
 import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   assignMember,
@@ -42,6 +44,7 @@ import {
   updateYearlyCompanyStatus,
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
+import { downloadYearlyCompanyCsv } from "@/lib/yearly-company-csv"
 import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_BADGE_VARIANT,
@@ -107,6 +110,8 @@ type ColumnFilterKey = "status" | "phase" | "member" | "progress"
 
 /**
  * Yearly Company List (spec/frontend.md#Yearly Company Management).
+ * CSV export writes the current `visibleRows` joined with Company master
+ * details (spec/frontend.md#CSV Import / Export, Issue #133).
  */
 export default function YearlyCompaniesPage() {
   const {
@@ -150,6 +155,7 @@ export default function YearlyCompaniesPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -366,6 +372,22 @@ export default function YearlyCompaniesPage() {
     }
   }
 
+  async function handleExportCsv() {
+    if (exporting || loading || yearLoading || !activeYear) return
+    setActionError(null)
+    setExporting(true)
+    try {
+      const companies = await listCompanies()
+      downloadYearlyCompanyCsv(activeYear.name, visibleRows, companies)
+    } catch (e) {
+      setActionError(
+        getErrorMessage(e, { fallback: "CSVの出力に失敗しました" })
+      )
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -473,6 +495,15 @@ export default function YearlyCompaniesPage() {
               </ColumnFilterOption>
             ))}
           </ColumnFilterPopover>
+
+          <IconActionButton
+            label={exporting ? "出力中…" : "CSVを出力"}
+            variant="outline"
+            disabled={exporting || loading || yearLoading || !activeYear}
+            onClick={() => void handleExportCsv()}
+          >
+            <Download />
+          </IconActionButton>
         </div>
 
         {hasActiveFilters && (

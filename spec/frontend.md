@@ -351,9 +351,11 @@ Filter UX for operational scale (about 20 committee members, about 500 companies
 
 Contract existence is used only as a filter condition; it is not shown as a dedicated column in the table.
 
+CSV export (toolbar) writes the currently filtered rows (`visibleRows` — including Advisor / contract-existence filters, which affect which rows are exported but are not themselves CSV columns). Japanese headers. Columns: company name, company status, sponsorship phase, assigned member, progress, contract existence (契約あり / 契約なし), contract amount (empty when none), plus Company master postal code, address, phone, website, and memo (引継ぎ事項). Advisor, company-name kana, company-side contact person, contact email/form, and first sponsorship year are omitted. UTF-8 with BOM. Built client-side from the filtered list joined with `GET /companies` on `companyId` — no export API (`spec/frontend.md#CSV Import / Export`).
+
 The Assigned Member column/edit surfaces and edits the Yearly Company's single assignee (inline, cell-level, per Principle 4). `CompanyAssignment` is domain-modeled as 0..1 per Yearly Company (`spec/model.md#CompanyAssignment`) — a Yearly Company has at most one assigned member, so this is the actual cardinality, not a UI simplification.
 
-Company status, Sponsorship phase, and Progress are each editable inline (cell-level, per Principle 4) directly from this list, the same as on Yearly Company Detail — there is no separate "actions" column, since the only other per-row action (viewing/creating the Contract) is already reachable via the Company name link.
+Company status, Sponsorship phase, and Progress are each editable inline (cell-level, per Principle 4) directly from this list, the same as on Yearly Company Detail — there is no separate "actions" column, since the only other per-row action (viewing/creating the Contract) is already reachable via the Company name link. CSV export is a toolbar action, not a per-row action.
 
 ---
 
@@ -667,10 +669,31 @@ Shows total / will-create / error counts, each error with its CSV row
 number and Japanese reason, and a compact table of the rows that will
 be created. Confirm is disabled when there are no valid rows.
 
-Export (not this screen):
+Export (client-side, UTF-8 BOM; Shift-JIS is not produced):
 
-* Company data export
-* Progress export
+### Yearly Company List export
+
+Actor: anyone who can open Yearly Company List. Entry: toolbar on
+`spec/frontend.md#Yearly Company List`.
+
+Writes the currently filtered rows (active Year). Filters including
+Advisor and contract existence narrow the row set; those two are not CSV
+columns. Japanese labels, not enum tokens.
+
+Columns: 会社名, 企業ステータス, 協賛フェーズ, 担当者, 進捗, 協賛可否
+(契約あり / 契約なし), 契約金額, 郵便番号, 住所, 電話番号, Webサイト,
+引継ぎ事項.
+
+Not exported: アドバイザー, 会社名カナ, 企業担当者名, 連絡先, 初回協賛年.
+No empty checkbox columns — those are added in the spreadsheet.
+
+Joined client-side with `GET /companies` on `companyId`. No export API.
+Filename: `協賛企業-{Year.name}.csv`. A filtered set of zero rows still
+downloads a header-only file.
+
+### Company data export
+
+Not this screen — Company List master dump (`spec/frontend.md#Company List`).
 
 ---
 

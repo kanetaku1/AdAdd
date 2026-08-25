@@ -1,6 +1,7 @@
 /**
- * CSV helpers for bulk import (spec/frontend.md#CSV Import / Export).
- * Headers must match the API column names exactly; UTF-8 with optional BOM.
+ * CSV helpers for bulk import / list export
+ * (`spec/frontend.md#CSV Import / Export`). Import templates use exact API
+ * header names. Export uses Japanese labels. UTF-8 with BOM.
  */
 
 export function parseCsv(text: string): string[][] {
@@ -70,12 +71,12 @@ function escapeCsvField(value: string): string {
   return value
 }
 
-export function downloadCsvTemplate(
+export function downloadCsv(
   fileName: string,
   headers: string[],
-  exampleRow: string[]
+  rows: string[][]
 ): void {
-  const body = [headers, exampleRow]
+  const body = [headers, ...rows]
     .map((line) => line.map(escapeCsvField).join(","))
     .join("\r\n")
   const blob = new Blob(["\uFEFF" + body + "\r\n"], {
@@ -87,4 +88,12 @@ export function downloadCsvTemplate(
   anchor.download = fileName
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+export function downloadCsvTemplate(
+  fileName: string,
+  headers: string[],
+  exampleRow: string[]
+): void {
+  downloadCsv(fileName, headers, [exampleRow])
 }
