@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/label"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
 func RegisterYearlyCompanyRoutes(e *echo.Echo) {
@@ -21,6 +23,7 @@ func RegisterYearlyCompanyRoutes(e *echo.Echo) {
 	rStaff.PATCH("/yearly-companies/:id/company-status", updateCompanyStatus)
 	rStaff.PATCH("/yearly-companies/:id/phase", updatePhase)
 	rStaff.PATCH("/yearly-companies/:id/progress", updateProgress)
+	rStaff.PATCH("/yearly-companies/:id/company-contact", updateCompanyContact)
 }
 
 func getYearlyCompany(c echo.Context) error {
@@ -177,6 +180,23 @@ func updatePhase(c echo.Context) error {
 	}
 
 	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
+		return respondInternalServerError(c, err)
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
+}
+
+func updateCompanyContact(c echo.Context) error {
+	id := c.Param("id")
+	var body model.CompanyContactInput
+	if err := c.Bind(&body); err != nil {
+		return respondBadRequest(c, err.Error())
+	}
+	svc := service.NewYearlyCompanyService()
+	yc, err := svc.UpdateContact(id, body)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return respondNotFound(c, "yearly company not found")
+		}
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})

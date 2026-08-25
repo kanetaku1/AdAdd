@@ -24,6 +24,7 @@ import {
 import {
   mockYearlyCompanies,
   updateAssignedMember,
+  updateContactSnapshot,
 } from "@/lib/mock/yearly-companies"
 import { toConfirmationDate } from "@/lib/payment-labels"
 import { SPONSORSHIP_PROGRESS_LABEL } from "@/lib/yearly-company-labels"
@@ -41,6 +42,7 @@ import type {
   SponsorshipPhase,
   SponsorshipProgress,
   YearlyCompany,
+  YearlyCompanyContact,
 } from "@/types/yearly-company"
 import type { ContractMenuItemValue } from "@/components/contract-menu-item-fields"
 
@@ -54,7 +56,7 @@ import type { ContractMenuItemValue } from "@/components/contract-menu-item-fiel
  * Never fall back from API failures to mock reads/writes.
  */
 
-function enrichYearlyCompany(yc: YearlyCompany & { notes?: string }): YearlyCompany {
+function enrichYearlyCompany(yc: YearlyCompany): YearlyCompany {
   const company = mockCompanies.find((c) => c.id === yc.companyId)
   const member = mockUsers.find((u) => u.id === yc.assignedMemberId)
   const contract = mockSponsorshipContracts.find(
@@ -63,19 +65,20 @@ function enrichYearlyCompany(yc: YearlyCompany & { notes?: string }): YearlyComp
   return {
     ...yc,
     companyName: yc.companyName || company?.companyName || "(不明な企業)",
-    assignedMemberName:
-      yc.assignedMemberName ?? member?.name ?? null,
+    companyNameKana: yc.companyNameKana || company?.companyNameKana || "",
+    assignedMemberName: yc.assignedMemberName ?? member?.name ?? null,
     contractTotalAmount: yc.contractTotalAmount ?? contract?.totalAmount ?? null,
     notes: yc.notes ?? "",
   }
 }
 
-/** Backend joins Company name and the assigned member onto the DTO (Issue #10). */
+/** Backend joins Company name/kana and the assigned member onto the DTO (Issue #10). */
 type ApiYearlyCompany = {
   id: string
   yearId: string
   companyId: string
   companyName: string
+  companyNameKana?: string
   companyStatus: CompanyStatus
   phase: SponsorshipPhase
   progress: SponsorshipProgress
@@ -83,6 +86,13 @@ type ApiYearlyCompany = {
   assignedMemberName: string | null
   contractTotalAmount: number | string | null
   notes?: string
+  postalCode?: string
+  address?: string
+  phoneNumber?: string
+  website?: string
+  contactPersonName?: string
+  contactEmailOrForm?: string
+  memo?: string
 }
 
 function mapApiYearlyCompany(raw: ApiYearlyCompany): YearlyCompany {
@@ -91,6 +101,7 @@ function mapApiYearlyCompany(raw: ApiYearlyCompany): YearlyCompany {
     yearId: raw.yearId,
     companyId: raw.companyId,
     companyName: raw.companyName,
+    companyNameKana: raw.companyNameKana ?? "",
     companyStatus: raw.companyStatus,
     phase: raw.phase,
     progress: raw.progress,
@@ -101,6 +112,13 @@ function mapApiYearlyCompany(raw: ApiYearlyCompany): YearlyCompany {
         ? null
         : Number(raw.contractTotalAmount),
     notes: raw.notes ?? "",
+    postalCode: raw.postalCode ?? "",
+    address: raw.address ?? "",
+    phoneNumber: raw.phoneNumber ?? "",
+    website: raw.website ?? "",
+    contactPersonName: raw.contactPersonName ?? "",
+    contactEmailOrForm: raw.contactEmailOrForm ?? "",
+    memo: raw.memo ?? "",
   }
 }
 
@@ -710,6 +728,38 @@ export async function updateYearlyCompanyPhase(
   }
   const yc = mockYearlyCompanies.find((row) => row.id === yearlyCompanyId)
   if (yc) yc.phase = phase
+}
+
+export async function updateYearlyCompanyContact(
+  yearlyCompanyId: string,
+  contact: YearlyCompanyContact
+): Promise<YearlyCompany> {
+  if (isApiEnabled()) {
+    const raw = await apiFetch<ApiYearlyCompany>(
+      `/yearly-companies/${yearlyCompanyId}/company-contact`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(contact),
+      }
+    )
+    return mapApiYearlyCompany(raw)
+  }
+  const yc = updateContactSnapshot(yearlyCompanyId, contact)
+  if (!yc) {
+    throw new Error("yearly company not found")
+  }
+  const company = mockCompanies.find((c) => c.id === yc.companyId)
+  if (company) {
+    company.postalCode = contact.postalCode
+    company.address = contact.address
+    company.phoneNumber = contact.phoneNumber
+    company.website = contact.website
+    company.contactPersonName = contact.contactPersonName
+    company.contactEmailOrForm = contact.contactEmailOrForm
+    company.memo = contact.memo
+    company.updatedAt = new Date().toISOString()
+  }
+  return enrichYearlyCompany(yc)
 }
 
 export async function createContractWithMenus(

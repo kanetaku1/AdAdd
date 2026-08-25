@@ -57,6 +57,7 @@ func (s *YearService) Create(y *model.Year) error {
 				Phase:         "PHASE_3",
 				Progress:      "NOT_CONTACTED",
 			}
+			model.CopyContactFromCompany(yc, &c)
 			if err := tx.Create(yc).Error; err != nil {
 				return err
 			}

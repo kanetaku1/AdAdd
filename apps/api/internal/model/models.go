@@ -55,16 +55,23 @@ func (c *Company) BeforeCreate(tx *gorm.DB) (err error) {
 
 // YearlyCompany
 type YearlyCompany struct {
-	ID            string         `gorm:"type:char(36);primaryKey" json:"id"`
-	YearID        string         `gorm:"type:char(36);not null;index" json:"yearId"`
-	CompanyID     string         `gorm:"type:char(36);not null;index" json:"companyId"`
-	CompanyStatus string         `gorm:"size:32" json:"companyStatus"`
-	Phase         string         `gorm:"size:32" json:"phase"`
-	Progress      string         `gorm:"size:32" json:"progress"`
-	Notes         string         `gorm:"type:text" json:"notes"`
-	CreatedAt     time.Time      `json:"createdAt"`
-	UpdatedAt     time.Time      `json:"updatedAt"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                 string         `gorm:"type:char(36);primaryKey" json:"id"`
+	YearID             string         `gorm:"type:char(36);not null;index" json:"yearId"`
+	CompanyID          string         `gorm:"type:char(36);not null;index" json:"companyId"`
+	CompanyStatus      string         `gorm:"size:32" json:"companyStatus"`
+	Phase              string         `gorm:"size:32" json:"phase"`
+	Progress           string         `gorm:"size:32" json:"progress"`
+	PostalCode         string         `gorm:"size:20" json:"postalCode"`
+	Address            string         `gorm:"size:512" json:"address"`
+	PhoneNumber        string         `gorm:"size:64" json:"phoneNumber"`
+	Website            string         `gorm:"size:255" json:"website"`
+	ContactPersonName  string         `gorm:"size:255" json:"contactPersonName"`
+	ContactEmailOrForm string         `gorm:"size:512" json:"contactEmailOrForm"`
+	Memo               string         `gorm:"type:text" json:"memo"`
+	Notes              string         `gorm:"type:text" json:"notes"`
+	CreatedAt          time.Time      `json:"createdAt"`
+	UpdatedAt          time.Time      `json:"updatedAt"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (y *YearlyCompany) BeforeCreate(tx *gorm.DB) (err error) {
@@ -78,6 +85,7 @@ func (y *YearlyCompany) BeforeCreate(tx *gorm.DB) (err error) {
 type YearlyCompanyResponse struct {
 	YearlyCompany
 	CompanyName         string           `json:"companyName"`
+	CompanyNameKana     string           `json:"companyNameKana"`
 	AssignedMemberID    *string          `json:"assignedMemberId"`
 	AssignedMemberName  *string          `json:"assignedMemberName"`
 	ContractTotalAmount *decimal.Decimal `gorm:"column:contract_total_amount" json:"contractTotalAmount"`
