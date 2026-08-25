@@ -307,6 +307,7 @@ Filters:
 Actions:
 
 * Create company
+* CSV bulk import (toolbar — Preview → Confirm; `spec/frontend.md#CSV Import / Export`)
 * Edit company
 * View sponsorship history (past Yearly Companies)
 * Register the company into the active Year as a Yearly Company (per row, only shown when it isn't already registered for that Year) — the individual registration path noted in `spec/usecase.md` UC-01 Notes.
@@ -613,11 +614,61 @@ Create Contract
 
 Purpose:
 
-Support existing spreadsheet operations.
+Support existing spreadsheet operations (UC-12 pre-registration at Year
+turnover; Company master load). Import is create-only — duplicates are
+rejected per row, never updated. Existing one-by-one create/edit stays
+for mid-cycle additions.
 
-Supported:
+Flow (same Preview → Confirm pattern as Google Forms Import Screen above):
 
-* Company data import
+```text
+Select CSV
+  ↓
+Preview (dry-run — nothing is saved)
+  ↓
+Confirm (valid rows only are created)
+  ↓
+List refreshes
+```
+
+UTF-8 (BOM allowed). Shift-JIS is not accepted. A downloadable template
+with the exact header row is offered on the import dialog.
+
+### User import
+
+Actor: Administrator. Entry: User List toolbar (`spec/frontend.md#User List`).
+`POST /users/bulk` (`spec/api.md#Bulk Import Users`).
+
+Headers: `studentId`, `name` (required), `email` (required), `slackId`,
+`roles` (comma-separated Role `code`s — `SPONSORSHIP_MEMBER` /
+`ADVISOR` / `FINANCE_DEPARTMENT` / `ADMINISTRATOR`; empty means no Role,
+which is the view-only baseline).
+
+Duplicate `email` (in the file or already in AdAdd) and unknown Role
+codes become error rows. Valid rows are still created.
+
+### Company import
+
+Actor: Sponsorship Member / Administrator. Entry: Company List toolbar
+(`spec/frontend.md#Company List`). `POST /companies/bulk`
+(`spec/api.md#Bulk Import Companies`).
+
+Headers: `companyName` (required), `companyNameKana`, `postalCode`,
+`address`, `phoneNumber`, `website`, `contactPersonName`,
+`contactEmailOrForm`, `firstSponsorshipYear`, `memo`.
+
+Duplicate `companyName` (in the file or already in AdAdd) becomes an
+error row. This does not register Yearly Companies — that remains Year
+creation or the per-row action on Company List.
+
+### Preview
+
+Shows total / will-create / error counts, each error with its CSV row
+number and Japanese reason, and a compact table of the rows that will
+be created. Confirm is disabled when there are no valid rows.
+
+Export (not this screen):
+
 * Company data export
 * Progress export
 
@@ -671,6 +722,7 @@ Display, one always-editable row per user (Principle 4):
 Actions:
 
 * Add user (new row, mostly blank) — this is also how a User is pre-registered before they can ever log in (`spec/model.md` → Business Invariants: no self-service signup).
+* CSV bulk import (toolbar — Preview → Confirm; `spec/frontend.md#CSV Import / Export`). Year-turnover scale is about 100 Users.
 * Edit any field inline
 * Disable / re-enable (Active toggle)
 * Roles cell: chips, one per current `UserRole` grant (`spec/model.md#UserRole`), matching the Advisor Assignment pattern below — a "+" opens a dropdown of the 7 fixed Roles (`GET /roles`, `spec/api.md#List Roles`) not already granted; clicking a chip's "×" revokes that Role (`DELETE /users/{userId}/roles/{roleId}`). A User may hold zero Roles (e.g. immediately after being added, before an Administrator grants one) — they can still authenticate but see none of the role-gated navigation (Navigation Structure below).

@@ -7,6 +7,7 @@ import { Pencil, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { IconActionButton } from "@/components/icon-action-button"
+import { ImportUsersButton } from "@/components/import-users-button"
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,9 @@ function formFromUser(user: User): UserForm {
  * This is an explicit exception to Principle 4 (see spec/frontend.md).
  * Active stays an inline toggle: disabling/re-enabling is a frequent,
  * deliberate access-control action, not a profile edit.
+ *
+ * CSV bulk import (spec/frontend.md#CSV Import / Export) sits next to
+ * "ユーザーを追加" and follows Preview → Confirm via POST /users/bulk.
  *
  * Role assignment is API calls separate from the User CRUD save
  * (POST/DELETE /users/{userId}/roles/{roleId}, Issue #63), but the picker
@@ -278,9 +282,20 @@ export default function UsersPage() {
           <h2 className="text-lg font-medium">ユーザー</h2>
           <p className="text-muted-foreground">システム利用者の管理</p>
         </div>
-        <IconActionButton label="ユーザーを追加" variant="default" onClick={openNew}>
-          <Plus />
-        </IconActionButton>
+        <div className="flex items-center gap-2">
+          <ImportUsersButton
+            onImported={() => {
+              void listUsers().then(setUsers).catch((e) => {
+                setLoadError(
+                  getErrorMessage(e, { fallback: "読み込みに失敗しました" })
+                )
+              })
+            }}
+          />
+          <IconActionButton label="ユーザーを追加" variant="default" onClick={openNew}>
+            <Plus />
+          </IconActionButton>
+        </div>
       </div>
 
       <ErrorBanner message={loadError} />
