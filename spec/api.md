@@ -178,6 +178,50 @@ Permission:
 
 ---
 
+## Bulk Import Users
+
+Creates many Users from a CSV in one request (Year-turnover pre-registration, `spec/frontend.md#CSV Import / Export`). Existing one-by-one `POST /users` stays for mid-cycle additions.
+
+```
+POST /users/bulk
+```
+
+`multipart/form-data` with file field `file`. Form field `dryRun=true` validates and returns the preview without writing. Omit or `false` to create the valid rows.
+
+CSV is UTF-8 (BOM allowed). Header row required. Columns (names are exact):
+
+| Header    | Required | Notes |
+| --------- | -------- | ----- |
+| studentId |          | |
+| name      | yes      | |
+| email     | yes      | unique vs existing Users and within the file |
+| slackId   |          | |
+| roles     |          | comma-separated Role `code`s (`spec/model.md#Role`); empty = no Role |
+
+Each row is independent. Invalid / duplicate rows are returned in `errors` and skipped; valid rows are created (`isActive` true). Unknown Role codes fail that row.
+
+Response:
+
+```json
+{
+  "totalCount": 100,
+  "successCount": 97,
+  "errorCount": 3,
+  "successfulRows": [],
+  "errors": [
+    { "rowNumber": 12, "message": "すでに登録されているメールアドレスです" }
+  ]
+}
+```
+
+`rowNumber` is 1-based including the header (first data row is 2). HTTP 400 if the file is missing, not CSV, or has no data rows.
+
+Permission:
+
+* Admin
+
+---
+
 ## Update User
 
 Edits a user's profile, or activates/deactivates them.
@@ -337,6 +381,39 @@ Creates new company master data.
 ```
 POST /companies
 ```
+
+Permission:
+
+* Sponsorship Member / Administrator
+
+---
+
+## Bulk Import Companies
+
+Creates many Companies from a CSV in one request (`spec/frontend.md#CSV Import / Export`). Does not create Yearly Companies. Existing one-by-one `POST /companies` stays for individual registration.
+
+```
+POST /companies/bulk
+```
+
+`multipart/form-data` with file field `file`. Form field `dryRun=true` validates and returns the preview without writing. Omit or `false` to create the valid rows.
+
+CSV is UTF-8 (BOM allowed). Header row required. Columns (names are exact):
+
+| Header               | Required | Notes |
+| -------------------- | -------- | ----- |
+| companyName          | yes      | unique vs existing Companies and within the file |
+| companyNameKana      |          | |
+| postalCode           |          | |
+| address              |          | |
+| phoneNumber          |          | |
+| website              |          | |
+| contactPersonName    |          | |
+| contactEmailOrForm   |          | |
+| firstSponsorshipYear |          | |
+| memo                 |          | |
+
+Each row is independent. Invalid / duplicate rows are returned in `errors` and skipped; valid rows are created. Same response shape as Bulk Import Users (`totalCount` / `successCount` / `errorCount` / `successfulRows` / `errors`). HTTP 400 if the file is missing, not CSV, or has no data rows.
 
 Permission:
 

@@ -1,5 +1,4 @@
-import { CompaniesTable } from "@/components/companies-table"
-import { CreateCompanyButton } from "@/components/create-company-button"
+import { CompaniesWorkspace } from "@/components/companies-workspace"
 import { listCompanies } from "@/lib/data/companies"
 
 /**
@@ -12,17 +11,5 @@ import { listCompanies } from "@/lib/data/companies"
 export default async function CompaniesPage() {
   const companies = await listCompanies()
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">企業一覧</h1>
-          <p className="text-muted-foreground">企業マスタの管理</p>
-        </div>
-        <CreateCompanyButton />
-      </div>
-
-      <CompaniesTable companies={companies} />
-    </div>
-  )
+  return <CompaniesWorkspace initialCompanies={companies} />
 }
