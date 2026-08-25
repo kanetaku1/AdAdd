@@ -10,10 +10,14 @@ type YearlyCompanyRepository struct{}
 
 func NewYearlyCompanyRepository() *YearlyCompanyRepository { return &YearlyCompanyRepository{} }
 
+func yearlyCompanySelect() string {
+	return "yearly_companies.*, companies.company_name, companies.company_name_kana, assignments.user_id as assigned_member_id, users.name as assigned_member_name, sponsorship_contracts.total_amount as contract_total_amount"
+}
+
 func (r *YearlyCompanyRepository) ListByYear(yearId string) ([]model.YearlyCompanyResponse, error) {
 	var list []model.YearlyCompanyResponse
 	err := db.DB.Table("yearly_companies").
-		Select("yearly_companies.*, companies.company_name, assignments.user_id as assigned_member_id, users.name as assigned_member_name, sponsorship_contracts.total_amount as contract_total_amount").
+		Select(yearlyCompanySelect()).
 		Joins("JOIN companies ON companies.id = yearly_companies.company_id").
 		Joins("LEFT JOIN assignments ON assignments.yearly_company_id = yearly_companies.id").
 		Joins("LEFT JOIN users ON users.id = assignments.user_id").
@@ -33,7 +37,7 @@ func (r *YearlyCompanyRepository) Create(yc *model.YearlyCompany) error {
 func (r *YearlyCompanyRepository) GetByID(id string) (*model.YearlyCompanyResponse, error) {
 	var yc model.YearlyCompanyResponse
 	err := db.DB.Table("yearly_companies").
-		Select("yearly_companies.*, companies.company_name, assignments.user_id as assigned_member_id, users.name as assigned_member_name, sponsorship_contracts.total_amount as contract_total_amount").
+		Select(yearlyCompanySelect()).
 		Joins("JOIN companies ON companies.id = yearly_companies.company_id").
 		Joins("LEFT JOIN assignments ON assignments.yearly_company_id = yearly_companies.id").
 		Joins("LEFT JOIN users ON users.id = assignments.user_id").

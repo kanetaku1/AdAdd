@@ -2,15 +2,20 @@
 
 import { Badge } from "@/components/ui/badge"
 import { AssignedMemberCell } from "@/components/assigned-member-cell"
+import { EditableCompanyStatusBadge } from "@/components/editable-company-status-badge"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
+import { EditableSponsorshipPhaseBadge } from "@/components/editable-sponsorship-phase-badge"
 import type { User } from "@/types/user"
-import type { SponsorshipProgress } from "@/types/yearly-company"
+import type {
+  CompanyStatus,
+  SponsorshipPhase,
+  SponsorshipProgress,
+} from "@/types/yearly-company"
 
 /**
  * Assignment (担当) strip on Yearly Company Detail
- * (spec/frontend.md#Yearly Company Detail → Assignment). Deliberately compact:
- * assigned member, that member's advisors, and the current progress sit in one
- * row rather than three stacked sub-sections.
+ * (spec/frontend.md#Yearly Company Detail → Assignment). Compact: assigned
+ * member, advisors, company status, phase, and progress in one row.
  *
  * Advisors are derived client-side from the assigned member's
  * AdvisorAssignments and are not editable here — Settings > Advisor
@@ -23,9 +28,13 @@ export function AssignmentSection({
   users,
   onAssign,
   assignDisabled,
+  companyStatus,
+  onCompanyStatusChange,
+  phase,
+  onPhaseChange,
   progress,
   onProgressChange,
-  progressDisabled,
+  statusPhaseProgressDisabled,
 }: {
   assignedMemberId: string | null
   assignedMemberName: string | null
@@ -33,9 +42,13 @@ export function AssignmentSection({
   users: User[]
   onAssign: (userId: string | null) => void
   assignDisabled?: boolean
+  companyStatus: CompanyStatus
+  onCompanyStatusChange: (companyStatus: CompanyStatus) => void
+  phase: SponsorshipPhase
+  onPhaseChange: (phase: SponsorshipPhase) => void
   progress: SponsorshipProgress
   onProgressChange: (progress: SponsorshipProgress) => void
-  progressDisabled?: boolean
+  statusPhaseProgressDisabled?: boolean
 }) {
   return (
     <section
@@ -76,11 +89,29 @@ export function AssignmentSection({
       </div>
 
       <div className="flex items-center gap-2">
+        <span className="text-muted-foreground">企業ステータス</span>
+        <EditableCompanyStatusBadge
+          value={companyStatus}
+          onChange={onCompanyStatusChange}
+          disabled={statusPhaseProgressDisabled}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground">フェーズ</span>
+        <EditableSponsorshipPhaseBadge
+          value={phase}
+          onChange={onPhaseChange}
+          disabled={statusPhaseProgressDisabled}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
         <span className="text-muted-foreground">進捗</span>
         <EditableProgressBadge
           value={progress}
           onChange={onProgressChange}
-          disabled={progressDisabled}
+          disabled={statusPhaseProgressDisabled}
         />
       </div>
     </section>

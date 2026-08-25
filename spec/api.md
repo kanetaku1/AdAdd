@@ -328,7 +328,7 @@ Request:
 }
 ```
 
-Side effect: bulk-generates a `YearlyCompany` for every existing `Company` (see `spec/usecase.md` UC-01, `spec/domain.md#Yearly Company`). For each Company, `companyStatus` is computed automatically (Continuing/New — never Dormant, see `spec/model.md#Value Objects` → `CompanyStatus`), `phase` defaults to `PHASE_3`, and `progress` defaults to `NOT_CONTACTED`.
+Side effect: bulk-generates a `YearlyCompany` for every existing `Company` (see `spec/usecase.md` UC-01, `spec/domain.md#Yearly Company`). For each Company, `companyStatus` is computed automatically (Continuing/New — never Dormant, see `spec/model.md#Value Objects` → `CompanyStatus`), `phase` defaults to `PHASE_3`, `progress` defaults to `NOT_CONTACTED`, and contact fields (`postalCode`, `address`, `phoneNumber`, `website`, `contactPersonName`, `contactEmailOrForm`, `memo`) are copied from that Company.
 
 Permission:
 
@@ -429,6 +429,8 @@ Updates company master data.
 PATCH /companies/{companyId}
 ```
 
+Updates the Company master only. Existing Yearly Company contact snapshots are not rewritten (`spec/model.md#YearlyCompany`).
+
 ---
 
 # Yearly Company API
@@ -453,7 +455,7 @@ Query:
 | progress       | Sponsorship progress |
 | hasContract    | Contract existence filter (`true` / `false`) |
 
-The response joins `Company.companyName` and the assigned member (`CompanyAssignment`, see Company Assignment API below) so each item is self-contained for list display:
+The response joins `Company.companyName` / `companyNameKana` and the assigned member (`CompanyAssignment`, see Company Assignment API below) so each item is self-contained for list display. Contact fields on the item are this Year's Yearly Company snapshot, not a live join of the Company master:
 
 ```json
 {
@@ -461,12 +463,20 @@ The response joins `Company.companyName` and the assigned member (`CompanyAssign
   "yearId": "year_id",
   "companyId": "company_id",
   "companyName": "株式会社長岡テクノ",
+  "companyNameKana": "ナガオカテクノ",
   "companyStatus": "CONTINUING",
   "phase": "PHASE_1",
   "progress": "INVOICE_SENT",
   "assignedMemberId": "user_id",
   "assignedMemberName": "田中",
   "contractTotalAmount": 95000,
+  "postalCode": "940-2188",
+  "address": "新潟県長岡市上富岡町1603-1",
+  "phoneNumber": "0258-00-0000",
+  "website": "https://example.com",
+  "contactPersonName": "山田太郎",
+  "contactEmailOrForm": "yamada@example.com",
+  "memo": "継続協賛企業",
   "notes": ""
 }
 ```
@@ -495,7 +505,17 @@ Request:
 }
 ```
 
-`companyStatus` is computed server-side (Continuing/New, based on whether the Company had a Yearly Company with a Sponsorship Contract in the immediately preceding Year — see `spec/model.md#Value Objects` → `CompanyStatus`) and must not be accepted from the request body. `phase` defaults to `PHASE_3`; `progress` defaults to `NOT_CONTACTED`.
+`companyStatus` is computed server-side (Continuing/New, based on whether the Company had a Yearly Company with a Sponsorship Contract in the immediately preceding Year — see `spec/model.md#Value Objects` → `CompanyStatus`) and must not be accepted from the request body. `phase` defaults to `PHASE_3`; `progress` defaults to `NOT_CONTACTED`. Contact snapshot fields are copied from the Company at creation.
+
+---
+
+## Get Yearly Company
+
+```
+GET /yearly-companies/{id}
+```
+
+Same item shape as List Yearly Companies (including the contact snapshot and joined `companyName` / `companyNameKana`).
 
 ---
 
@@ -532,6 +552,34 @@ Example:
   "phase": "PHASE_1"
 }
 ```
+
+---
+
+## Update Yearly Company Contact
+
+Updates this Year's contact snapshot and overwrites the same fields on the Company master. Other Yearly Companies for that Company are not updated (`spec/model.md#YearlyCompany`).
+
+```
+PATCH /yearly-companies/{yearlyCompanyId}/company-contact
+```
+
+Request:
+
+```json
+{
+  "postalCode": "940-2188",
+  "address": "新潟県長岡市上富岡町1603-1",
+  "phoneNumber": "0258-00-0000",
+  "website": "https://example.com",
+  "contactPersonName": "山田太郎",
+  "contactEmailOrForm": "yamada@example.com",
+  "memo": "継続協賛企業"
+}
+```
+
+Permission:
+
+* Sponsorship Member / Administrator
 
 ---
 

@@ -122,8 +122,11 @@ Every business process starts from a Yearly Company.
 * Assigned member (at most one — see Company Assignment)
 * Company status (continuing / new / dormant)
 * Sponsorship phase (outreach priority ranking for the current Year)
+* Per-Year working copy of company contact (address, phone, website, company-side contact person, contact, handover memo)
 * Activity history
 * Sponsorship contracts
+
+Contact fields on a Yearly Company are copied from `Company` at creation. They are the working copy for that Year — a later change to the Company master, or to another Year's Yearly Company, does not rewrite them. Saving contact on Yearly Company Detail updates this Year's copy and overwrites the Company master (latest known contact; no master history).
 
 Advisors are not assigned to a Yearly Company directly. An Advisor supervises Sponsorship Members, and monitors company progress indirectly through the members assigned to that company.
 
