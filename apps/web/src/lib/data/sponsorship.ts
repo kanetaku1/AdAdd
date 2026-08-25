@@ -25,6 +25,7 @@ import {
   mockYearlyCompanies,
   updateAssignedMember,
 } from "@/lib/mock/yearly-companies"
+import { toConfirmationDate } from "@/lib/payment-labels"
 import { SPONSORSHIP_PROGRESS_LABEL } from "@/lib/yearly-company-labels"
 import type { ActivityLog } from "@/types/activity-log"
 import type {
@@ -515,7 +516,7 @@ export async function getPaymentByContract(
         contractId: raw.contractId,
         amount: Number(raw.amount),
         status: raw.status as Payment["status"],
-        confirmedAt: raw.confirmedAt ?? null,
+        confirmedAt: toConfirmationDate(raw.confirmedAt),
         confirmedById: raw.confirmedById ?? null,
         confirmedByName: null,
       }
@@ -554,7 +555,9 @@ export async function listPaymentsByYear(
         confirmedById?: string | null
         confirmedByName?: string | null
         companyName: string
+        companyNameKana?: string
         yearlyCompanyId: string
+        assignedMemberName?: string | null
       }>
     >(`/years/${yearId}/payments${qs ? `?${qs}` : ""}`)
     return list.map((p) => ({
@@ -562,11 +565,13 @@ export async function listPaymentsByYear(
       contractId: p.contractId,
       amount: Number(p.amount),
       status: p.status as PaymentStatus,
-      confirmedAt: p.confirmedAt ?? null,
+      confirmedAt: toConfirmationDate(p.confirmedAt),
       confirmedById: p.confirmedById ?? null,
       confirmedByName: p.confirmedByName ?? null,
       companyName: p.companyName,
+      companyNameKana: p.companyNameKana ?? "",
       yearlyCompanyId: p.yearlyCompanyId,
+      assignedMemberName: p.assignedMemberName ?? null,
     }))
   }
 
@@ -583,7 +588,11 @@ export async function listPaymentsByYear(
       return {
         ...p,
         companyName: yc.companyName,
+        companyNameKana:
+          mockCompanies.find((c) => c.id === yc.companyId)?.companyNameKana ??
+          "",
         yearlyCompanyId: yc.id,
+        assignedMemberName: yc.assignedMemberName,
       }
     })
     .filter((p): p is PaymentAcrossYear => p !== null)
@@ -616,7 +625,7 @@ export async function updatePaymentStatus(
       contractId: updated.contractId,
       amount: Number(updated.amount),
       status: updated.status as PaymentStatus,
-      confirmedAt: updated.confirmedAt ?? null,
+      confirmedAt: toConfirmationDate(updated.confirmedAt),
       confirmedById: updated.confirmedById ?? null,
       confirmedByName: null,
     }

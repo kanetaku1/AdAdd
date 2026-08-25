@@ -30,9 +30,13 @@ export type Payment = {
 /**
  * Payment joined with its owning Company/Yearly Company for cross-contract
  * views (spec/frontend.md#Finance Management, #Dashboard) — see
- * `GET /years/{yearId}/payments` in spec/api.md.
+ * `GET /years/{yearId}/payments` in spec/api.md. `companyNameKana` is for
+ * matching bank passbook records; `assignedMemberName` is the Yearly
+ * Company's CompanyAssignment (null = 未割当).
  */
 export type PaymentAcrossYear = Payment & {
   companyName: string
+  companyNameKana: string
   yearlyCompanyId: string
+  assignedMemberName: string | null
 }
