@@ -308,6 +308,7 @@ Actions:
 
 * Create company
 * CSV bulk import (toolbar — Preview → Confirm; `spec/frontend.md#CSV Import / Export`)
+* CSV export (toolbar, next to company-name search) writes the currently filtered rows (`visibleCompanies` — substring company-name search; no query means every Company). Japanese headers matching the import template keys. UTF-8 with BOM. Built client-side from the already-loaded list — no extra fetch, no export API (`spec/frontend.md#CSV Import / Export`).
 * Edit company
 * View sponsorship history (past Yearly Companies)
 * Register the company into the active Year as a Yearly Company (per row, only shown when it isn't already registered for that Year) — the individual registration path noted in `spec/usecase.md` UC-01 Notes.
@@ -693,7 +694,23 @@ downloads a header-only file.
 
 ### Company data export
 
-Not this screen — Company List master dump (`spec/frontend.md#Company List`).
+Actor: anyone who can open Company List. Entry: toolbar next to
+company-name search on `spec/frontend.md#Company List`.
+
+Writes the currently filtered rows (substring company-name search; no
+query means every Company). Year-independent master dump — not the
+Yearly Company List export above. Japanese labels, not API header
+tokens.
+
+Columns: 会社名, 会社名カナ, 郵便番号, 住所, 電話番号, Webサイト,
+企業担当者名, 連絡先, 初回協賛年, 引継ぎ事項.
+
+Same ten keys as Company import, in that order. Not exported: `id`,
+`createdAt`, `updatedAt`. No empty checkbox columns.
+
+Built client-side from the already-loaded Company list. No extra
+`GET /companies` on click, no export API. Filename: `企業一覧.csv`.
+A filtered set of zero rows still downloads a header-only file.
 
 ---
 
