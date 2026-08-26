@@ -162,9 +162,11 @@ func (cm *ContractMenu) BeforeCreate(tx *gorm.DB) (err error) {
 // ContractMenuResponse is the returned DTO containing joined fields
 type ContractMenuResponse struct {
 	ContractMenu
-	CompanyName         string `gorm:"column:company_name" json:"companyName"`
-	YearlyCompanyID     string `gorm:"column:yearly_company_id" json:"yearlyCompanyId"`
-	SponsorshipMenuName string `gorm:"column:sponsorship_menu_name" json:"sponsorshipMenuName"`
+	CompanyName         string  `gorm:"column:company_name" json:"companyName"`
+	YearlyCompanyID     string  `gorm:"column:yearly_company_id" json:"yearlyCompanyId"`
+	AssignedMemberID    *string `gorm:"column:assigned_member_id" json:"assignedMemberId"`
+	AssignedMemberName  *string `gorm:"column:assigned_member_name" json:"assignedMemberName"`
+	SponsorshipMenuName string  `gorm:"column:sponsorship_menu_name" json:"sponsorshipMenuName"`
 }
 
 // Payment
