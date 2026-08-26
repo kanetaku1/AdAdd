@@ -20,8 +20,7 @@ export const mockContractMenus: ContractMenu[] = [
     productionType: "COMPANY",
     status: "COMPLETED",
     driveFolderId: "mock_folder_001",
-    driveUrl: "https://drive.google.com/mock/cm_001",
-    driveFileName: "01_45th_モック_企業_長岡テクノ.pdf",
+    files: [{ id: "mock_f1", driveUrl: "https://drive.google.com/mock/cm_001", driveFileName: "01_45th_モック_企業_長岡テクノ.pdf" }],
     remarks: "",
   },
   {
@@ -34,8 +33,7 @@ export const mockContractMenus: ContractMenu[] = [
     productionType: "INTERNAL",
     status: "PRODUCING",
     driveFolderId: null,
-    driveUrl: null,
-    driveFileName: null,
+    files: [],
     remarks: "ロゴ画像を素材として受領済み",
   },
   // contract_002 — 越後電機株式会社 (menu_002: 50000)
@@ -49,8 +47,7 @@ export const mockContractMenus: ContractMenu[] = [
     productionType: null,
     status: "WAITING",
     driveFolderId: null,
-    driveUrl: null,
-    driveFileName: null,
+    files: [],
     remarks: "",
   },
   // contract_003 — 北越フーズ株式会社 (menu_001: 80000 + menu_002: 50000 = 130000)
@@ -64,8 +61,7 @@ export const mockContractMenus: ContractMenu[] = [
     productionType: "COMPANY",
     status: "SUBMITTED",
     driveFolderId: "mock_folder_004",
-    driveUrl: "https://drive.google.com/mock/cm_004",
-    driveFileName: "01_45th_モック_企業_北越フーズ.pdf",
+    files: [{ id: "mock_f2", driveUrl: "https://drive.google.com/mock/cm_004", driveFileName: "01_45th_モック_企業_北越フーズ.pdf" }],
     remarks: "",
   },
   {
@@ -78,8 +74,7 @@ export const mockContractMenus: ContractMenu[] = [
     productionType: null,
     status: "COMPLETED",
     driveFolderId: null,
-    driveUrl: null,
-    driveFileName: null,
+    files: [],
     remarks: "",
   },
   // contract_004 — 魚沼食品株式会社(物品協賛の返礼として無償提供。unitPrice
@@ -95,8 +90,7 @@ export const mockContractMenus: ContractMenu[] = [
     productionType: "COMPANY",
     status: "WAITING",
     driveFolderId: null,
-    driveUrl: null,
-    driveFileName: null,
+    files: [],
     remarks: "",
   },
   {
@@ -109,8 +103,7 @@ export const mockContractMenus: ContractMenu[] = [
     productionType: "INTERNAL",
     status: "REQUESTED",
     driveFolderId: null,
-    driveUrl: null,
-    driveFileName: null,
+    files: [],
     remarks: "",
   },
 ]

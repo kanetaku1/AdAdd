@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"mime"
 
@@ -70,6 +71,10 @@ func (s *DriveService) UploadFile(ctx context.Context, accessToken, folderId, ro
 		baseName = fmt.Sprintf("%s_%s", baseName, suffix)
 	}
 
+	// 3. Append timestamp to ensure filename is unique for multiple uploads
+	timestampSuffix := time.Now().Format("20060102_150405")
+	fileName := fmt.Sprintf("%s_%s%s", baseName, timestampSuffix, originalExt)
+
 	// Determine accurate MimeType
 	mimeType := providedMimeType
 	if mimeType == "" || mimeType == "application/octet-stream" {
@@ -87,37 +92,16 @@ func (s *DriveService) UploadFile(ctx context.Context, accessToken, folderId, ro
 		}
 	}
 
-	fileName := baseName + originalExt
-
-	// 3. Check if file with same name already exists in the folder
-	query := fmt.Sprintf("name='%s' and '%s' in parents and trashed=false", fileName, folderId)
-	fileList, err := srv.Files.List().Q(query).Fields("files(id)").SupportsAllDrives(true).IncludeItemsFromAllDrives(true).Do()
-	if err != nil {
-		return nil, fmt.Errorf("failed to check existing files: %w", err)
+	// 4. Create new file (always append as distinct file in Google Drive)
+	fileMeta := &drive.File{
+		Name:     fileName,
+		Parents:  []string{folderId},
+		MimeType: mimeType,
 	}
-
 	var uploadedFile *drive.File
-	if len(fileList.Files) > 0 {
-		// Update existing file
-		existingFileId := fileList.Files[0].Id
-		f := &drive.File{
-			MimeType: mimeType,
-		} // keep existing metadata, update mimeType and media
-		uploadedFile, err = srv.Files.Update(existingFileId, f).Media(fileContent, googleapi.ContentType(mimeType)).Fields("id, webViewLink, name").SupportsAllDrives(true).Do()
-		if err != nil {
-			return nil, fmt.Errorf("failed to update existing file in drive: %w", err)
-		}
-	} else {
-		// Create new file
-		fileMeta := &drive.File{
-			Name:     fileName,
-			Parents:  []string{folderId},
-			MimeType: mimeType,
-		}
-		uploadedFile, err = srv.Files.Create(fileMeta).Media(fileContent, googleapi.ContentType(mimeType)).Fields("id, webViewLink, name").SupportsAllDrives(true).Do()
-		if err != nil {
-			return nil, fmt.Errorf("failed to upload file to drive: %w", err)
-		}
+	uploadedFile, err = srv.Files.Create(fileMeta).Media(fileContent, googleapi.ContentType(mimeType)).Fields("id, webViewLink, name").SupportsAllDrives(true).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload file to drive: %w", err)
 	}
 
 	return uploadedFile, nil
