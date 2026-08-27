@@ -77,7 +77,7 @@ System Administrator.
 
 ### Referenced By
 
-`User` (via role assignment), `CompanyAssignment.role`
+`User` (via `UserRole`)
 
 ### Source
 

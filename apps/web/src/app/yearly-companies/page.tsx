@@ -28,7 +28,9 @@ import {
   ColumnFilterPopover,
 } from "@/components/column-filter-header"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { EditableCompanyStatusBadge } from "@/components/editable-company-status-badge"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
+import { EditableSponsorshipPhaseBadge } from "@/components/editable-sponsorship-phase-badge"
 import { IconActionButton } from "@/components/icon-action-button"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
@@ -47,7 +49,6 @@ import { getErrorMessage } from "@/lib/errors"
 import { downloadYearlyCompanyCsv } from "@/lib/yearly-company-csv"
 import {
   COMPANY_STATUS_LABEL,
-  SPONSORSHIP_PHASE_BADGE_VARIANT,
   SPONSORSHIP_PHASE_LABEL,
   SPONSORSHIP_PROGRESS_LABEL,
 } from "@/lib/yearly-company-labels"
@@ -105,7 +106,7 @@ function fuzzyMatchCompanyName(companyName: string, query: string): boolean {
   return score >= 0.6
 }
 
-type EditableColumn = "companyStatus" | "phase" | "assignedMember"
+type EditableColumn = "assignedMember"
 type ColumnFilterKey = "status" | "phase" | "member" | "progress"
 
 /**
@@ -694,96 +695,21 @@ export default function YearlyCompaniesPage() {
                     </TableCell>
 
                     <TableCell className="rounded">
-                      {editingCell?.id === yc.id &&
-                      editingCell.column === "companyStatus" ? (
-                        <Select
-                          value={yc.companyStatus}
-                          defaultOpen
-                          onValueChange={(value) => {
-                            void setCompanyStatus(yc.id, value as CompanyStatus)
-                            setEditingCell(null)
-                          }}
-                          onOpenChange={(open) => {
-                            if (!open) setEditingCell(null)
-                          }}
-                        >
-                          <SelectTrigger size="sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(COMPANY_STATUS_LABEL).map(
-                              ([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              )
-                            )}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className={
-                            rowSaving || !canEditStatusPhaseProgress
-                              ? "opacity-50"
-                              : "cursor-pointer"
-                          }
-                          onClick={() => {
-                            if (rowSaving || !canEditStatusPhaseProgress) return
-                            setEditingCell({
-                              id: yc.id,
-                              column: "companyStatus",
-                            })
-                          }}
-                        >
-                          {COMPANY_STATUS_LABEL[yc.companyStatus]}
-                        </Badge>
-                      )}
+                      <EditableCompanyStatusBadge
+                        value={yc.companyStatus}
+                        onChange={(value) =>
+                          void setCompanyStatus(yc.id, value)
+                        }
+                        disabled={rowSaving || !canEditStatusPhaseProgress}
+                      />
                     </TableCell>
 
                     <TableCell className="rounded">
-                      {editingCell?.id === yc.id &&
-                      editingCell.column === "phase" ? (
-                        <Select
-                          value={yc.phase}
-                          defaultOpen
-                          onValueChange={(value) => {
-                            void setPhase(yc.id, value as SponsorshipPhase)
-                            setEditingCell(null)
-                          }}
-                          onOpenChange={(open) => {
-                            if (!open) setEditingCell(null)
-                          }}
-                        >
-                          <SelectTrigger size="sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(SPONSORSHIP_PHASE_LABEL).map(
-                              ([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              )
-                            )}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge
-                          variant={SPONSORSHIP_PHASE_BADGE_VARIANT[yc.phase]}
-                          className={
-                            rowSaving || !canEditStatusPhaseProgress
-                              ? "opacity-50"
-                              : "cursor-pointer"
-                          }
-                          onClick={() => {
-                            if (rowSaving || !canEditStatusPhaseProgress) return
-                            setEditingCell({ id: yc.id, column: "phase" })
-                          }}
-                        >
-                          {SPONSORSHIP_PHASE_LABEL[yc.phase]}
-                        </Badge>
-                      )}
+                      <EditableSponsorshipPhaseBadge
+                        value={yc.phase}
+                        onChange={(value) => void setPhase(yc.id, value)}
+                        disabled={rowSaving || !canEditStatusPhaseProgress}
+                      />
                     </TableCell>
 
                     <TableCell className="rounded">

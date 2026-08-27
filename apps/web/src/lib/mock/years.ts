@@ -1,10 +1,20 @@
 import { mockCompanies } from "@/lib/mock/companies"
 import { mockSponsorshipContracts } from "@/lib/mock/sponsorship-contracts"
-import { mockYearlyCompanies } from "@/lib/mock/yearly-companies"
+import {
+  contactSnapshotFromCompany,
+  mockYearlyCompanies,
+} from "@/lib/mock/yearly-companies"
 import type { CompanyStatus } from "@/types/yearly-company"
 import type { Year } from "@/types/year"
 
 export const mockYears: Year[] = [
+  {
+    id: "year_2025",
+    name: "2025",
+    startDate: "2025-04-01",
+    endDate: "2025-11-30",
+    isActive: false,
+  },
   {
     id: "year_2026",
     name: "2026",
@@ -60,7 +70,7 @@ export function registerCompanyToYear(companyId: string, yearId: string): void {
     id: crypto.randomUUID(),
     yearId,
     companyId,
-    companyName: company.companyName,
+    ...contactSnapshotFromCompany(company),
     companyStatus: computeCompanyStatus(companyId, previousYearId),
     phase: "PHASE_3",
     progress: "NOT_CONTACTED",

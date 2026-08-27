@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { ActivityLogSection } from "@/components/activity-log-section"
 import { AssignmentSection } from "@/components/assignment-section"
 import { CompanyInfoSection } from "@/components/company-info-section"
+import { EditableTextField } from "@/components/editable-text-field"
 import {
   ContractCreationForm,
   type ContractCreationInput,
@@ -26,7 +27,6 @@ import {
   assignMember,
   createContractWithMenus,
   createPayment,
-  getCompany,
   getContractByYearlyCompany,
   getPaymentByContract,
   getYearlyCompany,
@@ -34,29 +34,31 @@ import {
   listActivityLogsByYearlyCompany,
   listSponsorshipMenus,
   listUsers,
+  updateYearlyCompanyContact,
+  updateYearlyCompanyPhase,
   updateYearlyCompanyProgress,
+  updateYearlyCompanyStatus,
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import type { InvoiceData } from "@/lib/pdf/invoice-document"
+import { yearlyCompanyContact, websiteHref } from "@/lib/yearly-company-contact"
 import {
   PAYMENT_STATUS_BADGE_VARIANT,
   PAYMENT_STATUS_LABEL,
 } from "@/lib/payment-labels"
-import {
-  COMPANY_STATUS_LABEL,
-  SPONSORSHIP_PHASE_LABEL,
-} from "@/lib/yearly-company-labels"
 import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { ActivityLog } from "@/types/activity-log"
-import type { Company } from "@/types/company"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 import type { User } from "@/types/user"
 import type {
+  CompanyStatus,
+  SponsorshipPhase,
   SponsorshipProgress,
   YearlyCompany,
+  YearlyCompanyContact,
 } from "@/types/yearly-company"
 
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
@@ -93,7 +95,6 @@ export default function YearlyCompanyDetailPage() {
 
   const [loading, setLoading] = useState(true)
   const [yearlyCompany, setYearlyCompany] = useState<YearlyCompany | null>(null)
-  const [company, setCompany] = useState<Company | null>(null)
   const [contract, setContract] = useState<SponsorshipContract | null>(null)
   const [contractMenus, setContractMenus] = useState<ContractMenu[]>([])
   const [payment, setPayment] = useState<Payment | null>(null)
@@ -120,8 +121,7 @@ export default function YearlyCompanyDetailPage() {
           return
         }
         setYearlyCompany(yc)
-        const [co, ct, us, sm, aa, logs] = await Promise.all([
-          getCompany(yc.companyId),
+        const [ct, us, sm, aa, logs] = await Promise.all([
           getContractByYearlyCompany(yc.id),
           listUsers(),
           listSponsorshipMenus(yc.yearId),
@@ -129,7 +129,6 @@ export default function YearlyCompanyDetailPage() {
           listActivityLogsByYearlyCompany(yc.id),
         ])
         if (cancelled) return
-        setCompany(co)
         setContract(ct)
         setUsers(us)
         setMenus(sm)
@@ -172,15 +171,13 @@ export default function YearlyCompanyDetailPage() {
         return
       }
       setYearlyCompany(yc)
-      const [co, ct, us, sm, aa, logs] = await Promise.all([
-        getCompany(yc.companyId),
+      const [ct, us, sm, aa, logs] = await Promise.all([
         getContractByYearlyCompany(yc.id),
         listUsers(),
         listSponsorshipMenus(yc.yearId),
         listAdvisorAssignmentsByYear(yc.yearId),
         listActivityLogsByYearlyCompany(yc.id),
       ])
-      setCompany(co)
       setContract(ct)
       setUsers(us)
       setMenus(sm)
@@ -220,7 +217,7 @@ export default function YearlyCompanyDetailPage() {
     deadline.setDate(deadline.getDate() + 14)
     return {
       companyName: yearlyCompany.companyName,
-      contactPersonName: company?.contactPersonName ?? "",
+      contactPersonName: yearlyCompany.contactPersonName,
       subject: "技大祭企業協賛",
       issuedDate: formatDate(today),
       deadline: formatDate(deadline),
@@ -235,7 +232,7 @@ export default function YearlyCompanyDetailPage() {
       })),
       totalAmount: contract.totalAmount,
     }
-  }, [yearlyCompany, company, contract, contractMenus, menus])
+  }, [yearlyCompany, contract, contractMenus, menus])
 
   if (loading) {
     return <LoadingBlock />
@@ -265,6 +262,7 @@ export default function YearlyCompanyDetailPage() {
   }
 
   const yc = yearlyCompany
+  const siteHref = websiteHref(yearlyCompany.website)
 
   async function handleAssign(userId: string | null) {
     setError(null)
@@ -298,6 +296,50 @@ export default function YearlyCompanyDetailPage() {
       setYearlyCompany((prev) => (prev ? { ...prev, progress } : prev))
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "進捗の更新に失敗しました" }))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleCompanyStatus(companyStatus: CompanyStatus) {
+    setError(null)
+    setBusy(true)
+    try {
+      await updateYearlyCompanyStatus(yc.id, companyStatus)
+      setYearlyCompany((prev) => (prev ? { ...prev, companyStatus } : prev))
+    } catch (e) {
+      setError(
+        getErrorMessage(e, { fallback: "企業ステータスの更新に失敗しました" })
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handlePhase(phase: SponsorshipPhase) {
+    setError(null)
+    setBusy(true)
+    try {
+      await updateYearlyCompanyPhase(yc.id, phase)
+      setYearlyCompany((prev) => (prev ? { ...prev, phase } : prev))
+    } catch (e) {
+      setError(getErrorMessage(e, { fallback: "フェーズの更新に失敗しました" }))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleContactChange(patch: Partial<YearlyCompanyContact>) {
+    setError(null)
+    setBusy(true)
+    try {
+      const next = { ...yearlyCompanyContact(yc), ...patch }
+      const updated = await updateYearlyCompanyContact(yc.id, next)
+      setYearlyCompany(updated)
+    } catch (e) {
+      setError(
+        getErrorMessage(e, { fallback: "企業情報の更新に失敗しました" })
+      )
     } finally {
       setBusy(false)
     }
@@ -354,7 +396,7 @@ export default function YearlyCompanyDetailPage() {
       <ErrorBanner message={error} />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-muted-foreground">
             <Link href="/yearly-companies" className="hover:underline">
               協賛企業(年度別)
@@ -362,13 +404,37 @@ export default function YearlyCompanyDetailPage() {
           </p>
           <h1 className="text-2xl font-semibold">{yearlyCompany.companyName}</h1>
           <p className="text-muted-foreground">
-            {COMPANY_STATUS_LABEL[yearlyCompany.companyStatus]} ·{" "}
-            {SPONSORSHIP_PHASE_LABEL[yearlyCompany.phase]}
+            {yearlyCompany.companyNameKana || "カナ未登録"}
           </p>
+          <div className="mt-1 flex min-w-0 items-center gap-2 text-sm">
+            <div className="min-w-0 flex-1">
+              <EditableTextField
+                aria-label="Webサイト"
+                value={yearlyCompany.website}
+                placeholder="Webサイト未登録"
+                disabled={busy || !canEditStatusPhaseProgress}
+                onChange={(website) => void handleContactChange({ website })}
+              />
+            </div>
+            {siteHref && (
+              <a
+                href={siteHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 text-primary hover:underline"
+              >
+                開く
+              </a>
+            )}
+          </div>
         </div>
       </div>
 
-      <CompanyInfoSection company={company} notes={yearlyCompany.notes} />
+      <CompanyInfoSection
+        contact={yearlyCompanyContact(yearlyCompany)}
+        onChange={(patch) => void handleContactChange(patch)}
+        disabled={busy || !canEditStatusPhaseProgress}
+      />
 
       <AssignmentSection
         assignedMemberId={yearlyCompany.assignedMemberId}
@@ -377,9 +443,13 @@ export default function YearlyCompanyDetailPage() {
         users={users}
         onAssign={(userId) => void handleAssign(userId)}
         assignDisabled={busy || !canEditAssignee}
+        companyStatus={yearlyCompany.companyStatus}
+        onCompanyStatusChange={(value) => void handleCompanyStatus(value)}
+        phase={yearlyCompany.phase}
+        onPhaseChange={(value) => void handlePhase(value)}
         progress={yearlyCompany.progress}
         onProgressChange={(value) => void handleProgress(value)}
-        progressDisabled={busy || !canEditStatusPhaseProgress}
+        statusPhaseProgressDisabled={busy || !canEditStatusPhaseProgress}
       />
 
       <Separator />

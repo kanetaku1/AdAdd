@@ -367,11 +367,15 @@ Main operation screen — the single working surface for a Sponsorship Member ha
 Display order:
 
 ```text
-Company Information
+Identity (company name, kana, website)
 
 ↓
 
-Assignment (担当 — member + advisor + progress, compact)
+Company Information (contact card, editable)
+
+↓
+
+Assignment (担当 — member + advisor + company status + phase + progress, compact)
 
 ↓
 
@@ -386,13 +390,19 @@ Contract (payment status + total, invoice/receipt actions)
 活動記録 (collapsible)
 ```
 
+### Identity
+
+Heading is `companyName` with `companyNameKana` and the snapshot `website` as a link. Company name is not edited here (uniqueness lives on Company master / Company Form).
+
 ### Company Information
 
-One consolidated block: contact person name, contact (email/phone), address, and `memo`(引継ぎ事項, handover notes — `spec/model.md#Company`).
+One consolidated card, inline-editable (Principle 4), from this Year's Yearly Company snapshot (`spec/model.md#YearlyCompany`): address (`postalCode` + `address`), phone, company-side contact person, contact (email or form URL), and `memo` (引継ぎ事項). Website is edited in the identity heading.
+
+Saving a field calls `PATCH /yearly-companies/{id}/company-contact` (writes this snapshot and the Company master; other Years are unchanged). Read-only for Roles that cannot update Company master.
 
 ### Assignment (担当)
 
-Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), and the current `YearlyCompany.progress` badge, together in one row/strip rather than three stacked sections.
+Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), `companyStatus`, `phase`, and `progress`, together in one row/strip rather than stacked sections. Company status, phase, and progress are each inline-editable here the same as on Yearly Company List (Principle 4), for `SPONSORSHIP_MEMBER` / `ADMINISTRATOR`.
 
 ### Contract Menu (editable)
 
@@ -409,13 +419,9 @@ Below Contract Menu. Shows payment status and `totalAmount` only (line-item deta
 
 ### 活動記録
 
-Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (progress / Contract Menu status / Payment status changes — `spec/domain.md#Activity Log`); there is no manual entry action. A handover note that isn't a status change belongs on `Company.memo` instead.
+Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (progress / Contract Menu status / Payment status changes — `spec/domain.md#Activity Log`); there is no manual entry action. A handover note that isn't a status change belongs on the Yearly Company's contact `memo` (copied to `Company.memo` on save), not 活動記録.
 
 The heading and empty state use 活動記録. Each row shows `eventType` as a Japanese badge, `message` (already Japanese business language), `createdAt` in JST (`ja-JP` / `Asia/Tokyo`), and the actor's name.
-
-### Open questions (TODO — needs discussion before final field list)
-
-Exact required fields for Company Information / Contract / Contract Menu / 活動記録 / company status / ad status blocks above are not yet finalized.
 
 ---
 
@@ -466,9 +472,10 @@ Display:
 
 | Information     |
 | ---------------- |
+| Company name    |
+| Assignee        |
 | Menu name       |
 | Quantity        |
-| Price           |
 | Production type |
 | Status          |
 | Drive URL       |

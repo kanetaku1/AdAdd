@@ -97,23 +97,36 @@ This is the central model of AdAdd.
 
 ### Attributes
 
-| Name          | Type     |
-| ------------- | -------- |
-| id            | UUID     |
-| yearId        | UUID     |
-| companyId     | UUID     |
-| companyStatus | enum     |
-| phase         | enum     |
-| progress      | enum     |
-| notes         | text     |
-| createdAt     | datetime |
-| updatedAt     | datetime |
+| Name                | Type     |
+| ------------------- | -------- |
+| id                  | UUID     |
+| yearId              | UUID     |
+| companyId           | UUID     |
+| companyStatus       | enum     |
+| phase               | enum     |
+| progress            | enum     |
+| postalCode          | string   |
+| address             | string   |
+| phoneNumber         | string   |
+| website             | string   |
+| contactPersonName   | string   |
+| contactEmailOrForm  | string   |
+| memo                | text     |
+| notes               | text     |
+| createdAt           | datetime |
+| updatedAt           | datetime |
 
 YearlyCompany does not reference an Advisor. Advisors are assigned to Sponsorship Members via `AdvisorAssignment`.
 
 `companyStatus` (Continuing / New / Dormant) reflects the company's sponsorship history, independent of `phase`.
 
 `phase` (Phase1 / Phase2 / Phase3) is the outreach priority ranking set by a Sponsorship Member during the Year preparation period (see `spec/usecase.md` UC-02). It must never be confused with `companyStatus` — a company's history does not determine its phase.
+
+`postalCode`, `address`, `phoneNumber`, `website`, `contactPersonName`, `contactEmailOrForm`, and `memo` are a **per-Year working copy** of the corresponding `Company` fields, taken when the Yearly Company is created (`POST /years` bulk generation and `POST /years/{yearId}/companies`). They are what Yearly Company Detail displays and edits for that Year.
+
+Saving those fields on Detail updates **this** Yearly Company and overwrites the same fields on `Company` (the master is "the latest known contact", with no history). Other Years' Yearly Companies are not updated. `PATCH /companies/{companyId}` updates the master only and does not write through to existing Yearly Companies.
+
+`companyName` / `companyNameKana` / `firstSponsorshipYear` stay on `Company` (identity / pre-AdAdd history). `notes` is unused in the UI; handover text is `memo`.
 
 ---
 
@@ -237,8 +250,9 @@ A Yearly Company has at most one CompanyAssignment (`yearlyCompanyId` is unique)
 | id              | UUID     |
 | yearlyCompanyId | UUID     |
 | userId          | UUID     |
-| role            | enum     |
 | assignedAt      | datetime |
+
+The assignee's permissions come from `UserRole`, not from a field on this relationship.
 
 ---
 
@@ -391,14 +405,6 @@ Applies only when the referenced Sponsorship Menu has `requiresSubmission = true
 * Producing
 * Completed
 * Submitted
-
----
-
-## AssignmentRole
-
-* SponsorshipMember
-
-`CompanyAssignment` links a User to a YearlyCompany. Advisor supervision is modeled separately by `AdvisorAssignment`.
 
 ---
 

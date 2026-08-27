@@ -117,6 +117,8 @@ YearlyCompany
 1 ─── * ActivityLog
 ```
 
+`YearlyCompany` stores a per-Year copy of Company contact fields (`postal_code`, `address`, `phone_number`, `website`, `contact_person_name`, `contact_email_or_form`, `memo`), populated at insert from `companies`. Updating one Yearly Company row plus its `companies` row must not rewrite other `yearly_companies` rows for the same `company_id`.
+
 ---
 
 # CompanyAssignment
