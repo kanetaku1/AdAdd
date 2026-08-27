@@ -305,6 +305,8 @@ export async function listContractMenusAcrossYear(
         remarks?: string
         companyName: string
         yearlyCompanyId: string
+        assignedMemberId?: string | null
+        assignedMemberName?: string | null
         sponsorshipMenuName: string
       }>
     >(`/years/${yearId}/contract-menus${qs ? `?${qs}` : ""}`)
@@ -312,6 +314,8 @@ export async function listContractMenusAcrossYear(
       ...mapApiContractMenu(cm),
       companyName: cm.companyName,
       yearlyCompanyId: cm.yearlyCompanyId,
+      assignedMemberId: cm.assignedMemberId ?? null,
+      assignedMemberName: cm.assignedMemberName ?? null,
       sponsorshipMenuName: cm.sponsorshipMenuName,
     }))
   }
@@ -333,6 +337,8 @@ export async function listContractMenusAcrossYear(
         ...cm,
         companyName: yc.companyName,
         yearlyCompanyId: yc.id,
+        assignedMemberId: yc.assignedMemberId ?? null,
+        assignedMemberName: yc.assignedMemberName ?? null,
         sponsorshipMenuName: menu?.name ?? "(不明なメニュー)",
       }
     })

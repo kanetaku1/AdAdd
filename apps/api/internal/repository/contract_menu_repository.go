@@ -25,11 +25,13 @@ func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[strin
 	// A row whose Sponsorship Menu (or any other joined parent) has been
 	// deleted is excluded rather than surfaced with a stale/missing name.
 	query := db.DB.Table("contract_menus").
-		Select("contract_menus.*, companies.company_name, yearly_companies.id as yearly_company_id, sponsorship_menus.name as sponsorship_menu_name").
+		Select("contract_menus.*, companies.company_name, yearly_companies.id as yearly_company_id, assignments.user_id as assigned_member_id, users.name as assigned_member_name, sponsorship_menus.name as sponsorship_menu_name").
 		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = contract_menus.contract_id AND sponsorship_contracts.deleted_at IS NULL").
 		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id AND yearly_companies.deleted_at IS NULL").
 		Joins("JOIN companies ON companies.id = yearly_companies.company_id AND companies.deleted_at IS NULL").
 		Joins("JOIN sponsorship_menus ON sponsorship_menus.id = contract_menus.sponsorship_menu_id AND sponsorship_menus.deleted_at IS NULL").
+		Joins("LEFT JOIN assignments ON assignments.yearly_company_id = yearly_companies.id AND assignments.deleted_at IS NULL").
+		Joins("LEFT JOIN users ON users.id = assignments.user_id AND users.deleted_at IS NULL").
 		Where("contract_menus.deleted_at IS NULL").
 		Where("yearly_companies.year_id = ?", yearID)
 

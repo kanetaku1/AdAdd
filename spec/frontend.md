@@ -472,9 +472,10 @@ Display:
 
 | Information     |
 | ---------------- |
+| Company name    |
+| Assignee        |
 | Menu name       |
 | Quantity        |
-| Price           |
 | Production type |
 | Status          |
 | Drive URL       |
