@@ -19,7 +19,6 @@ func createAssignment(c echo.Context) error {
 	ycId := c.Param("id")
 	var body struct {
 		UserID *string `json:"userId"`
-		Role   string  `json:"role"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -36,7 +35,7 @@ func createAssignment(c echo.Context) error {
 	}
 
 	svc := service.NewAssignmentService()
-	result, err := svc.AssignOrClear(ycId, userID, body.Role, actorID)
+	result, err := svc.AssignOrClear(ycId, userID, actorID)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}

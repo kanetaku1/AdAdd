@@ -206,7 +206,6 @@ type CompanyAssignment struct {
 	ID              string         `gorm:"type:char(36);primaryKey" json:"id"`
 	YearlyCompanyID string         `gorm:"type:char(36);not null;uniqueIndex:ux_assignment_yearly_company" json:"yearlyCompanyId"`
 	UserID          string         `gorm:"type:char(36);not null;index" json:"userId"`
-	Role            string         `gorm:"size:32" json:"role"`
 	AssignedAt      time.Time      `json:"assignedAt"`
 	CreatedAt       time.Time      `json:"createdAt"`
 	UpdatedAt       time.Time      `json:"updatedAt"`
