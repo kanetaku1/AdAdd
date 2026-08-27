@@ -49,11 +49,6 @@ import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 const ALL = "ALL" as const
 type ColumnFilterKey = "menu" | "productionType" | "status"
 
-const currencyFormatter = new Intl.NumberFormat("ja-JP", {
-  style: "currency",
-  currency: "JPY",
-})
-
 function isContractMenuStatus(
   value: string | null
 ): value is ContractMenuStatus {
