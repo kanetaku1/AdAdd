@@ -119,8 +119,6 @@
 ### Assignments（CompanyAssignment 0..1）
 - POST /yearly-companies/:id/assignments (admin)
   - 説明: 担当メンバーを置換。`userId: null` でクリア
-- GET /users/me/companies
-  - 説明: 自分に割り当てられた YearlyCompany を取得
 
 ### Advisor Assignments
 - GET /advisor-assignments?yearId={yearId}

@@ -8,11 +8,9 @@ import (
 )
 
 func RegisterAssignmentRoutes(e *echo.Echo) {
-	r := e.Group("")
 	rAdmin := e.Group("")
 	rAdmin.Use(RequireRoles("ADMINISTRATOR"))
 	rAdmin.POST("/yearly-companies/:id/assignments", createAssignment)
-	r.GET("/users/me/companies", getAssignedCompaniesForMe)
 }
 
 func createAssignment(c echo.Context) error {
@@ -44,18 +42,4 @@ func createAssignment(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]interface{}{"data": nil, "message": "cleared"})
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": result, "message": "created"})
-}
-
-func getAssignedCompaniesForMe(c echo.Context) error {
-	userId := c.Get("userId")
-	if userId == nil || userId == "" {
-		return respondUnauthorized(c, "unauthenticated")
-	}
-	uid := userId.(string)
-	asvc := service.NewAssignmentService()
-	list, err := asvc.ListByUser(uid)
-	if err != nil {
-		return respondInternalServerError(c, err)
-	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
 }
