@@ -54,7 +54,7 @@ export default function AdvisorAssignmentsPage() {
   } = useYearCatalog()
   const [error, setError] = useState<string | null>(null)
   const [busyMemberId, setBusyMemberId] = useState<string | null>(null)
-  const assignments = activeYearId ? advisorAssignments(activeYearId) : []
+  const assignments = advisorAssignments(activeYearId)
   const catalogLoading = Boolean(
     activeYearId && isAdvisorAssignmentsLoading(activeYearId)
   )

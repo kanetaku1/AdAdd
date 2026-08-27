@@ -67,7 +67,7 @@ export default function SponsorshipMenusPage() {
     ensureSponsorshipMenus,
     setSponsorshipMenus,
   } = useYearCatalog()
-  const menus = activeYearId ? sponsorshipMenus(activeYearId) : []
+  const menus = sponsorshipMenus(activeYearId)
   const loading = Boolean(
     activeYearId && isSponsorshipMenusLoading(activeYearId)
   )

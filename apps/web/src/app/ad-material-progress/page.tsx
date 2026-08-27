@@ -147,13 +147,9 @@ export default function AdMaterialProgressPage() {
     ensureContractMenusAcrossYear,
     ensureAdvisorAssignments,
   } = useYearCatalog()
-  const menus = activeYearId ? sponsorshipMenus(activeYearId) : []
-  const contractMenus = activeYearId
-    ? contractMenusAcrossYear(activeYearId)
-    : []
-  const advisorAssignments = activeYearId
-    ? advisorAssignmentsForYear(activeYearId)
-    : []
+  const menus = sponsorshipMenus(activeYearId)
+  const contractMenus = contractMenusAcrossYear(activeYearId)
+  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
   const catalogLoading =
     Boolean(activeYearId && isSponsorshipMenusLoading(activeYearId)) ||
     Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId)) ||

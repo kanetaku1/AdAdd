@@ -158,9 +158,7 @@ export default function YearlyCompaniesPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
-  const advisorAssignments = activeYearId
-    ? advisorAssignmentsForYear(activeYearId)
-    : []
+  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
   const catalogLoading = Boolean(
     activeYearId && isAdvisorAssignmentsLoading(activeYearId)
   )

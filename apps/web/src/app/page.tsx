@@ -111,12 +111,8 @@ export default function DashboardPage() {
   const [payments, setPayments] = useState<PaymentAcrossYear[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const advisorAssignments = activeYearId
-    ? advisorAssignmentsForYear(activeYearId)
-    : []
-  const contractMenus = activeYearId
-    ? contractMenusAcrossYear(activeYearId)
-    : []
+  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
+  const contractMenus = contractMenusAcrossYear(activeYearId)
   const catalogLoading =
     Boolean(activeYearId && isAdvisorAssignmentsLoading(activeYearId)) ||
     Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId))

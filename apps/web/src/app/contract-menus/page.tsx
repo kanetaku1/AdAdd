@@ -38,11 +38,7 @@ import {
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
 } from "@/lib/contract-menu-labels"
-import type {
-  ContractMenuAcrossYear,
-  ContractMenuProductionType,
-  ContractMenuStatus,
-} from "@/types/contract-menu"
+import type { ContractMenuProductionType, ContractMenuStatus } from "@/types/contract-menu"
 
 const ALL = "ALL" as const
 type ColumnFilterKey = "menu" | "productionType" | "status"
@@ -101,10 +97,8 @@ function ContractMenusList() {
     ensureContractMenusAcrossYear,
     setContractMenusAcrossYear,
   } = useYearCatalog()
-  const menus = activeYearId ? sponsorshipMenus(activeYearId) : []
-  const contractMenus = activeYearId
-    ? contractMenusAcrossYear(activeYearId)
-    : []
+  const menus = sponsorshipMenus(activeYearId)
+  const contractMenus = contractMenusAcrossYear(activeYearId)
   const catalogLoading =
     Boolean(activeYearId && isSponsorshipMenusLoading(activeYearId)) ||
     Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId))

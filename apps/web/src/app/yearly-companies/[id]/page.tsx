@@ -106,10 +106,9 @@ export default function YearlyCompanyDetailPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const menus = yearlyCompany ? sponsorshipMenus(yearlyCompany.yearId) : []
-  const advisorAssignments = yearlyCompany
-    ? advisorAssignmentsForYear(yearlyCompany.yearId)
-    : []
+  const yearId = yearlyCompany?.yearId ?? null
+  const menus = sponsorshipMenus(yearId)
+  const advisorAssignments = advisorAssignmentsForYear(yearId)
 
   const applyCompanyScope = useCallback(async (yc: YearlyCompany) => {
     setYearlyCompany(yc)

@@ -17,9 +17,9 @@ import type { ContractMenuAcrossYear } from "@/types/contract-menu"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 type YearCatalogContextValue = {
-  advisorAssignments: (yearId: string) => AdvisorAssignment[]
-  sponsorshipMenus: (yearId: string) => SponsorshipMenu[]
-  contractMenusAcrossYear: (yearId: string) => ContractMenuAcrossYear[]
+  advisorAssignments: (yearId: string | null) => AdvisorAssignment[]
+  sponsorshipMenus: (yearId: string | null) => SponsorshipMenu[]
+  contractMenusAcrossYear: (yearId: string | null) => ContractMenuAcrossYear[]
   isAdvisorAssignmentsLoading: (yearId: string) => boolean
   isSponsorshipMenusLoading: (yearId: string) => boolean
   isContractMenusAcrossYearLoading: (yearId: string) => boolean
@@ -41,6 +41,10 @@ type YearCatalogContextValue = {
 }
 
 const YearCatalogContext = createContext<YearCatalogContextValue | null>(null)
+
+const EMPTY_ADVISOR_ASSIGNMENTS: AdvisorAssignment[] = []
+const EMPTY_SPONSORSHIP_MENUS: SponsorshipMenu[] = []
+const EMPTY_CONTRACT_MENUS: ContractMenuAcrossYear[] = []
 
 /**
  * Session cache for year-scoped reference lists (Issue #82). Each resource
@@ -84,15 +88,12 @@ export function YearCatalogProvider({
   const contractMenuInFlight = useRef<
     Partial<Record<string, Promise<ContractMenuAcrossYear[]>>>
   >({})
-  const advisorsRef = useRef(advisors)
-  const menusRef = useRef(menus)
-  const contractMenusRef = useRef(contractMenus)
-  advisorsRef.current = advisors
-  menusRef.current = menus
-  contractMenusRef.current = contractMenus
+  const advisorsRef = useRef<Record<string, AdvisorAssignment[]>>({})
+  const menusRef = useRef<Record<string, SponsorshipMenu[]>>({})
+  const contractMenusRef = useRef<Record<string, ContractMenuAcrossYear[]>>({})
 
   const ensureAdvisorAssignments = useCallback(async (yearId: string) => {
-    if (yearId in advisorsRef.current) return advisorsRef.current[yearId]
+    if (yearId in advisorsRef.current) return advisorsRef.current[yearId] ?? []
     if (advisorInFlight.current[yearId]) return advisorInFlight.current[yearId]
 
     setAdvisorLoading((prev) => ({ ...prev, [yearId]: true }))
@@ -123,7 +124,7 @@ export function YearCatalogProvider({
   }, [])
 
   const ensureSponsorshipMenus = useCallback(async (yearId: string) => {
-    if (yearId in menusRef.current) return menusRef.current[yearId]
+    if (yearId in menusRef.current) return menusRef.current[yearId] ?? []
     if (menuInFlight.current[yearId]) return menuInFlight.current[yearId]
 
     setMenuLoading((prev) => ({ ...prev, [yearId]: true }))
@@ -155,7 +156,7 @@ export function YearCatalogProvider({
 
   const ensureContractMenusAcrossYear = useCallback(async (yearId: string) => {
     if (yearId in contractMenusRef.current) {
-      return contractMenusRef.current[yearId]
+      return contractMenusRef.current[yearId] ?? []
     }
     if (contractMenuInFlight.current[yearId]) {
       return contractMenuInFlight.current[yearId]
@@ -233,12 +234,30 @@ export function YearCatalogProvider({
     delete contractMenuInFlight.current[yearId]
   }, [])
 
+  const getAdvisorAssignments = useCallback(
+    (yearId: string | null) =>
+      yearId ? (advisors[yearId] ?? EMPTY_ADVISOR_ASSIGNMENTS) : EMPTY_ADVISOR_ASSIGNMENTS,
+    [advisors]
+  )
+  const getSponsorshipMenus = useCallback(
+    (yearId: string | null) =>
+      yearId ? (menus[yearId] ?? EMPTY_SPONSORSHIP_MENUS) : EMPTY_SPONSORSHIP_MENUS,
+    [menus]
+  )
+  const getContractMenusAcrossYear = useCallback(
+    (yearId: string | null) =>
+      yearId
+        ? (contractMenus[yearId] ?? EMPTY_CONTRACT_MENUS)
+        : EMPTY_CONTRACT_MENUS,
+    [contractMenus]
+  )
+
   return (
     <YearCatalogContext.Provider
       value={{
-        advisorAssignments: (yearId) => advisors[yearId] ?? [],
-        sponsorshipMenus: (yearId) => menus[yearId] ?? [],
-        contractMenusAcrossYear: (yearId) => contractMenus[yearId] ?? [],
+        advisorAssignments: getAdvisorAssignments,
+        sponsorshipMenus: getSponsorshipMenus,
+        contractMenusAcrossYear: getContractMenusAcrossYear,
         isAdvisorAssignmentsLoading: (yearId) =>
           Boolean(advisorLoading[yearId]),
         isSponsorshipMenusLoading: (yearId) => Boolean(menuLoading[yearId]),

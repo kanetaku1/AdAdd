@@ -41,10 +41,8 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef<Promise<User[]> | null>(null)
-  const usersRef = useRef(users)
-  const loadedRef = useRef(loaded)
-  usersRef.current = users
-  loadedRef.current = loaded
+  const usersRef = useRef<User[]>([])
+  const loadedRef = useRef(false)
 
   const fetchUsers = useCallback(async (force: boolean): Promise<User[]> => {
     if (!force && loadedRef.current) return usersRef.current
