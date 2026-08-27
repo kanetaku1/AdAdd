@@ -374,6 +374,18 @@ Example response item:
 
 ---
 
+## Get Company
+
+Returns a single Company (used by Company Form edit — `spec/frontend.md#Company Management`).
+
+```
+GET /companies/{id}
+```
+
+Same item shape as List Companies.
+
+---
+
 ## Create Company
 
 Creates new company master data.
@@ -519,6 +531,18 @@ Same item shape as List Yearly Companies (including the contact snapshot and joi
 
 ---
 
+## Get Yearly Company
+
+Returns a single Yearly Company (used by Yearly Company Detail — `spec/frontend.md#Yearly Company Detail`).
+
+```
+GET /yearly-companies/{id}
+```
+
+Same item shape as List Yearly Companies.
+
+---
+
 ## Update Company Status
 
 Updates the company's relationship history classification.
@@ -601,21 +625,13 @@ Request:
 }
 ```
 
+The body is `userId` only (`null` to clear). `CompanyAssignment` does not store a Role — the assignee's permissions come from `UserRole` (`spec/model.md#Role`).
+
 `CompanyAssignment` is domain-modeled as 0..1 per Yearly Company (`spec/model.md#CompanyAssignment`), so this endpoint always replaces any existing `CompanyAssignment` for the Yearly Company rather than adding a second row — sending `userId: null` clears the assignment.
 
 Permission:
 
 * Administrator
-
----
-
-## Get Assigned Companies
-
-Returns companies assigned to the current user.
-
-```
-GET /users/me/companies
-```
 
 ---
 
@@ -665,16 +681,6 @@ Returns every AdvisorAssignment for a Year (used to build the member↔advisor t
 
 ```
 GET /advisor-assignments?yearId={yearId}
-```
-
----
-
-## Get Advisor Members
-
-Returns sponsorship members managed by an advisor.
-
-```
-GET /users/{userId}/advisor-members
 ```
 
 ---

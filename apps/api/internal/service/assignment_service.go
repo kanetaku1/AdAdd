@@ -20,7 +20,7 @@ func NewAssignmentService() *AssignmentService {
 
 // AssignOrClear replaces the CompanyAssignment for a YearlyCompany (0..1).
 // Empty userId clears any existing assignment.
-func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, role, actorUserID string) (*model.CompanyAssignment, error) {
+func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, actorUserID string) (*model.CompanyAssignment, error) {
 	var result *model.CompanyAssignment
 	err := db.WithTx(func(tx *gorm.DB) error {
 		if err := s.repo.DeleteByYearlyCompany(tx, yearlyCompanyID); err != nil {
@@ -39,7 +39,6 @@ func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, role, actorUs
 		a := &model.CompanyAssignment{
 			YearlyCompanyID: yearlyCompanyID,
 			UserID:          userID,
-			Role:            role,
 			AssignedAt:      time.Now(),
 		}
 		if err := tx.Create(a).Error; err != nil {
@@ -71,8 +70,4 @@ func (s *AssignmentService) GetByYearlyCompany(yearlyCompanyId string) (*model.C
 		return nil, err
 	}
 	return a, nil
-}
-
-func (s *AssignmentService) ListByUser(userId string) ([]model.CompanyAssignment, error) {
-	return s.repo.ListByUser(userId)
 }
