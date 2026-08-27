@@ -29,6 +29,8 @@ import {
 } from "@/components/column-filter-header"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { EditableCompanyStatusBadge } from "@/components/editable-company-status-badge"
+import { useUsers } from "@/components/users-provider"
+import { useYearCatalog } from "@/components/year-catalog-provider"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { EditableSponsorshipPhaseBadge } from "@/components/editable-sponsorship-phase-badge"
 import { IconActionButton } from "@/components/icon-action-button"
@@ -36,10 +38,8 @@ import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
 import { canAccess } from "@/lib/auth/roles"
 import { listCompanies } from "@/lib/data/companies"
-import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   assignMember,
-  listUsers,
   listYearlyCompaniesByYear,
   updateYearlyCompanyPhase,
   updateYearlyCompanyProgress,
@@ -52,8 +52,6 @@ import {
   SPONSORSHIP_PHASE_LABEL,
   SPONSORSHIP_PROGRESS_LABEL,
 } from "@/lib/yearly-company-labels"
-import type { AdvisorAssignment } from "@/types/advisor-assignment"
-import type { User } from "@/types/user"
 import type {
   CompanyStatus,
   SponsorshipPhase,
@@ -127,11 +125,14 @@ export default function YearlyCompaniesPage() {
     "ADMINISTRATOR",
   ])
   const canEditAssignee = canAccess(currentUser?.roles, ["ADMINISTRATOR"])
+  const { users, ensureUsers } = useUsers()
+  const {
+    advisorAssignments: advisorAssignmentsForYear,
+    isAdvisorAssignmentsLoading,
+    advisorAssignmentsError,
+    ensureAdvisorAssignments,
+  } = useYearCatalog()
   const [rows, setRows] = useState<YearlyCompany[]>([])
-  const [users, setUsers] = useState<User[]>([])
-  const [advisorAssignments, setAdvisorAssignments] = useState<
-    AdvisorAssignment[]
-  >([])
   const [companyKeyword, setCompanyKeyword] = useState("")
   const [memberFilter, setMemberFilter] = useState<string | typeof ALL>(ALL)
   const [advisorFilter, setAdvisorFilter] = useState<string | typeof ALL>(ALL)
@@ -157,14 +158,16 @@ export default function YearlyCompaniesPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
+  const catalogLoading = Boolean(
+    activeYearId && isAdvisorAssignmentsLoading(activeYearId)
+  )
 
   useEffect(() => {
     let cancelled = false
     async function load(yearId: string | null) {
       if (!yearId) {
         setRows([])
-        setUsers([])
-        setAdvisorAssignments([])
         setLoading(false)
         setError(null)
         return
@@ -172,20 +175,16 @@ export default function YearlyCompaniesPage() {
       setLoading(true)
       setError(null)
       try {
-        const [list, userList, assignments] = await Promise.all([
+        const [list] = await Promise.all([
           listYearlyCompaniesByYear(yearId),
-          listUsers(),
-          listAdvisorAssignmentsByYear(yearId),
+          ensureUsers(),
+          ensureAdvisorAssignments(yearId),
         ])
         if (cancelled) return
         setRows(list)
-        setUsers(userList)
-        setAdvisorAssignments(assignments)
       } catch (e) {
         if (!cancelled) {
           setRows([])
-          setUsers([])
-          setAdvisorAssignments([])
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
@@ -196,7 +195,7 @@ export default function YearlyCompaniesPage() {
     return () => {
       cancelled = true
     }
-  }, [activeYearId])
+  }, [activeYearId, ensureUsers, ensureAdvisorAssignments])
 
   const visibleRows = useMemo(
     () =>
@@ -404,7 +403,13 @@ export default function YearlyCompaniesPage() {
         </p>
       )}
 
-      <ErrorBanner message={yearError || error} />
+      <ErrorBanner
+        message={
+          yearError ||
+          error ||
+          (activeYearId ? advisorAssignmentsError(activeYearId) : null)
+        }
+      />
       <ErrorBanner message={actionError} />
 
       <div className="flex flex-col gap-3 rounded-md border bg-background p-3">
@@ -671,7 +676,7 @@ export default function YearlyCompaniesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {yearLoading || loading ? (
+            {yearLoading || loading || catalogLoading ? (
               <LoadingRow colSpan={5} />
             ) : !activeYearId ? (
               <EmptyRow

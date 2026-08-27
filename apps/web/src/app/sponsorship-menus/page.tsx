@@ -6,6 +6,7 @@ import { Plus } from "lucide-react"
 
 import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { useYearCatalog } from "@/components/year-catalog-provider"
 import { IconActionButton } from "@/components/icon-action-button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -20,7 +21,6 @@ import {
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   createSponsorshipMenu,
-  listSponsorshipMenus,
   updateSponsorshipMenu,
 } from "@/lib/data/sponsorship-menus"
 import { getErrorMessage } from "@/lib/errors"
@@ -60,49 +60,37 @@ export default function SponsorshipMenusPage() {
   const activeYearId = activeYear?.id ?? null
   const { currentUser } = useCurrentUser()
   const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
-  const [menus, setMenus] = useState<SponsorshipMenu[]>([])
-  const [loading, setLoading] = useState(true)
+  const {
+    sponsorshipMenus,
+    isSponsorshipMenusLoading,
+    sponsorshipMenusError,
+    ensureSponsorshipMenus,
+    setSponsorshipMenus,
+  } = useYearCatalog()
+  const menus = sponsorshipMenus(activeYearId)
+  const loading = Boolean(
+    activeYearId && isSponsorshipMenusLoading(activeYearId)
+  )
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
 
   useEffect(() => {
-    let cancelled = false
-    async function load(yearId: string | null) {
-      if (!yearId) {
-        setMenus([])
-        setLoading(false)
-        setError(null)
-        return
-      }
-      setLoading(true)
-      setError(null)
-      try {
-        const list = await listSponsorshipMenus(yearId)
-        if (!cancelled) setMenus(list)
-      } catch (e) {
-        if (!cancelled) {
-          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    void load(activeYearId)
-    return () => {
-      cancelled = true
-    }
-  }, [activeYearId])
+    if (!activeYearId) return
+    void ensureSponsorshipMenus(activeYearId)
+  }, [activeYearId, ensureSponsorshipMenus])
 
   function updateLocalMenu(id: string, patch: Partial<SponsorshipMenu>) {
-    setMenus((prev) =>
-      prev.map((menu) => (menu.id === id ? { ...menu, ...patch } : menu))
+    if (!activeYearId) return
+    setSponsorshipMenus(
+      activeYearId,
+      menus.map((menu) => (menu.id === id ? { ...menu, ...patch } : menu))
     )
   }
 
   async function persistMenu(id: string, patch: Partial<SponsorshipMenu>) {
     const current = menus.find((menu) => menu.id === id)
-    if (!current) return
+    if (!current || !activeYearId) return
     const fields = { ...current, ...patch }
     setError(null)
     setSavingId(id)
@@ -115,7 +103,10 @@ export default function SponsorshipMenusPage() {
         isActive: fields.isActive,
         maxQuantity: fields.maxQuantity,
       })
-      setMenus((prev) => prev.map((menu) => (menu.id === id ? updated : menu)))
+      setSponsorshipMenus(
+        activeYearId,
+        menus.map((menu) => (menu.id === id ? updated : menu))
+      )
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "更新に失敗しました" }))
     } finally {
@@ -140,7 +131,7 @@ export default function SponsorshipMenusPage() {
         isActive: true,
         maxQuantity: null,
       })
-      setMenus((prev) => [...prev, created])
+      setSponsorshipMenus(activeYearId, [...menus, created])
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "追加に失敗しました" }))
     } finally {
@@ -169,7 +160,13 @@ export default function SponsorshipMenusPage() {
         )}
       </div>
 
-      <ErrorBanner message={yearError || error} />
+      <ErrorBanner
+        message={
+          yearError ||
+          error ||
+          (activeYearId ? sponsorshipMenusError(activeYearId) : null)
+        }
+      />
 
       <div className="rounded-md border">
         <Table>

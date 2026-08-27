@@ -4,6 +4,8 @@ import "./globals.css";
 import { AppShell } from "@/components/app-shell";
 import { ActiveYearProvider } from "@/components/active-year-provider";
 import { CurrentUserProvider } from "@/components/current-user-provider";
+import { UsersProvider } from "@/components/users-provider";
+import { YearCatalogProvider } from "@/components/year-catalog-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +35,11 @@ export default function RootLayout({
       <body className="min-h-full">
         <CurrentUserProvider>
           <ActiveYearProvider>
-            <AppShell>{children}</AppShell>
+            <UsersProvider>
+              <YearCatalogProvider>
+                <AppShell>{children}</AppShell>
+              </YearCatalogProvider>
+            </UsersProvider>
           </ActiveYearProvider>
         </CurrentUserProvider>
       </body>
