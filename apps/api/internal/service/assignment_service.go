@@ -71,7 +71,3 @@ func (s *AssignmentService) GetByYearlyCompany(yearlyCompanyId string) (*model.C
 	}
 	return a, nil
 }
-
-func (s *AssignmentService) ListByUser(userId string) ([]model.CompanyAssignment, error) {
-	return s.repo.ListByUser(userId)
-}

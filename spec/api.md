@@ -635,16 +635,6 @@ Permission:
 
 ---
 
-## Get Assigned Companies
-
-Returns companies assigned to the current user.
-
-```
-GET /users/me/companies
-```
-
----
-
 # Advisor Assignment API
 
 ## Assign Advisor
@@ -691,16 +681,6 @@ Returns every AdvisorAssignment for a Year (used to build the member↔advisor t
 
 ```
 GET /advisor-assignments?yearId={yearId}
-```
-
----
-
-## Get Advisor Members
-
-Returns sponsorship members managed by an advisor.
-
-```
-GET /users/{userId}/advisor-members
 ```
 
 ---

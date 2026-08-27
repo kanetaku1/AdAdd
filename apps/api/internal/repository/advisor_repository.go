@@ -32,14 +32,6 @@ func (r *AdvisorRepository) ListByYear(yearId string) ([]model.AdvisorAssignment
 	return list, nil
 }
 
-func (r *AdvisorRepository) ListMembersByAdvisor(advisorId string) ([]model.AdvisorAssignment, error) {
-	var list []model.AdvisorAssignment
-	if err := db.DB.Where("advisor_id = ?", advisorId).Find(&list).Error; err != nil {
-		return nil, err
-	}
-	return list, nil
-}
-
 func (r *AdvisorRepository) Exists(yearId, memberId, advisorId string) (bool, error) {
 	var count int64
 	err := db.DB.Model(&model.AdvisorAssignment{}).

@@ -42,7 +42,3 @@ func (s *AdvisorService) Delete(id string) error {
 func (s *AdvisorService) ListByYear(yearId string) ([]model.AdvisorAssignment, error) {
 	return s.repo.ListByYear(yearId)
 }
-
-func (s *AdvisorService) ListMembersByAdvisor(advisorId string) ([]model.AdvisorAssignment, error) {
-	return s.repo.ListMembersByAdvisor(advisorId)
-}

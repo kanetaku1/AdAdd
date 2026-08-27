@@ -14,7 +14,6 @@ import (
 func RegisterAdvisorRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/advisor-assignments", listAdvisorAssignments)
-	r.GET("/users/:userId/advisor-members", getAdvisorMembers)
 
 	rAdmin := e.Group("")
 	rAdmin.Use(RequireRoles("ADMINISTRATOR"))
@@ -73,16 +72,6 @@ func listAdvisorAssignments(c echo.Context) error {
 	}
 	svc := service.NewAdvisorService()
 	list, err := svc.ListByYear(yearId)
-	if err != nil {
-		return respondInternalServerError(c, err)
-	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": list, "message": "success"})
-}
-
-func getAdvisorMembers(c echo.Context) error {
-	userId := c.Param("userId")
-	svc := service.NewAdvisorService()
-	list, err := svc.ListMembersByAdvisor(userId)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
