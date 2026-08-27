@@ -49,11 +49,6 @@ import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 const ALL = "ALL" as const
 type ColumnFilterKey = "menu" | "productionType" | "status"
 
-const currencyFormatter = new Intl.NumberFormat("ja-JP", {
-  style: "currency",
-  currency: "JPY",
-})
-
 function isContractMenuStatus(
   value: string | null
 ): value is ContractMenuStatus {
@@ -309,6 +304,7 @@ function ContractMenusList() {
           <TableHeader>
             <TableRow>
               <TableHead>会社名</TableHead>
+              <TableHead>担当者</TableHead>
               <TableHead>
                 <ColumnFilterPopover
                   label="メニュー"
@@ -333,7 +329,6 @@ function ContractMenusList() {
                 </ColumnFilterPopover>
               </TableHead>
               <TableHead>数量</TableHead>
-              <TableHead>単価</TableHead>
               <TableHead>
                 <ColumnFilterPopover
                   label="制作者"
@@ -419,6 +414,11 @@ function ContractMenusList() {
                       </Link>
                     </TableCell>
                     <TableCell>
+                      {cm.assignedMemberName ? cm.assignedMemberName : (
+                        <span className="text-muted-foreground">未割当</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-2">
                         {cm.sponsorshipMenuName}
                         {cm.isGoodsSponsorship && (
@@ -434,9 +434,6 @@ function ContractMenusList() {
                           void handleDetailsChange(cm.id, { quantity })
                         }
                       />
-                    </TableCell>
-                    <TableCell>
-                      {currencyFormatter.format(cm.unitPrice)}
                     </TableCell>
                     <TableCell>
                       <EditableProductionTypeCell

@@ -20,6 +20,11 @@ func (s *YearlyCompanyService) ListByYear(yearId string) ([]model.YearlyCompanyR
 }
 
 func (s *YearlyCompanyService) Create(yc *model.YearlyCompany) error {
+	company, err := repository.NewCompanyRepository().GetByID(yc.CompanyID)
+	if err != nil {
+		return err
+	}
+	model.CopyContactFromCompany(yc, company)
 	yc.CompanyStatus = computeCompanyStatus(yc.YearID, yc.CompanyID)
 	yc.Phase = "PHASE_3"
 	yc.Progress = "NOT_CONTACTED"
@@ -34,6 +39,29 @@ func (s *YearlyCompanyService) Update(yc *model.YearlyCompany) error { return s.
 
 func (s *YearlyCompanyService) UpdateWithLog(yc *model.YearlyCompany, log *model.ActivityLog) error {
 	return s.repo.UpdateWithLog(yc, log)
+}
+
+func (s *YearlyCompanyService) UpdateContact(id string, in model.CompanyContactInput) (*model.YearlyCompanyResponse, error) {
+	err := db.WithTx(func(tx *gorm.DB) error {
+		var yc model.YearlyCompany
+		if err := tx.First(&yc, "id = ?", id).Error; err != nil {
+			return err
+		}
+		model.ApplyContactToYearlyCompany(&yc, in)
+		if err := tx.Save(&yc).Error; err != nil {
+			return err
+		}
+		var company model.Company
+		if err := tx.First(&company, "id = ?", yc.CompanyID).Error; err != nil {
+			return err
+		}
+		model.ApplyContactToCompany(&company, in)
+		return tx.Save(&company).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetByID(id)
 }
 
 // computeCompanyStatus returns CONTINUING only when the company had a SponsorshipContract

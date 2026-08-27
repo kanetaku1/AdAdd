@@ -52,5 +52,7 @@ export type ContractMenu = {
 export type ContractMenuAcrossYear = ContractMenu & {
   companyName: string
   yearlyCompanyId: string
+  assignedMemberId: string | null
+  assignedMemberName: string | null
   sponsorshipMenuName: string
 }

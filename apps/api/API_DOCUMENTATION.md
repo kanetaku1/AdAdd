@@ -60,6 +60,9 @@
 - PATCH /yearly-companies/:id/phase
   - 説明: フェーズ更新（staff, admin）
   - ボディ: { "phase": "..." }
+- PATCH /yearly-companies/:id/company-contact
+  - 説明: 当該年度の連絡先スナップショットと企業マスタを更新（他年度の YearlyCompany は変更しない）
+  - ボディ: { "postalCode", "address", "phoneNumber", "website", "contactPersonName", "contactEmailOrForm", "memo" }
 
 ### Contracts
 - GET /yearly-companies/:id/contract
