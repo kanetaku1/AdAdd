@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
@@ -338,11 +339,40 @@ func updateContractMenuDetails(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": updated, "message": "updated"})
 }
 
+func extractDriveFileID(driveUrl string) string {
+	if strings.Contains(driveUrl, "id=") {
+		parts := strings.Split(driveUrl, "id=")
+		if len(parts) > 1 {
+			return strings.Split(parts[1], "&")[0]
+		}
+	}
+	if strings.Contains(driveUrl, "/d/") {
+		parts := strings.Split(driveUrl, "/d/")
+		if len(parts) > 1 {
+			return strings.Split(parts[1], "/")[0]
+		}
+	}
+	return ""
+}
+
 func deleteContractMenuFile(c echo.Context) error {
 	id := c.Param("id")
 	fileId := c.Param("fileId")
+	accessToken := c.QueryParam("accessToken")
 
 	svc := service.NewContractMenuService()
+
+	if accessToken != "" {
+		cmFile, err := svc.GetFileByID(id, fileId)
+		if err == nil && cmFile.DriveURL != "" {
+			driveFileID := extractDriveFileID(cmFile.DriveURL)
+			if driveFileID != "" {
+				driveSvc := service.NewDriveService()
+				_ = driveSvc.DeleteFile(c.Request().Context(), accessToken, driveFileID)
+			}
+		}
+	}
+
 	if err := svc.DeleteFile(id, fileId); err != nil {
 		return respondInternalServerError(c, err)
 	}

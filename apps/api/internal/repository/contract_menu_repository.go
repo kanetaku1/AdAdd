@@ -81,3 +81,11 @@ func (r *ContractMenuRepository) GetByID(id string) (*model.ContractMenu, error)
 func (r *ContractMenuRepository) DeleteFile(contractMenuId, fileId string) error {
 	return db.DB.Unscoped().Where("contract_menu_id = ? AND id = ?", contractMenuId, fileId).Delete(&model.ContractMenuFile{}).Error
 }
+
+func (r *ContractMenuRepository) GetFileByID(contractMenuId, fileId string) (*model.ContractMenuFile, error) {
+	var f model.ContractMenuFile
+	if err := db.DB.First(&f, "id = ? AND contract_menu_id = ?", fileId, contractMenuId).Error; err != nil {
+		return nil, err
+	}
+	return &f, nil
+}

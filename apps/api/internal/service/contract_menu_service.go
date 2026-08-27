@@ -77,6 +77,10 @@ func (s *ContractMenuService) DeleteFile(contractMenuId, fileId string) error {
 	return s.repo.DeleteFile(contractMenuId, fileId)
 }
 
+func (s *ContractMenuService) GetFileByID(contractMenuId, fileId string) (*model.ContractMenuFile, error) {
+	return s.repo.GetFileByID(contractMenuId, fileId)
+}
+
 func contractMenuStatusLogMessage(menuName, from, to string) string {
 	if menuName == "" {
 		menuName = "協賛メニュー"

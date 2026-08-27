@@ -106,3 +106,21 @@ func (s *DriveService) UploadFile(ctx context.Context, accessToken, folderId, ro
 
 	return uploadedFile, nil
 }
+
+// DeleteFile deletes a file from Google Drive completely.
+func (s *DriveService) DeleteFile(ctx context.Context, accessToken, fileId string) error {
+	token := &oauth2.Token{AccessToken: accessToken}
+	tokenSource := oauth2.StaticTokenSource(token)
+	client := oauth2.NewClient(ctx, tokenSource)
+
+	srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return fmt.Errorf("failed to create drive client: %w", err)
+	}
+
+	err = srv.Files.Delete(fileId).SupportsAllDrives(true).Do()
+	if err != nil {
+		return fmt.Errorf("failed to delete file from drive: %w", err)
+	}
+	return nil
+}
