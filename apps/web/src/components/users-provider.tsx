@@ -37,7 +37,6 @@ function isForbidden(error: unknown): boolean {
  */
 export function UsersProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>([])
-  const [loaded, setLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef<Promise<User[]> | null>(null)
@@ -56,14 +55,12 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
         usersRef.current = list
         loadedRef.current = true
         setUsers(list)
-        setLoaded(true)
         return list
       } catch (e) {
         if (isForbidden(e)) {
           usersRef.current = []
           loadedRef.current = true
           setUsers([])
-          setLoaded(true)
           setError(null)
           return []
         }
