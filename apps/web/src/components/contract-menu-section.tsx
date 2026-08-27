@@ -57,6 +57,64 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   currency: "JPY",
 })
 
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
+
+async function requestDriveToken(): Promise<string> {
+  if (!GOOGLE_CLIENT_ID) throw new Error("GOOGLE_CLIENT_ID is not configured")
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const existing = (window as any).gapi?.client?.getToken()?.access_token
+  if (existing) return existing
+
+  return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let script = document.querySelector(`script[src="https://accounts.google.com/gsi/client"]`) as HTMLScriptElement | null
+
+    const initAuth = () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: "https://www.googleapis.com/auth/drive.file",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          callback: (response: any) => {
+            if (response.error !== undefined) {
+              reject(new Error(response.error))
+              return
+            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((window as any).gapi && (window as any).gapi.client) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (window as any).gapi.client.setToken({ access_token: response.access_token })
+            }
+            resolve(response.access_token)
+          },
+        })
+        client.requestAccessToken()
+      } catch (err) {
+        reject(err)
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (script && (window as any).google?.accounts?.oauth2) {
+      initAuth()
+      return
+    }
+
+    if (!script) {
+      script = document.createElement("script")
+      script.src = "https://accounts.google.com/gsi/client"
+      script.async = true
+      script.defer = true
+      document.body.appendChild(script)
+    }
+
+    script.addEventListener("load", initAuth)
+    script.addEventListener("error", () => reject(new Error("Failed to load Google Identity Services")))
+  })
+}
+
 function emptyItem(menus: SponsorshipMenu[]): ContractMenuItemValue {
   const firstMenu = menus[0]
   return {
@@ -116,10 +174,13 @@ export function ContractMenuSection({
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
 
   async function handleDeleteFile(menuId: string, fileId: string) {
-    if (!confirm("このファイルを履歴から削除してもよろしいですか？（Google Drive側の本体は削除されません）")) return
+    if (!confirm("AdAddの履歴と、Google Driveのファイル本体の両方を削除しますか？\n（Google Driveへのアクセスのため、初回のみ認証画面が開く場合があります）")) return
+
+    setError(null)
     setBusyIds((prev) => new Set([...prev, menuId]))
     try {
-      await deleteContractMenuFile(menuId, fileId)
+      const accessToken = await requestDriveToken()
+      await deleteContractMenuFile(menuId, fileId, accessToken)
       applyMenus(
         contractMenus.map((cm) =>
           cm.id === menuId

@@ -983,7 +983,8 @@ export async function createPayment(contractId: string): Promise<Payment> {
 
 export async function deleteContractMenuFile(
   menuId: string,
-  fileId: string
+  fileId: string,
+  accessToken?: string
 ): Promise<void> {
   if (!isApiEnabled()) {
     const menu = mockContractMenus.find((cm) => cm.id === menuId)
@@ -992,7 +993,11 @@ export async function deleteContractMenuFile(
     }
     return
   }
-  await apiFetch(`/contract-menus/${menuId}/files/${fileId}`, {
+  let url = `/contract-menus/${menuId}/files/${fileId}`
+  if (accessToken) {
+    url += `?accessToken=${encodeURIComponent(accessToken)}`
+  }
+  await apiFetch(url, {
     method: "DELETE",
   })
 }
