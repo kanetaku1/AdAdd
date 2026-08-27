@@ -17,12 +17,13 @@ import {
 } from "@/components/contract-creation-form"
 import { ContractMenuSection } from "@/components/contract-menu-section"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { useUsers } from "@/components/users-provider"
+import { useYearCatalog } from "@/components/year-catalog-provider"
 import { InvoiceGeneratorModal } from "@/components/invoice-generator-modal"
 import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { isApiEnabled } from "@/lib/api/client"
 import { canAccess } from "@/lib/auth/roles"
-import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
   assignMember,
   createContractWithMenus,
@@ -32,8 +33,6 @@ import {
   getYearlyCompany,
   listContractMenus,
   listActivityLogsByYearlyCompany,
-  listSponsorshipMenus,
-  listUsers,
   updateYearlyCompanyContact,
   updateYearlyCompanyPhase,
   updateYearlyCompanyProgress,
@@ -46,13 +45,10 @@ import {
   PAYMENT_STATUS_BADGE_VARIANT,
   PAYMENT_STATUS_LABEL,
 } from "@/lib/payment-labels"
-import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { ActivityLog } from "@/types/activity-log"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
-import type { SponsorshipMenu } from "@/types/sponsorship-menu"
-import type { User } from "@/types/user"
 import type {
   CompanyStatus,
   SponsorshipPhase,
@@ -92,20 +88,49 @@ export default function YearlyCompanyDetailPage() {
     "ADMINISTRATOR",
     "FINANCE_DEPARTMENT",
   ])
+  const { users, ensureUsers } = useUsers()
+  const {
+    sponsorshipMenus,
+    advisorAssignments: advisorAssignmentsForYear,
+    ensureSponsorshipMenus,
+    ensureAdvisorAssignments,
+    invalidateContractMenusAcrossYear,
+  } = useYearCatalog()
 
   const [loading, setLoading] = useState(true)
   const [yearlyCompany, setYearlyCompany] = useState<YearlyCompany | null>(null)
   const [contract, setContract] = useState<SponsorshipContract | null>(null)
   const [contractMenus, setContractMenus] = useState<ContractMenu[]>([])
   const [payment, setPayment] = useState<Payment | null>(null)
-  const [users, setUsers] = useState<User[]>([])
-  const [menus, setMenus] = useState<SponsorshipMenu[]>([])
-  const [advisorAssignments, setAdvisorAssignments] = useState<
-    AdvisorAssignment[]
-  >([])
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const menus = yearlyCompany ? sponsorshipMenus(yearlyCompany.yearId) : []
+  const advisorAssignments = yearlyCompany
+    ? advisorAssignmentsForYear(yearlyCompany.yearId)
+    : []
+
+  const applyCompanyScope = useCallback(async (yc: YearlyCompany) => {
+    setYearlyCompany(yc)
+    const [ct, logs] = await Promise.all([
+      getContractByYearlyCompany(yc.id),
+      listActivityLogsByYearlyCompany(yc.id),
+    ])
+    setContract(ct)
+    setActivityLogs(logs)
+    if (ct) {
+      const [cms, pay] = await Promise.all([
+        listContractMenus(ct.id),
+        getPaymentByContract(ct.id),
+      ])
+      setContractMenus(cms)
+      setPayment(pay)
+    } else {
+      setContractMenus([])
+      setPayment(null)
+    }
+  }, [])
 
   /* Data fetch for route param — setState after async I/O is intentional. */
   useEffect(() => {
@@ -120,32 +145,12 @@ export default function YearlyCompanyDetailPage() {
           setYearlyCompany(null)
           return
         }
-        setYearlyCompany(yc)
-        const [ct, us, sm, aa, logs] = await Promise.all([
-          getContractByYearlyCompany(yc.id),
-          listUsers(),
-          listSponsorshipMenus(yc.yearId),
-          listAdvisorAssignmentsByYear(yc.yearId),
-          listActivityLogsByYearlyCompany(yc.id),
+        await Promise.all([
+          applyCompanyScope(yc),
+          ensureUsers(),
+          ensureSponsorshipMenus(yc.yearId),
+          ensureAdvisorAssignments(yc.yearId),
         ])
-        if (cancelled) return
-        setContract(ct)
-        setUsers(us)
-        setMenus(sm)
-        setAdvisorAssignments(aa)
-        setActivityLogs(logs)
-        if (ct) {
-          const [cms, pay] = await Promise.all([
-            listContractMenus(ct.id),
-            getPaymentByContract(ct.id),
-          ])
-          if (cancelled) return
-          setContractMenus(cms)
-          setPayment(pay)
-        } else {
-          setContractMenus([])
-          setPayment(null)
-        }
       } catch (e) {
         if (!cancelled) {
           setYearlyCompany(null)
@@ -159,48 +164,29 @@ export default function YearlyCompanyDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, applyCompanyScope, ensureUsers, ensureSponsorshipMenus, ensureAdvisorAssignments])
 
-  const reload = useCallback(async () => {
+  const reloadCompanyScope = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const yc = await getYearlyCompany(id)
       if (!yc) {
         setYearlyCompany(null)
-        return
-      }
-      setYearlyCompany(yc)
-      const [ct, us, sm, aa, logs] = await Promise.all([
-        getContractByYearlyCompany(yc.id),
-        listUsers(),
-        listSponsorshipMenus(yc.yearId),
-        listAdvisorAssignmentsByYear(yc.yearId),
-        listActivityLogsByYearlyCompany(yc.id),
-      ])
-      setContract(ct)
-      setUsers(us)
-      setMenus(sm)
-      setAdvisorAssignments(aa)
-      setActivityLogs(logs)
-      if (ct) {
-        const [cms, pay] = await Promise.all([
-          listContractMenus(ct.id),
-          getPaymentByContract(ct.id),
-        ])
-        setContractMenus(cms)
-        setPayment(pay)
-      } else {
+        setContract(null)
         setContractMenus([])
         setPayment(null)
+        setActivityLogs([])
+        return
       }
+      await applyCompanyScope(yc)
     } catch (e) {
       setYearlyCompany(null)
       setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, applyCompanyScope])
 
   const memberAdvisorNames = useMemo(() => {
     const memberId = yearlyCompany?.assignedMemberId
@@ -352,7 +338,8 @@ export default function YearlyCompanyDetailPage() {
     setBusy(true)
     try {
       await createContractWithMenus(yc.id, input)
-      await reload()
+      invalidateContractMenusAcrossYear(yc.yearId)
+      await reloadCompanyScope()
       return true
     } catch (e) {
       setError(
@@ -374,7 +361,6 @@ export default function YearlyCompanyDetailPage() {
     try {
       const created = await createPayment(contract.id)
       setPayment(created)
-      await reload()
     } catch (e) {
       setError(
         getErrorMessage(e, { fallback: "入金レコードの作成に失敗しました" })
@@ -470,6 +456,7 @@ export default function YearlyCompanyDetailPage() {
                   ? { ...prev, amount: totalAmount }
                   : prev
               )
+              invalidateContractMenusAcrossYear(yc.yearId)
             }}
           />
         ) : (

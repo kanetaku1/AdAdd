@@ -28,9 +28,10 @@ import {
 } from "@/components/ui/table"
 import { EmptyBlock, EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { useUsers } from "@/components/users-provider"
 import { isApiEnabled } from "@/lib/api/client"
 import { grantRole, listRoles, revokeRole, type RoleOption } from "@/lib/data/roles"
-import { createUser, listUsers, updateUser } from "@/lib/data/users"
+import { createUser, updateUser } from "@/lib/data/users"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
 import { ROLES, roleLabel, type Role, type User } from "@/types/user"
@@ -82,8 +83,14 @@ function formFromUser(user: User): UserForm {
 export default function UsersPage() {
   const { currentUser } = useCurrentUser()
   const canManageUsers = canAccess(currentUser?.roles, ALLOWED_ROLES)
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
+  const {
+    users,
+    loading,
+    error: usersError,
+    ensureUsers,
+    refresh,
+    setUsers,
+  } = useUsers()
   const [loadError, setLoadError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<UserForm>(emptyForm())
@@ -93,26 +100,8 @@ export default function UsersPage() {
   const [roleCatalog, setRoleCatalog] = useState<RoleOption[]>([])
 
   useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setLoading(true)
-      setLoadError(null)
-      try {
-        const list = await listUsers()
-        if (!cancelled) setUsers(list)
-      } catch (e) {
-        if (!cancelled) {
-          setLoadError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    void ensureUsers()
+  }, [ensureUsers])
 
   useEffect(() => {
     if (!isApiEnabled()) return
@@ -225,7 +214,7 @@ export default function UsersPage() {
         setEditingId(null)
       } catch (e) {
         try {
-          setUsers(await listUsers())
+          await refresh()
         } catch {
           // best-effort resync; the formError below still informs the user
         }
@@ -285,7 +274,7 @@ export default function UsersPage() {
         <div className="flex items-center gap-2">
           <ImportUsersButton
             onImported={() => {
-              void listUsers().then(setUsers).catch((e) => {
+              void refresh().catch((e) => {
                 setLoadError(
                   getErrorMessage(e, { fallback: "読み込みに失敗しました" })
                 )
@@ -298,7 +287,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <ErrorBanner message={loadError} />
+      <ErrorBanner message={loadError || usersError} />
 
       <div className="rounded-md border">
         <Table>

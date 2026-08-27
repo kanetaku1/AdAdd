@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 
 import { useActiveYear } from "@/components/active-year-provider"
+import { useYearCatalog } from "@/components/year-catalog-provider"
 import {
   ColumnFilterOption,
   ColumnFilterPopover,
@@ -26,11 +27,9 @@ import { EditableQuantityCell } from "@/components/editable-quantity-cell"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
-  listContractMenusAcrossYear,
   updateContractMenu,
   updateContractMenuStatus,
 } from "@/lib/data/sponsorship"
-import { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
 
@@ -44,7 +43,6 @@ import type {
   ContractMenuProductionType,
   ContractMenuStatus,
 } from "@/types/contract-menu"
-import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const ALL = "ALL" as const
 type ColumnFilterKey = "menu" | "productionType" | "status"
@@ -92,12 +90,24 @@ function ContractMenusList() {
   const activeYearId = activeYear?.id ?? null
   const { currentUser } = useCurrentUser()
   const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
-
-  const [contractMenus, setContractMenus] = useState<ContractMenuAcrossYear[]>(
-    []
-  )
-  const [menus, setMenus] = useState<SponsorshipMenu[]>([])
-  const [loading, setLoading] = useState(true)
+  const {
+    sponsorshipMenus,
+    contractMenusAcrossYear,
+    isSponsorshipMenusLoading,
+    isContractMenusAcrossYearLoading,
+    sponsorshipMenusError,
+    contractMenusAcrossYearError,
+    ensureSponsorshipMenus,
+    ensureContractMenusAcrossYear,
+    setContractMenusAcrossYear,
+  } = useYearCatalog()
+  const menus = activeYearId ? sponsorshipMenus(activeYearId) : []
+  const contractMenus = activeYearId
+    ? contractMenusAcrossYear(activeYearId)
+    : []
+  const catalogLoading =
+    Boolean(activeYearId && isSponsorshipMenusLoading(activeYearId)) ||
+    Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId))
   const [error, setError] = useState<string | null>(null)
 
   const [companyNameQuery, setCompanyNameQuery] = useState(
@@ -119,38 +129,12 @@ function ContractMenusList() {
   const [savingId, setSavingId] = useState<string | null>(null)
 
   useEffect(() => {
-    let cancelled = false
-    async function load(yearId: string | null) {
-      if (!yearId) {
-        setContractMenus([])
-        setMenus([])
-        setLoading(false)
-        setError(null)
-        return
-      }
-      setLoading(true)
-      setError(null)
-      try {
-        const [menuList, contractMenuList] = await Promise.all([
-          listSponsorshipMenus(yearId),
-          listContractMenusAcrossYear(yearId),
-        ])
-        if (cancelled) return
-        setMenus(menuList)
-        setContractMenus(contractMenuList)
-      } catch (e) {
-        if (!cancelled) {
-          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    void load(activeYearId)
-    return () => {
-      cancelled = true
-    }
-  }, [activeYearId])
+    if (!activeYearId) return
+    void Promise.all([
+      ensureSponsorshipMenus(activeYearId),
+      ensureContractMenusAcrossYear(activeYearId),
+    ])
+  }, [activeYearId, ensureSponsorshipMenus, ensureContractMenusAcrossYear])
 
   const companySuggestions = useMemo(() => {
     const names = Array.from(new Set(contractMenus.map((cm) => cm.companyName)))
@@ -186,12 +170,14 @@ function ContractMenusList() {
   }
 
   async function handleStatusChange(id: string, status: ContractMenuStatus) {
+    if (!activeYearId) return
     setError(null)
     setSavingId(id)
     try {
       const updated = await updateContractMenuStatus(id, status)
-      setContractMenus((prev) =>
-        prev.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
+      setContractMenusAcrossYear(
+        activeYearId,
+        contractMenus.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
       )
     } catch (e) {
       setError(
@@ -213,8 +199,10 @@ function ContractMenusList() {
     setSavingId(id)
     try {
       const updated = await updateContractMenu(id, patch)
-      setContractMenus((prev) =>
-        prev.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
+      if (!activeYearId) return
+      setContractMenusAcrossYear(
+        activeYearId,
+        contractMenus.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
       )
     } catch (e) {
       setError(
@@ -241,7 +229,16 @@ function ContractMenusList() {
         </p>
       </div>
 
-      <ErrorBanner message={yearError || error} />
+      <ErrorBanner
+        message={
+          yearError ||
+          error ||
+          (activeYearId
+            ? sponsorshipMenusError(activeYearId) ||
+              contractMenusAcrossYearError(activeYearId)
+            : null)
+        }
+      />
 
       <div className="flex flex-col gap-3 rounded-md border bg-background p-3">
         <div className="min-w-56 max-w-md flex-1">
@@ -392,7 +389,7 @@ function ContractMenusList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {yearLoading || loading ? (
+            {yearLoading || catalogLoading ? (
               <LoadingRow colSpan={7} />
             ) : !activeYearId ? (
               <EmptyRow
