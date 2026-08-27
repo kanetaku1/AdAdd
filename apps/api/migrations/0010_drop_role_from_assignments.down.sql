@@ -1,0 +1,1 @@
+ALTER TABLE assignments ADD COLUMN role VARCHAR(32) NULL AFTER user_id;

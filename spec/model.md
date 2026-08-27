@@ -237,8 +237,9 @@ A Yearly Company has at most one CompanyAssignment (`yearlyCompanyId` is unique)
 | id              | UUID     |
 | yearlyCompanyId | UUID     |
 | userId          | UUID     |
-| role            | enum     |
 | assignedAt      | datetime |
+
+The assignee's permissions come from `UserRole`, not from a field on this relationship.
 
 ---
 
@@ -391,14 +392,6 @@ Applies only when the referenced Sponsorship Menu has `requiresSubmission = true
 * Producing
 * Completed
 * Submitted
-
----
-
-## AssignmentRole
-
-* SponsorshipMember
-
-`CompanyAssignment` links a User to a YearlyCompany. Advisor supervision is modeled separately by `AdvisorAssignment`.
 
 ---
 

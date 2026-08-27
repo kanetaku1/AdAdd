@@ -23,6 +23,8 @@
 ### Companies
 - GET /companies
   - 説明: 会社の一覧取得（公開）
+- GET /companies/:id
+  - 説明: 会社の単一取得（企業編集画面）
 - POST /companies/bulk (admin)
   - 説明: CSVによる会社の一括登録。`multipart/form-data`で`file`キーにCSVを指定。
   - パラメータ: `dryRun=true` を指定すると保存せずにプレビュー（検証結果のみ）を返す。
@@ -41,6 +43,8 @@
 ### YearlyCompany
 - GET /years/:yearId/companies
   - 説明: 指定年の YearlyCompany 一覧取得
+- GET /yearly-companies/:id
+  - 説明: YearlyCompany の単一取得（詳細画面。一覧と同じ item shape）
 - POST /years/:yearId/companies
   - 説明: YearlyCompany 作成（staff, admin）
   - ボディ例:
@@ -118,7 +122,7 @@
 
 ### Assignments（CompanyAssignment 0..1）
 - POST /yearly-companies/:id/assignments (admin)
-  - 説明: 担当メンバーを置換。`userId: null` でクリア
+  - 説明: 担当メンバーを置換。ボディは `{ "userId" }` のみ（`null` でクリア）。`role` は受け付けない
 - GET /users/me/companies
   - 説明: 自分に割り当てられた YearlyCompany を取得
 
