@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { MockModeBanner } from "@/components/mock-mode-banner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 /**
@@ -15,7 +16,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   if (pathname === "/login") {
-    return <>{children}</>
+    return (
+      <>
+        <MockModeBanner />
+        {children}
+      </>
+    )
   }
 
   return (
@@ -23,6 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SidebarProvider>
         <AppSidebar />
         <main className="flex min-h-svh flex-1 flex-col">
+          <MockModeBanner />
           <div className="flex h-12 items-center border-b px-4">
             <SidebarTrigger />
           </div>

@@ -166,6 +166,8 @@ Navigation/action visibility is driven by the roles returned in the login respon
 
 In local development, the `X-User-ID` / `X-User-Roles` dev headers (`DEV_AUTH_ENABLED=true`) bypass this flow entirely — see `spec/api.md#Authentication`.
 
+When `NEXT_PUBLIC_API_BASE_URL` is unset (in-memory mock mode, including a committee Preview with no API), there is no backend to mint a session. The login guard and role gating are skipped, and a persistent banner states that data is not saved and is not production. This configuration is not a production deployment.
+
 ---
 
 ## Dashboard
