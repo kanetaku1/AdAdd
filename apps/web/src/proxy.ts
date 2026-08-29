@@ -15,8 +15,14 @@ import { SESSION_COOKIE } from "@/lib/auth/constants"
 // would return that page's markup where callers expect JSON.
 const SKIP_GUARD_PATH_PREFIXES = ["/login", "/api/auth", "/api/proxy"]
 
+function isMockOrDevAuth(): boolean {
+  if (process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true") return true
+  // No API → in-memory mocks only. Google login cannot mint a session.
+  return !process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
+}
+
 export function proxy(req: NextRequest) {
-  if (process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true") {
+  if (isMockOrDevAuth()) {
     return NextResponse.next()
   }
 

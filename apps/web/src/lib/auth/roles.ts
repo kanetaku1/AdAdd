@@ -16,7 +16,8 @@ export function hasRole(roles: string[] | undefined, allowed: string[]): boolean
  * unassigned dev-stub user would have every gated action hidden.
  */
 export function isDevAuthBypass(): boolean {
-  return process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true"
+  if (process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true") return true
+  return !process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
 }
 
 /** `hasRole`, but respects the dev-auth bypass. The gate to actually use. */
