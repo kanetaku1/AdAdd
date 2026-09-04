@@ -132,10 +132,10 @@ Secrets are never committed to the repository.
 
 | Service        | Purpose                                   | System Responsibility            |
 |----------------|--------------------------------------------|-----------------------------------|
-| Google Drive   | Advertisement file storage                 | Store metadata and Drive reference only |
-| Google Forms   | Contract input method                      | Import submitted data into MySQL  |
+| Google Drive   | Advertisement file storage                 | Store metadata and Drive reference only (`PATCH /contract-menus/{id}/production`, `POST /contract-menus/{id}/drive-upload`) |
+| Google Forms   | Contract input method                      | None — members transcribe into AdAdd; MySQL is the source of truth. Automatic import is a Future Extension |
 | Google Groups  | Email distribution for sponsorship contacts | None — email content is not stored |
-| Slack          | Assignee notification (e.g. mention the Sponsorship Member assigned to a company when a Google Forms application is received) | Send notifications only — Slack is never read from, and message content is not stored |
+| Slack          | Assignee notification when sponsorship progress becomes Confirmed (UC-16, FR-014) | Send notifications only — Slack is never read from, and message content is not stored |
 
 The system does not send email or create advertisements — these remain manual or external processes. It does generate Invoice/Receipt PDFs on demand (FR-015), but does not send them.
 

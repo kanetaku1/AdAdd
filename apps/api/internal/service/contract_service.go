@@ -57,7 +57,13 @@ func (s *ContractService) CreateWithUser(c *model.SponsorshipContract, actorUser
 		logUser = c.AssigneeID
 	}
 
-	return db.WithTx(func(tx *gorm.DB) error {
+	previousProgress := ""
+	err := db.WithTx(func(tx *gorm.DB) error {
+		var yc model.YearlyCompany
+		if err := tx.First(&yc, "id = ?", c.YearlyCompanyID).Error; err != nil {
+			return err
+		}
+		previousProgress = yc.Progress
 		if err := tx.Create(c).Error; err != nil {
 			return err
 		}
@@ -75,6 +81,11 @@ func (s *ContractService) CreateWithUser(c *model.SponsorshipContract, actorUser
 		}
 		return tx.Create(al).Error
 	})
+	if err != nil {
+		return err
+	}
+	NotifyAssigneeOnConfirmedAsync(c.YearlyCompanyID, previousProgress, "CONFIRMED")
+	return nil
 }
 
 func (s *ContractService) Update(c *model.SponsorshipContract) error { return s.repo.Update(c) }

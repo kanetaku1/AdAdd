@@ -82,6 +82,7 @@ func updateProgress(c echo.Context) error {
 	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
+	service.NotifyAssigneeOnConfirmedAsync(id, oldVal, body.Progress)
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
 }
 

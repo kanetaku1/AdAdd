@@ -106,6 +106,44 @@ DB_NAME
 
 Values must match the `mysql` service defined in `docker-compose.yml`.
 
+Optional (UC-16 Slack mention). Both must be set or sending is a no-op:
+
+```text
+SLACK_BOT_TOKEN
+SLACK_CHANNEL_ID
+```
+
+Create the workspace app from [`apps/api/slack-app-manifest.yaml`](../apps/api/slack-app-manifest.yaml) (see Slack App below). Do not commit tokens.
+
+---
+
+# Slack App
+
+Outbound mention only (`chat.postMessage`). AdAdd does not receive Slack events. Scope is `chat:write` — invite the bot to the notify channel; do not use `chat:write.public`.
+
+## Create from manifest
+
+1. Open [https://api.slack.com/apps](https://api.slack.com/apps) (workspace admin or an allowed developer).
+2. **Create New App** → **From an app manifest**.
+3. Pick the 技大祭 / committee workspace.
+4. Paste the contents of `apps/api/slack-app-manifest.yaml`.
+5. **Create**.
+
+## Install and copy secrets
+
+1. **OAuth & Permissions** → **Install to Workspace** → allow.
+2. Copy **Bot User OAuth Token** (`xoxb-…`) into `SLACK_BOT_TOKEN`. With `docker compose`, that is the **repo-root** `.env` (Compose substitutes into the container). `apps/api/.env` is only for `go run` from `apps/api`.
+3. Create a channel for AdAdd notices (e.g. `#協賛-通知`). In Slack, open channel details and copy the **Channel ID** (`C…`) into `SLACK_CHANNEL_ID`.
+4. In that channel: `/invite @AdAdd`.
+
+Without the invite, `chat.postMessage` returns `not_in_channel`. Restart `apps/api` after changing env (the Slack client is created once at first notify).
+
+## Member Slack IDs
+
+`User.slackId` is the Slack **Member ID** (`U…`), not a display name or email. In Slack: profile → ⋯ → **Copy member ID**. Store it on the User List (`spec/frontend.md#User List`). Members with an empty `slackId` are skipped.
+
+A mention looks like: `<@U01234567> 株式会社長岡テクノ の協賛が確定しました。`
+
 ---
 
 # Health Check
