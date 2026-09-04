@@ -44,7 +44,10 @@ function isApiErrorEnvelope(json: unknown): json is ApiErrorEnvelope {
 
 export function getApiBaseUrl(): string | null {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
-  return base ? base.replace(/\/$/, "") : null
+  if (!base) return null
+  // Node fetch on Windows prefers IPv6 for "localhost". Docker Desktop's
+  // published [::]:8080 often resets that connection (ECONNRESET); IPv4 works.
+  return base.replace(/\/$/, "").replace("://localhost", "://127.0.0.1")
 }
 
 export function isApiEnabled(): boolean {

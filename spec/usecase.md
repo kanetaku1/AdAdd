@@ -396,25 +396,35 @@ System (triggered automatically)
 
 ## Goal
 
-Alert the Sponsorship Member assigned to a company as soon as a sponsorship application arrives, so they can respond quickly.
+Alert the Sponsorship Member assigned to a Yearly Company when sponsorship is confirmed, so they can proceed (invoice, menus) without matching Google Forms company names to AdAdd.
 
 ## Trigger
 
-* Google Forms application imported (see UC-06, FR-012)
+* `YearlyCompany.progress` transitions to Confirmed (`CONFIRMED` / 協賛確定) from any other value
+
+This happens when:
+
+* A Sponsorship Member sets progress to 協賛確定 (`PATCH /yearly-companies/{id}/progress`)
+* A Sponsorship Contract is created (side effect: progress becomes Confirmed) — the usual path after reading a Google Forms response or an email/face-to-face agreement (UC-06)
+
+Google Forms is not imported automatically. A human identifies the Yearly Company in AdAdd first, so Slack never depends on matching a Forms company name to `Company.companyName`.
 
 ## Flow
 
-1. Google Forms submission is imported and a Sponsorship Contract is created or updated for a Yearly Company.
-2. The system looks up the Sponsorship Member assigned to that Yearly Company (`CompanyAssignment`).
-3. If a member is assigned and has a linked Slack ID, the system sends a Slack mention referencing the company and application.
+1. Progress becomes Confirmed.
+2. If previous progress was already Confirmed, stop (no duplicate mention).
+3. Look up the Sponsorship Member assigned to that Yearly Company (`CompanyAssignment`).
+4. If a member is assigned and has a linked Slack ID, send a Slack mention with the company name.
 
 ## Result
 
-The assigned member is notified without needing to check AdAdd manually.
+The assigned member is mentioned in the configured Slack channel.
 
 ## Notes
 
 Slack is a notification target only. It is not read from, and message content is not stored in AdAdd (see `spec/business.md` → External Systems → Slack).
+
+A Slack failure must not fail the progress update or contract create. If Slack is not configured (`SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` unset), the write still succeeds and no mention is sent.
 
 ---
 

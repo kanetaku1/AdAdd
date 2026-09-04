@@ -1,0 +1,23 @@
+_metadata:
+  major_version: 2
+  minor_version: 1
+
+display_information:
+  name: AdAdd
+  description: 技大祭協賛管理。協賛確定時に担当メンバーをメンションする。
+  background_color: "#1D4ED8"
+
+features:
+  bot_user:
+    display_name: AdAdd
+    always_online: false
+
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

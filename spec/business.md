@@ -443,7 +443,7 @@ Users can search historical emails using company names.
 
 ## Slack
 
-Used to notify the Sponsorship Member assigned to a company when relevant business events occur (e.g. a sponsorship application is received via Google Forms).
+Used to notify the Sponsorship Member assigned to a company when sponsorship progress becomes Confirmed (協賛確定) — see UC-16 / FR-014. Google Forms is not imported; a human identifies the company in AdAdd first.
 
 Each User may have a linked Slack ID.
 

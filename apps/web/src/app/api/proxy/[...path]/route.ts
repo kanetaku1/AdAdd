@@ -44,13 +44,32 @@ async function handler(
   }
 
   const hasBody = !["GET", "HEAD"].includes(req.method)
-  const upstream = await fetch(target, {
-    method: req.method,
-    headers,
-    body: hasBody ? ((req.method === "POST" || req.method === "PUT" || req.method === "PATCH") ? await req.arrayBuffer() : undefined) : undefined,
-    // @ts-expect-error (Next.js internal fetch typing missing duplex in some versions)
-    duplex: 'half'
-  })
+  let upstream: Response
+  try {
+    upstream = await fetch(target, {
+      method: req.method,
+      headers,
+      body: hasBody
+        ? req.method === "POST" || req.method === "PUT" || req.method === "PATCH"
+          ? await req.arrayBuffer()
+          : undefined
+        : undefined,
+      // @ts-expect-error (Next.js internal fetch typing missing duplex in some versions)
+      duplex: "half",
+    })
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "unknown error"
+    return NextResponse.json(
+      {
+        error: {
+          code: "BAD_GATEWAY",
+          message: `Go API (${base}) に接続できません。docker compose の api が起動しているか、NEXT_PUBLIC_API_BASE_URL を確認してください。`,
+          detail,
+        },
+      },
+      { status: 502 }
+    )
+  }
 
   const responseBody = await upstream.text()
   return new NextResponse(responseBody, {
