@@ -445,11 +445,20 @@ function ContractMenusList() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {cm.driveUrl ? (
-                          <a href={cm.driveUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
-                            {cm.driveFileName || "確認"}
-                          </a>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {cm.files && cm.files.length > 0 ? (
+                          cm.files.map((file, idx) => (
+                            <Badge key={idx} variant="outline" className="flex items-center gap-1 whitespace-nowrap bg-green-50 text-green-700 border-green-200" title={file.driveFileName}>
+                              <a
+                                href={file.driveUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                              >
+                                素材{idx + 1}
+                              </a>
+                            </Badge>
+                          ))
                         ) : (
                           <span className="text-muted-foreground text-sm">-</span>
                         )}

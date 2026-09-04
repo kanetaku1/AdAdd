@@ -198,7 +198,6 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 | productionType    | enum     |
 | status            | enum     |
 | driveFolderId     | string   |
-| driveUrl          | string   |
 | submittedAt       | datetime |
 | remarks           | text     |
 
@@ -207,6 +206,25 @@ ContractMenu does not have its own assignee. The assignee belongs to the parent 
 `unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus. `quantity`, `unitPrice`, `isGoodsSponsorship`, and `productionType` remain editable after creation (not just at creation), each recalculating `totalAmount` per the rule above — see `spec/api.md#Update Contract Menu`.
 
 `isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
+
+---
+
+## ContractMenuFile
+
+Represents a single production or submission file uploaded for a Contract Menu. Google Drive is the source of truth for the file itself; AdAdd stores references.
+
+### Attributes
+
+| Name           | Type     |
+| -------------- | -------- |
+| id             | UUID     |
+| contractMenuId | UUID     |
+| driveUrl       | string   |
+| driveFileName  | string   |
+| createdAt      | datetime |
+| updatedAt      | datetime |
+
+A Contract Menu can have zero or more associated `ContractMenuFile` records, allowing for multiple file uploads. Uploading a file updates the parent `ContractMenu.status` to `Submitted`.
 
 ---
 
@@ -471,6 +489,8 @@ SponsorshipContract
 SponsorshipContract
       │
       ├── ContractMenu (1 ----- *)
+      │      │
+      │      └── ContractMenuFile (0 ----- *)
       │
       └── Payment (1 ----- *)
 ```
@@ -576,6 +596,13 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 * Every Contract Menu belongs to one Sponsorship Contract.
 * Every Contract Menu references exactly one Sponsorship Menu.
 * `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company.
+
+---
+
+## ContractMenuFile
+
+* Every Contract Menu File references exactly one Contract Menu.
+* File uploads are append-only.
 
 ---
 

@@ -39,8 +39,11 @@ export type ContractMenu = {
   productionType: ContractMenuProductionType | null
   status: ContractMenuStatus
   driveFolderId: string | null
-  driveUrl: string | null
-  driveFileName: string | null
+  files: {
+    id: string
+    driveUrl: string
+    driveFileName: string
+  }[]
   remarks: string
 }
 

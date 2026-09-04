@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
@@ -28,6 +29,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 	rStaff.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
 	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
+	rStaff.DELETE("/contract-menus/:id/files/:fileId", deleteContractMenuFile)
 
 	// Deletion is Administrator-only system-wide (spec/api.md#Authorization
 	// Matrix) — Sponsorship Member's "manage menus" access stops at update.
@@ -176,7 +178,7 @@ func uploadContractMenuProduction(c echo.Context) error {
 		return respondNotFound(c, "contract menu not found")
 	}
 	if body.DriveFolderUrl != nil {
-		cm.DriveURL = *body.DriveFolderUrl
+		cm.DriveFolderID = *body.DriveFolderUrl
 	}
 	if body.Remarks != nil {
 		cm.Remarks = *body.Remarks
@@ -269,8 +271,6 @@ func driveUploadContractMenu(c echo.Context) error {
 
 	// Update the database
 	cm.DriveFolderID = folderId
-	cm.DriveURL = uploadedFile.WebViewLink
-	cm.DriveFileName = uploadedFile.Name
 	cm.Status = "SUBMITTED"
 
 	userId := ""
@@ -283,6 +283,20 @@ func driveUploadContractMenu(c echo.Context) error {
 			return respondConflict(c, err.Error())
 		}
 		return respondInternalServerError(c, err)
+	}
+
+	newFile := model.ContractMenuFile{
+		ContractMenuID: cm.ID,
+		DriveURL:       uploadedFile.WebViewLink,
+		DriveFileName:  uploadedFile.Name,
+	}
+	if err := menuSvc.AddFile(&newFile); err != nil {
+		return respondInternalServerError(c, err)
+	}
+
+	cmReloaded, _ := menuSvc.GetByID(id)
+	if cmReloaded != nil {
+		cm = cmReloaded
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -323,4 +337,44 @@ func updateContractMenuDetails(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": updated, "message": "updated"})
+}
+
+func extractDriveFileID(driveUrl string) string {
+	if strings.Contains(driveUrl, "id=") {
+		parts := strings.Split(driveUrl, "id=")
+		if len(parts) > 1 {
+			return strings.Split(parts[1], "&")[0]
+		}
+	}
+	if strings.Contains(driveUrl, "/d/") {
+		parts := strings.Split(driveUrl, "/d/")
+		if len(parts) > 1 {
+			return strings.Split(parts[1], "/")[0]
+		}
+	}
+	return ""
+}
+
+func deleteContractMenuFile(c echo.Context) error {
+	id := c.Param("id")
+	fileId := c.Param("fileId")
+	accessToken := c.QueryParam("accessToken")
+
+	svc := service.NewContractMenuService()
+
+	if accessToken != "" {
+		cmFile, err := svc.GetFileByID(id, fileId)
+		if err == nil && cmFile.DriveURL != "" {
+			driveFileID := extractDriveFileID(cmFile.DriveURL)
+			if driveFileID != "" {
+				driveSvc := service.NewDriveService()
+				_ = driveSvc.DeleteFile(c.Request().Context(), accessToken, driveFileID)
+			}
+		}
+	}
+
+	if err := svc.DeleteFile(id, fileId); err != nil {
+		return respondInternalServerError(c, err)
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"message": "file deleted"})
 }

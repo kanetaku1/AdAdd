@@ -478,10 +478,12 @@ Display:
 | Quantity        |
 | Production type |
 | Status          |
-| Drive URL       |
+| Files (Drive URLs)|
 
 Scoped to the active Year (`GET /years/{yearId}/contract-menus`, see
 spec/api.md#List Contract Menus Across a Year).
+
+Files are displayed compactly as checkmarks (`✓`) corresponding to the number of uploaded files. The file name is shown in a tooltip on hover. Clicking a checkmark opens the respective Drive URL. Additional files can be uploaded without limit.
 
 Filters:
 
@@ -501,10 +503,8 @@ type are editable inline via `PATCH /contract-menus/{id}`
 (`spec/api.md#Update Contract Menu`) — the same cell-level pattern as
 status (Principle 4). Production type is only editable when the referenced
 Sponsorship Menu has `requiresSubmission = true` (otherwise it stays
-null/`-`). Registering a Drive URL always finalizes the item:
-`PATCH /contract-menus/{id}/production` sets `status` to `SUBMITTED` as
-part of the same call (spec/api.md#Upload Production Information), so
-saving a Drive URL here updates both fields together.
+null/`-`). Registering a Drive file always finalizes the item:
+adding a file sets `status` to `SUBMITTED` automatically (spec/api.md#Add Production File). Multiple files can be added sequentially to the same Contract Menu.
 
 ---
 
