@@ -91,6 +91,14 @@ Business logic must never live in the Frontend.
 * Contains no business logic (see `spec/development.md` Frontend Development Rules).
 * Renders Invoice/Receipt PDFs from existing Contract/Payment/Company data for on-demand download (FR-015). This is presentation, not business logic — no new business rules are computed, only existing fields formatted into a document.
 
+## Session-scoped reference lists
+
+The frontend does not use a data-fetching library (React Query, SWR). Lists that several screens read — Users (`GET /users`), and per-Year Advisor Assignments, Sponsorship Menus, and across-year Contract Menus — live in React Context for the tab session (`UsersProvider`, `YearCatalogProvider`), same pattern as the active Year (`ActiveYearProvider`). Each list is fetched lazily on first use, not on app mount.
+
+`GET /users` is Administrator-only. A 403 is treated as an empty list so non-admin screens still load. Mutations write through the shared state; Contract create/edit on Yearly Company Detail invalidates the across-year Contract Menu cache because that list's DTO is not the same shape as the contract-scoped rows.
+
+Per-company records (the Yearly Company itself, its Company, Contract, contract-scoped Contract Menus, Payment, and Activity Log) stay on the screen that owns them and are refetched when that company's contract data changes.
+
 ---
 
 # Database
@@ -124,10 +132,10 @@ Secrets are never committed to the repository.
 
 | Service        | Purpose                                   | System Responsibility            |
 |----------------|--------------------------------------------|-----------------------------------|
-| Google Drive   | Advertisement file storage                 | Store metadata and Drive reference only |
-| Google Forms   | Contract input method                      | Import submitted data into MySQL  |
+| Google Drive   | Advertisement file storage                 | Store metadata and Drive reference only (`PATCH /contract-menus/{id}/production`, `POST /contract-menus/{id}/drive-upload`) |
+| Google Forms   | Contract input method                      | None — members transcribe into AdAdd; MySQL is the source of truth. Automatic import is a Future Extension |
 | Google Groups  | Email distribution for sponsorship contacts | None — email content is not stored |
-| Slack          | Assignee notification (e.g. mention the Sponsorship Member assigned to a company when a Google Forms application is received) | Send notifications only — Slack is never read from, and message content is not stored |
+| Slack          | Assignee notification when sponsorship progress becomes Confirmed (UC-16, FR-014) | Send notifications only — Slack is never read from, and message content is not stored |
 
 The system does not send email or create advertisements — these remain manual or external processes. It does generate Invoice/Receipt PDFs on demand (FR-015), but does not send them.
 

@@ -328,7 +328,7 @@ Represents a system user.
 | slackId   | string  |
 | isActive  | boolean |
 
-`slackId` is optional (a User may not have linked their Slack account). It is used to send notifications — see `spec/architecture.md` → External Services → Slack.
+`slackId` is optional (a User may not have linked their Slack account). It is used to mention that User when a Yearly Company's progress becomes Confirmed — see `spec/usecase.md` UC-16.
 
 ---
 

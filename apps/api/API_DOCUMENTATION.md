@@ -63,12 +63,15 @@
 - PATCH /yearly-companies/:id/company-contact
   - 説明: 当該年度の連絡先スナップショットと企業マスタを更新（他年度の YearlyCompany は変更しない）
   - ボディ: { "postalCode", "address", "phoneNumber", "website", "contactPersonName", "contactEmailOrForm", "memo" }
+- PATCH /yearly-companies/:id/progress
+  - 説明: 協賛進捗の更新（staff, admin）。`CONFIRMED` への遷移時、担当メンバーを Slack メンション（UC-16）。Slack 未設定・失敗でも更新は成功する
+  - ボディ: { "progress": "CONFIRMED" }
 
 ### Contracts
 - GET /yearly-companies/:id/contract
   - 説明: YearlyCompany に紐づく契約取得
 - POST /yearly-companies/:id/contract
-  - 説明: 契約作成（staff, admin）。作成時に YearlyCompany.progress を CONFIRMED に更新
+  - 説明: 契約作成（staff, admin）。作成時に YearlyCompany.progress を CONFIRMED に更新。以前が CONFIRMED でなければ担当メンバーを Slack メンション（UC-16）
   - assigneeId はリクエスト不可（CompanyAssignment からサーバ設定）
   - バリデーション: totalAmount は非負
   - ボディ例:
@@ -158,7 +161,7 @@
 
 ## 注意点／今後の作業
 - 現在の認証は開発用のヘッダベース実装です。本番では JWT などに置き換える必要があります。
-- Google Drive 等の外部連携は別タスクで実装します。
+- Google Drive 提出は `PATCH /contract-menus/:id/production` と `POST /contract-menus/:id/drive-upload`。Forms 自動取込はない（手入力）。Slack は進捗が CONFIRMED になったときの副作用（UC-16）。
 - CI に MySQL コンテナを立ててマイグレーション→テスト→スモークを自動化することを推奨します。
 
 ---

@@ -731,12 +731,12 @@ Request:
 
 `assigneeId` is never part of the request body. It is set server-side from the Sponsorship Member currently assigned to the Yearly Company (`CompanyAssignment`, see Company Assignment API above) — a contract never introduces a new assignment of its own (`spec/model.md#SponsorshipContract`).
 
-Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`).
+Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`). If previous progress was not already `CONFIRMED`, also sends a Slack mention to the assigned Sponsorship Member (UC-16, FR-014). Slack failure does not fail this request.
 
-Trigger:
+Trigger (why the member creates the contract — not an automated import):
 
-* Google Forms submission
-* Manual registration by sponsorship member
+* Google Forms submission (read by the member, transcribed by hand — UC-06)
+* Manual registration by sponsorship member (email / face-to-face agreement)
 
 ---
 
@@ -1103,6 +1103,8 @@ Example:
 }
 ```
 
+Side effect: when `progress` changes to `CONFIRMED` from any other value, send a Slack mention to the assigned Sponsorship Member (UC-16, FR-014). A no-op if Slack is not configured, if nobody is assigned, or if they have no `slackId`. Slack failure does not fail this request.
+
 ---
 
 # Activity Log API（活動記録）
@@ -1153,52 +1155,13 @@ Persistence columns remain `action` / `description` / `user_id` (`spec/model.md#
 
 # Integration API
 
-## Google Forms Import
+The following bulk Google Workspace gateways are **not implemented**. They are Future Extensions (see below). Day-to-day Google usage goes through other paths.
 
-Imports sponsorship applications.
+* Google Forms — members transcribe responses into AdAdd (UC-06). There is no `POST /integrations/google/forms/import`.
+* Google Sheets — Company and User bulk load is CSV Preview → Confirm (`spec/frontend.md#CSV Import / Export`), not a live Sheets connection. There is no `POST /integrations/google/sheets/import`.
+* Google Drive — Contract Menu submission uses `PATCH /contract-menus/{id}/production` (URL) and `POST /contract-menus/{id}/drive-upload` (file). There is no `POST /integrations/google/drive/link`.
 
-```
-POST /integrations/google/forms/import
-```
-
-Process:
-
-```
-Google Forms
-      ↓
-API
-      ↓
-SponsorshipContract
-      ↓
-ContractMenu
-      ↓
-Slack notification to assigned Sponsorship Member(s) (see FR-014, UC-16)
-```
-
----
-
-## Google Sheets Import
-
-Imports existing company data.
-
-```
-POST /integrations/google/sheets/import
-```
-
-Purpose:
-
-* Initial migration
-* Existing company database import
-
----
-
-## Google Drive Link Registration
-
-Registers Drive information.
-
-```
-POST /integrations/google/drive/link
-```
+Slack mentions (UC-16) are not an Integration REST resource. They are a side effect of progress becoming Confirmed — see Update Sponsorship Progress and Create Sponsorship Contract above.
 
 ---
 
@@ -1278,9 +1241,10 @@ All domain changes must update:
 
 Potential future APIs:
 
+* Google Forms application import (`POST /integrations/google/forms/import`) — blocked on company-name matching between Forms and Company master
+* Google Sheets live import (`POST /integrations/google/sheets/import`) — CSV bulk import already covers initial load
 * Gmail communication history integration
 * Automatic bank transfer confirmation
 * Dashboard analytics
-* CSV export
 
 Invoice/Receipt PDF generation (FR-015, UC-17, UC-10) needs no new API endpoint — it is generated client-side from data already returned by the existing Sponsorship Contract / Contract Menu / Payment / Company GET endpoints above.

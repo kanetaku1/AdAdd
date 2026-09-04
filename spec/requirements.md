@@ -289,7 +289,7 @@ The system shall:
 * Open Drive folders
 * Display uploaded file status
 
-The system shall not manage file contents.
+The system shall not manage file contents. Drive files are referenced via `PATCH /contract-menus/{id}/production` and `POST /contract-menus/{id}/drive-upload` — there is no separate Integration Drive-link API.
 
 ### Related Use Cases
 
@@ -306,17 +306,18 @@ Medium
 
 ### Purpose
 
-Import sponsorship applications.
+Treat Google Forms as a contract input method, not a source of truth.
 
 ### Description
 
 The system shall:
 
-* Accept data imported from Google Forms
-* Create or update Sponsorship Contracts
-* Preserve imported information
+* Allow a Sponsorship Member to record a Sponsorship Contract after reading a Google Forms response (manual transcription, UC-06)
+* Not import Google Forms automatically — Forms company names often do not match Company master names, so a human identifies the Yearly Company in AdAdd
 
-Google Forms is not the source of truth.
+Automatic Forms import (`POST /integrations/google/forms/import`) is a Future Extension (`spec/api.md#Future Extensions`).
+
+Google Forms is not the source of truth. MySQL is.
 
 ### Related Use Cases
 
@@ -359,14 +360,18 @@ High
 
 ### Purpose
 
-Notify the Sponsorship Member assigned to a company when a sponsorship application is received, so they can respond promptly.
+Notify the Sponsorship Member assigned to a company when sponsorship is confirmed, so they can proceed without relying on Google Forms name matching.
 
 ### Description
 
 The system shall:
 
-* Allow a User to link their Slack ID
-* When a Sponsorship Contract is created or updated via Google Forms import, look up the Sponsorship Member assigned to the corresponding Yearly Company (via `CompanyAssignment`) and send them a Slack mention
+* Allow a User to link their Slack ID (User List / CSV — already implemented)
+* When `YearlyCompany.progress` transitions to Confirmed (`CONFIRMED`), look up the Sponsorship Member assigned to that Yearly Company (`CompanyAssignment`) and send them a Slack mention with the company name
+
+Confirmed is reached by setting progress to 協賛確定, or as a side effect of creating a Sponsorship Contract (UC-06). A transition from Confirmed to Confirmed must not send another mention.
+
+There is no Slack REST resource in AdAdd — sending is a side effect of those writes (`spec/api.md#Update Sponsorship Progress`, `#Create Sponsorship Contract`). Slack failure must not fail the write.
 
 Slack is a notification target only. AdAdd does not read from Slack, and does not store Slack message contents.
 

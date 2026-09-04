@@ -22,6 +22,8 @@ type Config struct {
 	DevAuthEnabled bool
 	GoogleClientID string
 	JWTSecret      string
+	SlackBotToken  string
+	SlackChannelID string
 }
 
 func Load() *Config {
@@ -69,6 +71,8 @@ func Load() *Config {
 		DevAuthEnabled: devAuthEnabled,
 		GoogleClientID: getEnv("GOOGLE_CLIENT_ID", ""),
 		JWTSecret:      getEnv("JWT_SECRET", ""),
+		SlackBotToken:  getEnv("SLACK_BOT_TOKEN", ""),
+		SlackChannelID: getEnv("SLACK_CHANNEL_ID", ""),
 	}
 }
 

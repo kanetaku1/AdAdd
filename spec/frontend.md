@@ -594,32 +594,6 @@ Actions:
 
 # External Data Integration
 
-## Google Forms Import Screen
-
-Purpose:
-
-Import sponsorship applications.
-
-Flow:
-
-```text
-Google Forms
-
-↓
-
-Import Preview
-
-↓
-
-Confirm
-
-↓
-
-Create Contract
-```
-
----
-
 ## CSV Import / Export
 
 Purpose:
@@ -629,7 +603,7 @@ turnover; Company master load). Import is create-only — duplicates are
 rejected per row, never updated. Existing one-by-one create/edit stays
 for mid-cycle additions.
 
-Flow (same Preview → Confirm pattern as Google Forms Import Screen above):
+Flow (Preview → Confirm; valid rows only are created):
 
 ```text
 Select CSV
@@ -885,7 +859,7 @@ AdAdd replaces a spreadsheet-based workflow. If editing business data in AdAdd i
 
 * Prefer inline, cell-level editing over full-page forms with a separate save step, for list/table screens (e.g. Yearly Company list).
 * New rows may be created mostly blank and filled in over time. Only validate the field(s) that would otherwise break data integrity (e.g. Company name uniqueness) — do not require an entire row to be complete before it can be saved.
-* Bulk initial data entry should go through Google Sheets Import (see `spec/api.md` → Google Sheets Import), not one-by-one UI entry.
+* Bulk initial data entry should go through CSV Import (see CSV Import / Export above), not one-by-one UI entry.
 * Keep permission restrictions limited to what business rules actually require (see `spec/business.md` Organization, `spec/api.md` Authorization Matrix). Do not add new restrictions beyond documented business rules for the sake of caution.
 * Where a user can view a field but not edit it, show it (e.g. read-only/greyed out) rather than hiding it.
 * Rely on 活動記録 (append-only Activity Log, see `spec/domain.md` Rule 8) as the safety net for mistakes, instead of confirmation dialogs or overly cautious permission gates that slow down everyday editing.
@@ -909,6 +883,7 @@ When a submission is rejected (e.g. Create Contract validation), highlight the s
 Potential improvements:
 
 * Mobile-friendly sponsorship member interface
-* Notification system — incl. a Slack alert when a capped Sponsorship Menu (`maxQuantity`) nears capacity, see Ad Material Progress above
+* Automatic Google Forms application import (blocked on company-name matching; members transcribe today — UC-06)
+* A Slack alert when a capped Sponsorship Menu (`maxQuantity`) nears capacity, see Ad Material Progress above
 * Analytics dashboard
 * Calendar integration

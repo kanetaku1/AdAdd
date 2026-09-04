@@ -5,6 +5,7 @@ import Link from "next/link"
 
 import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { useYearCatalog } from "@/components/year-catalog-provider"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -16,9 +17,7 @@ import {
 } from "@/components/ui/table"
 import { EmptyBlock, ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { getMyScopeMemberIds } from "@/lib/assignment-scope"
-import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
 import {
-  listContractMenusAcrossYear,
   listPaymentsByYear,
   listYearlyCompaniesByYear,
 } from "@/lib/data/sponsorship"
@@ -28,7 +27,6 @@ import {
   SPONSORSHIP_PROGRESS_BADGE_VARIANT,
   SPONSORSHIP_PROGRESS_LABEL,
 } from "@/lib/yearly-company-labels"
-import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { ContractMenuAcrossYear } from "@/types/contract-menu"
 import type { PaymentAcrossYear } from "@/types/payment"
 import type { SponsorshipProgress, YearlyCompany } from "@/types/yearly-company"
@@ -98,26 +96,37 @@ export default function DashboardPage() {
   const activeYearId = activeYear?.id ?? null
   const { currentUser } = useCurrentUser()
   const currentUserId = currentUser?.id ?? null
+  const {
+    advisorAssignments: advisorAssignmentsForYear,
+    contractMenusAcrossYear,
+    isAdvisorAssignmentsLoading,
+    isContractMenusAcrossYearLoading,
+    advisorAssignmentsError,
+    contractMenusAcrossYearError,
+    ensureAdvisorAssignments,
+    ensureContractMenusAcrossYear,
+  } = useYearCatalog()
 
   const [yearlyCompanies, setYearlyCompanies] = useState<YearlyCompany[]>([])
-  const [contractMenus, setContractMenus] = useState<ContractMenuAcrossYear[]>(
-    []
-  )
   const [payments, setPayments] = useState<PaymentAcrossYear[]>([])
-  const [advisorAssignments, setAdvisorAssignments] = useState<
-    AdvisorAssignment[]
-  >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
+  const contractMenus = contractMenusAcrossYear(activeYearId)
+  const catalogLoading =
+    Boolean(activeYearId && isAdvisorAssignmentsLoading(activeYearId)) ||
+    Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId))
+  const catalogError = activeYearId
+    ? advisorAssignmentsError(activeYearId) ||
+      contractMenusAcrossYearError(activeYearId)
+    : null
 
   useEffect(() => {
     let cancelled = false
     async function load(yearId: string | null) {
       if (!yearId) {
         setYearlyCompanies([])
-        setContractMenus([])
         setPayments([])
-        setAdvisorAssignments([])
         setLoading(false)
         setError(null)
         return
@@ -125,18 +134,15 @@ export default function DashboardPage() {
       setLoading(true)
       setError(null)
       try {
-        const [ycList, contractMenuList, paymentList, advisorAssignmentList] =
-          await Promise.all([
-            listYearlyCompaniesByYear(yearId),
-            listContractMenusAcrossYear(yearId),
-            listPaymentsByYear(yearId),
-            listAdvisorAssignmentsByYear(yearId),
-          ])
+        const [ycList, paymentList] = await Promise.all([
+          listYearlyCompaniesByYear(yearId),
+          listPaymentsByYear(yearId),
+          ensureContractMenusAcrossYear(yearId),
+          ensureAdvisorAssignments(yearId),
+        ])
         if (cancelled) return
         setYearlyCompanies(ycList)
-        setContractMenus(contractMenuList)
         setPayments(paymentList)
-        setAdvisorAssignments(advisorAssignmentList)
       } catch (e) {
         if (!cancelled) {
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
@@ -149,7 +155,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true
     }
-  }, [activeYearId])
+  }, [activeYearId, ensureAdvisorAssignments, ensureContractMenusAcrossYear])
 
   const totalCompanies = yearlyCompanies.length
   const totalContractAmount = yearlyCompanies.reduce(
@@ -197,9 +203,9 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <ErrorBanner message={yearError || error} />
+      <ErrorBanner message={yearError || error || catalogError} />
 
-      {yearLoading || loading ? (
+      {yearLoading || loading || catalogLoading ? (
         <LoadingBlock />
       ) : !activeYearId ? (
         <EmptyBlock message="年度が未作成です。年度画面から作成してください。" />

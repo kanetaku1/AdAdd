@@ -24,6 +24,8 @@ services:
       # # Google OAuth client ID, used to verify id_tokens on POST /auth/google.
       # # Sourced from a root .env file (gitignored) — see .env.example.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required, see .env.example}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID:-}
     ports:
       - "8080:8080"
 

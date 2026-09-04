@@ -5,6 +5,7 @@ import Link from "next/link"
 
 import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { useYearCatalog } from "@/components/year-catalog-provider"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -17,20 +18,11 @@ import {
 } from "@/components/ui/table"
 import { EmptyBlock, EmptyRow, ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { useMyAssignmentScope } from "@/hooks/use-my-assignment-scope"
-import { listAdvisorAssignmentsByYear } from "@/lib/data/advisor-assignments"
-import {
-  listContractMenusAcrossYear,
-  listYearlyCompaniesByYear,
-} from "@/lib/data/sponsorship"
-import { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
+import { listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { CONTRACT_MENU_STATUS_LABEL } from "@/lib/contract-menu-labels"
-import type { AdvisorAssignment } from "@/types/advisor-assignment"
 import type { YearlyCompany } from "@/types/yearly-company"
-import type {
-  ContractMenuAcrossYear,
-  ContractMenuStatus,
-} from "@/types/contract-menu"
+import type { ContractMenuStatus } from "@/types/contract-menu"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 /**
@@ -138,16 +130,30 @@ export default function AdMaterialProgressPage() {
   const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
   const activeYearId = activeYear?.id ?? null
 
-  const [menus, setMenus] = useState<SponsorshipMenu[]>([])
-  const [contractMenus, setContractMenus] = useState<ContractMenuAcrossYear[]>(
-    []
-  )
   const [yearlyCompanies, setYearlyCompanies] = useState<YearlyCompany[]>([])
-  const [advisorAssignments, setAdvisorAssignments] = useState<
-    AdvisorAssignment[]
-  >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const {
+    sponsorshipMenus,
+    contractMenusAcrossYear,
+    advisorAssignments: advisorAssignmentsForYear,
+    isSponsorshipMenusLoading,
+    isContractMenusAcrossYearLoading,
+    isAdvisorAssignmentsLoading,
+    sponsorshipMenusError,
+    contractMenusAcrossYearError,
+    advisorAssignmentsError,
+    ensureSponsorshipMenus,
+    ensureContractMenusAcrossYear,
+    ensureAdvisorAssignments,
+  } = useYearCatalog()
+  const menus = sponsorshipMenus(activeYearId)
+  const contractMenus = contractMenusAcrossYear(activeYearId)
+  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
+  const catalogLoading =
+    Boolean(activeYearId && isSponsorshipMenusLoading(activeYearId)) ||
+    Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId)) ||
+    Boolean(activeYearId && isAdvisorAssignmentsLoading(activeYearId))
 
   const { currentUser } = useCurrentUser()
   const currentUserId = currentUser?.id ?? null
@@ -156,10 +162,7 @@ export default function AdMaterialProgressPage() {
     let cancelled = false
     async function load(yearId: string | null) {
       if (!yearId) {
-        setMenus([])
-        setContractMenus([])
         setYearlyCompanies([])
-        setAdvisorAssignments([])
         setLoading(false)
         setError(null)
         return
@@ -167,18 +170,14 @@ export default function AdMaterialProgressPage() {
       setLoading(true)
       setError(null)
       try {
-        const [menuList, contractMenuList, ycList, advisorAssignmentList] =
-          await Promise.all([
-            listSponsorshipMenus(yearId),
-            listContractMenusAcrossYear(yearId),
-            listYearlyCompaniesByYear(yearId),
-            listAdvisorAssignmentsByYear(yearId),
-          ])
+        const [ycList] = await Promise.all([
+          listYearlyCompaniesByYear(yearId),
+          ensureSponsorshipMenus(yearId),
+          ensureContractMenusAcrossYear(yearId),
+          ensureAdvisorAssignments(yearId),
+        ])
         if (cancelled) return
-        setMenus(menuList)
-        setContractMenus(contractMenuList)
         setYearlyCompanies(ycList)
-        setAdvisorAssignments(advisorAssignmentList)
       } catch (e) {
         if (!cancelled) {
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
@@ -191,7 +190,7 @@ export default function AdMaterialProgressPage() {
     return () => {
       cancelled = true
     }
-  }, [activeYearId])
+  }, [activeYearId, ensureSponsorshipMenus, ensureContractMenusAcrossYear, ensureAdvisorAssignments])
 
   const statusSummary = STATUS_ORDER.map((status) => ({
     status,
@@ -293,9 +292,19 @@ export default function AdMaterialProgressPage() {
         </p>
       </div>
 
-      <ErrorBanner message={yearError || error} />
+      <ErrorBanner
+        message={
+          yearError ||
+          error ||
+          (activeYearId
+            ? sponsorshipMenusError(activeYearId) ||
+              contractMenusAcrossYearError(activeYearId) ||
+              advisorAssignmentsError(activeYearId)
+            : null)
+        }
+      />
 
-      {yearLoading || loading ? (
+      {yearLoading || loading || catalogLoading ? (
         <LoadingBlock />
       ) : !activeYearId ? (
         <EmptyBlock message="年度が未作成です。年度画面から作成してください。" />

@@ -120,5 +120,5 @@
 ## 7. 追加で知っておくと良いこと
 
 - 現在の認証は開発用のヘッダベース実装です。本番では JWT/OAuth などに置き換える必要があります
-- Google Drive/Forms 連携は未実装で、`ContractMenu` の `DriveUrl` などはただのメタデータです
+- Google Drive 提出は Contract Menu の production / drive-upload。Forms 自動取込はない。Slack は進捗 CONFIRMED 時の担当メンション（UC-16）
 - エラー形式はエンドポイントによって若干異なるので、フロントでは `error` フィールドをログに出すか、`API_DOCUMENTATION.md` を参考にしてください

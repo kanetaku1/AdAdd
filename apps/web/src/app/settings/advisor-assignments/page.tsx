@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 
 import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { useUsers } from "@/components/users-provider"
+import { useYearCatalog } from "@/components/year-catalog-provider"
 import { MemberAdvisorsCell } from "@/components/member-advisors-cell"
 import {
   Table,
@@ -16,14 +18,10 @@ import {
 import { EmptyBlock, EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   addAdvisorAssignment,
-  listAdvisorAssignmentsByYear,
   removeAdvisorAssignment,
 } from "@/lib/data/advisor-assignments"
-import { listUsers } from "@/lib/data/users"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
-import type { AdvisorAssignment } from "@/types/advisor-assignment"
-import type { User } from "@/types/user"
 
 const ALLOWED_ROLES = ["ADMINISTRATOR"]
 
@@ -46,46 +44,30 @@ export default function AdvisorAssignmentsPage() {
   const activeYearId = activeYear?.id ?? null
   const { currentUser } = useCurrentUser()
   const canManageAssignments = canAccess(currentUser?.roles, ALLOWED_ROLES)
-
-  const [users, setUsers] = useState<User[]>([])
-  const [assignments, setAssignments] = useState<AdvisorAssignment[]>([])
-  const [loading, setLoading] = useState(true)
+  const { users, loading: usersLoading, ensureUsers } = useUsers()
+  const {
+    advisorAssignments,
+    isAdvisorAssignmentsLoading,
+    advisorAssignmentsError,
+    ensureAdvisorAssignments,
+    setAdvisorAssignments,
+  } = useYearCatalog()
   const [error, setError] = useState<string | null>(null)
   const [busyMemberId, setBusyMemberId] = useState<string | null>(null)
+  const assignments = advisorAssignments(activeYearId)
+  const catalogLoading = Boolean(
+    activeYearId && isAdvisorAssignmentsLoading(activeYearId)
+  )
+  const loading = usersLoading || catalogLoading
 
   useEffect(() => {
-    let cancelled = false
-    async function load(yearId: string | null) {
-      if (!yearId) {
-        setUsers([])
-        setAssignments([])
-        setLoading(false)
-        setError(null)
-        return
-      }
-      setLoading(true)
-      setError(null)
-      try {
-        const [userList, assignmentList] = await Promise.all([
-          listUsers(),
-          listAdvisorAssignmentsByYear(yearId),
-        ])
-        if (cancelled) return
-        setUsers(userList)
-        setAssignments(assignmentList)
-      } catch (e) {
-        if (!cancelled) {
-          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    void load(activeYearId)
-    return () => {
-      cancelled = true
-    }
-  }, [activeYearId])
+    void ensureUsers()
+  }, [ensureUsers])
+
+  useEffect(() => {
+    if (!activeYearId) return
+    void ensureAdvisorAssignments(activeYearId)
+  }, [activeYearId, ensureAdvisorAssignments])
 
   async function handleAdd(memberId: string, advisorId: string) {
     if (!activeYearId) return
@@ -97,7 +79,7 @@ export default function AdvisorAssignmentsPage() {
         memberId,
         advisorId
       )
-      setAssignments((prev) => [...prev, created])
+      setAdvisorAssignments(activeYearId, [...assignments, created])
     } catch (e) {
       setError(
         getErrorMessage(e, {
@@ -111,11 +93,15 @@ export default function AdvisorAssignmentsPage() {
   }
 
   async function handleRemove(memberId: string, assignmentId: string) {
+    if (!activeYearId) return
     setError(null)
     setBusyMemberId(memberId)
     try {
       await removeAdvisorAssignment(assignmentId)
-      setAssignments((prev) => prev.filter((a) => a.id !== assignmentId))
+      setAdvisorAssignments(
+        activeYearId,
+        assignments.filter((a) => a.id !== assignmentId)
+      )
     } catch (e) {
       setError(
         getErrorMessage(e, { fallback: "アドバイザーの削除に失敗しました" })
@@ -147,7 +133,13 @@ export default function AdvisorAssignmentsPage() {
         <p className="text-muted-foreground">実働メンバーへのアドバイザー割り当て</p>
       </div>
 
-      <ErrorBanner message={yearError || error} />
+      <ErrorBanner
+        message={
+          yearError ||
+          error ||
+          (activeYearId ? advisorAssignmentsError(activeYearId) : null)
+        }
+      />
 
       <div className="rounded-md border">
         <Table>
