@@ -842,7 +842,13 @@ Example response:
     "isGoodsSponsorship": false,
     "productionType": "COMPANY",
     "status": "WAITING",
-    "driveUrl": null,
+    "driveFolderId": "folder_id",
+    "files": [
+      {
+        "driveUrl": "https://drive.google.com/...",
+        "driveFileName": "広告データ.pdf"
+      }
+    ],
     "remarks": ""
   }
 ]
@@ -958,22 +964,24 @@ Example:
 
 ---
 
-## Upload Production Information
+## Add Production File
 
-Registers production-related information.
+Appends a new production-related file to the Contract Menu. Registering a file automatically changes the `status` to `SUBMITTED`.
 
 ```
-PATCH /contract-menus/{id}/production
+POST /contract-menus/{id}/files
 ```
 
 Request:
 
 ```json
 {
-  "driveFolderUrl": "https://drive.google.com/...",
-  "remarks": "企業確認済み"
+  "driveUrl": "https://drive.google.com/...",
+  "driveFileName": "広告データ.pdf"
 }
 ```
+
+(Note: Actual physical upload may be handled by another specialized endpoint like `/contract-menus/{id}/drive-upload` depending on frontend integration, but the resulting state is adding a file reference here.)
 
 ---
 

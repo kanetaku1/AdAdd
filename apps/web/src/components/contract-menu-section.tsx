@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Trash2, Upload } from "lucide-react"
+import { Plus, Trash2, Upload, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,7 @@ import {
   addContractMenuToContract,
   deleteContractMenu,
   updateContractMenu,
+  deleteContractMenuFile,
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
@@ -55,6 +56,64 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
   currency: "JPY",
 })
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
+
+async function requestDriveToken(): Promise<string> {
+  if (!GOOGLE_CLIENT_ID) throw new Error("GOOGLE_CLIENT_ID is not configured")
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const existing = (window as any).gapi?.client?.getToken()?.access_token
+  if (existing) return existing
+
+  return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let script = document.querySelector(`script[src="https://accounts.google.com/gsi/client"]`) as HTMLScriptElement | null
+
+    const initAuth = () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: "https://www.googleapis.com/auth/drive.file",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          callback: (response: any) => {
+            if (response.error !== undefined) {
+              reject(new Error(response.error))
+              return
+            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((window as any).gapi && (window as any).gapi.client) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (window as any).gapi.client.setToken({ access_token: response.access_token })
+            }
+            resolve(response.access_token)
+          },
+        })
+        client.requestAccessToken()
+      } catch (err) {
+        reject(err)
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (script && (window as any).google?.accounts?.oauth2) {
+      initAuth()
+      return
+    }
+
+    if (!script) {
+      script = document.createElement("script")
+      script.src = "https://accounts.google.com/gsi/client"
+      script.async = true
+      script.defer = true
+      document.body.appendChild(script)
+    }
+
+    script.addEventListener("load", initAuth)
+    script.addEventListener("error", () => reject(new Error("Failed to load Google Identity Services")))
+  })
+}
 
 function emptyItem(menus: SponsorshipMenu[]): ContractMenuItemValue {
   const firstMenu = menus[0]
@@ -112,6 +171,33 @@ export function ContractMenuSection({
   const [deleteTarget, setDeleteTarget] = useState<ContractMenu | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
+
+  async function handleDeleteFile(menuId: string, fileId: string) {
+    if (!confirm("AdAddの履歴と、Google Driveのファイル本体の両方を削除しますか？\n（Google Driveへのアクセスのため、初回のみ認証画面が開く場合があります）")) return
+
+    setError(null)
+    setBusyIds((prev) => new Set([...prev, menuId]))
+    try {
+      const accessToken = await requestDriveToken()
+      await deleteContractMenuFile(menuId, fileId, accessToken)
+      applyMenus(
+        contractMenus.map((cm) =>
+          cm.id === menuId
+            ? { ...cm, files: (cm.files ?? []).filter((f) => f.id !== fileId) }
+            : cm
+        )
+      )
+    } catch (e) {
+      setError(getErrorMessage(e, { fallback: "ファイルの削除に失敗しました" }))
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev)
+        next.delete(menuId)
+        return next
+      })
+    }
+  }
 
   function applyMenus(nextContractMenus: ContractMenu[]) {
     const nextTotal = recalcTotal(nextContractMenus)
@@ -276,21 +362,37 @@ export function ContractMenuSection({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {cm.driveUrl ? (
-                        <a
-                          href={cm.driveUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-sm"
-                        >
-                          {cm.driveFileName || "確認"}
-                        </a>
+                      {cm.files && cm.files.length > 0 ? (
+                        <div className="flex gap-1 items-center flex-wrap">
+                          {cm.files.map((file, idx) => (
+                            <Badge key={idx} variant="outline" className="flex items-center gap-1 group whitespace-nowrap bg-green-50 text-green-700 border-green-200" title={file.driveFileName}>
+                              <a
+                                href={file.driveUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                              >
+                                素材{idx + 1}
+                              </a>
+                              {canManage && (
+                                <button
+                                  onClick={() => handleDeleteFile(cm.id, file.id)}
+                                  className="text-muted-foreground hover:text-destructive opacity-50 hover:opacity-100 transition-opacity"
+                                  title="ファイルを削除"
+                                  disabled={busyIds.has(cm.id) || rowBusy}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </Badge>
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
                       {canManage && (
                         <IconActionButton
-                          label={cm.driveUrl ? "再アップロード" : "アップロード"}
+                          label={cm.files && cm.files.length > 0 ? "アップロード（追加）" : "アップロード"}
                           variant="outline"
                           onClick={() => setUploadingMenuId(cm.id)}
                         >

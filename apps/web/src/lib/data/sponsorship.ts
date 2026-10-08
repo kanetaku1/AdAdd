@@ -151,8 +151,11 @@ function mapApiContractMenu(cm: {
   productionType?: string
   status: string
   driveFolderId?: string
-  driveUrl?: string
-  driveFileName?: string
+  files?: {
+    id: string
+    driveUrl: string
+    driveFileName: string
+  }[]
   remarks?: string
 }): ContractMenu {
   return {
@@ -166,8 +169,11 @@ function mapApiContractMenu(cm: {
       (cm.productionType as ContractMenu["productionType"]) ?? null,
     status: cm.status as ContractMenu["status"],
     driveFolderId: cm.driveFolderId ?? null,
-    driveUrl: cm.driveUrl ?? null,
-    driveFileName: cm.driveFileName ?? null,
+    files: cm.files?.map((f) => ({
+      id: f.id,
+      driveUrl: f.driveUrl,
+      driveFileName: f.driveFileName,
+    })) ?? [],
     remarks: cm.remarks ?? "",
   }
 }
@@ -254,8 +260,7 @@ export async function listContractMenus(
         productionType?: string
         status: string
         driveFolderId?: string
-        driveUrl?: string
-        driveFileName?: string
+        files?: { id: string; driveUrl: string; driveFileName: string }[]
         remarks?: string
       }>
     >(`/contracts/${contractId}/menus`)
@@ -300,8 +305,11 @@ export async function listContractMenusAcrossYear(
         productionType?: string
         status: string
         driveFolderId?: string
-        driveUrl?: string
-        driveFileName?: string
+        files: {
+          id: string
+          driveUrl: string
+          driveFileName: string
+        }[]
         remarks?: string
         companyName: string
         yearlyCompanyId: string
@@ -384,8 +392,11 @@ export async function updateContractMenu(
       productionType?: string
       status: string
       driveFolderId?: string
-      driveUrl?: string
-      driveFileName?: string
+      files?: {
+        id: string
+        driveUrl: string
+        driveFileName: string
+      }[]
       remarks?: string
     }>(`/contract-menus/${id}`, {
       method: "PATCH",
@@ -433,8 +444,7 @@ export async function updateContractMenuStatus(
       productionType?: string
       status: string
       driveFolderId?: string
-      driveUrl?: string
-      driveFileName?: string
+      files?: { id: string; driveUrl: string; driveFileName: string }[]
       remarks?: string
     }>(`/contract-menus/${id}/status`, {
       method: "PATCH",
@@ -466,8 +476,7 @@ export async function updateContractMenuProduction(
       productionType?: string
       status: string
       driveFolderId?: string
-      driveUrl?: string
-      driveFileName?: string
+      files?: { id: string; driveUrl: string; driveFileName: string }[]
       remarks?: string
     }>(`/contract-menus/${id}/production`, {
       method: "PATCH",
@@ -476,7 +485,7 @@ export async function updateContractMenuProduction(
     return mapApiContractMenu(updated)
   }
   return updateMockContractMenu(id, {
-    driveUrl: input.driveFolderUrl,
+    files: [{ id: "mock_f_prod", driveUrl: input.driveFolderUrl, driveFileName: "確認用.pdf" }],
     remarks: input.remarks,
     status: "SUBMITTED",
   })
@@ -507,8 +516,7 @@ export async function uploadContractMenuToDrive(
       productionType?: string
       status: string
       driveFolderId?: string
-      driveUrl?: string
-      driveFileName?: string
+      files?: { id: string; driveUrl: string; driveFileName: string }[]
       remarks?: string
     }>(`/contract-menus/${id}/drive-upload`, {
       method: "POST",
@@ -517,7 +525,7 @@ export async function uploadContractMenuToDrive(
     return mapApiContractMenu(updated)
   }
   return updateMockContractMenu(id, {
-    driveUrl: "http://mock.drive.url",
+    files: [{ id: "mock_f_drive", driveUrl: "http://mock.drive.url", driveFileName: "mock.pdf" }],
     status: "SUBMITTED",
   })
 }
@@ -853,8 +861,7 @@ export async function createContractWithMenus(
       productionType: item.productionType,
       status: "WAITING",
       driveFolderId: null,
-      driveUrl: null,
-      driveFileName: null,
+      files: [],
       remarks: "",
     }
     addContractMenu(menu)
@@ -877,7 +884,7 @@ export async function addContractMenuToContract(
       isGoodsSponsorship: boolean
       productionType?: string
       status: string
-      driveUrl?: string
+      files?: { id: string; driveUrl: string; driveFileName: string }[]
       remarks?: string
     }>(`/contracts/${contractId}/menus`, {
       method: "POST",
@@ -902,8 +909,7 @@ export async function addContractMenuToContract(
     productionType: item.productionType,
     status: "WAITING",
     driveFolderId: null,
-    driveUrl: null,
-    driveFileName: null,
+    files: [],
     remarks: "",
   }
   addContractMenu(menu)
@@ -973,4 +979,25 @@ export async function createPayment(contractId: string): Promise<Payment> {
   }
   mockPayments.push(payment)
   return payment
+}
+
+export async function deleteContractMenuFile(
+  menuId: string,
+  fileId: string,
+  accessToken?: string
+): Promise<void> {
+  if (!isApiEnabled()) {
+    const menu = mockContractMenus.find((cm) => cm.id === menuId)
+    if (menu) {
+      menu.files = menu.files.filter((f) => f.id !== fileId)
+    }
+    return
+  }
+  let url = `/contract-menus/${menuId}/files/${fileId}`
+  if (accessToken) {
+    url += `?accessToken=${encodeURIComponent(accessToken)}`
+  }
+  await apiFetch(url, {
+    method: "DELETE",
+  })
 }

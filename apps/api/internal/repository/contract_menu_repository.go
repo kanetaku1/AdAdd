@@ -11,7 +11,7 @@ func NewContractMenuRepository() *ContractMenuRepository { return &ContractMenuR
 
 func (r *ContractMenuRepository) ListByContract(contractId string) ([]model.ContractMenu, error) {
 	var list []model.ContractMenu
-	if err := db.DB.Where("contract_id = ?", contractId).Find(&list).Error; err != nil {
+	if err := db.DB.Preload("Files").Where("contract_id = ?", contractId).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -24,7 +24,7 @@ func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[strin
 	// tables anyway — so every joined table's deleted_at is checked explicitly.
 	// A row whose Sponsorship Menu (or any other joined parent) has been
 	// deleted is excluded rather than surfaced with a stale/missing name.
-	query := db.DB.Table("contract_menus").
+	query := db.DB.Model(&model.ContractMenu{}).
 		Select("contract_menus.*, companies.company_name, yearly_companies.id as yearly_company_id, assignments.user_id as assigned_member_id, users.name as assigned_member_name, sponsorship_menus.name as sponsorship_menu_name").
 		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = contract_menus.contract_id AND sponsorship_contracts.deleted_at IS NULL").
 		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id AND yearly_companies.deleted_at IS NULL").
@@ -32,6 +32,7 @@ func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[strin
 		Joins("JOIN sponsorship_menus ON sponsorship_menus.id = contract_menus.sponsorship_menu_id AND sponsorship_menus.deleted_at IS NULL").
 		Joins("LEFT JOIN assignments ON assignments.yearly_company_id = yearly_companies.id AND assignments.deleted_at IS NULL").
 		Joins("LEFT JOIN users ON users.id = assignments.user_id AND users.deleted_at IS NULL").
+		Preload("Files").
 		Where("contract_menus.deleted_at IS NULL").
 		Where("yearly_companies.year_id = ?", yearID)
 
@@ -56,6 +57,10 @@ func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[strin
 
 func (r *ContractMenuRepository) Create(m *model.ContractMenu) error { return db.DB.Create(m).Error }
 
+func (r *ContractMenuRepository) AddFile(f *model.ContractMenuFile) error {
+	return db.DB.Create(f).Error
+}
+
 func (r *ContractMenuRepository) Update(m *model.ContractMenu) error {
 	// preserve existing CreatedAt to avoid writing zero DATETIME
 	var existing model.ContractMenu
@@ -67,8 +72,20 @@ func (r *ContractMenuRepository) Update(m *model.ContractMenu) error {
 
 func (r *ContractMenuRepository) GetByID(id string) (*model.ContractMenu, error) {
 	var m model.ContractMenu
-	if err := db.DB.First(&m, "id = ?", id).Error; err != nil {
+	if err := db.DB.Preload("Files").First(&m, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &m, nil
+}
+
+func (r *ContractMenuRepository) DeleteFile(contractMenuId, fileId string) error {
+	return db.DB.Unscoped().Where("contract_menu_id = ? AND id = ?", contractMenuId, fileId).Delete(&model.ContractMenuFile{}).Error
+}
+
+func (r *ContractMenuRepository) GetFileByID(contractMenuId, fileId string) (*model.ContractMenuFile, error) {
+	var f model.ContractMenuFile
+	if err := db.DB.First(&f, "id = ? AND contract_menu_id = ?", fileId, contractMenuId).Error; err != nil {
+		return nil, err
+	}
+	return &f, nil
 }

@@ -169,9 +169,9 @@ YearlyCompany
 
 Represents one Sponsorship Menu that a company has actually contracted for, as part of a Sponsorship Contract.
 
-A Contract Menu references exactly one Sponsorship Menu. A contract may contain multiple Contract Menus.
+A Contract Menu references exactly one Sponsorship Menu. A contract may contain multiple Contract Menus. A Contract Menu may have zero or more submitted production files (Google Drive references).
 
-The management content differs depending on the referenced Sponsorship Menu's `requiresSubmission`: submission/production management when true (e.g. print advertisements, web-based formats such as a homepage banner), or none when false (e.g. company booth — booth logistics only).
+A Contract Menu does not have its own assignee. The assignee belongs to the parent Sponsorship Contract. The management content differs depending on the referenced Sponsorship Menu's `requiresSubmission`: submission/production management when true (e.g. print advertisements, web-based formats such as a homepage banner), or none when false (e.g. company booth — booth logistics only).
 
 ### Goods Sponsorship (物品協賛)
 

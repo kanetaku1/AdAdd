@@ -134,27 +134,44 @@ func (m *SponsorshipMenu) BeforeCreate(tx *gorm.DB) (err error) {
 
 // ContractMenu
 type ContractMenu struct {
-	ID                 string          `gorm:"type:char(36);primaryKey" json:"id"`
-	ContractID         string          `gorm:"type:char(36);not null;index" json:"contractId"`
-	SponsorshipMenuID  string          `gorm:"type:char(36);not null;index" json:"sponsorshipMenuId"`
-	Quantity           int             `gorm:"not null;default:1" json:"quantity"`
-	UnitPrice          decimal.Decimal `json:"unitPrice"`
-	IsGoodsSponsorship bool            `gorm:"not null;default:false" json:"isGoodsSponsorship"`
-	ProductionType     string          `gorm:"size:32" json:"productionType"`
-	Status             string          `gorm:"size:32" json:"status"`
-	DriveFolderID      string          `gorm:"size:512" json:"driveFolderId"`
-	DriveURL           string          `gorm:"size:1024" json:"driveUrl"`
-	DriveFileName      string          `gorm:"size:1024" json:"driveFileName"`
-	SubmittedAt        *time.Time      `json:"submittedAt"`
-	Remarks            string          `gorm:"type:text" json:"remarks"`
-	CreatedAt          time.Time       `json:"createdAt"`
-	UpdatedAt          time.Time       `json:"updatedAt"`
-	DeletedAt          gorm.DeletedAt  `gorm:"index" json:"-"`
+	ID                 string             `gorm:"type:char(36);primaryKey" json:"id"`
+	ContractID         string             `gorm:"type:char(36);not null;index" json:"contractId"`
+	SponsorshipMenuID  string             `gorm:"type:char(36);not null;index" json:"sponsorshipMenuId"`
+	Quantity           int                `gorm:"not null;default:1" json:"quantity"`
+	UnitPrice          decimal.Decimal    `json:"unitPrice"`
+	IsGoodsSponsorship bool               `gorm:"not null;default:false" json:"isGoodsSponsorship"`
+	ProductionType     string             `gorm:"size:32" json:"productionType"`
+	Status             string             `gorm:"size:32" json:"status"`
+	DriveFolderID      string             `gorm:"size:512" json:"driveFolderId"`
+	SubmittedAt        *time.Time         `json:"submittedAt"`
+	Remarks            string             `gorm:"type:text" json:"remarks"`
+	CreatedAt          time.Time          `json:"createdAt"`
+	UpdatedAt          time.Time          `json:"updatedAt"`
+	DeletedAt          gorm.DeletedAt     `gorm:"index" json:"-"`
+	Files              []ContractMenuFile `gorm:"foreignKey:ContractMenuID" json:"files"`
 }
 
 func (cm *ContractMenu) BeforeCreate(tx *gorm.DB) (err error) {
 	if cm.ID == "" {
 		cm.ID = uuid.NewString()
+	}
+	return nil
+}
+
+// ContractMenuFile represents an uploaded file for a ContractMenu
+type ContractMenuFile struct {
+	ID             string         `gorm:"type:char(36);primaryKey" json:"id"`
+	ContractMenuID string         `gorm:"type:char(36);not null;index" json:"contractMenuId"`
+	DriveURL       string         `gorm:"size:1024;not null" json:"driveUrl"`
+	DriveFileName  string         `gorm:"size:1024;not null" json:"driveFileName"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (f *ContractMenuFile) BeforeCreate(tx *gorm.DB) (err error) {
+	if f.ID == "" {
+		f.ID = uuid.NewString()
 	}
 	return nil
 }
