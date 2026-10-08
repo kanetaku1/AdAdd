@@ -2,9 +2,7 @@
 
 ## Status
 
-Proposed — 2026-10-09
-
-This ADR becomes Accepted once the open items in "Confirmation Required" are resolved.
+Accepted — 2026-10-09
 
 ---
 
@@ -74,6 +72,11 @@ Deleting a Contract Menu itself stays Administrator-only.
 ---
 
 ## Confirmation Required
+
+All four items below were confirmed on 2026-10-09:
+the AdAdd identity can be added to the shared drive, AdAdd Roles are an acceptable gate,
+members have view access to the shared drive, and Advisor may upload as well as delete.
+Item 4 (file size and upload path) is settled together with the production deployment.
 
 1. **Can the AdAdd identity join the shared drive?**
    A Google Cloud service account has an address outside the organization's domain.
