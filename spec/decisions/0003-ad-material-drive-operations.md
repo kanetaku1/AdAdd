@@ -62,6 +62,15 @@ a dedicated AdAdd identity, not with the operator's token.
 * If moving to the trash fails, AdAdd does not remove the reference and returns an error.
   AdAdd never reports success while the Drive original remains.
 
+### Linking a Drive folder
+
+Any folder inside the shared drive can be linked to a Contract Menu (`driveFolderId`),
+including folders created directly in Drive without AdAdd.
+The browser only sends the folder ID; `apps/api` accesses it with the AdAdd identity.
+
+Files placed in that folder directly in Drive are not shown in AdAdd.
+AdAdd lists only the files uploaded through AdAdd (MySQL remains the Single Source of Truth).
+
 ### Exception to "Delete is Administrator-only"
 
 `spec/api.md#Authorization Matrix` makes deletion Administrator-only.
