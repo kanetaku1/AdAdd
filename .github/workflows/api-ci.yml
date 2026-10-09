@@ -18,14 +18,38 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # Integration tests run against a real MySQL with every migration applied
+    # (spec/development.md#Integration Tests). Same version as docker-compose.yml.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: adadd_test
+          MYSQL_USER: adadd
+          MYSQL_PASSWORD: adadd_password
+          MYSQL_ROOT_PASSWORD: root_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      ADADD_API_TEST_DSN: adadd:adadd_password@tcp(127.0.0.1:3306)/adadd_test
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version-file: apps/api/go.mod
           cache-dependency-path: apps/api/go.sum
 
       - run: go build ./...
       - run: go vet ./...
-      - run: go test ./... -v
+      # -p 1: every package shares the one test database, so packages must not
+      # run concurrently.
+      - run: go test -p 1 ./... -v

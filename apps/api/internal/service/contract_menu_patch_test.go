@@ -1,19 +1,17 @@
 package service
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/testdb"
 	"github.com/shopspring/decimal"
 )
 
 func TestPatchContractMenuDetailsFallback(t *testing.T) {
-	openPaymentSyncTestDB(t)
+	testdb.Open(t)
 
-	suffix := fmt.Sprintf("patch-%d", time.Now().UnixNano())
-	contractID, menuID, paymentID := seedPaymentSyncContract(t, suffix, "WAITING", decimal.Zero)
+	contractID, menuID, paymentID := seedPaymentSyncContract(t, "WAITING", decimal.Zero)
 	svc := NewContractMenuService()
 
 	// 1. Create a Goods Sponsorship (unitPrice = 0)
