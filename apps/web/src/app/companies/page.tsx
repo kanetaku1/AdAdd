@@ -1,3 +1,5 @@
+import { connection } from "next/server"
+
 import { CompaniesWorkspace } from "@/components/companies-workspace"
 import { listCompanies } from "@/lib/data/companies"
 
@@ -9,6 +11,9 @@ import { listCompanies } from "@/lib/data/companies"
  * is read inside CompaniesTable via the shared ActiveYearProvider (Issue #18).
  */
 export default async function CompaniesPage() {
+  // Without this, `next build` prerenders the page and the list stays frozen
+  // at build-time data (companies registered later never appear).
+  await connection()
   const companies = await listCompanies()
 
   return <CompaniesWorkspace initialCompanies={companies} />
