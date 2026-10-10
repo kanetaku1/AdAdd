@@ -529,6 +529,48 @@ The seed is meant for an empty development database. Creating Year 2026 makes it
 
 ---
 
+## E2E Tests
+
+`apps/web/e2e` verifies the main business flows through the browser, on the real stack: Next.js (API mode) → Go API → MySQL.
+
+* Playwright (`apps/web/playwright.config.ts`) starts both servers itself:
+  * the Go API on port 18080 against the `adadd_e2e` database, after running the development seed;
+  * the production build of the web app (`next build` + `next start`) on port 3100.
+* A local development API on port 8080 and its database are never touched.
+* Users act through the development stub (`adadd.dev.userId` / `adadd.dev.roles` in localStorage, sent as `X-User-ID` / `X-User-Roles`). In this mode the UI shows every control regardless of Role, so Role checks are verified by what the API accepts or rejects.
+* Tests create their own companies with unique names, so they do not need a fresh database and can be run repeatedly.
+* Each step is checked again after a reload, so the result is read back from MySQL.
+
+CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container on every API or web change.
+
+### Covered flows
+
+| Flow | Checks |
+| ---- | ------ |
+| Yearly Company list | Seeded companies appear in the active Year with Continuing / New |
+| Company → Yearly Company | Register a company, register it in the active Year (New) |
+| Assignment | An Administrator assigns a member; it persists after reload |
+| Contract | A Sponsorship Member creates a contract with menus; total and Payment (waiting) persist |
+| Payment confirmation | A Sponsorship Member is rejected by the API; Finance confirms; status and confirmer persist |
+
+### Running locally
+
+With the Docker Compose `mysql` service running, create the E2E database once:
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password -e \
+  "CREATE DATABASE IF NOT EXISTS adadd_e2e CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON adadd_e2e.* TO 'adadd'@'%';"
+```
+
+Then, from `apps/web` (Go and Node are required):
+
+```bash
+npx playwright install chromium   # first time only
+npm run test:e2e
+```
+
+---
+
 # AI Development Workflow
 
 ## Before Asking AI
