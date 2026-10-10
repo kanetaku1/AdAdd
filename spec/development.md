@@ -466,6 +466,37 @@ Priority order:
 
 ---
 
+## Integration Tests
+
+Domain rules and business flows are verified against a real MySQL, not mocks.
+
+* `apps/api/internal/testdb` connects a test to the database named by `ADADD_API_TEST_DSN`.
+  * On first use in a test binary, it drops every table and applies all migrations from scratch. A broken or conflicting migration fails the tests.
+  * Before every test, it empties all tables except `schema_migrations` and `roles` (Roles are master data seeded by migrations).
+  * The database name must end with `_test`. Any other name is refused, because every table is dropped.
+* `apps/api/internal/integration` tests business flows through the full API (routing, role checks, handlers, services, MySQL), authenticated with the development `X-User-ID` / `X-User-Roles` headers.
+* Without `ADADD_API_TEST_DSN`, these tests are skipped locally. In CI (`CI=true`) they fail instead, so they are never skipped silently.
+* Packages share one test database, so run tests with `-p 1`.
+
+CI (`.github/workflows/api-ci.yml`) runs them against a MySQL 8.4 service container on every API change.
+
+### Running locally
+
+With the Docker Compose `mysql` service running, create the test database once:
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password -e \
+  "CREATE DATABASE IF NOT EXISTS adadd_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON adadd_test.* TO 'adadd'@'%';"
+```
+
+Then, from `apps/api`:
+
+```bash
+ADADD_API_TEST_DSN='adadd:adadd_password@tcp(127.0.0.1:3306)/adadd_test' go test -p 1 ./...
+```
+
+---
+
 # AI Development Workflow
 
 ## Before Asking AI

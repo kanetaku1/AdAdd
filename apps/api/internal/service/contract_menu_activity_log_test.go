@@ -1,12 +1,11 @@
 package service
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/testdb"
 	"github.com/shopspring/decimal"
 )
 
@@ -23,17 +22,11 @@ func TestContractMenuStatusLogMessage(t *testing.T) {
 }
 
 func TestUpdateWithUserLogsAnyStatusChangeOnce(t *testing.T) {
-	openPaymentSyncTestDB(t)
+	testdb.Open(t)
 
-	suffix := fmt.Sprintf("alog-%d", time.Now().UnixNano())
-	contractID, menuMasterID, _ := seedPaymentSyncContract(t, suffix, "WAITING", decimal.Zero)
-	yearlyCompanyID := "test-yearly-company-" + suffix
-	cmID := "test-cm-" + suffix
-
-	t.Cleanup(func() {
-		db.DB.Unscoped().Delete(&model.ActivityLog{}, "yearly_company_id = ?", yearlyCompanyID)
-		db.DB.Unscoped().Delete(&model.ContractMenu{}, "id = ?", cmID)
-	})
+	contractID, menuMasterID, _ := seedPaymentSyncContract(t, "WAITING", decimal.Zero)
+	yearlyCompanyID := testYearlyCompanyID
+	cmID := "test-contract-menu"
 
 	cm := &model.ContractMenu{
 		ID:                cmID,
