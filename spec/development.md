@@ -497,6 +497,38 @@ ADADD_API_TEST_DSN='adadd:adadd_password@tcp(127.0.0.1:3306)/adadd_test' go test
 
 ---
 
+## Development Seed
+
+`apps/api/cmd/seed` loads fictitious development data, so the API, the frontend in API mode, and E2E tests can start from a known state.
+
+* All data is fictitious. Real companies, people, or payment data must never be added.
+* Every row has a fixed ID and each step only creates what is missing. Running the seed again leaves the database unchanged.
+* Business state is created through the services, so it follows the real business rules (Yearly Company generation and `companyStatus`, contract totals, Payments, Activity Logs).
+* It refuses to run unless `APP_ENV=development`, and it never sends Slack notifications.
+* It applies migrations before loading data.
+
+From `apps/api`, with the database settings in `apps/api/.env` (see `.env.example`):
+
+```bash
+go run ./cmd/seed
+```
+
+The seed is meant for an empty development database. Creating Year 2026 makes it the active Year and generates a Yearly Company for every Company already in the database.
+
+### Seed contents
+
+| Data | Contents |
+| ---- | -------- |
+| Users | `user_001` 田中 (Administrator), `user_002` 鈴木 / `user_005` 山田 (Sponsorship Member), `user_003` 佐藤 (Finance), `user_006` 伊藤 (Advisor), `user_004` 高橋 (inactive, no Role). IDs match the frontend development stub (`X-User-ID`). |
+| Years | `year_2025` (previous), `year_2026` (active) |
+| Companies | `c_001`–`c_003` existed in 2025. `c_004`, `c_005` were registered afterward. |
+| 2025 | `c_001` and `c_002` have contracts with confirmed Payments. `c_003` was contacted and declined. |
+| 2026 `companyStatus` | `c_001`, `c_002` Continuing. `c_003`, `c_004`, `c_005` New. |
+| 2026 assignments | `c_001`, `c_003` → 鈴木. `c_002` → 山田. `c_004`, `c_005` unassigned. 伊藤 advises 鈴木 and 山田. |
+| 2026 contract | `c_001`: pamphlet ad, homepage ad, and a goods sponsorship booth (total 95,000). Payment waiting for Finance. |
+
+---
+
 # AI Development Workflow
 
 ## Before Asking AI
