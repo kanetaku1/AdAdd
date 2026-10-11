@@ -3,6 +3,7 @@ import { csvCell, parseCsv } from "@/lib/csv"
 import {
   addCompany as addMockCompany,
   mockCompanies,
+  removeCompany as removeMockCompany,
   updateCompany as updateMockCompany,
 } from "@/lib/mock/companies"
 import type { BulkError, BulkResult } from "@/types/bulk"
@@ -86,6 +87,19 @@ export async function updateCompany(
     })
   }
   return updateMockCompany(id, input)
+}
+
+/**
+ * DELETE /companies/{id} (spec/api.md#Delete Company). Administrator only;
+ * callers must gate the action with `canAccess(roles, ["ADMINISTRATOR"])`.
+ * A Company with a Yearly Company is rejected by the API with 409 CONFLICT.
+ */
+export async function deleteCompany(id: string): Promise<void> {
+  if (isApiEnabled()) {
+    await apiFetch(`/companies/${id}`, { method: "DELETE" })
+    return
+  }
+  removeMockCompany(id)
 }
 
 function mockBulkImportCompanies(

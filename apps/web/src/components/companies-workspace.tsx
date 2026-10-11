@@ -48,7 +48,12 @@ export function CompaniesWorkspace({
         </div>
       </div>
       <ErrorBanner message={reloadError} />
-      <CompaniesTable companies={companies} />
+      <CompaniesTable
+        companies={companies}
+        onDeleted={(id) =>
+          setCompanies((prev) => prev.filter((company) => company.id !== id))
+        }
+      />
     </div>
   )
 }
