@@ -71,6 +71,11 @@ func Open(t testing.TB) *gorm.DB {
 		t.Fatalf("set up test database: %v", setupErr)
 	}
 
+	// Creating contracts mentions the assignee on Slack (UC-16). Tests must
+	// never reach a real Slack workspace, even if a local .env sets a token.
+	t.Setenv("SLACK_BOT_TOKEN", "")
+	t.Setenv("SLACK_CHANNEL_ID", "")
+
 	db.DB = testDB
 	Reset(t)
 	return testDB
