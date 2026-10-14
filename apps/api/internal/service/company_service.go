@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 )
@@ -100,6 +102,20 @@ func (s *CompanyService) BulkImport(rows []CompanyCsvRow, dryRun bool) (*model.B
 	return result, nil
 }
 
+// ErrCompanyInUse is returned when deleting a Company that has a Yearly
+// Company — its sponsorship history must not be lost (spec/api.md#Delete Company).
+var ErrCompanyInUse = errors.New("company has yearly companies")
+
 func (s *CompanyService) Delete(id string) error {
+	if _, err := s.repo.GetByID(id); err != nil {
+		return err
+	}
+	inUse, err := s.repo.HasYearlyCompanies(id)
+	if err != nil {
+		return err
+	}
+	if inUse {
+		return ErrCompanyInUse
+	}
 	return s.repo.Delete(id)
 }

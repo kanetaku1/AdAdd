@@ -47,6 +47,15 @@ func (r *CompanyRepository) Update(c *model.Company) error {
 	return db.DB.Save(c).Error
 }
 
+// HasYearlyCompanies reports whether the Company has a Yearly Company in any Year.
+func (r *CompanyRepository) HasYearlyCompanies(id string) (bool, error) {
+	var count int64
+	if err := db.DB.Model(&model.YearlyCompany{}).Where("company_id = ?", id).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *CompanyRepository) Delete(id string) error {
 	return db.DB.Unscoped().Delete(&model.Company{}, "id = ?", id).Error
 }

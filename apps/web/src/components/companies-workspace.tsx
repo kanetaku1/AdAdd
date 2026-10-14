@@ -63,7 +63,14 @@ export function CompaniesWorkspace() {
       </div>
       <ErrorBanner message={error} />
       {companies ? (
-        <CompaniesTable companies={companies} />
+        <CompaniesTable
+          companies={companies}
+          onDeleted={(id) =>
+            setCompanies((prev) =>
+              prev ? prev.filter((company) => company.id !== id) : prev
+            )
+          }
+        />
       ) : (
         !error && <LoadingBlock />
       )}

@@ -55,3 +55,8 @@ export function updateSponsorshipMenu(
   Object.assign(menu, patch)
   return menu
 }
+
+export function removeSponsorshipMenu(id: string): void {
+  const index = mockSponsorshipMenus.findIndex((m) => m.id === id)
+  if (index !== -1) mockSponsorshipMenus.splice(index, 1)
+}

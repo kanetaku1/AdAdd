@@ -455,6 +455,22 @@ Updates the Company master only. Existing Yearly Company contact snapshots are n
 
 ---
 
+## Delete Company
+
+Removes a Company from the master data.
+
+```
+DELETE /companies/{id}
+```
+
+Deletion is for removing a mistaken or duplicate registration. A Company that has a Yearly Company in any Year is rejected with `409 Conflict` — its sponsorship history (Yearly Companies, Contracts, Payments, Activity Logs) must not be lost (`spec/business.md` "History should never be deleted"). An unknown `id` returns `404`.
+
+Permission:
+
+* Administrator only — see Authorization Matrix (deletion is Administrator-only system-wide). Sponsorship Member's "Manage company master data" access is create/update only.
+
+---
+
 # Yearly Company API
 
 ## List Yearly Companies
@@ -830,6 +846,20 @@ Accepts the same fields as Create, including `maxQuantity` (`null` clears the ca
 
 ---
 
+## Delete Sponsorship Menu
+
+```
+DELETE /sponsorship-menus/{menuId}
+```
+
+Deletion is for removing a mistaken registration. A Sponsorship Menu referenced by any Contract Menu is rejected with `409 Conflict`; to stop offering such a menu, set `isActive` to `false` instead. An unknown `menuId` returns `404`.
+
+Permission:
+
+* Administrator only — see Authorization Matrix (deletion is Administrator-only system-wide). Sponsorship Member's "Manage menus" access is create/update only.
+
+---
+
 # Contract Menu API
 
 ## List Contract Menus
@@ -1179,7 +1209,7 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 | Create payment                  | -         | ○                   | -       | ○       | ○              |
 | Update payment status            | -         | -                   | -       | ○       | ○              |
 | Manage users / Roles            | -         | -                   | -       | -       | ○              |
-| Delete any record (Contract Menu, AdvisorAssignment, UserRole, ...) | - | - | - | - | ○ |
+| Delete any record (Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole, ...) | - | - | - | - | ○ |
 
 Deletion is Administrator-only system-wide — every other Role's "manage" access (row above) is create/update, never delete (`spec/model.md` Business Invariants).
 

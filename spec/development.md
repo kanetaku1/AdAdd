@@ -554,6 +554,7 @@ CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container
 | Assignment | An Administrator assigns a member; it persists after reload |
 | Contract | A Sponsorship Member creates a contract with menus; total and Payment (waiting) persist |
 | Payment confirmation | A Sponsorship Member cannot open the status for editing; Finance confirms; status and confirmer persist |
+| Master data deletion | An Administrator deletes a company and a menu after confirming; a Sponsorship Member sees no delete control; a company registered in a Year is rejected |
 | Session | No session or a rejected session leads to `/login`; a deactivated User is sent to `/login`; Company list and Company edit load with a session (Issue #152) |
 
 ### Running locally

@@ -332,6 +332,7 @@ Actions:
 * Edit company
 * View sponsorship history (past Yearly Companies)
 * Register the company into the active Year as a Yearly Company (per row, only shown when it isn't already registered for that Year) — the individual registration path noted in `spec/usecase.md` UC-01 Notes.
+* Delete company (per row, shown only to Administrator, guarded by a confirmation step — `DELETE /companies/{id}`). A Company with a Yearly Company is rejected (`409`) and the reason is shown.
 
 ---
 
@@ -571,6 +572,10 @@ Display:
 | Submission required |
 | Max quantity (optional) |
 | Active status       |
+
+Actions:
+
+* Delete menu (per row, shown only to Administrator, guarded by a confirmation step — `DELETE /sponsorship-menus/{menuId}`). A menu used by a Contract Menu is rejected (`409`) and the reason is shown; turn off Active status instead.
 
 ---
 

@@ -14,12 +14,17 @@ import (
 func RegisterSponsorshipMenuRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/years/:yearId/sponsorship-menus", listSponsorshipMenus)
-	// manage menus requires staff or admin
+	// staff and admin manage menus — create/update only
 	rStaff := e.Group("")
 	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/years/:yearId/sponsorship-menus", createSponsorshipMenu)
 	rStaff.PATCH("/sponsorship-menus/:menuId", updateSponsorshipMenu)
-	rStaff.DELETE("/sponsorship-menus/:menuId", deleteSponsorshipMenu)
+
+	// Deletion is Administrator-only system-wide (spec/api.md#Authorization
+	// Matrix) — Sponsorship Member's "manage menus" access stops at update.
+	rAdmin := e.Group("")
+	rAdmin.Use(RequireRoles("ADMINISTRATOR"))
+	rAdmin.DELETE("/sponsorship-menus/:menuId", deleteSponsorshipMenu)
 }
 
 func listSponsorshipMenus(c echo.Context) error {
@@ -96,6 +101,9 @@ func deleteSponsorshipMenu(c echo.Context) error {
 	if err := svc.Delete(id); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return respondNotFound(c, "sponsorship menu not found")
+		}
+		if errors.Is(err, service.ErrSponsorshipMenuInUse) {
+			return respondConflict(c, "sponsorship menu is used by contract menus and cannot be deleted")
 		}
 		return respondInternalServerError(c, err)
 	}

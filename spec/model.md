@@ -604,7 +604,7 @@ The following rules must always be satisfied.
 * An assignee is set per Sponsorship Contract, never per Contract Menu.
 * A User must be pre-registered (by email, by an Administrator) before they can authenticate — there is no self-service signup, regardless of authentication provider.
 * Roles are granted by an Administrator through UserRole; a User is never able to grant themselves a Role.
-* Deletion is Administrator-only across the system (e.g. Contract Menu, AdvisorAssignment, UserRole). Non-Administrator Roles may create and update but never delete — see `spec/api.md#Authorization Matrix`.
+* Deletion is Administrator-only across the system (e.g. Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole). Non-Administrator Roles may create and update but never delete — see `spec/api.md#Authorization Matrix`.
 * ActivityLog entries are created only by the system in response to a progress/Contract Menu status/Payment status change — there is no manual/user-authored entry point.
 
 ---
