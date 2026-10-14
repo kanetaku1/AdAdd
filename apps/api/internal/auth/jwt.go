@@ -13,11 +13,12 @@ import (
 // See Issue #60 discussion.
 const tokenTTL = 30 * 24 * time.Hour
 
-// AppClaims is the AdAdd-issued JWT payload (spec/api.md#Login). Roles are
-// resolved server-side from UserRole at issuance time — never supplied by
-// the client.
+// AppClaims is the AdAdd-issued JWT payload (spec/api.md#Login): only the
+// User ID (Subject) and expiry. Roles are not carried — AuthMiddleware reads
+// the User and its Roles from MySQL on every request, so deactivation and
+// Role changes take effect immediately
+// (spec/decisions/0004-development-modes-and-sessions.md).
 type AppClaims struct {
-	Roles []string `json:"roles"`
 	jwt.RegisteredClaims
 }
 
@@ -31,10 +32,9 @@ func NewJWTIssuer(secret string) *JWTIssuer {
 	return &JWTIssuer{secret: []byte(secret)}
 }
 
-func (j *JWTIssuer) Issue(userID string, roles []string) (string, error) {
+func (j *JWTIssuer) Issue(userID string) (string, error) {
 	now := time.Now()
 	claims := AppClaims{
-		Roles: roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),
