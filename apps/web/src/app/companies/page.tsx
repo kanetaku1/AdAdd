@@ -1,7 +1,4 @@
-import { connection } from "next/server"
-
 import { CompaniesWorkspace } from "@/components/companies-workspace"
-import { listCompanies } from "@/lib/data/companies"
 
 /**
  * Company List (spec/frontend.md#Company Management).
@@ -9,12 +6,8 @@ import { listCompanies } from "@/lib/data/companies"
  * its search isn't scoped to the active Year (unlike Yearly Companies /
  * Contract Menus). The active Year used by the per-row registration action
  * is read inside CompaniesTable via the shared ActiveYearProvider (Issue #18).
+ * Data is loaded in the browser by CompaniesWorkspace (Issue #152).
  */
-export default async function CompaniesPage() {
-  // Without this, `next build` prerenders the page and the list stays frozen
-  // at build-time data (companies registered later never appear).
-  await connection()
-  const companies = await listCompanies()
-
-  return <CompaniesWorkspace initialCompanies={companies} />
+export default function CompaniesPage() {
+  return <CompaniesWorkspace />
 }

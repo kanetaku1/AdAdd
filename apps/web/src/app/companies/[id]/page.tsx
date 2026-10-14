@@ -1,18 +1,53 @@
-import { notFound } from "next/navigation"
+"use client"
+
+import { useEffect, useState } from "react"
+import { notFound, useParams } from "next/navigation"
 
 import { CompanyForm } from "@/components/company-form"
+import { ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { getCompany } from "@/lib/data/companies"
+import { getErrorMessage } from "@/lib/errors"
+import type { Company } from "@/types/company"
 
-export default async function EditCompanyPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
-  const company = await getCompany(id)
+/**
+ * Company edit (spec/frontend.md#Company Management). Loads from the
+ * browser through /api/proxy like every other screen, so the session is
+ * attached in one place (spec/frontend.md#Login, Issue #152).
+ */
+export default function EditCompanyPage() {
+  const { id } = useParams<{ id: string }>()
+  // undefined: loading, null: not found
+  const [company, setCompany] = useState<Company | null | undefined>(undefined)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!company) {
+  useEffect(() => {
+    let cancelled = false
+    async function load(companyId: string) {
+      setCompany(undefined)
+      setError(null)
+      try {
+        const loaded = await getCompany(companyId)
+        if (!cancelled) setCompany(loaded)
+      } catch (e) {
+        if (!cancelled) {
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
+        }
+      }
+    }
+    void load(id)
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  if (company === null) {
     notFound()
+  }
+  if (error) {
+    return <ErrorBanner message={error} />
+  }
+  if (!company) {
+    return <LoadingBlock />
   }
 
   return (

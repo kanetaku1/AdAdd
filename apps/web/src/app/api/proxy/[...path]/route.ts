@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { getApiBaseUrl } from "@/lib/api/client"
+import { SESSION_COOKIE } from "@/lib/auth/constants"
 import { getSessionToken } from "@/lib/auth/session"
 
 /**
@@ -72,12 +73,19 @@ async function handler(
   }
 
   const responseBody = await upstream.text()
-  return new NextResponse(responseBody, {
+  const res = new NextResponse(responseBody, {
     status: upstream.status,
     headers: {
       "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
     },
   })
+  // The API rejected the session (expired, or signed with another secret).
+  // Drop the cookie so the login guard (proxy.ts) sends the next page load
+  // to /login instead of letting it through with a dead session.
+  if (upstream.status === 401 && sessionToken) {
+    res.cookies.delete(SESSION_COOKIE)
+  }
+  return res
 }
 
 export {
