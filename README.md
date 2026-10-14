@@ -18,8 +18,15 @@ AdAdd は、業務そのものを変えるのではなく、業務の状態を�
 
 ## ⚠️ 注意: 認証について
 
-現在のバックエンド実装において、APIの認証は `X-User-ID` および `X-User-Roles` ヘッダーを利用したモック（スタブ）となっています。
-**本番環境への展開前には、必ずJWTやOAuthなどを利用した適切な認証機構への置き換えが必要です。**
+API の認証は、Google ログインで発行する AdAdd の JWT（セッション）です（`spec/api.md#Authentication`）。リクエストのたびにユーザーの有効状態とロールを MySQL で確認します。
+
+開発時の起動方法は2つです（`spec/development.md#Development Modes`）。
+
+* **モックモード**：`apps/web` で `npm run dev:mock`。ログイン画面でロールごとのユーザーを選んで、各ロールの画面を確認できます。
+* **MySQL モード**：`docker compose up -d` のあと `apps/web` で `npm run dev`。本番と同じく Google でログインします（GCP の OAuth テストユーザーと AdAdd のユーザーの両方に登録が必要）。
+
+開発用の `X-User-ID` / `X-User-Roles` ヘッダー（`DEV_AUTH_ENABLED=true`）は残っていますが、扱いは `spec/decisions/0004-development-modes-and-sessions.md` でバックエンド部門と確認中です。
+**本番環境と共有のサーバーでは、`DEV_AUTH_ENABLED` を有効にしないでください。**
 
 ---
 

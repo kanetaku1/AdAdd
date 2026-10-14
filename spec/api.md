@@ -45,7 +45,14 @@ Authentication information is provided through:
 Authorization: Bearer {token}
 ```
 
-`{token}` is an AdAdd-issued JWT, not a Google token — see Login below. In development only, `X-User-ID` / `X-User-Roles` headers may be sent instead when the server has `DEV_AUTH_ENABLED=true`; this path must be disabled in production.
+`{token}` is an AdAdd-issued JWT, not a Google token — see Login below.
+
+On every request, the server verifies the token, then reads the `User` it names and that User's Roles from MySQL (`spec/decisions/0004-development-modes-and-sessions.md`):
+
+* The User no longer exists, or `isActive = false`: `401 Unauthorized`, `error.code = "UNAUTHORIZED"`.
+* Role checks use the User's `UserRole` grants at that moment, so deactivating a User or revoking a Role takes effect on the next request.
+
+In development only, `X-User-ID` / `X-User-Roles` headers may be sent instead when the server has `DEV_AUTH_ENABLED=true`; this path must be disabled in production and on any shared server. Its future is decided in `spec/decisions/0004-development-modes-and-sessions.md`.
 
 ## Login
 
@@ -81,9 +88,11 @@ Response (email found):
 }
 ```
 
-`token` is a signed JWT containing `userId` and the User's current Role `code`s (resolved server-side from `UserRole`, never from anything the client supplies). Every subsequent request must send this token as `Authorization: Bearer {token}`.
+`token` is a signed JWT containing only the User's ID (`sub`) and its expiry (30 days). It carries no Role codes; Roles are read from MySQL on every request (see Overview above). `user.roles` in the response is the User's Roles at sign-in, for the frontend's convenience. Every subsequent request must send this token as `Authorization: Bearer {token}`.
 
 If the email has no matching `User`: `403 Forbidden`, `error.code = "FORBIDDEN"`, message indicating the email is not registered — the frontend must not create a session.
+
+If the User has `isActive = false`: `403 Forbidden`, `error.code = "FORBIDDEN"`, handled by the frontend the same way. AdAdd does not rely on the OAuth client's test-user list to stop deactivated members.
 
 ---
 

@@ -1,0 +1,209 @@
+# ADR-0004: Development Modes, Sessions, and the Development Header Stub
+
+## Status
+
+Proposed — 2026-10-12, revised 2026-10-13
+
+* Development modes, session checks, and the removal of development login:
+  decided on the frontend side (2026-10-13).
+* Development header stub: waiting for confirmation from the backend department
+  (see Confirmation Required).
+
+The specification (`spec/api.md`, `spec/frontend.md`, `spec/development.md`)
+already reflects the decided parts. The development header stub is described there
+as it is today until the backend department decides.
+
+### Revision history
+
+* 2026-10-12: proposed a development login (`POST /auth/dev-login`) with an email and a
+  password shared by all developers.
+* 2026-10-13: replaced it. Developers check each Role's screens in mock mode, and the
+  MySQL mode uses Google sign-in only. Development login was removed before release.
+
+---
+
+## Context
+
+### Production login has two steps
+
+`spec/api.md#Login` and `spec/frontend.md#Login` define production login as:
+
+1. **Google sign-in.** It only proves that the visitor controls an email address.
+   Only Google accounts registered as test users of the AdAdd OAuth client can sign in.
+2. **AdAdd session.** `apps/api` looks up the `User` by email and issues an AdAdd JWT.
+   Next.js stores it in an httpOnly cookie and attaches it as `Authorization: Bearer`
+   when it calls `apps/api` through `/api/proxy`.
+
+### Two ways to run AdAdd during development
+
+| Mode | Data | Login before this ADR |
+| ---- | ---- | --------------------- |
+| Mock mode (`NEXT_PUBLIC_API_BASE_URL` unset) | In-memory mock data; also the Vercel preview (ADR-0002) | Skipped. Every control is shown regardless of Role. |
+| MySQL mode | Local MySQL through `apps/api` | Google sign-in, or the development header stub |
+
+### The development header stub skips both steps
+
+With `DEV_AUTH_ENABLED=true` (`apps/api`) and `NEXT_PUBLIC_DEV_AUTH_ENABLED=true` (`apps/web`),
+the client sends `X-User-ID` / `X-User-Roles`, and `apps/api` trusts them as is.
+It is used in:
+
+| Place | Use |
+| ----- | --- |
+| `apps/api/internal/handler/auth_middleware.go` | Accepts the headers when no Bearer token is sent |
+| `apps/api/internal/config/config.go` | `DEV_AUTH_ENABLED`, forced off unless `APP_ENV=development` |
+| `apps/api/internal/integration` | Integration tests authenticate with the headers |
+| `apps/web/src/lib/api/client.ts` | `apiFetch` sends the headers; Role and user come from localStorage |
+| `apps/web/src/proxy.ts` | The login guard is skipped |
+| `apps/web/src/lib/auth/roles.ts` | Role gating is skipped; every control is shown |
+| `docker-compose.yml` | `DEV_AUTH_ENABLED: "true"` by default |
+
+### Problems
+
+1. **The session path was never exercised in development.**
+   Issue #152: the Company list and Company edit screens called `apps/api` from
+   Server Components without the session JWT. In production they would fail with `401`.
+   A second case was found: `AuthMiddleware` (`e.Use`) also ran on `POST /auth/google`
+   and `/health`, so Google login itself returned `401` whenever the header stub was off.
+   The header stub, which lets requests without any credentials through, hid both.
+2. **Roles were self-declared or ignored.** With the header stub the Role comes from
+   localStorage, and in mock mode every control is shown.
+   What a Member, Finance, or Advisor actually sees was not checked.
+3. **A JWT stayed valid after access was removed.** The JWT carried the Role codes and lived
+   30 days. `AuthMiddleware` trusted it without reading MySQL, so a deactivated User or a
+   revoked Role kept working until the token expired.
+4. **Inactive Users were stopped only by Google.** `POST /auth/google` did not check
+   `User.isActive`. Today a deactivated member is also removed from the OAuth test users,
+   but once the OAuth client is published, any Google account passes Google sign-in.
+
+---
+
+## Decision
+
+### 1. Mock mode: sign in by choosing a Role
+
+* `npm run dev:mock` starts the frontend in mock mode (`NEXT_PUBLIC_API_BASE_URL` empty).
+* `/login` lists one button per mock User with a Role (Administrator, Sponsorship Member,
+  Finance Department, Advisor). There is no password: everything runs in the browser on
+  fictitious data, and the Vercel preview is public, so a password would protect nothing.
+* Choosing a User stores its ID in a cookie (`adadd_mock_user`). Logging out removes it.
+* The login guard and Role gating apply in mock mode the same way as in MySQL mode.
+  Mock writes that record "who did it" (Activity Logs, payment confirmation) use this User.
+* This replaces "login and Role gating are skipped in mock mode" (ADR-0002, `spec/frontend.md`).
+
+### 2. MySQL mode: Google sign-in only
+
+* Every developer signs in with Google, as in production. The account must be registered both as
+  a test user of the OAuth client and as an AdAdd `User`.
+* After the first sign-in, the AdAdd JWT (30 days) keeps the developer signed in.
+  Google is needed again only after logging out or when the JWT expires.
+
+### 3. Sessions are checked against MySQL on every request
+
+* The JWT carries only the User ID (`sub`) and its expiry. It no longer carries Role codes.
+* `AuthMiddleware` verifies the JWT, then reads the `User` and its Roles from MySQL on every request.
+  * User not found or `isActive = false`: `401 Unauthorized`. The frontend sends the browser to `/login`.
+  * Roles always come from `UserRole` at that moment.
+* Deactivating a User or revoking a Role therefore takes effect on the next request.
+* Cost: one extra User query and one Role query per request, acceptable at AdAdd's scale.
+
+### 4. `POST /auth/google` checks `isActive`
+
+* An inactive User gets `403 Forbidden`, the same as an unregistered email.
+  AdAdd no longer depends on the OAuth test-user list to stop deactivated members.
+
+### 5. Development login is removed
+
+The development login proposed on 2026-10-12 (`POST /auth/dev-login`, `DEV_LOGIN_PASSWORD`,
+`DEV_LOGIN_ENABLED`, the form on `/login`) is removed. Mock mode covers checking each Role's
+screens, and the MySQL mode uses Google like production. No development-only way into
+`apps/api` remains in production code.
+
+### 6. E2E tests create their own session
+
+* Playwright starts `apps/api` with a known `JWT_SECRET` and the header stub off.
+* Each test signs a JWT for a seed User with that secret and stores it in the session cookie.
+* Every request then takes the production session path (cookie → `/api/proxy` →
+  `Authorization: Bearer` → User and Roles read from MySQL). Only Google sign-in itself is not covered.
+
+### 7. Development header stub (confirmation required)
+
+Neither mode needs the header stub any more. Proposal:
+
+* **`apps/web`:** stop sending the headers. Remove `getDevAuthHeaders` from `apiFetch`,
+  `NEXT_PUBLIC_DEV_AUTH_ENABLED`, and the bypasses in `proxy.ts` and `roles.ts`.
+* **`apps/api`:** the backend department decides one of the options below.
+
+| Option | Description |
+| ------ | ----------- |
+| A. Remove | Remove the header path from `AuthMiddleware` and `DEV_AUTH_ENABLED`. Integration tests sign JWTs with the test `JWTIssuer`, as E2E tests do. Only one authentication path remains. |
+| B. Keep for automated tests only | Keep the header path for `apps/api/internal/integration`. `DEV_AUTH_ENABLED` defaults to `false`, including `docker-compose.yml`. |
+| C. Keep as is | Not recommended. Problems 1 and 2 remain possible. |
+
+The frontend side recommends **A**. If the integration tests need time to change, B first, then A.
+
+---
+
+## Confirmation Required
+
+Questions for the backend department:
+
+1. **Session checks in `AuthMiddleware`** (Decision 3). Is one User query and one Role query per
+   request acceptable? Is `401` for a deactivated User the right response?
+2. **Development header stub in `apps/api`.** A, B, or C?
+   For A: is switching the integration tests to JWTs signed by `JWTIssuer` acceptable?
+3. **Default of `DEV_AUTH_ENABLED` in `docker-compose.yml`.** Change it to `false`?
+
+---
+
+## Relation to Issue #152
+
+* With the header stub off, Issue #152 reproduces in development.
+* Fix: the Company list and Company edit screens fetch from Client Components through
+  `/api/proxy`, like the other screens (option B in the Issue).
+  `apiFetch` refuses to run on the server, so no screen can skip the session again.
+* An API `401` sends the browser to `/login`, and the proxy drops the rejected session cookie.
+* E2E tests run on the session path (Decision 6).
+* The Issue's condition "development authentication behavior does not change" is replaced
+  by this ADR.
+
+---
+
+## Alternatives Considered
+
+### Development login with a shared password (proposed 2026-10-12, removed)
+
+Let developers sign in to the MySQL mode as any Role without Google. It needed a
+development-only endpoint in `apps/api`, guarded by `APP_ENV` and a shared password.
+Mock mode now covers checking each Role's screens, and E2E tests sign their own JWTs,
+so the endpoint is no longer worth its risk.
+
+### Shorter JWT lifetime with renewal
+
+Old tokens expire sooner, but a deactivated User still keeps access until then, and renewal
+needs extra code. Reading MySQL on each request removes access immediately with less code.
+
+### Server-side session table
+
+Allows revoking a single session, but adds a table, cleanup, and lookups.
+Not needed while deactivating the User is the way to remove access.
+
+---
+
+## Consequences
+
+Specification:
+
+* `spec/api.md`: Authentication and Login (JWT content, per-request checks, `isActive`).
+* `spec/frontend.md`: Login (mock mode Role buttons, no development login).
+* `spec/development.md`: development modes, environment variables, E2E sign-in.
+* `README.md`: authentication notice.
+
+Implementation:
+
+* `apps/api`: JWT without Role codes, per-request User and Role lookup in `AuthMiddleware`,
+  `isActive` check in `POST /auth/google`, removal of development login, tests.
+* `apps/web`: `npm run dev:mock`, mock login buttons and mock session, Role gating in mock mode,
+  removal of the development login form and route, Advisor added to the mock Users.
+* E2E: `playwright.config.ts` and `e2e/support.ts` sign JWTs for seed Users.
+* `docker-compose.yml`: `APP_ENV`, `JWT_SECRET`, and `GOOGLE_DRIVE_ROOT_FOLDER_ID` passed to `apps/api`.
+* Issue #152 is fixed as described above.
