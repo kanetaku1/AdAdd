@@ -2,6 +2,7 @@ import { apiFetch, isApiEnabled } from "@/lib/api/client"
 import {
   addSponsorshipMenu as addMockSponsorshipMenu,
   mockSponsorshipMenus,
+  removeSponsorshipMenu as removeMockSponsorshipMenu,
   updateSponsorshipMenu as updateMockSponsorshipMenu,
 } from "@/lib/mock/sponsorship-menus"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
@@ -83,4 +84,18 @@ export async function updateSponsorshipMenu(
     return mapApiSponsorshipMenu(updated)
   }
   return updateMockSponsorshipMenu(id, fields)
+}
+
+/**
+ * DELETE /sponsorship-menus/{menuId} (spec/api.md#Delete Sponsorship Menu).
+ * Administrator only; callers must gate the action with
+ * `canAccess(roles, ["ADMINISTRATOR"])`. A menu used by a Contract Menu is
+ * rejected by the API with 409 CONFLICT.
+ */
+export async function deleteSponsorshipMenu(id: string): Promise<void> {
+  if (isApiEnabled()) {
+    await apiFetch(`/sponsorship-menus/${id}`, { method: "DELETE" })
+    return
+  }
+  removeMockSponsorshipMenu(id)
 }

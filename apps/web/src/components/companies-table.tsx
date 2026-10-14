@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 
-import { Download, Pencil } from "lucide-react"
+import { Download, Pencil, Trash2 } from "lucide-react"
 
+import { useCurrentUser } from "@/components/current-user-provider"
+import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { IconActionButton } from "@/components/icon-action-button"
 import { Input } from "@/components/ui/input"
 import {
@@ -18,10 +20,15 @@ import {
 import { RegisterYearlyCompanyButton } from "@/components/register-yearly-company-button"
 import { useActiveYear } from "@/components/active-year-provider"
 import { ErrorBanner, EmptyRow } from "@/components/query-state"
+import { canAccess } from "@/lib/auth/roles"
 import { downloadCompanyCsv } from "@/lib/company-csv"
+import { deleteCompany } from "@/lib/data/companies"
 import { listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import type { Company } from "@/types/company"
+
+/** Deletion is Administrator-only system-wide (spec/api.md#Authorization Matrix). */
+const DELETE_ROLES = ["ADMINISTRATOR"]
 
 /**
  * Company List table + search (spec/frontend.md#Company Management), split
@@ -30,9 +37,22 @@ import type { Company } from "@/types/company"
  * contract-menu-section.tsx. Reads the active Year from the shared
  * ActiveYearProvider (Issue #18) rather than a prop. CSV export writes
  * `visibleCompanies` (spec/frontend.md#CSV Import / Export, Issue #134).
+ * The per-row delete action is shown only to Administrator and confirmed
+ * first (spec/frontend.md#Company List); the parent drops the row on success.
  */
-export function CompaniesTable({ companies }: { companies: Company[] }) {
+export function CompaniesTable({
+  companies,
+  onDeleted,
+}: {
+  companies: Company[]
+  onDeleted: (id: string) => void
+}) {
   const { activeYear } = useActiveYear()
+  const { currentUser } = useCurrentUser()
+  const canDelete = canAccess(currentUser?.roles, DELETE_ROLES)
+  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [nameQuery, setNameQuery] = useState("")
   const [registeredCompanyIds, setRegisteredCompanyIds] = useState<
     Set<string>
@@ -85,6 +105,29 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
       setError(getErrorMessage(e, { fallback: "CSVの出力に失敗しました" }))
     } finally {
       setExporting(false)
+    }
+  }
+
+  async function handleDelete(target: Company) {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteCompany(target.id)
+      onDeleted(target.id)
+      setDeleteTarget(null)
+    } catch (e) {
+      setDeleteError(
+        getErrorMessage(e, {
+          fallback: "企業の削除に失敗しました",
+          overrides: {
+            CONFLICT:
+              "年度に登録済みの企業は、協賛の履歴を残すため削除できません。",
+            FORBIDDEN: "削除は管理者のみが実行できます。",
+          },
+        })
+      )
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -177,6 +220,17 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
                     >
                       <Pencil />
                     </IconActionButton>
+                    {canDelete && (
+                      <IconActionButton
+                        label={`${company.companyName}を削除`}
+                        onClick={() => {
+                          setDeleteError(null)
+                          setDeleteTarget(company)
+                        }}
+                      >
+                        <Trash2 className="text-destructive" />
+                      </IconActionButton>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -187,6 +241,17 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
           </TableBody>
         </Table>
       </div>
+
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title="企業を削除しますか？"
+          description={`${deleteTarget.companyName} を企業マスタから削除します。この操作は取り消せません。`}
+          error={deleteError}
+          deleting={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void handleDelete(deleteTarget)}
+        />
+      )}
     </div>
   )
 }

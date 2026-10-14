@@ -109,3 +109,8 @@ export function updateCompany(
   Object.assign(company, input, { updatedAt: new Date().toISOString() })
   return company
 }
+
+export function removeCompany(id: string): void {
+  const index = mockCompanies.findIndex((c) => c.id === id)
+  if (index !== -1) mockCompanies.splice(index, 1)
+}

@@ -23,7 +23,12 @@ func RegisterCompanyRoutes(e *echo.Echo) {
 	rc.POST("/companies", createCompany)
 	rc.POST("/companies/bulk", bulkImportCompanies)
 	rc.PATCH("/companies/:id", updateCompany)
-	rc.DELETE("/companies/:id", deleteCompany)
+
+	// Deletion is Administrator-only system-wide (spec/api.md#Authorization
+	// Matrix) — Sponsorship Member's company master access stops at update.
+	rAdmin := e.Group("")
+	rAdmin.Use(RequireRoles("ADMINISTRATOR"))
+	rAdmin.DELETE("/companies/:id", deleteCompany)
 }
 
 func listCompanies(c echo.Context) error {
@@ -180,6 +185,9 @@ func deleteCompany(c echo.Context) error {
 	if err := svc.Delete(id); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return respondNotFound(c, "company not found")
+		}
+		if errors.Is(err, service.ErrCompanyInUse) {
+			return respondConflict(c, "company has yearly companies and cannot be deleted")
 		}
 		return respondInternalServerError(c, err)
 	}

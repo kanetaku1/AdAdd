@@ -39,6 +39,15 @@ func (r *SponsorshipMenuRepository) Update(m *model.SponsorshipMenu) error {
 	).Updates(m).Error
 }
 
+// HasContractMenus reports whether any Contract Menu references the Sponsorship Menu.
+func (r *SponsorshipMenuRepository) HasContractMenus(id string) (bool, error) {
+	var count int64
+	if err := db.DB.Model(&model.ContractMenu{}).Where("sponsorship_menu_id = ?", id).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *SponsorshipMenuRepository) Delete(id string) error {
 	return db.DB.Unscoped().Delete(&model.SponsorshipMenu{}, "id = ?", id).Error
 }
