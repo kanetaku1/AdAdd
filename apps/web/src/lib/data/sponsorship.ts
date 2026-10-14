@@ -1,4 +1,5 @@
-import { apiFetch, isApiEnabled, ApiError, getCurrentDevUserId } from "@/lib/api/client"
+import { apiFetch, isApiEnabled, ApiError } from "@/lib/api/client"
+import { getMockSignedInUser } from "@/lib/auth/mock-session"
 import { mockCompanies } from "@/lib/mock/companies"
 import {
   addContractMenu,
@@ -654,10 +655,9 @@ export async function updatePaymentStatus(
       confirmedByName: null,
     }
   }
-  const currentUserId = status === "CONFIRMED" ? getCurrentDevUserId() : null
-  const currentUserName = currentUserId
-    ? (mockUsers.find((u) => u.id === currentUserId)?.name ?? null)
-    : null
+  const currentUser = status === "CONFIRMED" ? getMockSignedInUser() : null
+  const currentUserId = currentUser?.id ?? null
+  const currentUserName = currentUser?.name ?? null
   return updateMockPayment(id, status, currentUserId, currentUserName)
 }
 

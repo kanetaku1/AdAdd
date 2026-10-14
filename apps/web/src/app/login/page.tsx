@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button"
+import { MockSignInButtons } from "@/components/mock-sign-in-buttons"
 import { ErrorBanner } from "@/components/query-state"
+import { isApiEnabled } from "@/lib/api/client"
 
 const ERROR_MESSAGES: Record<string, string> = {
   not_registered:
@@ -10,9 +12,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 /**
- * Login screen (spec/frontend.md#Login). The button is a plain link to
- * /api/auth/google, which starts the server-side OAuth flow — there is
- * nothing for client-side JS to do here.
+ * Login screen (spec/frontend.md#Login). In API mode, the Google button is
+ * a plain link to /api/auth/google, which starts the server-side OAuth
+ * flow. In mock mode there is no backend, so the User is chosen per Role
+ * instead (spec/frontend.md#Mock mode login).
  */
 export default async function LoginPage({
   searchParams,
@@ -35,7 +38,11 @@ export default async function LoginPage({
         </div>
       )}
 
-      <Button render={<a href="/api/auth/google" />}>Googleでログイン</Button>
+      {isApiEnabled() ? (
+        <Button render={<a href="/api/auth/google" />}>Googleでログイン</Button>
+      ) : (
+        <MockSignInButtons />
+      )}
     </div>
   )
 }

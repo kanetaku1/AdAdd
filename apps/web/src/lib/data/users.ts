@@ -1,4 +1,5 @@
 import { apiFetch, ApiError, isApiEnabled } from "@/lib/api/client"
+import { getMockSignedInUser } from "@/lib/auth/mock-session"
 import { csvCell, parseCsv } from "@/lib/csv"
 import {
   addUser as addMockUser,
@@ -65,13 +66,18 @@ export type CurrentUser = {
 /**
  * `GET /users/me` (spec/api.md#Get Current User) — used by
  * CurrentUserProvider to resolve who's logged in and which Roles gate
- * navigation (Issue #23). Returns `null` when there's no session (mock
- * mode, or the request reached the backend unauthenticated) rather than
+ * navigation (Issue #23). In mock mode, the mock User chosen on /login.
+ * Returns `null` when there's no session (no mock User chosen, or the
+ * request reached the backend unauthenticated) rather than
  * throwing, since "nobody is logged in" is an expected state, not a
  * failure.
  */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  if (!isApiEnabled()) return null
+  if (!isApiEnabled()) {
+    // Mock mode: the User chosen on /login (spec/frontend.md#Mock mode login).
+    const user = getMockSignedInUser()
+    return user ? { id: user.id, name: user.name, roles: user.roles } : null
+  }
   try {
     return await apiFetch<CurrentUser>("/users/me")
   } catch (e) {

@@ -4,3 +4,5 @@
  */
 export const SESSION_COOKIE = "adadd_session"
 export const OAUTH_STATE_COOKIE = "adadd_oauth_state"
+/** Mock mode only: the ID of the mock User chosen on /login (lib/auth/mock-session.ts). */
+export const MOCK_USER_COOKIE = "adadd_mock_user"

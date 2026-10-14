@@ -51,6 +51,15 @@ export const mockUsers: User[] = [
     roles: ["SPONSORSHIP_MEMBER"],
     isActive: true,
   },
+  {
+    id: "user_006",
+    studentId: "b6789012",
+    name: "伊藤",
+    email: "ito@example.com",
+    slackId: null,
+    roles: ["ADVISOR"],
+    isActive: true,
+  },
 ]
 
 /**
