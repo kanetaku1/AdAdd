@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
+import { e2eJwtSecret, webBaseUrl } from "./e2e/support"
+
 /**
  * E2E tests run the real stack: Next.js (API mode) → Go API → MySQL
  * (spec/development.md#E2E Tests).
@@ -8,13 +10,13 @@ import { defineConfig, devices } from "@playwright/test"
  * default), so a local development API on :8080 is never touched. Before the
  * API starts, the development seed (apps/api/cmd/seed) loads Users, Years,
  * and Sponsorship Menus. Tests create their own companies with unique names,
- * so they do not depend on a fresh database.
+ * so they do not depend on a fresh database. Tests sign session JWTs with
+ * the API's JWT_SECRET, so every request takes the production session path.
  */
 
 const apiPort = process.env.E2E_API_PORT ?? "18080"
 const webPort = process.env.E2E_WEB_PORT ?? "3100"
 const apiBaseUrl = `http://127.0.0.1:${apiPort}`
-const webBaseUrl = `http://127.0.0.1:${webPort}`
 
 const apiEnvironment = {
   APP_ENV: "development",
@@ -24,7 +26,11 @@ const apiEnvironment = {
   DB_USER: process.env.E2E_DB_USER ?? "adadd",
   DB_PASSWORD: process.env.E2E_DB_PASSWORD ?? "adadd_password",
   DB_NAME: process.env.E2E_DB_NAME ?? "adadd_e2e",
-  DEV_AUTH_ENABLED: "true",
+  // Production session path: no header stub, and a known JWT_SECRET so
+  // tests can sign session JWTs. Set explicitly so a local apps/api/.env
+  // cannot change them.
+  DEV_AUTH_ENABLED: "false",
+  JWT_SECRET: e2eJwtSecret,
   MIGRATE_ON_START: "true",
   MIGRATIONS_PATH: "./migrations",
   // Set explicitly so a local apps/api/.env can never enable Slack mentions.
@@ -35,7 +41,8 @@ const apiEnvironment = {
 
 const webEnvironment = {
   NEXT_PUBLIC_API_BASE_URL: apiBaseUrl,
-  NEXT_PUBLIC_DEV_AUTH_ENABLED: "true",
+  // Set explicitly so a local .env.local cannot bypass the login guard.
+  NEXT_PUBLIC_DEV_AUTH_ENABLED: "false",
 }
 
 export default defineConfig({
