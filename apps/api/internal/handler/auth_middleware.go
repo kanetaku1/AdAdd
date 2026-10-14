@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/auth"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
@@ -25,6 +26,15 @@ func InitAuth(issuer *auth.JWTIssuer, verifier *auth.GoogleVerifier, devEnabled 
 	googleVerifier = verifier
 	devAuthEnabled = devEnabled
 }
+
+// Session renewal (spec/api.md#Authentication): a valid JWT older than
+// sessionRenewAfter gets a fresh one in this response header, so a member
+// who keeps using AdAdd stays signed in while an unused session still
+// expires 30 days after its last renewal.
+const (
+	sessionTokenHeader = "X-Session-Token"
+	sessionRenewAfter  = 24 * time.Hour
+)
 
 // errSessionUserUnavailable means the JWT names a User who no longer exists
 // or has been deactivated.
@@ -79,6 +89,13 @@ func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			if err != nil {
 				return respondInternalServerError(c, err)
+			}
+			// Renewed only after the User was confirmed active above, so
+			// renewal never extends access for a User who lost it.
+			if claims.IssuedAt != nil && time.Since(claims.IssuedAt.Time) > sessionRenewAfter {
+				if renewed, err := jwtIssuer.Issue(claims.Subject); err == nil {
+					c.Response().Header().Set(sessionTokenHeader, renewed)
+				}
 			}
 			c.Set("userId", claims.Subject)
 			c.Set("userRoles", roles)
