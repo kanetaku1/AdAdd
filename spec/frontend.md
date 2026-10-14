@@ -164,7 +164,15 @@ Flow (BFF pattern — the Next.js frontend and Go API run on separate domains in
 
 Navigation/action visibility is driven by the signed-in User's Roles from `GET /users/me` (`spec/api.md#Get Current User`) — see Navigation Structure below.
 
-The session lasts 30 days. Until then, or until the user logs out, Google is not needed again. Deactivating the User or revoking a Role takes effect on the next request (`spec/api.md#Authentication`).
+Session lifetime (`spec/decisions/0004-development-modes-and-sessions.md`):
+
+* Google is used only at sign-in. Afterwards the AdAdd session keeps the member signed in, and it is renewed while in use: when the API returns a renewed token (`X-Session-Token`, `spec/api.md#Authentication`), `/api/proxy` stores it in the session cookie and drops the header. A member who uses AdAdd at least once every 30 days stays signed in; 30 days without use, or logging out, ends the session.
+* Deactivating the User or revoking a Role takes effect on the next request (`spec/api.md#Authentication`).
+
+Re-login:
+
+* The Google authorization request does not force the account chooser. After a successful sign-in, Next.js keeps the signed-in email in an httpOnly cookie (`adadd_login_hint`, 180 days) and sends it to Google as `login_hint`, so a browser still signed in to that Google account comes straight back. The hint is kept after logging out, and removed when sign-in fails because the email is not registered.
+* `/login` never redirects to Google by itself; the member presses the button.
 
 Every screen fetches data from the browser through `/api/proxy`, so the session is attached in one place. When an API call returns `401` (missing, expired, or invalid session, or the User was deactivated), the browser is sent to `/login` instead of showing an error, and the rejected session cookie is removed.
 

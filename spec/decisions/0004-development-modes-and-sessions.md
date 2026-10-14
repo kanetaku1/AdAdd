@@ -2,10 +2,11 @@
 
 ## Status
 
-Proposed — 2026-10-12, revised 2026-10-13
+Proposed — 2026-10-12, revised 2026-10-13 and 2026-10-14
 
 * Development modes, session checks, and the removal of development login:
   decided on the frontend side (2026-10-13).
+* Session renewal and easier re-login (Decisions 8 and 9): decided on the frontend side (2026-10-14).
 * Development header stub: waiting for confirmation from the backend department
   (see Confirmation Required).
 
@@ -19,6 +20,9 @@ as it is today until the backend department decides.
   password shared by all developers.
 * 2026-10-13: replaced it. Developers check each Role's screens in mock mode, and the
   MySQL mode uses Google sign-in only. Development login was removed before release.
+* 2026-10-14: sessions are renewed while in use, and re-login skips Google's account chooser.
+  Committee members use their own PCs and phones, so a session that ends after 30 days without
+  use is enough; per-session revocation is not adopted.
 
 ---
 
@@ -94,8 +98,8 @@ It is used in:
 
 * Every developer signs in with Google, as in production. The account must be registered both as
   a test user of the OAuth client and as an AdAdd `User`.
-* After the first sign-in, the AdAdd JWT (30 days) keeps the developer signed in.
-  Google is needed again only after logging out or when the JWT expires.
+* After the first sign-in, the AdAdd session keeps the developer signed in (Decision 8).
+  Google is needed again only after logging out or 30 days without use.
 
 ### 3. Sessions are checked against MySQL on every request
 
@@ -141,6 +145,32 @@ Neither mode needs the header stub any more. Proposal:
 
 The frontend side recommends **A**. If the integration tests need time to change, B first, then A.
 
+### 8. Sessions are renewed while in use
+
+Google is used only once per sign-in: its id_token (about one hour) is exchanged for the AdAdd JWT
+and then discarded. AdAdd never stores Google tokens.
+
+* The AdAdd JWT is valid for 30 days from issue.
+* When a request carries a valid JWT issued more than one day ago, `AuthMiddleware` issues a new one
+  and returns it in the `X-Session-Token` response header.
+* `/api/proxy` stores it in the session cookie (30 days again) and does not pass the header on to the
+  browser. The browser never sees a raw token.
+* A member who uses AdAdd at least once every 30 days stays signed in. A session unused for 30 days
+  expires, and the next visit goes through Google again.
+* Deactivating a User or revoking a Role still takes effect on the next request (Decision 3);
+  renewal never extends access for a User who has lost it.
+
+### 9. Re-login skips Google's account chooser
+
+* The Google authorization request no longer forces the account chooser (`prompt=select_account`).
+* After a successful sign-in, Next.js stores the signed-in email in an httpOnly cookie
+  (`adadd_login_hint`, 180 days) and sends it to Google as `login_hint` on the next sign-in.
+  When the browser is still signed in to that Google account, Google returns without asking.
+* The hint is kept after logging out, so signing in again is quick. If sign-in fails because the
+  email is not registered, the hint is removed so the next attempt shows the chooser.
+* `/login` still waits for the user to press the Google button. It never redirects to Google on its
+  own, so logging out stays meaningful.
+
 ---
 
 ## Confirmation Required
@@ -177,15 +207,30 @@ development-only endpoint in `apps/api`, guarded by `APP_ENV` and a shared passw
 Mock mode now covers checking each Role's screens, and E2E tests sign their own JWTs,
 so the endpoint is no longer worth its risk.
 
-### Shorter JWT lifetime with renewal
+### Short JWT lifetime instead of checking MySQL
 
-Old tokens expire sooner, but a deactivated User still keeps access until then, and renewal
-needs extra code. Reading MySQL on each request removes access immediately with less code.
+Old tokens expire sooner, but a deactivated User still keeps access until then.
+Reading MySQL on each request removes access immediately. Renewal (Decision 8) is used only so
+that active members stay signed in.
 
-### Server-side session table
+### Revoking sessions (server-side session table, or "valid after" time per User)
 
-Allows revoking a single session, but adds a table, cleanup, and lookups.
-Not needed while deactivating the User is the way to remove access.
+Would make logout invalidate a stolen token and allow "log out of all devices" or forced logout.
+Not adopted (2026-10-14): members use their own devices, and deactivating the User already
+removes access on the next request. It would need a migration if adopted later.
+
+### Password sign-in
+
+Would require storing, resetting, and protecting passwords. Google already proves the email address.
+
+### Storing Google refresh tokens
+
+AdAdd does not call Google APIs on the member's behalf, so they are not needed and would only
+increase the damage of a leak.
+
+### Redirecting `/login` to Google automatically
+
+Saves one click, but signs the member straight back in after logging out.
 
 ---
 
@@ -201,7 +246,10 @@ Specification:
 Implementation:
 
 * `apps/api`: JWT without Role codes, per-request User and Role lookup in `AuthMiddleware`,
-  `isActive` check in `POST /auth/google`, removal of development login, tests.
+  session renewal (`X-Session-Token`), `isActive` check in `POST /auth/google`,
+  removal of development login, tests.
+* `apps/web`: `/api/proxy` stores renewed sessions; the Google sign-in uses `login_hint`
+  instead of `prompt=select_account`.
 * `apps/web`: `npm run dev:mock`, mock login buttons and mock session, Role gating in mock mode,
   removal of the development login form and route, Advisor added to the mock Users.
 * E2E: `playwright.config.ts` and `e2e/support.ts` sign JWTs for seed Users.

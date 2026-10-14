@@ -51,6 +51,7 @@ On every request, the server verifies the token, then reads the `User` it names 
 
 * The User no longer exists, or `isActive = false`: `401 Unauthorized`, `error.code = "UNAUTHORIZED"`.
 * Role checks use the User's `UserRole` grants at that moment, so deactivating a User or revoking a Role takes effect on the next request.
+* Session renewal: when the token was issued more than one day ago, the response carries a new token in the `X-Session-Token` header. The caller replaces its stored token with it. The frontend's BFF proxy does this and never passes the header on to the browser (`spec/frontend.md#Login`). A token that is not renewed expires 30 days after it was issued.
 
 In development only, `X-User-ID` / `X-User-Roles` headers may be sent instead when the server has `DEV_AUTH_ENABLED=true`; this path must be disabled in production and on any shared server. Its future is decided in `spec/decisions/0004-development-modes-and-sessions.md`.
 
@@ -88,7 +89,7 @@ Response (email found):
 }
 ```
 
-`token` is a signed JWT containing only the User's ID (`sub`) and its expiry (30 days). It carries no Role codes; Roles are read from MySQL on every request (see Overview above). `user.roles` in the response is the User's Roles at sign-in, for the frontend's convenience. Every subsequent request must send this token as `Authorization: Bearer {token}`.
+`token` is a signed JWT containing only the User's ID (`sub`), its issue time, and its expiry (30 days; renewed while in use, see Overview above). It carries no Role codes; Roles are read from MySQL on every request (see Overview above). `user.roles` in the response is the User's Roles at sign-in, for the frontend's convenience. Every subsequent request must send this token as `Authorization: Bearer {token}`.
 
 If the email has no matching `User`: `403 Forbidden`, `error.code = "FORBIDDEN"`, message indicating the email is not registered — the frontend must not create a session.
 

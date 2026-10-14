@@ -684,7 +684,7 @@ AdAdd runs in one of two modes during development (`spec/decisions/0004-developm
 | Role gating | Applied | Applied |
 | Use | Checking each Role's screens; the Vercel preview (ADR-0002) | Checking the real flow as in production |
 
-In MySQL mode, a developer's Google account must be registered both as a test user of the AdAdd OAuth client and as an AdAdd `User` with the Roles to check. After the first sign-in, the session lasts 30 days.
+In MySQL mode, a developer's Google account must be registered both as a test user of the AdAdd OAuth client and as an AdAdd `User` with the Roles to check. After the first sign-in, the session is renewed while in use and ends after 30 days without use.
 
 ### Environment variables
 
