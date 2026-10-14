@@ -8,7 +8,16 @@
 const GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 
-export function buildGoogleAuthUrl(redirectUri: string, state: string): string {
+/**
+ * The account chooser is not forced: with `loginHint` (the email of the last
+ * successful sign-in), a browser still signed in to that Google account
+ * comes straight back (spec/frontend.md#Login).
+ */
+export function buildGoogleAuthUrl(
+  redirectUri: string,
+  state: string,
+  loginHint?: string
+): string {
   const clientId = process.env.GOOGLE_CLIENT_ID
   if (!clientId) {
     throw new Error("GOOGLE_CLIENT_ID is not configured")
@@ -19,9 +28,27 @@ export function buildGoogleAuthUrl(redirectUri: string, state: string): string {
     response_type: "code",
     scope: "openid email profile",
     state,
-    prompt: "select_account",
   })
+  if (loginHint) {
+    params.set("login_hint", loginHint)
+  }
   return `${GOOGLE_AUTH_ENDPOINT}?${params.toString()}`
+}
+
+/**
+ * Reads the `email` claim of an id_token received directly from Google's
+ * token endpoint, only to remember it as the next `login_hint`. Not a
+ * verification — apps/api verifies the token before trusting it.
+ */
+export function emailFromIdToken(idToken: string): string | null {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(idToken.split(".")[1] ?? "", "base64url").toString("utf8")
+    ) as { email?: unknown }
+    return typeof payload.email === "string" ? payload.email : null
+  } catch {
+    return null
+  }
 }
 
 type GoogleTokenResponse = {

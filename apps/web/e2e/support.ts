@@ -26,11 +26,14 @@ export const seedUsers = {
 
 export type SeedUser = (typeof seedUsers)[keyof typeof seedUsers]
 
-/** Signs an AdAdd session JWT (HS256, `sub` = User ID) like apps/api's JWTIssuer. */
-export function signSessionToken(userId: string): string {
+/**
+ * Signs an AdAdd session JWT (HS256, `sub` = User ID) like apps/api's
+ * JWTIssuer. `issuedSecondsAgo` backdates it, e.g. to trigger renewal.
+ */
+export function signSessionToken(userId: string, issuedSecondsAgo = 0): string {
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url")
-  const now = Math.floor(Date.now() / 1000)
-  const unsigned = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: userId, iat: now, exp: now + 60 * 60 })}`
+  const iat = Math.floor(Date.now() / 1000) - issuedSecondsAgo
+  const unsigned = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: userId, iat, exp: iat + 30 * 24 * 60 * 60 })}`
   const signature = createHmac("sha256", e2eJwtSecret).update(unsigned).digest("base64url")
   return `${unsigned}.${signature}`
 }
