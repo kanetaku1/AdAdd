@@ -15,6 +15,10 @@ services:
       DB_USER: adadd
       DB_PASSWORD: adadd_password
       DB_NAME: adadd
+      # Explicit, so this file never depends on the "unset means development" default.
+      APP_ENV: development
+      # Empty falls back to an insecure development value (see .env.example).
+      JWT_SECRET: ${JWT_SECRET:-}
       # APP_ENV defaults to "development"; DEV_AUTH_ENABLED must still be
       # explicitly opted into even then (spec/api.md#Authentication) — this
       # is what lets the X-User-ID/X-User-Roles stub keep working locally.
@@ -24,6 +28,7 @@ services:
       # # Google OAuth client ID, used to verify id_tokens on POST /auth/google.
       # # Sourced from a root .env file (gitignored) — see .env.example.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required, see .env.example}
+      GOOGLE_DRIVE_ROOT_FOLDER_ID: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:-}
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID:-}
     ports:
