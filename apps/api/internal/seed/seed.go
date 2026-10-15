@@ -180,7 +180,7 @@ func ensureYear(id, name string, startDate, endDate time.Time) error {
 	if err != nil || found {
 		return err
 	}
-	return service.NewYearService().Create(&model.Year{ID: id, Name: name, StartDate: startDate, EndDate: endDate})
+	return service.NewYearService().Create(&model.Year{ID: id, Name: name, StartDate: model.Date(startDate), EndDate: model.Date(endDate)})
 }
 
 func ensureSponsorshipMenus(menus []model.SponsorshipMenu) error {
