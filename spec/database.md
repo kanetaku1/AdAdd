@@ -468,7 +468,7 @@ Consequences:
 
 **Exception: `users.email`** uses `utf8mb4_0900_ai_ci`. Email addresses are case-insensitive, and the email from Google sign-in may differ in case from the registered one.
 
-The database default is also `utf8mb4_0900_bin` (set by migration `0012`), so tables added later inherit it. Creating a database is covered in `spec/operations.md` and `spec/development.md`.
+The database default is also `utf8mb4_0900_bin` (set by `0001_baseline.up.sql`), so tables added later inherit it. Creating a database is covered in `spec/operations.md` and `spec/development.md`.
 
 ---
 

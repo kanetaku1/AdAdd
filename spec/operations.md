@@ -24,7 +24,7 @@ CREATE USER 'adadd_prod'@'%' IDENTIFIED BY '<long random password>';
 GRANT ALL PRIVILEGES ON adadd_prod.* TO 'adadd_prod'@'%';
 ```
 
-The collation is `utf8mb4_0900_bin` (`spec/database.md#Character Set and Collation`). Migration `0012` sets it as well, so a database created with another default is corrected on the first start.
+The collation is `utf8mb4_0900_bin` (`spec/database.md#Character Set and Collation`). The baseline migration (`0001_baseline.up.sql`) sets it as well, so a database created with another default is corrected on the first start.
 
 ## Start the API against it
 

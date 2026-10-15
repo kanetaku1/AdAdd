@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks migration numbering against a base revision
+# Checks migrations against a base revision
 # (spec/development.md#Migration Numbering).
 #
 # Usage: apps/api/scripts/check-migrations.sh <base-revision>
@@ -8,7 +8,8 @@
 # golang-migrate records only the latest applied version. A migration whose
 # number is not above every migration already in the base is never applied
 # to a database that is past it, so this fails when:
-#   * a number is used by more than one migration, or lacks its up/down pair
+#   * a file is not NNNN_snake_case.up.sql (there are no down migrations)
+#   * a number is used by more than one migration
 #   * an added migration's number is not above the base's largest number
 #   * a migration that exists in the base was changed, renamed, or deleted
 set -euo pipefail
@@ -16,7 +17,8 @@ set -euo pipefail
 base="${1:?usage: check-migrations.sh <base-revision>}"
 root="$(git rev-parse --show-toplevel)"
 dir="apps/api/migrations"
-pattern='^([0-9]{4})_[a-z0-9_]+\.(up|down)\.sql$'
+baseline="0001_baseline.up.sql"
+pattern='^([0-9]{4})_[a-z0-9_]+\.up\.sql$'
 failed=0
 
 fail() {
@@ -28,36 +30,33 @@ version_of() {
   echo "${1%%_*}"
 }
 
-# 1. Every file is named NNNN_name.up|down.sql, each number has exactly one
-#    name, and each name has both up and down.
-declare -A name_by_version=()
-declare -A count_by_name=()
+# 1. Every file is NNNN_name.up.sql, and each number is used once.
+declare -A file_by_version=()
 for path in "$root/$dir"/*; do
   file="$(basename "$path")"
   if [[ ! "$file" =~ $pattern ]]; then
-    fail "$dir/$file: name must be NNNN_snake_case.up.sql or .down.sql"
+    fail "$dir/$file: name must be NNNN_snake_case.up.sql (down migrations are not used)"
     continue
   fi
   version="${BASH_REMATCH[1]}"
-  name="${file%.up.sql}"
-  name="${name%.down.sql}"
-  if [[ -n "${name_by_version[$version]:-}" && "${name_by_version[$version]}" != "$name" ]]; then
-    fail "number $version is used by both ${name_by_version[$version]} and $name"
+  if [[ -n "${file_by_version[$version]:-}" ]]; then
+    fail "number $version is used by both ${file_by_version[$version]} and $file"
   fi
-  name_by_version[$version]="$name"
-  count_by_name[$name]=$(( ${count_by_name[$name]:-0} + 1 ))
-done
-for name in "${!count_by_name[@]}"; do
-  if [[ "${count_by_name[$name]}" -ne 2 ]]; then
-    fail "$name must have exactly one .up.sql and one .down.sql"
-  fi
+  file_by_version[$version]="$file"
 done
 
 # 2. Migrations in the base are applied somewhere; they must stay as they are.
+#    One exception: the base is from before the baseline squash
+#    (spec/development.md#Baseline), so its development-era files are
+#    replaced by the baseline rather than kept.
 base_files="$(git -C "$root" ls-tree --name-only "$base" "$dir/" | xargs -r -n1 basename)"
+if [[ -f "$root/$dir/$baseline" ]] && ! grep -qxF "$baseline" <<<"$base_files"; then
+  echo "note: $base is from before the baseline; its migrations are replaced by $baseline"
+  base_files=""
+fi
 base_max=0
 for file in $base_files; do
-  if ! git -C "$root" diff --quiet "$base" -- "$dir/$file" 2>/dev/null || [[ ! -f "$root/$dir/$file" ]]; then
+  if [[ ! -f "$root/$dir/$file" ]] || ! git -C "$root" diff --quiet "$base" -- "$dir/$file" 2>/dev/null; then
     fail "$dir/$file exists in $base and must not be changed, renamed, or deleted"
   fi
   version=$((10#$(version_of "$file")))
