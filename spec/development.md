@@ -340,16 +340,24 @@ Do not directly modify production databases.
 
 ## Migration Numbering
 
-Migrations live in `apps/api/migrations` as `NNNN_snake_case.up.sql` / `NNNN_snake_case.down.sql`, numbered in sequence.
+Migrations live in `apps/api/migrations` as `NNNN_snake_case.up.sql`, numbered in sequence. `0001_baseline.up.sql` is the whole schema at the start of production (see Baseline below). Every later change is a new file from `0002` on.
+
+### Up only
+
+There are no down migrations. The API and the tests only ever apply migrations forward (`m.Up()`), and a down file is never run. Many changes cannot be undone exactly anyway (dropped columns, deleted rows).
+
+* A mistake in a merged migration is fixed with a new migration.
+* The production database is rolled back by restoring a backup taken before the change (`spec/operations.md#Backup`), not by a down migration.
+* A local database is recreated (`spec/development.md#Development Seed`).
 
 ### Why the number matters
 
-golang-migrate records only the latest applied version, not each applied file. A migration whose number is lower than one already applied is **never applied, and no error is raised**. If PR A adds `0012` and PR B adds `0011`, and A is merged first, every database already at `0012` silently skips B's `0011`.
+golang-migrate records only the latest applied version, not each applied file. A migration whose number is lower than one already applied is **never applied, and no error is raised**. If PR A adds `0003` and PR B adds `0002`, and A is merged first, every database already at `0003` silently skips B's `0002`.
 
 ### Rules
 
 1. **A new migration takes the next number after the largest one on `main` at merge time.** Two open PRs may pick the same number while they are in progress.
-2. **Whichever PR merges second renumbers.** Merge `main` into the branch, rename both files to the next free number, and run the tests again. Only the file names change.
+2. **Whichever PR merges second renumbers.** Merge `main` into the branch, rename the file to the next free number, and run the tests again. Only the file name changes.
 3. **Never change, rename, or delete a migration that is on `main`.** It may already be applied on the production database. Fix a mistake with a new migration.
 4. A migration may depend on tables that exist only after another PR's migration. Then the merge order between those PRs is fixed. Say so in both PR descriptions.
 
@@ -357,7 +365,7 @@ golang-migrate records only the latest applied version, not each applied file. A
 
 `apps/api/scripts/check-migrations.sh <base>` enforces the rules. It fails when:
 
-* a number is shared, or lacks its up/down pair
+* a file is not `NNNN_snake_case.up.sql`, or a number is shared
 * an added migration's number is not above the largest in `<base>`
 * a migration in `<base>` was changed, renamed, or deleted
 
@@ -373,6 +381,37 @@ apps/api/scripts/check-migrations.sh origin/main
 ### A local database that ran an unmerged migration
 
 If you applied another branch's migration on your local database and that migration was renumbered later, your database records a version that no longer matches. Do not patch `schema_migrations` by hand. Recreate the local database (`spec/development.md#Development Seed`). Tell the team when others may be in the same state.
+
+---
+
+## Baseline
+
+Before any production data existed, the development-era migrations `0001`–`0012` (with their down files) were squashed into one file, `0001_baseline.up.sql`. It creates the same schema they produced — every column, default, index, foreign key, collation, and the four Roles — checked by comparing `information_schema` of both databases.
+
+Why: a new database, including the production one, is built from the finished schema instead of replaying the development history (7 Roles created then 3 deleted, columns added then dropped, tables converted to another collation).
+
+This was a one-time exception to rule 3, allowed only because no production database existed yet. It is never repeated: once the production database is running, its applied migrations are permanent.
+
+### Moving a local database to the baseline
+
+A local database created before the squash records version `12`, which no longer has a file. The API then stops on start with `no migration found for version 12`. Do one of these, once:
+
+* **The database was at version 12 cleanly** (it ran every migration up to `0012_use_binary_collation`): its schema already equals the baseline. Record the new version:
+
+```sql
+UPDATE schema_migrations SET version = 1 WHERE version = 12 AND dirty = 0;
+```
+
+* **Any other version, `dirty = 1`, or a migration from an unmerged branch** (e.g. the old `contract_menu_files` from the closed PR #139): recreate the database. This deletes all local data.
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password -e \
+  "DROP DATABASE adadd; CREATE DATABASE adadd CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin; GRANT ALL PRIVILEGES ON adadd.* TO 'adadd'@'%';"
+```
+
+Then, from `apps/api`, `go run ./cmd/seed` applies the baseline and loads the development data (`spec/development.md#Development Seed`).
+
+Check the current state with `SELECT version, dirty FROM schema_migrations;`. The same applies to the local E2E database (`adadd_e2e`). The integration test database is rebuilt by the tests themselves.
 
 ---
 
