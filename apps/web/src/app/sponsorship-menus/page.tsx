@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 
-import { Plus } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
 
 import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { useYearCatalog } from "@/components/year-catalog-provider"
 import { IconActionButton } from "@/components/icon-action-button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +22,7 @@ import {
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   createSponsorshipMenu,
+  deleteSponsorshipMenu,
   updateSponsorshipMenu,
 } from "@/lib/data/sponsorship-menus"
 import { getErrorMessage } from "@/lib/errors"
@@ -28,6 +30,8 @@ import { canAccess } from "@/lib/auth/roles"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
+/** Deletion is Administrator-only system-wide (spec/api.md#Authorization Matrix). */
+const DELETE_ROLES = ["ADMINISTRATOR"]
 
 function parseMaxQuantity(raw: string): number | null {
   const trimmed = raw.trim()
@@ -50,6 +54,9 @@ function parseMaxQuantity(raw: string): number | null {
  * on blur (Enter also blurs). Toggles persist immediately. PATCH replaces
  * the listed fields, so every persisted call sends the complete field set
  * — see lib/data/sponsorship-menus.ts.
+ *
+ * The per-row delete action is shown only to Administrator and confirmed
+ * first; a menu already used by a Contract Menu is rejected (409).
  */
 export default function SponsorshipMenusPage() {
   const {
@@ -60,6 +67,8 @@ export default function SponsorshipMenusPage() {
   const activeYearId = activeYear?.id ?? null
   const { currentUser } = useCurrentUser()
   const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const canDelete = canAccess(currentUser?.roles, DELETE_ROLES)
+  const columnCount = canDelete ? 6 : 5
   const {
     sponsorshipMenus,
     isSponsorshipMenusLoading,
@@ -74,6 +83,11 @@ export default function SponsorshipMenusPage() {
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<SponsorshipMenu | null>(
+    null
+  )
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!activeYearId) return
@@ -139,6 +153,33 @@ export default function SponsorshipMenusPage() {
     }
   }
 
+  async function handleDelete(target: SponsorshipMenu) {
+    if (!activeYearId) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteSponsorshipMenu(target.id)
+      setSponsorshipMenus(
+        activeYearId,
+        menus.filter((menu) => menu.id !== target.id)
+      )
+      setDeleteTarget(null)
+    } catch (e) {
+      setDeleteError(
+        getErrorMessage(e, {
+          fallback: "協賛メニューの削除に失敗しました",
+          overrides: {
+            CONFLICT:
+              "契約で使われているメニューは削除できません。募集を止める場合は「募集中」をオフにしてください。",
+            FORBIDDEN: "削除は管理者のみが実行できます。",
+          },
+        })
+      )
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -177,18 +218,22 @@ export default function SponsorshipMenusPage() {
               <TableHead>上限数</TableHead>
               <TableHead>提出要否</TableHead>
               <TableHead>募集中</TableHead>
+              {canDelete && <TableHead className="w-12" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {yearLoading || loading ? (
-              <LoadingRow colSpan={5} />
+              <LoadingRow colSpan={columnCount} />
             ) : !activeYearId ? (
               <EmptyRow
-                colSpan={5}
+                colSpan={columnCount}
                 message="年度が未作成です。年度画面から作成してください。"
               />
             ) : menus.length === 0 ? (
-              <EmptyRow colSpan={5} message="協賛メニューがまだありません。" />
+              <EmptyRow
+                colSpan={columnCount}
+                message="協賛メニューがまだありません。"
+              />
             ) : (
               menus.map((menu) => {
                 const rowSaving = savingId === menu.id
@@ -277,6 +322,20 @@ export default function SponsorshipMenusPage() {
                         }
                       />
                     </TableCell>
+                    {canDelete && (
+                      <TableCell>
+                        <IconActionButton
+                          label={`${menu.name}を削除`}
+                          disabled={rowSaving}
+                          onClick={() => {
+                            setDeleteError(null)
+                            setDeleteTarget(menu)
+                          }}
+                        >
+                          <Trash2 className="text-destructive" />
+                        </IconActionButton>
+                      </TableCell>
+                    )}
                   </TableRow>
                 )
               })
@@ -284,6 +343,17 @@ export default function SponsorshipMenusPage() {
           </TableBody>
         </Table>
       </div>
+
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title="協賛メニューを削除しますか？"
+          description={`${deleteTarget.name} を削除します。この操作は取り消せません。`}
+          error={deleteError}
+          deleting={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void handleDelete(deleteTarget)}
+        />
+      )}
     </div>
   )
 }

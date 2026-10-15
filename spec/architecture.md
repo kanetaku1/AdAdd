@@ -119,6 +119,16 @@ Docker Compose runs the services required for local development:
 * `mysql` — MySQL 8.4
 * `api` — apps/api (Go/Echo), once containerized
 
+## Deployment
+
+At this stage, the original data lives in a local MySQL, and `apps/api` runs locally against it.
+
+Vercel hosts `apps/web` only as a mock-only preview for committee tryout. It never connects to `apps/api` or MySQL.
+
+The production deployment is not decided yet.
+
+See `spec/decisions/0002-deployment.md`.
+
 ## Configuration
 
 Environment-specific configuration (database connection, server port, etc.)

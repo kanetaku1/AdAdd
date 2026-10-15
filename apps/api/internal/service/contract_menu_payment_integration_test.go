@@ -2,57 +2,40 @@ package service
 
 import (
 	"errors"
-	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/testdb"
 	"github.com/shopspring/decimal"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
-func openPaymentSyncTestDB(t *testing.T) {
+// Fixed IDs of the rows seeded by seedPaymentSyncContract. testdb.Open empties
+// the database before every test, so they never collide.
+const (
+	testYearID          = "test-year"
+	testCompanyID       = "test-company"
+	testYearlyCompanyID = "test-yearly-company"
+	testContractID      = "test-contract"
+	testMenuID          = "test-sponsorship-menu"
+	testPaymentID       = "test-payment"
+)
+
+func seedPaymentSyncContract(t *testing.T, paymentStatus string, paymentAmount decimal.Decimal) (string, string, string) {
 	t.Helper()
 
-	dsn := os.Getenv("ADADD_API_TEST_DSN")
-	if dsn == "" {
-		t.Skip("ADADD_API_TEST_DSN is not set; skipping DB integration test")
-	}
-
-	gormDB, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open test database: %v", err)
-	}
-	db.DB = gormDB
-}
-
-func seedPaymentSyncContract(t *testing.T, suffix string, paymentStatus string, paymentAmount decimal.Decimal) (string, string, string) {
-	t.Helper()
-
-	yearID := "test-year-" + suffix
-	companyID := "test-company-" + suffix
-	yearlyCompanyID := "test-yearly-company-" + suffix
-	contractID := "test-contract-" + suffix
-	menuID := "test-menu-" + suffix
-	paymentID := "test-payment-" + suffix
+	yearID := testYearID
+	companyID := testCompanyID
+	yearlyCompanyID := testYearlyCompanyID
+	contractID := testContractID
+	menuID := testMenuID
+	paymentID := testPaymentID
 	now := time.Now()
-
-	t.Cleanup(func() {
-		db.DB.Unscoped().Delete(&model.ContractMenu{}, "contract_id = ?", contractID)
-		db.DB.Unscoped().Delete(&model.Payment{}, "id = ?", paymentID)
-		db.DB.Unscoped().Delete(&model.SponsorshipContract{}, "id = ?", contractID)
-		db.DB.Unscoped().Delete(&model.SponsorshipMenu{}, "id = ?", menuID)
-		db.DB.Unscoped().Delete(&model.YearlyCompany{}, "id = ?", yearlyCompanyID)
-		db.DB.Unscoped().Delete(&model.Company{}, "id = ?", companyID)
-		db.DB.Unscoped().Delete(&model.Year{}, "id = ?", yearID)
-	})
 
 	if err := db.DB.Create(&model.Year{
 		ID:        yearID,
-		Name:      "payment-sync-" + suffix,
+		Name:      "2026",
 		StartDate: now,
 		EndDate:   now.AddDate(0, 1, 0),
 		IsActive:  false,
@@ -61,7 +44,7 @@ func seedPaymentSyncContract(t *testing.T, suffix string, paymentStatus string, 
 	}
 	if err := db.DB.Create(&model.Company{
 		ID:          companyID,
-		CompanyName: "Payment Sync Test " + suffix,
+		CompanyName: "Payment Sync Test",
 	}).Error; err != nil {
 		t.Fatalf("seed company: %v", err)
 	}
@@ -85,7 +68,7 @@ func seedPaymentSyncContract(t *testing.T, suffix string, paymentStatus string, 
 	if err := db.DB.Create(&model.SponsorshipMenu{
 		ID:                 menuID,
 		YearID:             yearID,
-		Name:               "Test Menu " + suffix,
+		Name:               "Test Menu",
 		DefaultPrice:       decimal.NewFromInt(100),
 		RequiresSubmission: true,
 		IsActive:           true,
@@ -125,10 +108,9 @@ func assertContractAndPaymentAmounts(t *testing.T, contractID string, paymentID 
 }
 
 func TestContractMenuChangesSyncWaitingPaymentAmount(t *testing.T) {
-	openPaymentSyncTestDB(t)
+	testdb.Open(t)
 
-	suffix := fmt.Sprintf("waiting-%d", time.Now().UnixNano())
-	contractID, menuID, paymentID := seedPaymentSyncContract(t, suffix, "WAITING", decimal.Zero)
+	contractID, menuID, paymentID := seedPaymentSyncContract(t, "WAITING", decimal.Zero)
 	svc := NewContractMenuService()
 
 	menu := &model.ContractMenu{
@@ -157,10 +139,9 @@ func TestContractMenuChangesSyncWaitingPaymentAmount(t *testing.T) {
 }
 
 func TestContractMenuChangeRejectsConfirmedPaymentAmountMismatch(t *testing.T) {
-	openPaymentSyncTestDB(t)
+	testdb.Open(t)
 
-	suffix := fmt.Sprintf("confirmed-%d", time.Now().UnixNano())
-	contractID, menuID, paymentID := seedPaymentSyncContract(t, suffix, "CONFIRMED", decimal.NewFromInt(100))
+	contractID, menuID, paymentID := seedPaymentSyncContract(t, "CONFIRMED", decimal.NewFromInt(100))
 	svc := NewContractMenuService()
 
 	err := svc.Create(&model.ContractMenu{

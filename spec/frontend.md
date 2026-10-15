@@ -166,6 +166,8 @@ Navigation/action visibility is driven by the roles returned in the login respon
 
 In local development, the `X-User-ID` / `X-User-Roles` dev headers (`DEV_AUTH_ENABLED=true`) bypass this flow entirely — see `spec/api.md#Authentication`.
 
+When `NEXT_PUBLIC_API_BASE_URL` is unset (in-memory mock mode, including a committee Preview with no API), there is no backend to mint a session. The login guard and role gating are skipped, and a persistent banner states that data is not saved and is not production. This configuration is not a production deployment.
+
 ---
 
 ## Dashboard
@@ -312,6 +314,7 @@ Actions:
 * Edit company
 * View sponsorship history (past Yearly Companies)
 * Register the company into the active Year as a Yearly Company (per row, only shown when it isn't already registered for that Year) — the individual registration path noted in `spec/usecase.md` UC-01 Notes.
+* Delete company (per row, shown only to Administrator, guarded by a confirmation step — `DELETE /companies/{id}`). A Company with a Yearly Company is rejected (`409`) and the reason is shown.
 
 ---
 
@@ -551,6 +554,10 @@ Display:
 | Submission required |
 | Max quantity (optional) |
 | Active status       |
+
+Actions:
+
+* Delete menu (per row, shown only to Administrator, guarded by a confirmation step — `DELETE /sponsorship-menus/{menuId}`). A menu used by a Contract Menu is rejected (`409`) and the reason is shown; turn off Active status instead.
 
 ---
 

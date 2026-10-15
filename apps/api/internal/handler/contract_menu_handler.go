@@ -28,7 +28,6 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 	rStaff.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 	rStaff.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
-	rStaff.DELETE("/contract-menus/:id", deleteContractMenu)
 	rStaff.DELETE("/contract-menus/:id/files/:fileId", deleteContractMenuFile)
 
 	// Deletion is Administrator-only system-wide (spec/api.md#Authorization

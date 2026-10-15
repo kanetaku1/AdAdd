@@ -466,6 +466,111 @@ Priority order:
 
 ---
 
+## Integration Tests
+
+Domain rules and business flows are verified against a real MySQL, not mocks.
+
+* `apps/api/internal/testdb` connects a test to the database named by `ADADD_API_TEST_DSN`.
+  * On first use in a test binary, it drops every table and applies all migrations from scratch. A broken or conflicting migration fails the tests.
+  * Before every test, it empties all tables except `schema_migrations` and `roles` (Roles are master data seeded by migrations).
+  * The database name must end with `_test`. Any other name is refused, because every table is dropped.
+* `apps/api/internal/integration` tests business flows through the full API (routing, role checks, handlers, services, MySQL), authenticated with the development `X-User-ID` / `X-User-Roles` headers.
+* Without `ADADD_API_TEST_DSN`, these tests are skipped locally. In CI (`CI=true`) they fail instead, so they are never skipped silently.
+* Packages share one test database, so run tests with `-p 1`.
+
+CI (`.github/workflows/api-ci.yml`) runs them against a MySQL 8.4 service container on every API change.
+
+### Running locally
+
+With the Docker Compose `mysql` service running, create the test database once:
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password -e \
+  "CREATE DATABASE IF NOT EXISTS adadd_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON adadd_test.* TO 'adadd'@'%';"
+```
+
+Then, from `apps/api`:
+
+```bash
+ADADD_API_TEST_DSN='adadd:adadd_password@tcp(127.0.0.1:3306)/adadd_test' go test -p 1 ./...
+```
+
+---
+
+## Development Seed
+
+`apps/api/cmd/seed` loads fictitious development data, so the API, the frontend in API mode, and E2E tests can start from a known state.
+
+* All data is fictitious. Real companies, people, or payment data must never be added.
+* Every row has a fixed ID and each step only creates what is missing. Running the seed again leaves the database unchanged.
+* Business state is created through the services, so it follows the real business rules (Yearly Company generation and `companyStatus`, contract totals, Payments, Activity Logs).
+* It refuses to run unless `APP_ENV=development`, and it never sends Slack notifications.
+* It applies migrations before loading data.
+
+From `apps/api`, with the database settings in `apps/api/.env` (see `.env.example`):
+
+```bash
+go run ./cmd/seed
+```
+
+The seed is meant for an empty development database. Creating Year 2026 makes it the active Year and generates a Yearly Company for every Company already in the database.
+
+### Seed contents
+
+| Data | Contents |
+| ---- | -------- |
+| Users | `user_001` 田中 (Administrator), `user_002` 鈴木 / `user_005` 山田 (Sponsorship Member), `user_003` 佐藤 (Finance), `user_006` 伊藤 (Advisor), `user_004` 高橋 (inactive, no Role). IDs match the frontend development stub (`X-User-ID`). |
+| Years | `year_2025` (previous), `year_2026` (active) |
+| Companies | `c_001`–`c_003` existed in 2025. `c_004`, `c_005` were registered afterward. |
+| 2025 | `c_001` and `c_002` have contracts with confirmed Payments. `c_003` was contacted and declined. |
+| 2026 `companyStatus` | `c_001`, `c_002` Continuing. `c_003`, `c_004`, `c_005` New. |
+| 2026 assignments | `c_001`, `c_003` → 鈴木. `c_002` → 山田. `c_004`, `c_005` unassigned. 伊藤 advises 鈴木 and 山田. |
+| 2026 contract | `c_001`: pamphlet ad, homepage ad, and a goods sponsorship booth (total 95,000). Payment waiting for Finance. |
+
+---
+
+## E2E Tests
+
+`apps/web/e2e` verifies the main business flows through the browser, on the real stack: Next.js (API mode) → Go API → MySQL.
+
+* Playwright (`apps/web/playwright.config.ts`) starts both servers itself:
+  * the Go API on port 18080 against the `adadd_e2e` database, after running the development seed;
+  * the production build of the web app (`next build` + `next start`) on port 3100.
+* A local development API on port 8080 and its database are never touched.
+* Users act through the development stub (`adadd.dev.userId` / `adadd.dev.roles` in localStorage, sent as `X-User-ID` / `X-User-Roles`). In this mode the UI shows every control regardless of Role, so Role checks are verified by what the API accepts or rejects.
+* Tests create their own companies with unique names, so they do not need a fresh database and can be run repeatedly.
+* Each step is checked again after a reload, so the result is read back from MySQL.
+
+CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container on every API or web change.
+
+### Covered flows
+
+| Flow | Checks |
+| ---- | ------ |
+| Yearly Company list | Seeded companies appear in the active Year with Continuing / New |
+| Company → Yearly Company | Register a company, register it in the active Year (New) |
+| Assignment | An Administrator assigns a member; it persists after reload |
+| Contract | A Sponsorship Member creates a contract with menus; total and Payment (waiting) persist |
+| Payment confirmation | A Sponsorship Member is rejected by the API; Finance confirms; status and confirmer persist |
+
+### Running locally
+
+With the Docker Compose `mysql` service running, create the E2E database once:
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password -e \
+  "CREATE DATABASE IF NOT EXISTS adadd_e2e CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON adadd_e2e.* TO 'adadd'@'%';"
+```
+
+Then, from `apps/web` (Go and Node are required):
+
+```bash
+npx playwright install chromium   # first time only
+npm run test:e2e
+```
+
+---
+
 # AI Development Workflow
 
 ## Before Asking AI
