@@ -119,6 +119,10 @@ AdAdd は、業務そのものを変えるのではなく、業務の状態を�
 
 * `spec/development.md`
 
+### Operations
+
+* `spec/operations.md`（本番DBの作成・最初の管理者・初期データ移行の手順）
+
 ### Architecture Decision Records
 
 * `spec/decisions/`

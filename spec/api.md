@@ -330,9 +330,17 @@ Request:
 
 Side effect: bulk-generates a `YearlyCompany` for every existing `Company` (see `spec/usecase.md` UC-01, `spec/domain.md#Yearly Company`). For each Company, `companyStatus` is computed automatically (Continuing/New — never Dormant, see `spec/model.md#Value Objects` → `CompanyStatus`), `phase` defaults to `PHASE_3`, `progress` defaults to `NOT_CONTACTED`, and contact fields (`postalCode`, `address`, `phoneNumber`, `website`, `contactPersonName`, `contactEmailOrForm`, `memo`) are copied from that Company.
 
+`startDate` and `endDate` are plain `YYYY-MM-DD` dates, the same format as the response.
+
 Permission:
 
 * Administrator
+
+---
+
+## No Year Deletion
+
+There is no `DELETE /years/{yearId}`. A Year is never deleted, by any Role (`spec/domain.md#Year`). It owns that cycle's Yearly Companies, Sponsorship Menus, Contracts, and Payments, and the next Year's `companyStatus` is computed from it. Correcting a mistakenly created Year (name, dates) is not designed yet (Issue #172).
 
 ---
 
@@ -402,7 +410,7 @@ Permission:
 
 ## Bulk Import Companies
 
-Creates many Companies from a CSV in one request (`spec/frontend.md#CSV Import / Export`). Does not create Yearly Companies. Existing one-by-one `POST /companies` stays for individual registration.
+Creates many Companies from a CSV in one request (`spec/frontend.md#CSV Import / Export`). When a Year is active, each created Company is also registered into that Year as a Yearly Company, in the same operation. Existing one-by-one `POST /companies` stays for individual registration.
 
 ```
 POST /companies/bulk
@@ -424,8 +432,21 @@ CSV is UTF-8 (BOM allowed). Header row required. Columns (names are exact):
 | contactEmailOrForm   |          | |
 | firstSponsorshipYear |          | |
 | memo                 |          | |
+| previousYearContract |          | `あり` / `なし` / empty (= `なし`). Whether the company had a sponsorship contract in the Year before the active one. Any other value is an error row. |
 
 Each row is independent. Invalid / duplicate rows are returned in `errors` and skipped; valid rows are created. Same response shape as Bulk Import Users (`totalCount` / `successCount` / `errorCount` / `successfulRows` / `errors`). HTTP 400 if the file is missing, not CSV, or has no data rows.
+
+Duplicate `companyName` is an exact match: the database collation distinguishes every character difference, including dakuten, kana type, full/half width, and letter case (`spec/database.md#Character Set and Collation`). Normalize names before importing.
+
+Yearly Company registration (when a Year is active):
+
+* Every created Company gets a Yearly Company in the active Year. `phase` = `PHASE_3`, `progress` = `NOT_CONTACTED`, contact fields copied from the Company — the same defaults as Create Year.
+* `companyStatus` is derived from `previousYearContract`: `あり` → `CONTINUING`, otherwise `NEW`. This is the input for history from before AdAdd (`spec/domain.md#Company Status`). The status itself is not accepted.
+* Each item in `successfulRows` is the Company plus `companyStatus`, the status it will get (preview) or got (confirm) in the active Year.
+
+When no Year is active, Companies are created without Yearly Companies, and `companyStatus` is omitted. A row with `previousYearContract` = `あり` is then an error row, so the fact is not lost: create the Year first (`spec/operations.md#Initial Data Migration`).
+
+Confirm (`dryRun=false`) writes all valid rows in one transaction. If any write fails, nothing is created and the API returns an error. A success response means every row in `successfulRows` was created.
 
 Permission:
 
