@@ -23,8 +23,9 @@ Manage each festival year independently.
 The system shall allow administrators to:
 
 * Create a new festival year
-* Archive completed years
-* Select the active year
+* Archive completed years — automatic: creating a new Year makes every earlier Year a past Year (`spec/domain.md#Active Year and Past Years`)
+* Keep exactly one active year — the most recently created one; a past Year never becomes active again
+* View past years, read-only, except payment confirmation
 * Copy company data from previous years
 
 ### Related Use Cases

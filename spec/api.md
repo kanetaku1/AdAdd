@@ -320,6 +320,25 @@ GET /years
 
 ---
 
+## Past Years Are Read-Only
+
+Only the active Year accepts changes. A past Year accepts exactly one kind of change: `PATCH /payments/{paymentId}` (payment confirmation, both `CONFIRMED` and back to `WAITING`) — see `spec/domain.md#Active Year and Past Years`.
+
+Every other write to a record that belongs to a past Year is rejected with HTTP 409 `CONFLICT` and the message 過去の年度は閲覧のみです（入金確認を除く）. The Year of a record is resolved through its owner:
+
+| Endpoint | Year comes from |
+| -------- | --------------- |
+| `POST /years/{yearId}/companies`, `POST /years/{yearId}/sponsorship-menus` | `yearId` |
+| `PATCH /yearly-companies/{id}/…` (company-status, phase, progress, company-contact), `POST /yearly-companies/{id}/assignments`, `POST /yearly-companies/{id}/contract` | the Yearly Company |
+| `PATCH /contracts/{contractId}`, `POST /contracts/{contractId}/menus`, `POST /contracts/{contractId}/payment` | the Contract's Yearly Company |
+| `PATCH` / `DELETE /contract-menus/{id}` and its `status`, `production`, `drive-upload` | the Contract Menu's Contract |
+| `PATCH` / `DELETE /sponsorship-menus/{menuId}` | the Sponsorship Menu |
+| `POST /advisor-assignments`, `DELETE /advisor-assignments/{id}` | `yearId` of the Advisor Assignment |
+
+The check is enforced in the backend, regardless of Role (Administrator included). Reads (`GET`) are not restricted. Year-independent data — Companies, Users, Roles — is not affected.
+
+---
+
 ## Create Year
 
 Creates a new festival Year and makes it the active Year (`isActive`). All other Years are deactivated.
