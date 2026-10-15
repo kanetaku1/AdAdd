@@ -16,6 +16,24 @@ defaults:
     working-directory: apps/api
 
 jobs:
+  # Migration numbering (spec/development.md#Migration Numbering). A pull
+  # request is checked against its base branch; a push against the previous
+  # tip, which catches a stale check merged after the base moved on.
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check migration numbering against the base branch
+        if: github.event_name == 'pull_request'
+        run: scripts/check-migrations.sh "origin/${{ github.base_ref }}"
+
+      - name: Check migration numbering against the previous push
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: scripts/check-migrations.sh "${{ github.event.before }}"
+
   build:
     runs-on: ubuntu-latest
 
