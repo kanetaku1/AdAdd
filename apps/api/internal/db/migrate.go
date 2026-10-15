@@ -1,7 +1,9 @@
 package db
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -26,6 +28,11 @@ func ApplyMigrations(cfg *config.Config) error {
 		return fmt.Errorf("migrate.New failed: %w", err)
 	}
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		if errors.Is(err, fs.ErrNotExist) {
+			// The database records a version with no file, e.g. a local
+			// database from before the baseline squash.
+			return fmt.Errorf("migration up failed: %w (the database's version has no migration file; see spec/development.md#Baseline)", err)
+		}
 		return fmt.Errorf("migration up failed: %w", err)
 	}
 	log.Println("migrations applied")
