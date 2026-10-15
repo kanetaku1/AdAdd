@@ -338,6 +338,44 @@ Do not directly modify production databases.
 
 ---
 
+## Migration Numbering
+
+Migrations live in `apps/api/migrations` as `NNNN_snake_case.up.sql` / `NNNN_snake_case.down.sql`, numbered in sequence.
+
+### Why the number matters
+
+golang-migrate records only the latest applied version, not each applied file. A migration whose number is lower than one already applied is **never applied, and no error is raised**. If PR A adds `0012` and PR B adds `0011`, and A is merged first, every database already at `0012` silently skips B's `0011`.
+
+### Rules
+
+1. **A new migration takes the next number after the largest one on `main` at merge time.** Two open PRs may pick the same number while they are in progress.
+2. **Whichever PR merges second renumbers.** Merge `main` into the branch, rename both files to the next free number, and run the tests again. Only the file names change.
+3. **Never change, rename, or delete a migration that is on `main`.** It may already be applied on the production database. Fix a mistake with a new migration.
+4. A migration may depend on tables that exist only after another PR's migration. Then the merge order between those PRs is fixed. Say so in both PR descriptions.
+
+### Check
+
+`apps/api/scripts/check-migrations.sh <base>` enforces the rules. It fails when:
+
+* a number is shared, or lacks its up/down pair
+* an added migration's number is not above the largest in `<base>`
+* a migration in `<base>` was changed, renamed, or deleted
+
+CI (`.github/workflows/api-ci.yml`, job `migrations`) runs it on every pull request against its base branch. It also runs on every push against the previous tip, so a check that went stale before merge still fails on `main`.
+
+Run it locally before pushing:
+
+```bash
+git fetch origin
+apps/api/scripts/check-migrations.sh origin/main
+```
+
+### A local database that ran an unmerged migration
+
+If you applied another branch's migration on your local database and that migration was renumbered later, your database records a version that no longer matches. Do not patch `schema_migrations` by hand. Recreate the local database (`spec/development.md#Development Seed`). Tell the team when others may be in the same state.
+
+---
+
 ## Schema Rules
 
 * Table names use snake_case
