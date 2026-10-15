@@ -3,8 +3,10 @@ package service
 import (
 	"errors"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
+	"gorm.io/gorm"
 )
 
 type CompanyService struct {
@@ -43,7 +45,22 @@ type CompanyCsvRow struct {
 	ContactEmailOrForm   string
 	FirstSponsorshipYear string
 	Memo                 string
+	PreviousYearContract string
 }
+
+// CompanyImportRow is one created (or, in preview, to-be-created) Company.
+// CompanyStatus is the status its Yearly Company gets in the active Year;
+// empty when no Year is active (spec/api.md#Bulk Import Companies).
+type CompanyImportRow struct {
+	model.Company
+	CompanyStatus string `json:"companyStatus,omitempty"`
+}
+
+// previousYearContract values accepted in the CSV. Empty means なし.
+const (
+	previousYearContractYes = "あり"
+	previousYearContractNo  = "なし"
+)
 
 func (s *CompanyService) BulkImport(rows []CompanyCsvRow, dryRun bool) (*model.BulkResult, error) {
 	result := &model.BulkResult{
@@ -54,12 +71,25 @@ func (s *CompanyService) BulkImport(rows []CompanyCsvRow, dryRun bool) (*model.B
 		Errors:         make([]model.BulkError, 0),
 	}
 
-	validCompanies := make([]*model.Company, 0)
+	activeYear, err := repository.NewYearRepository().FindActive()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	validRows := make([]*CompanyImportRow, 0)
 	csvCompanyMap := make(map[string]bool)
 
 	for _, row := range rows {
 		if row.CompanyName == "" {
 			result.Errors = append(result.Errors, model.BulkError{RowNumber: row.RowNumber, Message: "企業名は必須です"})
+			continue
+		}
+		if row.PreviousYearContract != "" && row.PreviousYearContract != previousYearContractYes && row.PreviousYearContract != previousYearContractNo {
+			result.Errors = append(result.Errors, model.BulkError{RowNumber: row.RowNumber, Message: "前年度契約は「あり」「なし」または空欄で指定してください: " + row.PreviousYearContract})
+			continue
+		}
+		if row.PreviousYearContract == previousYearContractYes && activeYear == nil {
+			result.Errors = append(result.Errors, model.BulkError{RowNumber: row.RowNumber, Message: "前年度契約を反映する年度がありません。先に年度を作成してください"})
 			continue
 		}
 		if csvCompanyMap[row.CompanyName] {
@@ -74,31 +104,65 @@ func (s *CompanyService) BulkImport(rows []CompanyCsvRow, dryRun bool) (*model.B
 		}
 
 		csvCompanyMap[row.CompanyName] = true
-		c := &model.Company{
-			CompanyName:          row.CompanyName,
-			CompanyNameKana:      row.CompanyNameKana,
-			PostalCode:           row.PostalCode,
-			Address:              row.Address,
-			PhoneNumber:          row.PhoneNumber,
-			Website:              row.Website,
-			ContactPersonName:    row.ContactPersonName,
-			ContactEmailOrForm:   row.ContactEmailOrForm,
-			FirstSponsorshipYear: row.FirstSponsorshipYear,
-			Memo:                 row.Memo,
+		importRow := &CompanyImportRow{
+			Company: model.Company{
+				CompanyName:          row.CompanyName,
+				CompanyNameKana:      row.CompanyNameKana,
+				PostalCode:           row.PostalCode,
+				Address:              row.Address,
+				PhoneNumber:          row.PhoneNumber,
+				Website:              row.Website,
+				ContactPersonName:    row.ContactPersonName,
+				ContactEmailOrForm:   row.ContactEmailOrForm,
+				FirstSponsorshipYear: row.FirstSponsorshipYear,
+				Memo:                 row.Memo,
+			},
 		}
-		validCompanies = append(validCompanies, c)
-		result.SuccessfulRows = append(result.SuccessfulRows, c)
-		result.SuccessCount++
-	}
-	result.ErrorCount = len(result.Errors)
-
-	if !dryRun && result.SuccessCount > 0 {
-		for _, c := range validCompanies {
-			if err := s.repo.Create(c); err != nil {
-				// skip individual insert errors silently since we checked before
+		if activeYear != nil {
+			// History from before AdAdd (spec/domain.md#Company Status): the
+			// fact decides the status; the status itself is never input.
+			importRow.CompanyStatus = "NEW"
+			if row.PreviousYearContract == previousYearContractYes {
+				importRow.CompanyStatus = "CONTINUING"
 			}
 		}
+		validRows = append(validRows, importRow)
 	}
+
+	if !dryRun && len(validRows) > 0 {
+		// All or nothing: a success response means every row was created.
+		err := db.WithTx(func(tx *gorm.DB) error {
+			for _, r := range validRows {
+				if err := tx.Create(&r.Company).Error; err != nil {
+					return err
+				}
+				if activeYear == nil {
+					continue
+				}
+				yc := &model.YearlyCompany{
+					YearID:        activeYear.ID,
+					CompanyID:     r.Company.ID,
+					CompanyStatus: r.CompanyStatus,
+					Phase:         "PHASE_3",
+					Progress:      "NOT_CONTACTED",
+				}
+				model.CopyContactFromCompany(yc, &r.Company)
+				if err := tx.Create(yc).Error; err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, r := range validRows {
+		result.SuccessfulRows = append(result.SuccessfulRows, r)
+	}
+	result.SuccessCount = len(validRows)
+	result.ErrorCount = len(result.Errors)
 	return result, nil
 }
 

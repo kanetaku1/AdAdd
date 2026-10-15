@@ -163,6 +163,7 @@ func bulkImportCompanies(c echo.Context) error {
 			ContactEmailOrForm:   getVal("contactEmailOrForm"),
 			FirstSponsorshipYear: getVal("firstSponsorshipYear"),
 			Memo:                 getVal("memo"),
+			PreviousYearContract: getVal("previousYearContract"),
 		})
 	}
 
