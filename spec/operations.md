@@ -2,7 +2,7 @@
 
 ## Purpose
 
-How AdAdd is set up and started for real operation: the production database, the first Administrator, and loading the existing business data.
+How AdAdd is set up and run for real operation: the production database, the first Administrator, loading the existing business data, and upgrading to a new version.
 
 This is a handover document. A new Administrator should be able to repeat every step from here alone.
 
@@ -35,7 +35,17 @@ Point the API at the database with environment variables (`apps/api/.env.example
 | `DB_HOST` / `DB_PORT` | MySQL host and port |
 | `DB_USER` / `DB_PASSWORD` | the user created above |
 | `DB_NAME` | `adadd_prod` |
-| `MIGRATE_ON_START` | `true` — applies every migration on start |
+| `MIGRATE_ON_START` | `false` (the default) — production never changes its schema just by starting |
+
+Migrations are applied as an explicit step with `cmd/migrate`, after a backup (see Upgrading Production). Create the schema of the new, empty database the same way:
+
+```bash
+# from apps/api, with the DB_* settings above
+go run ./cmd/migrate status
+go run ./cmd/migrate up -database adadd_prod
+```
+
+In the Docker image the same command is `./migrate`.
 
 Production must not run with development authentication. Production settings (`APP_ENV`, `JWT_SECRET`, network exposure) are tracked in Issue #156 and must be in place before real data is loaded.
 
@@ -54,7 +64,7 @@ This is the only direct write to the production database allowed by this documen
 
 ## Steps
 
-1. Start the API once with `MIGRATE_ON_START=true`, so the tables and the fixed Roles exist.
+1. Apply the migrations (`go run ./cmd/migrate up -database adadd_prod`, above), so the tables and the fixed Roles exist.
 2. Connect to the production database and run (replace the three values):
 
 ```sql
@@ -166,6 +176,68 @@ After the migration, companies are added from Company List one by one or by CSV.
 
 ---
 
+# Upgrading Production
+
+Every release that adds a migration changes the production schema. The database is never recreated, and `schema_migrations` is never edited by hand. Changes only go forward, one new migration at a time (`spec/development.md#Migration Numbering`).
+
+## Steps
+
+```text
+1. Back up
+2. Rehearse on a copy
+3. Stop the API
+4. Apply
+5. Verify
+6. Start the new version
+```
+
+### 1. Back up
+
+Take a dump right before the change (see Backup below). It is the way back if anything fails. Keep it until the new version has run without problems.
+
+### 2. Rehearse on a copy
+
+Restore the dump into a separate database (e.g. `adadd_rehearsal`) and run the new version against it: `go run ./cmd/migrate up -database adadd_rehearsal`, then start the API on it and try the main screens. A migration that fails or breaks real data shows up here, not in production. Drop the copy afterwards — it holds real data.
+
+```bash
+mysql -u root -p -e "CREATE DATABASE adadd_rehearsal CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;"
+mysql -u root -p adadd_rehearsal < adadd_prod-YYYYMMDD.sql
+```
+
+### 3. Stop the API
+
+No one writes while the schema changes. A short stop is acceptable at AdAdd's scale; tell the members beforehand.
+
+### 4. Apply
+
+```bash
+go run ./cmd/migrate status
+go run ./cmd/migrate up -database adadd_prod
+```
+
+`status` lists the pending migrations. `up` refuses to run unless `-database` names the configured `DB_NAME`, and refuses a dirty or unknown state.
+
+### 5. Verify
+
+* `go run ./cmd/migrate status` shows `state: clean` and `pending: none`.
+* Start the new version, sign in, and check the screens the change touches.
+
+### 6. Start the new version
+
+Members resume work.
+
+## When it fails
+
+| Situation | What to do |
+| --------- | ---------- |
+| `up` failed; `status` shows `DIRTY` | MySQL cannot roll DDL back, so the schema may be half-changed. Restore the step 1 dump into the production database and start the **previous** version. Fix the migration in a new PR, then repeat from step 2. Never clear `dirty` by hand. |
+| Applied cleanly, but the new version has a bug | Fix forward: release a correction (a new migration if the schema must change). Restore the dump only if data was damaged — writes made since the dump are lost, so agree on it with the members first. |
+| `status` shows `UNKNOWN` | The database records a version with no file — the running code is older than the database. Use the matching version of the code; do not edit `schema_migrations`. |
+
+There are no down migrations to roll back with (`spec/development.md#Up only`).
+
+---
+
 # Backup
 
 **Undecided.** The method (tool, frequency, storage location, restore check) is not decided yet — `spec/decisions/0002-deployment.md` defers it, and it is tracked in Issue #169.
@@ -173,7 +245,7 @@ After the migration, companies are added from Company List one by one or by CSV.
 Until it is decided:
 
 * The data lives in the MySQL server's data directory (with Docker Compose, the `mysql-data` volume). `docker compose down -v` deletes it.
-* Take a manual dump before every risky operation (migration, CSV import, upgrade):
+* Take a manual dump before every risky operation (CSV import, every upgrade — see Upgrading Production):
 
 ```bash
 mysqldump --single-transaction --routines --default-character-set=utf8mb4 \
