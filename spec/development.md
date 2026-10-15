@@ -350,6 +350,22 @@ There are no down migrations. The API and the tests only ever apply migrations f
 * The production database is rolled back by restoring a backup taken before the change (`spec/operations.md#Backup`), not by a down migration.
 * A local database is recreated (`spec/development.md#Development Seed`).
 
+`MIGRATE_ON_START=true` (Docker Compose, E2E) applies migrations whenever the API starts. That is for development only. Production applies them as an explicit step after a backup (`spec/operations.md#Upgrading Production`), with `go run ./cmd/migrate status` / `up -database <DB_NAME>`.
+
+### Writing a migration
+
+* **One change per file.** MySQL commits each DDL statement on its own, so a failing migration leaves the statements before it applied and the database `dirty`. A small file keeps that damage small and easy to see.
+* **Breaking changes in three releases (expand → migrate → contract).** To rename or drop a column, or to change what it means:
+  1. Add the new column (or table). The old one stays.
+  2. Copy the data and switch the code to the new column.
+  3. Drop the old column, in a later release, once nothing reads it.
+
+  Each step is its own migration and keeps the running code working.
+* **Data changes go in migrations too,** not in manual SQL on production — so every database, including a restored copy, ends up the same. Write them for real data: empty strings, NULLs, Japanese text, and many rows.
+* **Name constraints and indexes** (`UNIQUE KEY ux_…`, `KEY idx_…`), so a later migration can refer to them.
+* **Never use `IF NOT EXISTS` / `IF EXISTS` to hide a difference.** If a table may or may not be there, the databases have drifted. Find out why instead.
+* **Try it before the PR:** apply it to a copy of a database that has data (the development seed is enough), not only to an empty one. The integration tests apply every migration to an empty database in CI.
+
 ### Why the number matters
 
 golang-migrate records only the latest applied version, not each applied file. A migration whose number is lower than one already applied is **never applied, and no error is raised**. If PR A adds `0003` and PR B adds `0002`, and A is merged first, every database already at `0003` silently skips B's `0002`.
