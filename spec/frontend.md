@@ -726,6 +726,16 @@ Actions:
 
 Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year (or the clicked-through Year, per above).
 
+### Viewing a Past Year
+
+A past Year is read-only except payment confirmation (`spec/domain.md#Active Year and Past Years`, `spec/api.md#Past Years Are Read-Only`).
+
+* Yearly Company List, Yearly Company Detail, Sponsorship Menu, Contract Menu List, and Payment List can show any Year. They default to the active Year. A Year selector (or the `yearId` query from Year List) switches to a past Year.
+* While a past Year is shown, the page shows a fixed notice: 過去の年度（{name}）を表示しています。入金確認のほかは変更できません。
+* Every edit control is hidden, including inline-editable cells and Administrator-only delete actions. The only exception is the payment status on Payment List and on Yearly Company Detail, for Finance Department / Administrator as in the active Year.
+* Invoice / receipt PDF and CSV export stay available.
+* The backend rejects past-Year changes on its own. Hiding the controls is for clarity, not the enforcement.
+
 ---
 
 # System Administration

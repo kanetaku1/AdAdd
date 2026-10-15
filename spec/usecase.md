@@ -370,7 +370,7 @@ Business history is visible. A handover note that isn't itself one of those stat
 
 ## Actor
 
-Company Management Team
+Administrator (by creating the next Year)
 
 ## Goal
 
@@ -378,13 +378,17 @@ Complete the sponsorship cycle.
 
 ## Flow
 
-1. Confirm all operations are completed.
-2. Archive the Year.
-3. Preserve all historical records.
+1. Create the next Year (UC-01).
+2. Every earlier Year becomes a past Year automatically.
+3. The Finance Department keeps confirming the past Year's remaining Payments as transfers arrive (UC-09).
 
 ## Result
 
-The festival year becomes read-only.
+The past Year is read-only except payment confirmation (`spec/domain.md#Active Year and Past Years`). All historical records are preserved and can be viewed.
+
+## Notes
+
+There is no separate archive action. Before creating the next Year, finish any change other than payment confirmation in the current Year — contracts, contract menus, and assignments can no longer be changed afterwards.
 
 ---
 

@@ -59,6 +59,16 @@ Year
  └── SponsorshipMenu (0..*)
 ```
 
+### Active Year and Past Years
+
+Exactly one Year is active: the most recently created one. Creating a new Year makes every earlier Year a **past Year**. There is no separate archive step, and a past Year never becomes active again.
+
+A past Year is read-only, with one exception: **payment confirmation**. Bank transfers for the previous cycle can arrive after the next Year has started, so the Finance Department can still confirm a past Year's Payment, or move it back to waiting to correct a mistake.
+
+Everything else in a past Year — Yearly Companies, assignments, Contracts, Contract Menus, Sponsorship Menus, creating Payments — cannot be changed. Viewing it and producing documents from it (invoice and receipt PDFs, CSV export) do not change data and stay available.
+
+Company master data is not part of any Year and stays editable.
+
 ---
 
 ## Sponsorship Menu
