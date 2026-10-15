@@ -1,28 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { SESSION_COOKIE } from "@/lib/auth/constants"
+import { MOCK_USER_COOKIE, SESSION_COOKIE } from "@/lib/auth/constants"
 
 /**
  * Route guard (spec/frontend.md#Login) — redirects to /login when there's
- * no session cookie. `NEXT_PUBLIC_DEV_AUTH_ENABLED=true` bypasses this
- * entirely, mirroring the backend's DEV_AUTH_ENABLED (apps/api
- * config.go) — local development keeps working via the X-User-ID stub
- * without requiring everyone to configure real Google OAuth credentials
- * just to click around the app.
+ * no session cookie: the AdAdd JWT in API mode, or the chosen mock User in
+ * mock mode (spec/frontend.md#Mock mode login).
+ * `NEXT_PUBLIC_DEV_AUTH_ENABLED=true` bypasses this entirely, mirroring the
+ * backend's DEV_AUTH_ENABLED header stub
+ * (spec/decisions/0004-development-modes-and-sessions.md).
  */
 // /api/proxy is excluded too — it isn't "public", but it forwards to the Go
 // API which does its own auth check. Redirecting it to the /login HTML page
 // would return that page's markup where callers expect JSON.
 const SKIP_GUARD_PATH_PREFIXES = ["/login", "/api/auth", "/api/proxy"]
 
-function isMockOrDevAuth(): boolean {
-  if (process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true") return true
-  // No API → in-memory mocks only. Google login cannot mint a session.
+function isMockMode(): boolean {
   return !process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
 }
 
 export function proxy(req: NextRequest) {
-  if (isMockOrDevAuth()) {
+  if (process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true" && !isMockMode()) {
     return NextResponse.next()
   }
 
@@ -31,7 +29,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.next()
   }
 
-  if (req.cookies.has(SESSION_COOKIE)) {
+  if (req.cookies.has(isMockMode() ? MOCK_USER_COOKIE : SESSION_COOKIE)) {
     return NextResponse.next()
   }
 

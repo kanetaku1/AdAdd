@@ -1,8 +1,10 @@
 /**
  * API client for AdAdd backend.
  *
- * Auth is a development stub (X-User-ID / X-User-Roles) until production auth
- * lands — see GitHub Issue #7 and apps/api AuthMiddleware.
+ * Requests go through /api/proxy, which attaches the session JWT
+ * (spec/frontend.md#Login). The development header stub (X-User-ID /
+ * X-User-Roles) is still sent; the proxy strips it when a session exists
+ * (spec/decisions/0004-development-modes-and-sessions.md).
  *
  * When NEXT_PUBLIC_API_BASE_URL is unset, callers should use the mock data
  * layer instead of this client.
@@ -96,14 +98,17 @@ export async function apiFetch<T>(
     headers.set(key, value)
   }
 
-  // Browser requests go through the Next.js BFF proxy (spec/frontend.md#Login)
+  // Requests go through the Next.js BFF proxy (spec/frontend.md#Login)
   // rather than the Go API directly, so a logged-in session's JWT is
-  // attached server-side instead of ever reaching client-side JS. Requests
-  // made during SSR (Server Components) call the Go API directly — there is
-  // no browser to proxy on behalf of.
-  const url =
-    typeof window !== "undefined" ? `/api/proxy${path}` : `${base}${path}`
-  const res = await fetch(url, { ...init, headers })
+  // attached server-side in one place instead of ever reaching client-side
+  // JS. Server-side callers are refused: calling the Go API from a Server
+  // Component skipped the session entirely (Issue #152).
+  if (typeof window === "undefined") {
+    throw new Error(
+      `apiFetch(${path}) runs in the browser only — fetch from a Client Component so /api/proxy attaches the session`
+    )
+  }
+  const res = await fetch(`/api/proxy${path}`, { ...init, headers })
   const text = await res.text()
   let json: unknown = null
   if (text) {
@@ -112,6 +117,13 @@ export async function apiFetch<T>(
     } catch {
       json = text
     }
+  }
+
+  // No valid session: send the user to log in instead of showing an error
+  // (spec/frontend.md#Login). /login itself asks for the current user, so
+  // it must not redirect to itself.
+  if (res.status === 401 && window.location.pathname !== "/login") {
+    window.location.assign("/login")
   }
 
   if (!res.ok) {

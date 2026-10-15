@@ -515,11 +515,13 @@ go run ./cmd/seed
 
 The seed is meant for an empty development database. Creating Year 2026 makes it the active Year and generates a Yearly Company for every Company already in the database.
 
+The seed only checks IDs. Do not run it against a database that already has a Year named 2025 or 2026 under another ID: it would add a second Year with the same name and make it active.
+
 ### Seed contents
 
 | Data | Contents |
 | ---- | -------- |
-| Users | `user_001` 田中 (Administrator), `user_002` 鈴木 / `user_005` 山田 (Sponsorship Member), `user_003` 佐藤 (Finance), `user_006` 伊藤 (Advisor), `user_004` 高橋 (inactive, no Role). IDs match the frontend development stub (`X-User-ID`). |
+| Users | `user_001` 田中 `tanaka@example.com` (Administrator), `user_002` 鈴木 `suzuki@example.com` / `user_005` 山田 `yamada@example.com` (Sponsorship Member), `user_003` 佐藤 `sato@example.com` (Finance), `user_006` 伊藤 `ito@example.com` (Advisor), `user_004` 高橋 `takahashi@example.com` (inactive, no Role). E2E tests act as them. IDs match the frontend mock Users. |
 | Years | `year_2025` (previous), `year_2026` (active) |
 | Companies | `c_001`–`c_003` existed in 2025. `c_004`, `c_005` were registered afterward. |
 | 2025 | `c_001` and `c_002` have contracts with confirmed Payments. `c_003` was contacted and declined. |
@@ -537,7 +539,7 @@ The seed is meant for an empty development database. Creating Year 2026 makes it
   * the Go API on port 18080 against the `adadd_e2e` database, after running the development seed;
   * the production build of the web app (`next build` + `next start`) on port 3100.
 * A local development API on port 8080 and its database are never touched.
-* Users act through the development stub (`adadd.dev.userId` / `adadd.dev.roles` in localStorage, sent as `X-User-ID` / `X-User-Roles`). In this mode the UI shows every control regardless of Role, so Role checks are verified by what the API accepts or rejects.
+* Tests act as seed Users by signing a session JWT for them with the API's `JWT_SECRET` (set by `playwright.config.ts`) and storing it in the session cookie (`spec/decisions/0004-development-modes-and-sessions.md`). Every request takes the production session path (session cookie → `/api/proxy` → `Authorization: Bearer` → User and Roles read from MySQL). Only Google sign-in itself is not covered. The development header stub is off, and the UI shows controls by the User's Roles.
 * Tests create their own companies with unique names, so they do not need a fresh database and can be run repeatedly.
 * Each step is checked again after a reload, so the result is read back from MySQL.
 
@@ -551,7 +553,9 @@ CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container
 | Company → Yearly Company | Register a company, register it in the active Year (New) |
 | Assignment | An Administrator assigns a member; it persists after reload |
 | Contract | A Sponsorship Member creates a contract with menus; total and Payment (waiting) persist |
-| Payment confirmation | A Sponsorship Member is rejected by the API; Finance confirms; status and confirmer persist |
+| Payment confirmation | A Sponsorship Member cannot open the status for editing; Finance confirms; status and confirmer persist |
+| Master data deletion | An Administrator deletes a company and a menu after confirming; a Sponsorship Member sees no delete control; a company registered in a Year is rejected |
+| Session | No session or a rejected session leads to `/login`; a deactivated User is sent to `/login`; Company list and Company edit load with a session (Issue #152) |
 
 ### Running locally
 
@@ -668,6 +672,45 @@ Recommended:
 * GitHub
 * Claude Code
 * VS Code
+
+## Development Modes
+
+AdAdd runs in one of two modes during development (`spec/decisions/0004-development-modes-and-sessions.md`).
+
+| | Mock mode | MySQL mode |
+| - | --------- | ---------- |
+| Start | `npm run dev:mock` in `apps/web` | `docker compose up -d`, then `npm run dev` in `apps/web` |
+| Data | In-memory mock data (lost on reload) | Local MySQL through `apps/api` |
+| Sign-in | Choose a Role's User on `/login` (no Google, no password) | Google sign-in |
+| Role gating | Applied | Applied |
+| Use | Checking each Role's screens; the Vercel preview (ADR-0002) | Checking the real flow as in production |
+
+In MySQL mode, a developer's Google account must be registered both as a test user of the AdAdd OAuth client and as an AdAdd `User` with the Roles to check. After the first sign-in, the session is renewed while in use and ends after 30 days without use.
+
+### Environment variables
+
+`apps/web/.env` (see `apps/web/.env.example`):
+
+| Variable | Mock mode | MySQL mode | Purpose |
+| -------- | --------- | ---------- | ------- |
+| `NEXT_PUBLIC_API_BASE_URL` | Empty (`dev:mock` sets it) | `http://127.0.0.1:8080` | Empty means mock mode |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | — | Required | Google sign-in |
+| `GOOGLE_API_KEY` / `GOOGLE_DRIVE_ROOT_FOLDER_ID` | — | When using Drive | Drive Picker (exposed to the browser by `next.config.ts`) |
+| `NEXT_PUBLIC_DEV_AUTH_ENABLED` | — | Unset | Development header stub (pending, ADR-0004) |
+
+`apps/api` — the repository-root `.env` for Docker Compose (see `.env.example`), or `apps/api/.env` for `go run` (see `apps/api/.env.example`):
+
+| Variable | Purpose |
+| -------- | ------- |
+| `APP_ENV` | `development` locally. Production must set it explicitly; unset means `development`. |
+| `JWT_SECRET` | Signs session JWTs. Unset falls back to an insecure value in development only. |
+| `GOOGLE_CLIENT_ID` | Verifies Google id_tokens (same value as in `apps/web`). |
+| `DB_*`, `MIGRATE_ON_START`, `MIGRATIONS_PATH`, `APP_PORT`, `ALLOWED_ORIGINS` | Database and server. |
+| `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Drive folder for ad material files. |
+| `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | Optional Slack mention (UC-16). |
+| `DEV_AUTH_ENABLED` | Development header stub (pending, ADR-0004). Never on a shared server or in production. |
+
+E2E tests set their own values in `apps/web/playwright.config.ts` (`E2E_*` overrides the ports and database).
 
 ---
 

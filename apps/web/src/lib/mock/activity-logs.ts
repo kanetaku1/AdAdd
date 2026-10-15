@@ -1,4 +1,4 @@
-import { getCurrentDevUserId } from "@/lib/api/client"
+import { getMockSignedInUser } from "@/lib/auth/mock-session"
 import { mockUsers } from "@/lib/mock/users"
 import type { ActivityEventType, ActivityLog } from "@/types/activity-log"
 
@@ -48,7 +48,7 @@ export function addMockActivityLog(input: {
   message: string
   createdById?: string | null
 }): ActivityLog {
-  const createdById = input.createdById ?? getCurrentDevUserId()
+  const createdById = input.createdById ?? getMockSignedInUser()?.id ?? null
   const createdByName =
     mockUsers.find((u) => u.id === createdById)?.name ?? "(不明なユーザー)"
   const created: ActivityLog = {

@@ -2,7 +2,9 @@ import { cookies } from "next/headers"
 
 import { SESSION_COOKIE } from "@/lib/auth/constants"
 
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days, matches the backend JWT TTL
+// 30 days, matches the backend JWT TTL. Reset whenever the API renews the
+// session (app/api/proxy), so it ends only after 30 days without use.
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
 /** Reads the AdAdd session JWT from the httpOnly cookie (server-only). */
 export async function getSessionToken(): Promise<string | null> {
@@ -11,9 +13,10 @@ export async function getSessionToken(): Promise<string | null> {
 }
 
 /**
- * Sets the session cookie on a route handler's response. Not usable from a
- * Server Component (Next.js only allows cookie writes from Route Handlers /
- * Server Actions) — see app/api/auth/google/callback/route.ts.
+ * Options for the session cookie, set by a route handler's response. Not
+ * usable from a Server Component (Next.js only allows cookie writes from
+ * Route Handlers / Server Actions) — see app/api/auth/google/callback/route.ts
+ * and app/api/proxy (session renewal).
  *
  * sameSite must be "lax", not "strict": the cookie is first set on the
  * OAuth callback response, which redirects to "/" as part of a navigation

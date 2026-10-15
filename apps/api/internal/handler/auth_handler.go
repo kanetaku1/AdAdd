@@ -10,9 +10,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// RegisterAuthRoutes wires POST /auth/google (spec/api.md#Login). Must be
-// registered before AuthMiddleware is added via e.Use — this endpoint is
-// how a session is obtained in the first place, so it can't require one.
+// RegisterAuthRoutes wires POST /auth/google (spec/api.md#Login). This
+// endpoint is how a session is obtained in the first place, so
+// AuthMiddleware skips it (isPublicPath).
 func RegisterAuthRoutes(e *echo.Echo) {
 	e.POST("/auth/google", loginWithGoogle)
 }
@@ -36,6 +36,12 @@ func loginWithGoogle(c echo.Context) error {
 		return respondUnauthorized(c, "invalid Google id_token")
 	}
 
+	return startSession(c, email)
+}
+
+// startSession issues the AdAdd JWT for the User with this email, which
+// Google has already verified (spec/api.md#Login).
+func startSession(c echo.Context, email string) error {
 	userRepo := repository.NewUserRepository()
 	user, err := userRepo.FindByEmail(email)
 	if err != nil {
@@ -45,6 +51,11 @@ func loginWithGoogle(c echo.Context) error {
 			return respondForbidden(c, "email is not registered")
 		}
 		return respondInternalServerError(c, err)
+	}
+	// Checked here rather than relying on the OAuth client's test-user
+	// list, which stops applying once the client is published.
+	if !user.IsActive {
+		return respondForbidden(c, "user is inactive")
 	}
 
 	roleSvc := service.NewRoleService()
@@ -56,7 +67,7 @@ func loginWithGoogle(c echo.Context) error {
 		roles = []string{}
 	}
 
-	token, err := jwtIssuer.Issue(user.ID, roles)
+	token, err := jwtIssuer.Issue(user.ID)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}

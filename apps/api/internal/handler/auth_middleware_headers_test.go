@@ -73,12 +73,27 @@ func TestAuthMiddlewareRejectsHeadersWhenDevAuthDisabled(t *testing.T) {
 	}
 }
 
+// stubSessionRoles replaces the MySQL lookup of the signed-in User for one test.
+func stubSessionRoles(t *testing.T, load func(userID string) ([]string, error)) {
+	t.Helper()
+	prev := loadSessionRoles
+	loadSessionRoles = load
+	t.Cleanup(func() { loadSessionRoles = prev })
+}
+
 func TestAuthMiddlewareAcceptsValidBearerToken(t *testing.T) {
 	prevIssuer := jwtIssuer
 	jwtIssuer = auth.NewJWTIssuer("test-secret")
 	defer func() { jwtIssuer = prevIssuer }()
+	// Roles come from the User's current grants, not from the token.
+	stubSessionRoles(t, func(userID string) ([]string, error) {
+		if userID != "user-456" {
+			t.Fatalf("looked up %q, want user-456", userID)
+		}
+		return []string{"ADMINISTRATOR"}, nil
+	})
 
-	token, err := jwtIssuer.Issue("user-456", []string{"ADMINISTRATOR"})
+	token, err := jwtIssuer.Issue("user-456")
 	if err != nil {
 		t.Fatalf("failed to issue token: %v", err)
 	}
@@ -107,6 +122,41 @@ func TestAuthMiddlewareAcceptsValidBearerToken(t *testing.T) {
 	}
 	if !called {
 		t.Fatalf("expected the wrapped handler to be called")
+	}
+}
+
+func TestAuthMiddlewareRejectsTokenOfUnavailableUser(t *testing.T) {
+	prevIssuer := jwtIssuer
+	jwtIssuer = auth.NewJWTIssuer("test-secret")
+	defer func() { jwtIssuer = prevIssuer }()
+	// Deactivated or deleted after the token was issued.
+	stubSessionRoles(t, func(string) ([]string, error) { return nil, errSessionUserUnavailable })
+
+	token, err := jwtIssuer.Issue("user-789")
+	if err != nil {
+		t.Fatalf("failed to issue token: %v", err)
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	called := false
+	handlerFunc := AuthMiddleware(func(c echo.Context) error {
+		called = true
+		return c.NoContent(http.StatusOK)
+	})
+
+	if err := handlerFunc(c); err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if called {
+		t.Fatalf("expected the token of an unavailable User to be rejected")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
 }
 

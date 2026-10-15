@@ -6,8 +6,9 @@ import { actAs, seedUsers, uniqueCompanyName } from "./support"
  * Deleting Company and Sponsorship Menu master data (spec/frontend.md#Company
  * List, #Menu Master List): Administrator-only, behind a confirmation step,
  * and rejected while the record is in use (spec/api.md#Delete Company,
- * #Delete Sponsorship Menu). Development auth shows every control, so the
- * Role check is verified by what the API rejects.
+ * #Delete Sponsorship Menu). Tests sign in through the session path, so the
+ * UI shows controls by the User's Roles; the API's rejection of a
+ * non-Administrator is covered by apps/api/internal/integration.
  */
 test.describe("企業・協賛メニューの削除", () => {
   test("管理者は確認のうえ企業を削除できる", async ({ page }) => {
@@ -32,17 +33,14 @@ test.describe("企業・協賛メニューの削除", () => {
     await expect(companyRow(page, companyName)).toHaveCount(0)
   })
 
-  test("協賛実働メンバーは企業を削除できない", async ({ page }) => {
+  test("協賛実働メンバーには企業の削除操作が出ない", async ({ page }) => {
     const companyName = uniqueCompanyName("削除権限")
     await actAs(page, seedUsers.sponsorshipMember)
     await registerCompany(page, companyName)
 
-    await page.getByRole("button", { name: `${companyName}を削除` }).click()
-    await page.getByRole("dialog").getByRole("button", { name: "削除", exact: true }).click()
-    await expect(page.getByText("削除は管理者のみが実行できます。")).toBeVisible()
-
-    await page.reload()
-    await expect(companyRow(page, companyName)).toHaveCount(1)
+    // The row's other actions are there, but not delete.
+    await expect(companyRow(page, companyName).getByRole("button", { name: "編集" })).toBeVisible()
+    await expect(page.getByRole("button", { name: `${companyName}を削除` })).toHaveCount(0)
   })
 
   test("年度に登録済みの企業は削除できない", async ({ page }) => {

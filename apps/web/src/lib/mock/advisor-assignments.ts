@@ -28,6 +28,22 @@ export const mockAdvisorAssignments: AdvisorAssignment[] = [
     memberId: "user_002",
     assignedAt: "2026-04-06T00:00:00Z",
   },
+  // 伊藤 (user_006, Advisor) advises 鈴木 and 山田, as in the development
+  // seed, so signing in as the Advisor in mock mode shows supervised Members.
+  {
+    id: "advisor_assignment_004",
+    yearId: "year_2026",
+    advisorId: "user_006",
+    memberId: "user_002",
+    assignedAt: "2026-04-07T00:00:00Z",
+  },
+  {
+    id: "advisor_assignment_005",
+    yearId: "year_2026",
+    advisorId: "user_006",
+    memberId: "user_005",
+    assignedAt: "2026-04-07T00:00:00Z",
+  },
 ]
 
 /**

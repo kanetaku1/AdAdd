@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { getApiBaseUrl } from "@/lib/api/client"
-import { getSessionToken } from "@/lib/auth/session"
+import { SESSION_COOKIE } from "@/lib/auth/constants"
+import { getSessionToken, sessionCookieOptions } from "@/lib/auth/session"
+
+/** Response header carrying a renewed session JWT from the Go API. */
+const SESSION_TOKEN_HEADER = "X-Session-Token"
 
 /**
  * BFF proxy to the Go API (spec/frontend.md#Login — "the browser never
@@ -72,12 +76,26 @@ async function handler(
   }
 
   const responseBody = await upstream.text()
-  return new NextResponse(responseBody, {
+  const res = new NextResponse(responseBody, {
     status: upstream.status,
     headers: {
       "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
     },
   })
+  // The API rejected the session (expired, or signed with another secret).
+  // Drop the cookie so the login guard (proxy.ts) sends the next page load
+  // to /login instead of letting it through with a dead session.
+  if (upstream.status === 401 && sessionToken) {
+    res.cookies.delete(SESSION_COOKIE)
+  }
+  // Session renewal (spec/api.md#Authentication): keep the member signed in
+  // while in use. The header itself is never passed on — only Content-Type
+  // is copied above — so the raw token never reaches the browser.
+  const renewedToken = upstream.headers.get(SESSION_TOKEN_HEADER)
+  if (renewedToken && sessionToken && upstream.status !== 401) {
+    res.cookies.set(SESSION_COOKIE, renewedToken, sessionCookieOptions())
+  }
+  return res
 }
 
 export {

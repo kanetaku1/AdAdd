@@ -1,37 +1,51 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { CompaniesTable } from "@/components/companies-table"
 import { CreateCompanyButton } from "@/components/create-company-button"
 import { ImportCompaniesButton } from "@/components/import-companies-button"
-import { ErrorBanner } from "@/components/query-state"
+import { ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { listCompanies } from "@/lib/data/companies"
 import { getErrorMessage } from "@/lib/errors"
 import type { Company } from "@/types/company"
 
 /**
- * Client shell around Company List so CSV import can refresh the table
- * from the same module that just wrote (mock) or re-fetch the API
- * (spec/frontend.md#CSV Import / Export). The page itself stays a Server
- * Component for the initial load.
+ * Company List screen body. Loads from the browser through /api/proxy like
+ * every other screen, so the session is attached in one place
+ * (spec/frontend.md#Login, Issue #152). CSV import refreshes the table
+ * from the same module that just wrote (mock) or re-fetches the API
+ * (spec/frontend.md#CSV Import / Export).
  */
-export function CompaniesWorkspace({
-  initialCompanies,
-}: {
-  initialCompanies: Company[]
-}) {
-  const [companies, setCompanies] = useState(initialCompanies)
-  const [reloadError, setReloadError] = useState<string | null>(null)
+export function CompaniesWorkspace() {
+  const [companies, setCompanies] = useState<Company[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const list = await listCompanies()
+        if (!cancelled) setCompanies(list)
+      } catch (e) {
+        if (!cancelled) {
+          setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
+        }
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // After CSV import. Keeps the current list on failure.
   async function reload() {
-    setReloadError(null)
+    setError(null)
     try {
       setCompanies(await listCompanies())
     } catch (e) {
-      setReloadError(
-        getErrorMessage(e, { fallback: "一覧の更新に失敗しました" })
-      )
+      setError(getErrorMessage(e, { fallback: "一覧の更新に失敗しました" }))
     }
   }
 
@@ -47,13 +61,19 @@ export function CompaniesWorkspace({
           <CreateCompanyButton />
         </div>
       </div>
-      <ErrorBanner message={reloadError} />
-      <CompaniesTable
-        companies={companies}
-        onDeleted={(id) =>
-          setCompanies((prev) => prev.filter((company) => company.id !== id))
-        }
-      />
+      <ErrorBanner message={error} />
+      {companies ? (
+        <CompaniesTable
+          companies={companies}
+          onDeleted={(id) =>
+            setCompanies((prev) =>
+              prev ? prev.filter((company) => company.id !== id) : prev
+            )
+          }
+        />
+      ) : (
+        !error && <LoadingBlock />
+      )}
     </div>
   )
 }

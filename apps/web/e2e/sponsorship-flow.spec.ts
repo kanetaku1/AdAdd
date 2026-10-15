@@ -66,17 +66,16 @@ test.describe.serial("協賛の一連の業務フロー", () => {
   })
 
   test("入金確認は財務部門だけができる", async ({ browser }) => {
-    // A Sponsorship Member sees the control (development auth shows every
-    // control), but the API rejects the change.
+    // A Sponsorship Member sees the status but cannot open it for editing
+    // (Role gating from the Roles in MySQL). The API's rejection itself is
+    // covered by apps/api/internal/integration.
     const memberPage = await browser.newPage()
     await actAs(memberPage, seedUsers.sponsorshipMember)
     await memberPage.goto("/finance")
     let row = paymentRow(memberPage, companyName)
     await row.getByText("入金待ち", { exact: true }).click()
-    await memberPage.getByRole("option", { name: "入金確認済み", exact: true }).click()
-    await expect(memberPage.getByText("この操作を行う権限がありません。")).toBeVisible()
-    await memberPage.reload()
-    await expect(paymentRow(memberPage, companyName).getByText("入金待ち", { exact: true })).toBeVisible()
+    await expect(memberPage.getByRole("option", { name: "入金確認済み", exact: true })).toHaveCount(0)
+    await expect(row.getByText("入金待ち", { exact: true })).toBeVisible()
     await memberPage.close()
 
     const financePage = await browser.newPage()

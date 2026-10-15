@@ -2,7 +2,7 @@ import crypto from "crypto"
 
 import { NextRequest, NextResponse } from "next/server"
 
-import { OAUTH_STATE_COOKIE } from "@/lib/auth/constants"
+import { LOGIN_HINT_COOKIE, OAUTH_STATE_COOKIE } from "@/lib/auth/constants"
 import { buildGoogleAuthUrl } from "@/lib/auth/google-oauth"
 
 /**
@@ -16,9 +16,11 @@ export async function GET(req: NextRequest) {
   const state = crypto.randomBytes(16).toString("hex")
   const redirectUri = new URL("/api/auth/google/callback", req.url).toString()
 
+  const loginHint = req.cookies.get(LOGIN_HINT_COOKIE)?.value
+
   let authUrl: string
   try {
-    authUrl = buildGoogleAuthUrl(redirectUri, state)
+    authUrl = buildGoogleAuthUrl(redirectUri, state, loginHint)
   } catch {
     return NextResponse.redirect(new URL("/login?error=not_configured", req.url))
   }

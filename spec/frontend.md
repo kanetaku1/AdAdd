@@ -160,13 +160,32 @@ Flow (BFF pattern — the Next.js frontend and Go API run on separate domains in
 1. Unauthenticated visitor is redirected to `/login`, which starts Google's OAuth Authorization Code flow. There is no Google Workspace / hosted-domain restriction (see `spec/api.md#Login`) — committee members sign in with ordinary personal Google accounts, so this step only proves the visitor controls that email address, nothing more.
 2. Google redirects back to a Next.js route handler, which exchanges the code for a Google `id_token` server-side and posts it to `POST /auth/google` (`spec/api.md#Login`).
 3. On success, Next.js stores the returned AdAdd JWT as an httpOnly, Secure cookie on its own origin — the browser never has direct access to the raw token. Next.js's server-side code (Route Handlers / Server Actions) attaches it as `Authorization: Bearer` when calling the Go API on the user's behalf; the browser never calls the Go API directly for authenticated requests.
-4. On failure (email not pre-registered, per `spec/model.md` → Business Invariants), show "このメールアドレスは登録されていません。管理者に連絡してください" and do not create a session.
+4. On failure (email not pre-registered, or the User is inactive, per `spec/model.md` → Business Invariants), show "このメールアドレスは登録されていません。管理者に連絡してください" and do not create a session.
 
-Navigation/action visibility is driven by the roles returned in the login response (`spec/api.md#Login` → `roles`) — see Navigation Structure below.
+Navigation/action visibility is driven by the signed-in User's Roles from `GET /users/me` (`spec/api.md#Get Current User`) — see Navigation Structure below.
 
-In local development, the `X-User-ID` / `X-User-Roles` dev headers (`DEV_AUTH_ENABLED=true`) bypass this flow entirely — see `spec/api.md#Authentication`.
+Session lifetime (`spec/decisions/0004-development-modes-and-sessions.md`):
 
-When `NEXT_PUBLIC_API_BASE_URL` is unset (in-memory mock mode, including a committee Preview with no API), there is no backend to mint a session. The login guard and role gating are skipped, and a persistent banner states that data is not saved and is not production. This configuration is not a production deployment.
+* Google is used only at sign-in. Afterwards the AdAdd session keeps the member signed in, and it is renewed while in use: when the API returns a renewed token (`X-Session-Token`, `spec/api.md#Authentication`), `/api/proxy` stores it in the session cookie and drops the header. A member who uses AdAdd at least once every 30 days stays signed in; 30 days without use, or logging out, ends the session.
+* Deactivating the User or revoking a Role takes effect on the next request (`spec/api.md#Authentication`).
+
+Re-login:
+
+* The Google authorization request does not force the account chooser. After a successful sign-in, Next.js keeps the signed-in email in an httpOnly cookie (`adadd_login_hint`, 180 days) and sends it to Google as `login_hint`, so a browser still signed in to that Google account comes straight back. The hint is kept after logging out, and removed when sign-in fails because the email is not registered.
+* `/login` never redirects to Google by itself; the member presses the button.
+
+Every screen fetches data from the browser through `/api/proxy`, so the session is attached in one place. When an API call returns `401` (missing, expired, or invalid session, or the User was deactivated), the browser is sent to `/login` instead of showing an error, and the rejected session cookie is removed.
+
+In local development, the `X-User-ID` / `X-User-Roles` dev headers (`DEV_AUTH_ENABLED=true` and `NEXT_PUBLIC_DEV_AUTH_ENABLED=true`) still bypass this flow entirely — see `spec/api.md#Authentication`. Their future is decided in `spec/decisions/0004-development-modes-and-sessions.md`.
+
+### Mock mode login
+
+When `NEXT_PUBLIC_API_BASE_URL` is unset (in-memory mock mode: `npm run dev:mock`, and the committee Preview on Vercel), there is no backend to mint a session. Instead (`spec/decisions/0004-development-modes-and-sessions.md`):
+
+* `/login` shows one button per active mock User with a Role, labeled with the name and the Role (for example "田中（管理者）"). There is no Google button and no password.
+* Choosing a User signs in as that User: the login guard, Role gating, and Navigation Structure apply exactly as in API mode, using the mock User's Roles. Mock writes that record who did it (Activity Logs, payment confirmation) use this User.
+* Logging out returns to `/login`, where another User can be chosen.
+* A persistent banner states that data is not saved and is not production. This configuration is not a production deployment.
 
 ---
 
@@ -278,9 +297,8 @@ joined client-side with `GET /years/{yearId}/companies` on
 `yearlyCompanyId` for the assigned Member, and with
 `GET /advisor-assignments?yearId={yearId}` for the signed-in User's
 supervised Members — no additional backend endpoint required. The
-signed-in User's identity comes from the dev-stub auth header
-(`X-User-ID`, see apps/web/src/lib/api/client.ts) pending real
-authentication.
+signed-in User's identity comes from `GET /users/me`
+(spec/api.md#Get Current User).
 
 ---
 
