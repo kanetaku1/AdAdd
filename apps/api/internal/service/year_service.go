@@ -66,7 +66,3 @@ func (s *YearService) Create(y *model.Year) error {
 		return nil
 	})
 }
-
-func (s *YearService) Delete(id string) error {
-	return s.repo.Delete(id)
-}

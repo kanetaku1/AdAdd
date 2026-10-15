@@ -524,7 +524,7 @@ With the Docker Compose `mysql` service running, create the test database once:
 
 ```bash
 docker exec adadd-mysql mysql -uroot -proot_password -e \
-  "CREATE DATABASE IF NOT EXISTS adadd_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON adadd_test.* TO 'adadd'@'%';"
+  "CREATE DATABASE IF NOT EXISTS adadd_test CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin; GRANT ALL PRIVILEGES ON adadd_test.* TO 'adadd'@'%';"
 ```
 
 Then, from `apps/api`:
@@ -601,7 +601,7 @@ With the Docker Compose `mysql` service running, create the E2E database once:
 
 ```bash
 docker exec adadd-mysql mysql -uroot -proot_password -e \
-  "CREATE DATABASE IF NOT EXISTS adadd_e2e CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON adadd_e2e.* TO 'adadd'@'%';"
+  "CREATE DATABASE IF NOT EXISTS adadd_e2e CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin; GRANT ALL PRIVILEGES ON adadd_e2e.* TO 'adadd'@'%';"
 ```
 
 Then, from `apps/web` (Go and Node are required):

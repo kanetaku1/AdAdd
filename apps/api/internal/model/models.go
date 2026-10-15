@@ -13,8 +13,8 @@ import (
 type Year struct {
 	ID        string         `gorm:"type:char(36);primaryKey" json:"id"`
 	Name      string         `gorm:"size:32;not null" json:"name"`
-	StartDate time.Time      `json:"startDate"`
-	EndDate   time.Time      `json:"endDate"`
+	StartDate Date           `gorm:"type:date" json:"startDate"`
+	EndDate   Date           `gorm:"type:date" json:"endDate"`
 	IsActive  bool           `gorm:"not null;default:false" json:"isActive"`
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`

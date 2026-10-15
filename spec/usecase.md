@@ -49,6 +49,10 @@ The new festival year becomes available.
 
 Step 3–4's Yearly Company generation computes `companyStatus` automatically — see `spec/domain.md` → Company Status for the exact rule (Continuing/New; Dormant is always a later manual reclassification, never generated here).
 
+Yearly Company creation also happens through **Company CSV import** while a Year is active: each imported Company is registered into the active Year in the same operation (`spec/api.md#Bulk Import Companies`). This is how the first Year's companies are loaded when moving to AdAdd (`spec/operations.md#Initial Data Migration`).
+
+A Year is never deleted (`spec/domain.md#Year`).
+
 Yearly Company creation also happens **individually**, outside this bulk flow, for a company discovered mid-cycle after a Year already exists (see `spec/frontend.md` → Company List — the same underlying operation as step 4, invoked once for a single Company instead of for every Company).
 
 ---

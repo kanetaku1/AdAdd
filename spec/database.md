@@ -443,6 +443,35 @@ Changes in future sponsorship menus must not affect completed contracts.
 
 ---
 
+## Character Set and Collation
+
+Every table uses `utf8mb4` with the binary collation `utf8mb4_0900_bin`.
+
+Company names are Japanese, and similar names can be different companies. Comparison, uniqueness, and search therefore distinguish every character difference:
+
+| Difference | Example | Treated as |
+| ---------- | ------- | ---------- |
+| Dakuten / handakuten | ビ / ピ | different |
+| Kana type | ア / あ | different |
+| Full / half width | Ａ / A, ハ / ﾊ | different |
+| Letter case | A / a | different |
+| Small kana | ヤ / ャ | different |
+| Trailing space | `ABC` / `ABC ` | different |
+
+The Japanese-aware collations (`utf8mb4_ja_0900_as_cs`, `_ks`) still treat full and half width as equal, so they are not used.
+
+Consequences:
+
+* `companies.company_name` and `sponsorship_menus (year_id, name)` uniqueness is exact. The same company written two ways (e.g. `株式会社ＡＢＣ` / `株式会社ABC`) becomes two Companies. Notation is normalized by people, before import or entry.
+* Name search in the API (e.g. the `companyName` filter on Contract Menus) is case- and width-sensitive.
+* Sorting is by code point, not by Japanese reading. Lists that need reading order sort by `companyNameKana` in the frontend.
+
+**Exception: `users.email`** uses `utf8mb4_0900_ai_ci`. Email addresses are case-insensitive, and the email from Google sign-in may differ in case from the registered one.
+
+The database default is also `utf8mb4_0900_bin` (set by migration `0012`), so tables added later inherit it. Creating a database is covered in `spec/operations.md` and `spec/development.md`.
+
+---
+
 ## Single Source of Truth
 
 MySQL stores all authoritative business data.

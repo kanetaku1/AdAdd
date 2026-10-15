@@ -53,7 +53,7 @@ services:
 
     command:
       - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
+      - --collation-server=utf8mb4_0900_bin
 
 volumes:
   mysql-data:

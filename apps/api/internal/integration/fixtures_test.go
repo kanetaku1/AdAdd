@@ -62,8 +62,8 @@ func createYear(t *testing.T, client *apiClient, name string, startDate, endDate
 	t.Helper()
 	response := client.do(http.MethodPost, "/years", map[string]any{
 		"name":      name,
-		"startDate": startDate.Format(time.RFC3339),
-		"endDate":   endDate.Format(time.RFC3339),
+		"startDate": startDate.Format("2006-01-02"),
+		"endDate":   endDate.Format("2006-01-02"),
 	})
 	expectStatus(t, response, http.StatusCreated)
 	return decodeData[model.Year](t, response).ID

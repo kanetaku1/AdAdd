@@ -25,8 +25,13 @@ func (r *YearRepository) GetByID(id string) (*model.Year, error) {
 	return &y, nil
 }
 
-func (r *YearRepository) Create(y *model.Year) error { return db.DB.Create(y).Error }
-
-func (r *YearRepository) Delete(id string) error {
-	return db.DB.Unscoped().Delete(&model.Year{}, "id = ?", id).Error
+// FindActive returns the active Year, or gorm.ErrRecordNotFound when none is active.
+func (r *YearRepository) FindActive() (*model.Year, error) {
+	var y model.Year
+	if err := db.DB.First(&y, "is_active = ?", true).Error; err != nil {
+		return nil, err
+	}
+	return &y, nil
 }
+
+func (r *YearRepository) Create(y *model.Year) error { return db.DB.Create(y).Error }

@@ -51,6 +51,8 @@ Represents one festival cycle.
 * Archive yearly data
 * Separate yearly business information
 
+A Year is never deleted. It owns that cycle's Yearly Companies, Sponsorship Menus, Contracts, and Payments, and the next Year's Company Status is computed from it (see Company Status below). Deleting it would orphan that history and change later statuses (`spec/database.md#Preserve Historical Data`, `spec/api.md#Festival Year API`).
+
 ### Relationships
 
 ```
@@ -332,6 +334,8 @@ When a Yearly Company is generated (UC-01, both the bulk per-Year generation and
 
 * **Continuing** — the Company had a Yearly Company in the immediately preceding Year, and a Sponsorship Contract was created for it.
 * **New** — every other case, including a company that was contacted in a previous Year but never reached a contract.
+
+**Exception: history from before AdAdd.** The first Year operated in AdAdd has no preceding Year inside AdAdd, so the rule above would make every company New. For that first load, the Company CSV import carries the fact "had a sponsorship contract in the preceding Year" per row (`previousYearContract`, `spec/api.md#Bulk Import Companies`). The server derives the status from that fact: あり → Continuing, otherwise New. The status itself is still never accepted from input. From the second Year on, the preceding Year exists in AdAdd and the automatic rule applies. The procedure is in `spec/operations.md#Initial Data Migration`.
 
 **Dormant is never auto-assigned at generation.** It is only ever set by a manual reclassification during UC-02 (e.g. the company could not be reached, or has gone out of business) — see the existing inline-editable `companyStatus` on the Yearly Company List (`spec/frontend.md`).
 

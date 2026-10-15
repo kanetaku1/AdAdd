@@ -664,11 +664,21 @@ Actor: Sponsorship Member / Administrator. Entry: Company List toolbar
 
 Headers: `companyName` (required), `companyNameKana`, `postalCode`,
 `address`, `phoneNumber`, `website`, `contactPersonName`,
-`contactEmailOrForm`, `firstSponsorshipYear`, `memo`.
+`contactEmailOrForm`, `firstSponsorshipYear`, `memo`,
+`previousYearContract` (`あり` / `なし` / empty).
 
 Duplicate `companyName` (in the file or already in AdAdd) becomes an
-error row. This does not register Yearly Companies — that remains Year
-creation or the per-row action on Company List.
+error row. The match is exact — every character difference counts
+(`spec/database.md#Character Set and Collation`).
+
+When a Year is active, each imported Company is also registered into
+that Year, with `companyStatus` derived from `previousYearContract`
+(`spec/api.md#Bulk Import Companies`). The preview shows that status
+(継続 / 新規) per row. When no Year is active, only Companies are
+created, and a row with `previousYearContract` = `あり` is an error.
+
+The Company data export keeps its ten columns.
+`previousYearContract` is an import-only fact for the first load.
 
 ### Preview
 
