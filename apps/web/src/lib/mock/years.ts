@@ -54,7 +54,13 @@ function computeCompanyStatus(
  * TODO: replace with POST /years/{yearId}/companies once the backend
  * exists (spec/api.md).
  */
-export function registerCompanyToYear(companyId: string, yearId: string): void {
+export function registerCompanyToYear(
+  companyId: string,
+  yearId: string,
+  // Set only by Company CSV import, from previousYearContract
+  // (spec/domain.md → Company Status, history from before AdAdd).
+  importedCompanyStatus?: CompanyStatus
+): void {
   const alreadyRegistered = mockYearlyCompanies.some(
     (yc) => yc.companyId === companyId && yc.yearId === yearId
   )
@@ -71,7 +77,8 @@ export function registerCompanyToYear(companyId: string, yearId: string): void {
     yearId,
     companyId,
     ...contactSnapshotFromCompany(company),
-    companyStatus: computeCompanyStatus(companyId, previousYearId),
+    companyStatus:
+      importedCompanyStatus ?? computeCompanyStatus(companyId, previousYearId),
     phase: "PHASE_3",
     progress: "NOT_CONTACTED",
     assignedMemberId: null,

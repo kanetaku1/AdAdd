@@ -6,8 +6,10 @@ import {
   removeCompany as removeMockCompany,
   updateCompany as updateMockCompany,
 } from "@/lib/mock/companies"
+import { mockYears, registerCompanyToYear } from "@/lib/mock/years"
 import type { BulkError, BulkResult } from "@/types/bulk"
 import type { Company } from "@/types/company"
+import type { CompanyStatus } from "@/types/yearly-company"
 
 export const COMPANY_CSV_HEADERS = [
   "companyName",
@@ -20,6 +22,7 @@ export const COMPANY_CSV_HEADERS = [
   "contactEmailOrForm",
   "firstSponsorshipYear",
   "memo",
+  "previousYearContract",
 ] as const
 
 export const COMPANY_CSV_EXAMPLE_ROW = [
@@ -33,7 +36,17 @@ export const COMPANY_CSV_EXAMPLE_ROW = [
   "yamada@example.com",
   "2026",
   "",
+  "なし",
 ]
+
+/**
+ * One imported Company. `companyStatus` is the status its Yearly Company
+ * gets in the active Year; absent when no Year is active
+ * (spec/api.md#Bulk Import Companies).
+ */
+export type CompanyImportRow = Company & { companyStatus?: CompanyStatus }
+
+const PREVIOUS_YEAR_CONTRACT_VALUES = ["あり", "なし", ""]
 
 /**
  * Data access for the Company domain (spec/frontend.md#Company Management).
@@ -105,10 +118,11 @@ export async function deleteCompany(id: string): Promise<void> {
 function mockBulkImportCompanies(
   rows: string[][],
   dryRun: boolean
-): BulkResult<Company> {
+): BulkResult<CompanyImportRow> {
   const headerMap = new Map(rows[0].map((header, index) => [header.trim(), index]))
   const errors: BulkError[] = []
-  const valid: CompanyInput[] = []
+  const valid: { input: CompanyInput; companyStatus?: CompanyStatus }[] = []
+  const activeYear = mockYears.find((y) => y.isActive)
   const csvNames = new Set<string>()
   const existingNames = new Set(mockCompanies.map((company) => company.companyName))
 
@@ -118,6 +132,26 @@ function mockBulkImportCompanies(
     const companyName = csvCell(record, headerMap, "companyName")
     if (!companyName) {
       errors.push({ rowNumber, message: "企業名は必須です" })
+      continue
+    }
+    const previousYearContract = csvCell(
+      record,
+      headerMap,
+      "previousYearContract"
+    )
+    if (!PREVIOUS_YEAR_CONTRACT_VALUES.includes(previousYearContract)) {
+      errors.push({
+        rowNumber,
+        message: `前年度契約は「あり」「なし」または空欄で指定してください: ${previousYearContract}`,
+      })
+      continue
+    }
+    if (previousYearContract === "あり" && !activeYear) {
+      errors.push({
+        rowNumber,
+        message:
+          "前年度契約を反映する年度がありません。先に年度を作成してください",
+      })
       continue
     }
     if (csvNames.has(companyName)) {
@@ -134,27 +168,48 @@ function mockBulkImportCompanies(
 
     csvNames.add(companyName)
     valid.push({
-      companyName,
-      companyNameKana: csvCell(record, headerMap, "companyNameKana"),
-      postalCode: csvCell(record, headerMap, "postalCode"),
-      address: csvCell(record, headerMap, "address"),
-      phoneNumber: csvCell(record, headerMap, "phoneNumber"),
-      website: csvCell(record, headerMap, "website"),
-      contactPersonName: csvCell(record, headerMap, "contactPersonName"),
-      contactEmailOrForm: csvCell(record, headerMap, "contactEmailOrForm"),
-      firstSponsorshipYear: csvCell(record, headerMap, "firstSponsorshipYear"),
-      memo: csvCell(record, headerMap, "memo"),
+      companyStatus: activeYear
+        ? previousYearContract === "あり"
+          ? "CONTINUING"
+          : "NEW"
+        : undefined,
+      input: {
+        companyName,
+        companyNameKana: csvCell(record, headerMap, "companyNameKana"),
+        postalCode: csvCell(record, headerMap, "postalCode"),
+        address: csvCell(record, headerMap, "address"),
+        phoneNumber: csvCell(record, headerMap, "phoneNumber"),
+        website: csvCell(record, headerMap, "website"),
+        contactPersonName: csvCell(record, headerMap, "contactPersonName"),
+        contactEmailOrForm: csvCell(record, headerMap, "contactEmailOrForm"),
+        firstSponsorshipYear: csvCell(
+          record,
+          headerMap,
+          "firstSponsorshipYear"
+        ),
+        memo: csvCell(record, headerMap, "memo"),
+      },
     })
   }
 
-  const successfulRows: Company[] = dryRun
-    ? valid.map((input) => ({
-        id: "",
-        ...input,
-        createdAt: "",
-        updatedAt: "",
-      }))
-    : valid.map((input) => addMockCompany(input))
+  const successfulRows: CompanyImportRow[] = valid.map(
+    ({ input, companyStatus }) => {
+      if (dryRun) {
+        return {
+          id: "",
+          ...input,
+          createdAt: "",
+          updatedAt: "",
+          companyStatus,
+        }
+      }
+      const company = addMockCompany(input)
+      if (activeYear) {
+        registerCompanyToYear(company.id, activeYear.id, companyStatus)
+      }
+      return { ...company, companyStatus }
+    }
+  )
 
   return {
     totalCount: rows.length - 1,
@@ -172,12 +227,12 @@ function mockBulkImportCompanies(
 export async function bulkImportCompanies(
   file: File,
   dryRun: boolean
-): Promise<BulkResult<Company>> {
+): Promise<BulkResult<CompanyImportRow>> {
   if (isApiEnabled()) {
     const body = new FormData()
     body.append("file", file)
     body.append("dryRun", dryRun ? "true" : "false")
-    return apiFetch<BulkResult<Company>>("/companies/bulk", {
+    return apiFetch<BulkResult<CompanyImportRow>>("/companies/bulk", {
       method: "POST",
       body,
     })
