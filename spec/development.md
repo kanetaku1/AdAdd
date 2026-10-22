@@ -350,7 +350,7 @@ There are no down migrations. The API and the tests only ever apply migrations f
 * The production database is rolled back by restoring a backup taken before the change (`spec/operations.md#Backup`), not by a down migration.
 * A local database is recreated (`spec/development.md#Development Seed`).
 
-`MIGRATE_ON_START=true` (Docker Compose, E2E) applies migrations whenever the API starts. That is for development only. Production applies them as an explicit step after a backup (`spec/operations.md#Upgrading Production`), with `go run ./cmd/migrate status` / `up -database <DB_NAME>`.
+`MIGRATE_ON_START=true` (Docker Compose, E2E) applies migrations whenever the API starts. That is for development only. Production applies them as an explicit step after a backup (`spec/operations.md#Upgrading Production`), with `go run ./cmd/migrate status` / `up -database <DB_NAME>`. Without `MIGRATE_ON_START=true`, the API refuses to start while a migration is pending or the state is dirty or unknown; run `go run ./cmd/migrate up -database <DB_NAME>` first.
 
 ### Writing a migration
 

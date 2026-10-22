@@ -24,7 +24,7 @@ CREATE USER 'adadd_prod'@'%' IDENTIFIED BY '<long random password>';
 GRANT ALL PRIVILEGES ON adadd_prod.* TO 'adadd_prod'@'%';
 ```
 
-The collation is `utf8mb4_0900_bin` (`spec/database.md#Character Set and Collation`). The baseline migration (`0001_baseline.up.sql`) sets it as well, so a database created with another default is corrected on the first start.
+The collation is `utf8mb4_0900_bin` (`spec/database.md#Character Set and Collation`). The baseline migration (`0001_baseline.up.sql`) sets it as well, so a database created with another default is corrected when the baseline is applied (`cmd/migrate up`, below).
 
 ## Start the API against it
 
@@ -46,6 +46,8 @@ go run ./cmd/migrate up -database adadd_prod
 ```
 
 In the Docker image the same command is `./migrate`.
+
+The API checks the database on start and refuses to start when its schema does not match the code: a pending migration, a `dirty` state, or a version with no migration file. The error names the state; `cmd/migrate status` shows the details. New code therefore never runs against an old schema because the apply step was forgotten.
 
 Production must not run with development authentication. Production settings (`APP_ENV`, `JWT_SECRET`, network exposure) are tracked in Issue #156 and must be in place before real data is loaded.
 
@@ -187,8 +189,8 @@ Every release that adds a migration changes the production schema. The database 
 2. Rehearse on a copy
 3. Stop the API
 4. Apply
-5. Verify
-6. Start the new version
+5. Start the new version and verify
+6. Resume work
 ```
 
 ### 1. Back up
@@ -197,12 +199,21 @@ Take a dump right before the change (see Backup below). It is the way back if an
 
 ### 2. Rehearse on a copy
 
-Restore the dump into a separate database (e.g. `adadd_rehearsal`) and run the new version against it: `go run ./cmd/migrate up -database adadd_rehearsal`, then start the API on it and try the main screens. A migration that fails or breaks real data shows up here, not in production. Drop the copy afterwards — it holds real data.
+Restore the dump into a separate database (e.g. `adadd_rehearsal`) and run the new version against it. A migration that fails or breaks real data shows up here, not in production.
 
 ```bash
 mysql -u root -p -e "CREATE DATABASE adadd_rehearsal CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;"
 mysql -u root -p adadd_rehearsal < adadd_prod-YYYYMMDD.sql
 ```
+
+Then, with **`DB_NAME=adadd_rehearsal`** (and a user granted on it) in place of the production settings, so that nothing below touches `adadd_prod`:
+
+```bash
+go run ./cmd/migrate up -database adadd_rehearsal
+go run ./cmd/server   # sign in and try the main screens
+```
+
+`up` refuses to run if `-database` and `DB_NAME` differ, so a forgotten `DB_NAME` stops here instead of changing production. Drop the copy afterwards — it holds real data.
 
 ### 3. Stop the API
 
@@ -217,14 +228,15 @@ go run ./cmd/migrate up -database adadd_prod
 
 `status` lists the pending migrations. `up` refuses to run unless `-database` names the configured `DB_NAME`, and refuses a dirty or unknown state.
 
-### 5. Verify
+### 5. Start the new version and verify
 
 * `go run ./cmd/migrate status` shows `state: clean` and `pending: none`.
-* Start the new version, sign in, and check the screens the change touches.
+* Start the new version. It refuses to start if the schema does not match (see Start the API against it).
+* Sign in and check the screens the change touches.
 
-### 6. Start the new version
+### 6. Resume work
 
-Members resume work.
+Tell the members they can use AdAdd again.
 
 ## When it fails
 

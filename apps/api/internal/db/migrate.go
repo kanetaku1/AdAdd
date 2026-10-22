@@ -63,31 +63,60 @@ func GetMigrationStatus(cfg *config.Config) (*MigrationStatus, error) {
 	}
 	defer m.Close()
 
-	status := &MigrationStatus{}
 	version, dirty, err := m.Version()
 	switch {
 	case errors.Is(err, migrate.ErrNilVersion):
 		// Empty database: nothing applied yet.
+		version, dirty = 0, false
 	case err != nil:
 		return nil, fmt.Errorf("read migration version: %w", err)
-	default:
-		status.Version, status.Dirty = version, dirty
 	}
 
 	files, err := migrationVersions(cfg.MigrationsPath)
 	if err != nil {
 		return nil, err
 	}
-	status.Unknown = status.Version != 0
+	return newMigrationStatus(version, dirty, files), nil
+}
+
+// newMigrationStatus compares the database's version with the migration
+// files (ascending).
+func newMigrationStatus(version uint, dirty bool, files []uint) *MigrationStatus {
+	status := &MigrationStatus{Version: version, Dirty: dirty, Unknown: version != 0}
 	for _, v := range files {
-		if v == status.Version {
+		if v == version {
 			status.Unknown = false
 		}
-		if v > status.Version {
+		if v > version {
 			status.Pending = append(status.Pending, v)
 		}
 	}
-	return status, nil
+	return status
+}
+
+// MismatchError returns why the schema does not match the migration files,
+// or nil when every migration is applied cleanly.
+func (s *MigrationStatus) MismatchError() error {
+	switch {
+	case s.Dirty:
+		return fmt.Errorf("migration %04d failed partway (dirty); restore the backup (spec/operations.md#Upgrading Production)", s.Version)
+	case s.Unknown:
+		return fmt.Errorf("the database's version %04d has no migration file; the code is older than the database (spec/operations.md#Upgrading Production), or it is a local database from before the baseline (spec/development.md#Baseline)", s.Version)
+	case len(s.Pending) > 0:
+		return fmt.Errorf("%d migration(s) pending, from %04d; apply them with `go run ./cmd/migrate up -database <DB_NAME>` (spec/operations.md#Upgrading Production)", len(s.Pending), s.Pending[0])
+	}
+	return nil
+}
+
+// CheckMigrations fails unless the database has every migration applied
+// cleanly, so the API never runs against a schema that does not match it.
+// It changes nothing.
+func CheckMigrations(cfg *config.Config) error {
+	status, err := GetMigrationStatus(cfg)
+	if err != nil {
+		return err
+	}
+	return status.MismatchError()
 }
 
 var migrationFilePattern = regexp.MustCompile(`^(\d+)_[a-z0-9_]+\.up\.sql$`)
