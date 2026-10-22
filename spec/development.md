@@ -394,24 +394,96 @@ This was a one-time exception to rule 3, allowed only because no production data
 
 ### Moving a local database to the baseline
 
-A local database created before the squash records version `12`, which no longer has a file. The API then stops on start with `no migration found for version 12`. Do one of these, once:
+Every developer with a local database from before the squash does this **once**, after pulling the squash. A local database created before the squash records version `12`, which no longer has a file. The API then stops on start with `no migration found for version 12`.
 
-* **The database was at version 12 cleanly** (it ran every migration up to `0012_use_binary_collation`): its schema already equals the baseline. Record the new version:
+The integration test database (`*_test`) needs nothing: the tests rebuild it themselves. Only the development database (`adadd`) and the local E2E database (`adadd_e2e`) are moved.
 
-```sql
-UPDATE schema_migrations SET version = 1 WHERE version = 12 AND dirty = 0;
+**Follow the steps in order.** The `adadd-api` container built before the squash still has the old migration files inside its image, and Docker Compose restarts it on its own (`restart: unless-stopped`). If it is still running when the version is changed to `1`, it applies the old `0002` and `0003` on its next restart, fails, and leaves the database `dirty` at version `3` (`Dirty database version 3. Fix and force version.`). That database can then only be recreated (step 3b).
+
+Run every command from the repository root unless noted.
+
+#### 1. Stop the old API container
+
+```bash
+docker compose stop api
 ```
 
-* **Any other version, `dirty = 1`, or a migration from an unmerged branch** (e.g. the old `contract_menu_files` from the closed PR #139): recreate the database. This deletes all local data.
+#### 2. Check the state of each database
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password -e \
+  "SELECT 'adadd', version, dirty FROM adadd.schema_migrations; SELECT 'adadd_e2e', version, dirty FROM adadd_e2e.schema_migrations;"
+```
+
+`Unknown database 'adadd_e2e'` only means you never created the E2E database; skip it.
+
+| `version` / `dirty` | What to do |
+| ------------------- | ---------- |
+| `12` / `0` | 3a — keep the data |
+| `1` / `0` | Nothing — already moved |
+| Anything else, `dirty = 1`, or you applied a migration from an unmerged branch (e.g. the old `contract_menu_files` from the closed PR #139) | 3b — recreate |
+
+#### 3a. Keep the data: record the new version
+
+A database that ran every migration up to `0012_use_binary_collation` cleanly already has the baseline schema. Only the recorded version changes:
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
+  "UPDATE schema_migrations SET version = 1 WHERE version = 12 AND dirty = 0;"
+```
+
+For `adadd_e2e`, run the same command with `adadd_e2e` in place of `adadd`. The only output is a warning that a password was given on the command line; it can be ignored.
+
+#### 3b. Recreate: delete all local data
+
+This deletes every row, **including your own User**, so you can no longer sign in with Google until step 5.
 
 ```bash
 docker exec adadd-mysql mysql -uroot -proot_password -e \
   "DROP DATABASE adadd; CREATE DATABASE adadd CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin; GRANT ALL PRIVILEGES ON adadd.* TO 'adadd'@'%';"
 ```
 
-Then, from `apps/api`, `go run ./cmd/seed` applies the baseline and loads the development data (`spec/development.md#Development Seed`).
+For `adadd_e2e`, run the same command with `adadd_e2e` in place of `adadd`. The next E2E run applies the baseline and the seed to it by itself.
 
-Check the current state with `SELECT version, dirty FROM schema_migrations;`. The same applies to the local E2E database (`adadd_e2e`). The integration test database is rebuilt by the tests themselves.
+#### 4. Rebuild and start the API
+
+```bash
+docker compose up -d --build api
+docker logs adadd-api
+```
+
+`--build` is required: without it, the old image comes back. The log shows `migrations applied` and then `starting server on port 8080`. If you recreated `adadd` (3b), load the development data, from `apps/api`:
+
+```bash
+go run ./cmd/seed
+```
+
+#### 5. Register yourself again (only after 3b)
+
+The seed has only fictitious Users (`spec/development.md#Seed contents`). Signing in with your Google account shows `このメールアドレスは登録されていません。管理者に連絡してください。` until your User exists again. Insert yourself as an Administrator (replace the three values; the email must be the Google account you sign in with):
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
+  "SET @user_id = UUID();
+   INSERT INTO users (id, student_id, name, email, is_active) VALUES (@user_id, '<student id>', '<full name>', '<Google account email>', TRUE);
+   INSERT INTO user_roles (id, user_id, role_id) SELECT UUID(), @user_id, id FROM roles WHERE code = 'ADMINISTRATOR';"
+```
+
+Other Roles can then be granted from User List. Check with:
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
+  "SELECT u.email, r.code FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id;"
+```
+
+#### Troubleshooting
+
+| Symptom | Cause | Fix |
+| ------- | ----- | ---- |
+| API log: `no migration found for version 12` | The database is still at the pre-squash version | Steps 1–4 |
+| API log: `Dirty database version 3` | The old container ran after the version was changed to `1` | Step 1, then 3b, 4, 5 |
+| `adadd-api` keeps restarting after step 4 | The image was not rebuilt | `docker compose up -d --build api` |
+| Sign-in shows `このメールアドレスは登録されていません。` | Your User was deleted with the database | Step 5 |
 
 ---
 
