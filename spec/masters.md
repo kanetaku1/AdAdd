@@ -65,7 +65,7 @@ Once a Sponsorship Menu is referenced by a Contract Menu, its identity must rema
 
 ### Definition
 
-The set of permission roles a User can hold (e.g. Sponsorship Member, Sponsorship Advisor, Company Management Team, Sponsorship Menu Management Team, Finance Department, System Administrator).
+The set of permission roles a User can hold: Sponsorship Member, Advisor, Finance Department, Advertisement Manager（広告管理部門）, Administrator. Fixed, seeded master data — 5 codes (`spec/model.md#Role`).
 
 ### Scope
 
@@ -89,7 +89,7 @@ See `spec/model.md` → `Role`, `spec/business.md` → Roles.
 
 ### Definition
 
-The organizational teams involved in sponsorship operations (Company Management Team, Sponsorship Members, Sponsorship Advisors, Sponsorship Menu Management Team, Finance Department, System Administrator).
+The organizational teams involved in sponsorship operations (Company Management Team, Sponsorship Members, Sponsorship Advisors, Sponsorship Menu Management Team, Advertisement Management Department（広告管理部門）, Finance Department, System Administrator).
 
 ### Scope
 
@@ -101,7 +101,9 @@ System Administrator.
 
 ### Notes
 
-Currently represented through `Role` rather than a dedicated entity — a User's assigned Role effectively identifies their Department. If departments and permission roles diverge in the future (e.g. one department needing multiple permission levels), this should be split into its own master table. See `spec/business.md` → Organization.
+Not a permission axis. Permissions come only from `Role`; Department is organizational affiliation (Issue #126, #127). Where one department's work needs its own permission, that is a Role — the Advertisement Management Department（広告管理部門）has the Role `ADVERTISEMENT_MANAGER`.
+
+Not a dedicated entity yet. If departments and permission roles diverge in the future (e.g. one department needing multiple permission levels), this should be split into its own master table. See `spec/business.md` → Organization.
 
 ---
 
@@ -181,7 +183,7 @@ See `spec/model.md` → `SponsorshipProgress`, `spec/business.md` → Sponsorshi
 
 ### Definition
 
-The progress states (`Waiting`, `Requested`, `Producing`, `Completed`, `Submitted`) and production methods (`Company`, `Internal`) a Contract Menu moves through.
+The progress states (`Waiting`, `Requested`, `Producing`, `Completed`, `Submitted`) and production methods (`Company`, `Internal`) a Contract Menu moves through, and the production department of an `Internal` Contract Menu (`DOCUMENT_CREATION_DEPARTMENT` 資料作成部門 / `PRODUCTION_BUREAU` 制作局 / `SOCIAL_MEDIA_DEPARTMENT` SNS部門).
 
 ### Scope
 
@@ -193,11 +195,15 @@ Sponsorship Menu Management Team.
 
 ### Referenced By
 
-`ContractMenu.status`, `ContractMenu.productionType`
+`ContractMenu.status`, `ContractMenu.productionType`, `ContractMenu.productionDepartment`
+
+### Notes
+
+The values themselves are fixed. Per Contract Menu, `status` and `productionDepartment` are set by the Advertisement Manager Role (and Administrator); `productionType` by Sponsorship Member or Advertisement Manager (`spec/api.md#Authorization Matrix`).
 
 ### Source
 
-See `spec/model.md` → `ContractMenuStatus`, `ContractMenuProductionType`.
+See `spec/model.md` → `ContractMenuStatus`, `ContractMenuProductionType`, `ContractMenuProductionDepartment`.
 
 ---
 

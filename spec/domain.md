@@ -239,6 +239,7 @@ Goods sponsorship is **not** a Sponsorship Menu of its own — the same Sponsors
 
 * Quantity and unit price
 * Production method (when submission is required)
+* Production department (when the production method is Internal Production — see Contract Menu Production Department below)
 * Progress status
 * Google Drive folder
 
@@ -341,9 +342,21 @@ The canonical set (matching the actor roles in `spec/frontend.md` → User Roles
 * Sponsorship Member
 * Advisor
 * Finance Department
+* Advertisement Manager（広告管理部門）
 * Administrator
 
 A User holding none of these has base-level, read-only access — this replaced the earlier "General Member" Role, which added nothing beyond that baseline. Company Management Department and Sponsorship Menu Management Team were removed as separate Roles: master-data management (Company, Year, Sponsorship Menu) is now Sponsorship Member's responsibility, and Year creation is Administrator-only (see `spec/api.md#Authorization Matrix`).
+
+Advertisement Manager (`ADVERTISEMENT_MANAGER`, display name 広告管理部門) is a Role, not a Department (Issue #126, #127). Two Contract Menu operations belong to it alone, not to every Sponsorship Member:
+
+* Changing a Contract Menu's status (Contract Menu Status below).
+* Assigning the production department of an Internal Production Contract Menu (Contract Menu Production Department below).
+
+On its own, the Role also covers the other work of the 広告管理 screen (Contract Menu List): production type, production information (remarks, Drive URL), and Drive upload. It does not cover money-related edits (quantity, unit price, goods sponsorship); those stay with Sponsorship Member — see `spec/api.md#Authorization Matrix`.
+
+A User who belongs to the 広告管理部門 receives this Role through `UserRole` like any other Role. Usually the holder also holds `SPONSORSHIP_MEMBER`. Because the 広告管理部門 works with other bureaus (e.g. the SNS部門), a User may hold `ADVERTISEMENT_MANAGER` alone; the Role must therefore be usable on its own (see its permissions below).
+
+Department stays organizational affiliation only and is never used for permission checks (`spec/masters.md#Department`).
 
 Administrator is a superuser — it satisfies every permission check regardless of what else is required. See `spec/model.md#Role` for the machine-readable `code` per Role and `spec/model.md#UserRole` for how a User is linked to zero or more Roles.
 
@@ -458,6 +471,28 @@ Applies only when the referenced Sponsorship Menu requires submission. The compa
 
 * Company Production — the company submits a finished, ready-to-use product (完成品).
 * Internal Production — the company submits raw material (素材, e.g. logo, text/copy), and the committee produces the finished product from it.
+
+Internal Production is what the business calls 委員会 (UI label 委員). A Sponsorship Member sets the production type, including Internal Production.
+
+---
+
+## Contract Menu Production Department
+
+Which committee department produces an Internal Production Contract Menu. It is a breakdown of Internal Production, not another production type: the production type stays Internal Production, and the department is held beside it.
+
+* Document Creation Department（資料作成部門）
+* Production Bureau（制作局）
+* Social Media Department（SNS部門）
+
+Rules:
+
+* Only Internal Production Contract Menus have a production department. For any other production type (Company Production, Continued — present in code, its place in spec is Issue #162 — or none when the menu does not require submission) it is always empty.
+* At most one department per Contract Menu. Empty means not assigned yet — the normal state right after a Sponsorship Member sets Internal Production.
+* Only the Advertisement Manager Role (and Administrator, as superuser) assigns, changes, or clears it. A Sponsorship Member cannot.
+* When the production type changes away from Internal Production, the department is cleared in the same change. A department cannot stay on a Contract Menu that is no longer Internal Production.
+* Filtering by Internal Production matches every Internal Production Contract Menu, whatever its department.
+
+This is the production destination of the advertisement. It is unrelated to the Yearly Company's assigned Sponsorship Member (`CompanyAssignment`), which the 広告管理 list shows as 担当者 (Issue #128).
 
 ---
 
@@ -626,6 +661,8 @@ Submitted
 ```
 
 This is the usual order, not an enforced one. A Contract Menu's status may be changed to any status, forward or back, because material is often sent back to the company or redone. For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Waiting to Completed.
+
+Status is changed only by the Advertisement Manager Role (and Administrator, as superuser) — see `spec/api.md#Update Contract Menu Status`. Other Roles see it read-only. Registering production information or uploading to Drive does not change the status — the status becomes Submitted only through this status change (Issue #166).
 
 A homepage banner requires submission (`requiresSubmission = true`) — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 

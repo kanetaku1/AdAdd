@@ -71,6 +71,21 @@ Sponsorship Menu Managers may also be Sponsorship Members.
 
 ---
 
+## Advertisement Management Department（広告管理部門）
+
+Responsible for:
+
+* Changing each Contract Menu's status (production / submission progress)
+* Assigning the production department of an Internal Production (委員) Contract Menu: 資料作成部門, 制作局, or SNS部門 (see Internal Production below)
+
+Only this department changes Contract Menu status and assigns the production department (Issue #126, #127). It is a system Role, `ADVERTISEMENT_MANAGER` (see `# Roles` below). It also handles the rest of the 広告管理 screen: production type, remarks, Drive registration and upload.
+
+Its members usually also hold `SPONSORSHIP_MEMBER`. Because it cooperates with other bureaus (e.g. the SNS部門), a person may hold `ADVERTISEMENT_MANAGER` alone.
+
+How its responsibilities divide with the Sponsorship Menu Management Team above (which also manages Contract Menu progress and requests production) is 未決.
+
+---
+
 ## Finance Department
 
 Responsible for:
@@ -95,7 +110,7 @@ Responsible for:
 
 # Roles
 
-The canonical, implemented Role set is defined in `spec/domain.md#Role` (4 Roles: Sponsorship Member, Advisor, Finance Department, Administrator; holding none is the view-only baseline). Company Management Team and Sponsorship Menu Management Team (above) are not separate Roles — their responsibilities are covered by Sponsorship Member (company/menu master data, day-to-day ad-material management) and Administrator (Year creation, assignment, deletion — see `spec/api.md#Authorization Matrix`).
+The canonical Role set is defined in `spec/domain.md#Role` (5 Roles: Sponsorship Member, Advisor, Finance Department, Advertisement Manager, Administrator; holding none is the view-only baseline). Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) is the one department above that is its own Role, because Contract Menu status and production department assignment belong to it alone (Issue #126, #127). Administrator, as superuser, can do everything it can. Company Management Team and Sponsorship Menu Management Team (above) are not separate Roles — their responsibilities are covered by Sponsorship Member (company/menu master data, day-to-day ad-material management) and Administrator (Year creation, assignment, deletion — see `spec/api.md#Authorization Matrix`).
 
 Permissions are defined in `spec/api.md#Authorization Matrix`.
 
@@ -308,6 +323,14 @@ The completed files are uploaded to Google Drive.
 The company still submits something, but it is raw material (素材) — e.g. logo image, company text/copy — not a finished product.
 
 The Sponsorship Menu Management Team requests production from another department, which uses the submitted material to create the finished product.
+
+The business calls this production type 委員会 (UI label 委員). A Sponsorship Member sets it. Once it is set, the Advertisement Management Department assigns exactly one producing department:
+
+* 資料作成部門
+* 制作局
+* SNS部門
+
+The production type stays 委員 after the assignment; the department is a breakdown of it. Until assigned, the department is empty. Company Production cannot have a department. A Sponsorship Member cannot assign it.
 
 The request status is managed within AdAdd.
 
