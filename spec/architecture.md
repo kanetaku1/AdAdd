@@ -129,6 +129,8 @@ The production deployment is not decided yet.
 
 See `spec/decisions/0002-deployment.md`.
 
+The production MySQL runs in its own Docker Compose project (container and named volume), separate from local development. It is dumped daily and uploaded, encrypted with rclone `crypt`, to a restricted folder in the festival's Google Shared Drive. See `spec/decisions/0005-production-database-backup.md` and `spec/operations.md#Backup`.
+
 ## Configuration
 
 Environment-specific configuration (database connection, server port, etc.)
