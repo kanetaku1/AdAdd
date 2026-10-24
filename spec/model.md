@@ -51,6 +51,8 @@ Represents one festival year.
 | endDate   | date    | ✓        | Festival cycle end     |
 | isActive  | boolean | ✓        | Current operating year |
 
+`name`, `startDate`, and `endDate` can be corrected by an Administrator while the Year is active (`spec/api.md#Update Year`). `isActive` is never edited directly; it changes only when a new Year is created (`spec/domain.md#Active Year and Past Years`).
+
 ---
 
 ## Company
@@ -142,12 +144,9 @@ Represents one sponsorship agreement.
 | yearlyCompanyId | UUID     |
 | contractDate    | date     |
 | totalAmount     | decimal  |
-| assigneeId      | UUID     |
 | remarks         | text     |
 
-The assignee is scoped to the contract, not to individual Contract Menus. Every Contract Menu under a contract shares the same assignee.
-
-`assigneeId` is not entered when the contract is created. It is carried over from the Sponsorship Member already assigned to the Yearly Company (`CompanyAssignment`, decided earlier by an Administrator — see `spec/usecase.md` UC-04) — a contract never introduces a new assignment of its own.
+A contract has no assignee attribute. The assignee of the contract, and of every Contract Menu under it, is the Yearly Company's current `CompanyAssignment` (decided by an Administrator — see `spec/usecase.md` UC-04), read at display time. A former `assigneeId` copied at creation was removed because it went stale when the assignment changed (Issue #172). A contract can be created while the Yearly Company has no `CompanyAssignment`. Who created the contract is traced through the `CONTRACT_CREATED` ActivityLog entry (`userId` = the acting user).
 
 A `SponsorshipContract` record is only created once an agreement is actually reached (see `spec/usecase.md` UC-06) — there is no separate draft state, so no `status` field is needed here. `contractDate` is the single date the agreement was reached. Overall progress (including whether the engagement is fully wrapped up) is tracked on `YearlyCompany.progress`, not duplicated on the contract.
 
@@ -175,7 +174,11 @@ This is master data, managed independently of any company or contract.
 | isActive           | boolean         |
 | maxQuantity        | integer, nullable |
 
-`requiresSubmission` alone determines the Contract Menu's management workflow (submission/production tracking vs. none) — there is no separate category field. A previous `category` (Advertisement/Booth) enum was removed because it never carried information beyond what `requiresSubmission` already expressed (see `spec/domain.md`).
+`requiresSubmission` alone determines the Contract Menu's management workflow (submission/production tracking vs. none) — there is no separate category field. A previous `category` (Advertisement/Booth) enum was removed because it never carried information beyond what `requiresSubmission` already expressed (see `spec/domain.md`). Changing `requiresSubmission` later does not rewrite existing Contract Menus (their `productionType` and `status` stay as stored).
+
+`isActive = false` means the menu is no longer offered: it cannot be referenced by a newly added Contract Menu. Existing Contract Menus that reference it are unaffected.
+
+A Year's menus can be copied from the immediately preceding Year on demand (`spec/api.md#Copy Sponsorship Menus from the Previous Year`). A copy is a new row with the target `yearId`; it keeps no link to the source menu.
 
 `maxQuantity` is an optional sponsorship cap for menus with limited availability (e.g. a fixed number of booth slots). `null` means unlimited. It bounds the sum of `quantity` across that menu's Contract Menus for the Year — see `spec/frontend.md#Ad Material Progress` for how fill-against-cap is surfaced.
 
@@ -202,7 +205,9 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 | submittedAt       | datetime |
 | remarks           | text     |
 
-ContractMenu does not have its own assignee. The assignee belongs to the parent `SponsorshipContract`.
+ContractMenu does not have its own assignee. Like its contract, it is handled by the Yearly Company's `CompanyAssignment`.
+
+`status` may be changed to any `ContractMenuStatus` value in any order. The order Waiting → Requested → Producing → Completed → Submitted is the usual one, not an enforced one, because material is sent back and redone (`spec/domain.md#Contract Menu`).
 
 `unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus. `quantity`, `unitPrice`, `isGoodsSponsorship`, and `productionType` remain editable after creation (not just at creation), each recalculating `totalAmount` per the rule above — see `spec/api.md#Update Contract Menu`.
 
@@ -225,11 +230,17 @@ Represents payment information for a contract's sponsorship amount.
 | confirmedAt   | datetime |
 | confirmedById | UUID     |
 
-`confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with `SponsorshipContract.assigneeId`'s `xId`-suffixed foreign-key naming).
+`confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with the `xId`-suffixed foreign-key naming used elsewhere, e.g. `yearlyCompanyId`).
 
 `confirmedAt` is the **payment confirmation date** — the date the Finance Department confirmed the bank transfer in AdAdd (`spec/domain.md` → Payment), not necessarily the date the bank transfer itself occurred. It is set automatically to the day the status is changed to Confirmed; there is no separate "actual transfer date" field. This date is used when generating the receipt (`spec/usecase.md` UC-10 Send Receipt).
 
 A `Payment` is created when it is registered for a contract whose current `totalAmount > 0` — a goods-sponsorship-only contract has no `Payment` row at all, not a `Payment` with `amount = 0`. Moving `status` back from `Confirmed` to `Waiting` clears `confirmedAt`/`confirmedById`.
+
+The Yearly Company's `progress` always matches `status`, and the server keeps it so in the same transaction (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency):
+
+* `status` becomes `Confirmed` → `progress` becomes `PaymentReceived`, unless it is already `ReceiptSent` (kept).
+* `status` moves back from `Confirmed` to `Waiting` → if `progress` is `PaymentReceived` or `ReceiptSent`, it becomes `Confirmed`; other values are kept.
+ How the actual received amount decides when the Payment becomes `Confirmed` is defined by Issue #171; the progress rule applies whenever `status` changes, however that change is triggered.
 
 While a Payment is `Waiting`, its `amount` is not independently edited: it is kept in sync with the parent `SponsorshipContract.totalAmount`. Any Contract Menu add/update/delete recalculates the Contract total and, in the same transaction, updates the Waiting Payment amount to the same value.
 
@@ -381,11 +392,16 @@ The outreach priority ranking for a Yearly Company within the current Year, set 
 * NotContacted
 * MaterialsSent
 * Confirmed
+* GoodsReceived
 * InvoiceSent
 * PaymentReceived
 * ReceiptSent
 * Declined
 * Pending
+
+API / storage codes: `NOT_CONTACTED` (未連絡), `MATERIALS_SENT` (資料送付), `CONFIRMED` (協賛確定), `GOODS_RECEIVED` (物品受領), `INVOICE_SENT` (請求書送付), `PAYMENT_RECEIVED` (協賛金入金), `RECEIPT_SENT` (領収書送付), `DECLINED` (見送り), `PENDING` (保留).
+
+`GoodsReceived` is used only by goods-sponsorship-only contracts (no Payment) and is set by hand after `Confirmed`. The payment stages (`PaymentReceived`, `ReceiptSent`) follow the Payment status — see the YearlyCompany constraints below and `spec/domain.md` → Lifecycle → Sponsorship Progress Consistency.
 
 ---
 
@@ -531,6 +547,10 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 
 * One Company can appear only once in the same Year.
 * Company + Year must be unique.
+* `progress` cannot be set to `Confirmed` while the Yearly Company has no contract.
+* `progress` cannot be set to a pre-contract stage (`NotContacted`, `MaterialsSent`, `Declined`, `Pending`) while a contract exists. `InvoiceSent` is allowed.
+* `progress` cannot be set to `PaymentReceived` unless the contract's Payment is `Confirmed`, and cannot be set to `ReceiptSent` when there is no contract or while the contract's Payment is not `Confirmed`.
+* `progress` can be set to `GoodsReceived` only when a contract exists and it has no Payment (goods-only). It may be set back to `Confirmed` by hand. When a Payment is created for a contract at `GoodsReceived`, `progress` moves back to `Confirmed` automatically.
 
 ---
 
@@ -560,7 +580,8 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 
 * Every contract belongs to one Yearly Company.
 * A Yearly Company has at most one contract — `yearlyCompanyId` is unique on `SponsorshipContract`.
-* `assigneeId` is set on the contract, not on individual Contract Menus.
+* A contract stores no assignee; the assignee is the Yearly Company's `CompanyAssignment`.
+* A contract may exist while the Yearly Company has no `CompanyAssignment`.
 
 ---
 
@@ -576,6 +597,7 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 * Every Contract Menu belongs to one Sponsorship Contract.
 * Every Contract Menu references exactly one Sponsorship Menu.
 * `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company.
+* A newly added Contract Menu must reference a Sponsorship Menu with `isActive = true`.
 
 ---
 
@@ -601,11 +623,11 @@ The following rules must always be satisfied.
 * Activity logs cannot be updated.
 * MySQL is the only authoritative data source.
 * An Advisor is assigned to Sponsorship Members, never directly to a Yearly Company.
-* An assignee is set per Sponsorship Contract, never per Contract Menu.
+* The assignee of a Sponsorship Contract and its Contract Menus is the Yearly Company's CompanyAssignment; neither stores one of its own.
 * A User must be pre-registered (by email, by an Administrator) before they can authenticate — there is no self-service signup, regardless of authentication provider.
 * Roles are granted by an Administrator through UserRole; a User is never able to grant themselves a Role.
 * Deletion is Administrator-only across the system (e.g. Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole). Non-Administrator Roles may create and update but never delete — see `spec/api.md#Authorization Matrix`.
-* ActivityLog entries are created only by the system in response to a progress/Contract Menu status/Payment status change — there is no manual/user-authored entry point.
+* ActivityLog entries are created only by the system, and only when a value actually changes — there is no manual/user-authored entry point. The recorded operations are listed in `spec/domain.md#Activity Log`.
 
 ---
 

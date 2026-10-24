@@ -157,7 +157,7 @@ See `spec/model.md` → `SponsorshipPhase`, `spec/usecase.md` → UC-02.
 
 ### Definition
 
-The stages a Yearly Company's sponsorship activity moves through (e.g. Not Contacted, Materials Sent, Sponsorship Confirmed, Invoice Sent, Payment Received, Receipt Sent, Declined, Pending).
+The stages a Yearly Company's sponsorship activity moves through (e.g. Not Contacted, Materials Sent, Sponsorship Confirmed, Goods Received (goods-only contracts), Invoice Sent, Payment Received, Receipt Sent, Declined, Pending).
 
 ### Scope
 

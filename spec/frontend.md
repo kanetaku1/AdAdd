@@ -423,7 +423,9 @@ Saving a field calls `PATCH /yearly-companies/{id}/company-contact` (writes this
 
 ### Assignment (担当)
 
-Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), `companyStatus`, `phase`, and `progress`, together in one row/strip rather than stacked sections. Company status, phase, and progress are each inline-editable here the same as on Yearly Company List (Principle 4), for `SPONSORSHIP_MEMBER` / `ADMINISTRATOR`.
+Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), `companyStatus`, `phase`, and `progress`, together in one row/strip rather than stacked sections. Company status, phase, and progress are each inline-editable here the same as on Yearly Company List (Principle 4), for `SPONSORSHIP_MEMBER` / `ADMINISTRATOR`. A progress value that contradicts the contract or Payment (協賛確定 without a contract; 未連絡 / 資料送付 / 見送り / 保留 with one — delete the contract first if the company declines after contracting; 協賛金入金 / 領収書送付 before the Payment is confirmed, 物品受領 for a contract that has a Payment) is rejected by the API with 409, and the reason is shown at the progress cell (Principle 6). Progress also changes on its own when the Payment is confirmed or reverted (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
+
+The assigned member shown here is also the assignee of the contract and every Contract Menu; the contract has no assignee of its own (`spec/model.md#SponsorshipContract`).
 
 ### Contract Menu (editable)
 
@@ -431,16 +433,17 @@ Shown before Contract (production/status work happens more often than contract-l
 
 * No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately once a Contract Menu exists and `totalAmount > 0` (`POST /contracts/{contractId}/payment`); goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record. Field-level validation errors are highlighted at the specific field, not just a generic banner (see UI Design Principles below).
 * A contract exists — each line is editable in place (quantity, production type, status, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Upload Production Information`). `isGoodsSponsorship` is set only at creation or when adding a menu line (toggling it later would zero `unitPrice` and lose the negotiated price, so the Detail UI does not expose that toggle — the flag still displays as a badge when true). A delete action is exposed per line, but only to Administrator — deletion is Administrator-only system-wide (`spec/api.md#Authorization Matrix`), so the action is hidden entirely for every other Role rather than shown-and-rejected. It requires an explicit confirmation step before calling `DELETE /contract-menus/{id}`, since removal is irreversible from the UI's point of view and changes the Contract's `totalAmount`. If the Contract's Payment is already confirmed and the removal would change the amount, the API returns 409 and the deletion is refused (`spec/api.md#Delete Contract Menu`). Contract Menu List (below, the cross-contract view) is unaffected — it never adds/removes items.
+* Menu choices — when creating a contract or adding a line, only Sponsorship Menus with `isActive = true` are offered. The API also rejects an inactive menu (`spec/api.md#Add Contract Menu`). Existing lines that reference a menu turned inactive later stay as they are.
 
 ### Contract
 
 Below Contract Menu. Shows payment status and `totalAmount` only (line-item detail already lives in Contract Menu above) — status changes themselves happen on Finance (read-only here). Invoice/receipt generation actions (FR-015) sit next to this summary.
 
-`contractDate` is shown as a caption under `totalAmount`. It is not part of the summary proper, but Yearly Company Detail is the only screen that surfaces it at all, so dropping it entirely would make the agreed contract date unreachable from the UI. `remarks` is not shown here — it is carried into the generated invoice (FR-015) and does not drive day-to-day work on this screen. The Contract's committee assignee is not repeated either; it is the same value already shown in the Assignment strip above.
+`contractDate` is shown as a caption under `totalAmount`. It is not part of the summary proper, but Yearly Company Detail is the only screen that surfaces it at all, so dropping it entirely would make the agreed contract date unreachable from the UI. `remarks` is not shown here — it is carried into the generated invoice (FR-015) and does not drive day-to-day work on this screen. The Contract's committee assignee is not repeated either; it is the Yearly Company's assignment already shown in the Assignment strip above.
 
 ### 活動記録
 
-Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (progress / Contract Menu status / Payment status changes — `spec/domain.md#Activity Log`); there is no manual entry action. A handover note that isn't a status change belongs on the Yearly Company's contact `memo` (copied to `Company.memo` on save), not 活動記録.
+Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (the operations listed in `spec/domain.md#Activity Log` — status changes, assignment, contract and Contract Menu changes, payment confirmation and its revert, contact changes); there is no manual entry action. A handover note that isn't one of those recorded changes belongs on the Yearly Company's contact `memo` (copied to `Company.memo` on save), not 活動記録.
 
 The heading and empty state use 活動記録. Each row shows `eventType` as a Japanese badge, `message` (already Japanese business language), `createdAt` in JST (`ja-JP` / `Asia/Tokyo`), and the actor's name.
 
@@ -462,13 +465,11 @@ Status:
 資料送付
  ↓
 協賛確定
- ↓
-請求書送付
- ↓
-協賛金入金
- ↓
-領収書送付
+ ├─ (お金の協賛) 請求書送付 → 協賛金入金 → 領収書送付
+ └─ (物品協賛のみ) 物品受領
 ```
+
+物品受領 (`GOODS_RECEIVED`) is only for goods-only contracts, which have no Payment. 協賛金入金 is reached only by confirming the Payment, and 領収書送付 only after that (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 
 Display:
 
@@ -575,7 +576,10 @@ Display:
 
 Actions:
 
+* Copy from the previous Year (前年度からコピー — toolbar, Sponsorship Member / Administrator, active Year only). Calls `POST /years/{yearId}/sponsorship-menus/copy-from-previous-year`; the list then shows the copied menus for editing (e.g. prices). It is never run automatically.
 * Delete menu (per row, shown only to Administrator, guarded by a confirmation step — `DELETE /sponsorship-menus/{menuId}`). A menu used by a Contract Menu is rejected (`409`) and the reason is shown; turn off Active status instead.
+
+Turning off Active status keeps the menu out of new contracts; existing Contract Menus are unaffected. Changing Submission required does not change existing Contract Menus either (`spec/domain.md#Sponsorship Menu`).
 
 ---
 
@@ -614,6 +618,8 @@ Actions:
 
 * Confirm payment
 * Update status
+
+Confirming a payment moves the company's progress to 協賛金入金 (領収書送付 is kept). Moving it back to waiting moves 協賛金入金 / 領収書送付 back to 協賛確定. The server does both (`spec/api.md#Update Payment Status`); the list and Yearly Company views show the new progress after refetching.
 
 ---
 
@@ -750,6 +756,7 @@ Display:
 Actions:
 
 * Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before.
+* Correct the active Year's name, start date, and end date (Administrator — `PATCH /years/{yearId}`, `spec/domain.md#Correcting a Year`). Past Years are not editable (see Viewing a Past Year).
 * Click a row to open that Year's Yearly Company List (`/yearly-companies?yearId=`, current or past), scoped to that Year regardless of which Year is active.
 
 Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year (or the clicked-through Year, per above).
