@@ -123,7 +123,7 @@ Year List → create the Year (e.g. `2026`, start and end dates). It becomes the
 
 Why first: the Company import registers Companies into the **active** Year and applies `previousYearContract` there. Without an active Year, a row marked `あり` is rejected, so the fact is never silently dropped (`spec/api.md#Bulk Import Companies`).
 
-A Year cannot be deleted (`spec/domain.md#Year`), and correcting its name or dates is not designed yet (Issue #172). Check them before creating it.
+A Year cannot be deleted (`spec/domain.md#Year`). A wrong name or date can be corrected while the Year is active (`spec/domain.md#Correcting a Year`), but not after the next Year has been created.
 
 ### 2. Import Users
 

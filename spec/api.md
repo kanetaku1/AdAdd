@@ -328,7 +328,8 @@ Every other write to a record that belongs to a past Year is rejected with HTTP 
 
 | Endpoint | Year comes from |
 | -------- | --------------- |
-| `POST /years/{yearId}/companies`, `POST /years/{yearId}/sponsorship-menus` | `yearId` |
+| `PATCH /years/{yearId}` | the Year itself |
+| `POST /years/{yearId}/companies`, `POST /years/{yearId}/sponsorship-menus`, `POST /years/{yearId}/sponsorship-menus/copy-from-previous-year` | `yearId` |
 | `PATCH /yearly-companies/{id}/…` (company-status, phase, progress, company-contact), `POST /yearly-companies/{id}/assignments`, `POST /yearly-companies/{id}/contract` | the Yearly Company |
 | `PATCH /contracts/{contractId}`, `POST /contracts/{contractId}/menus`, `POST /contracts/{contractId}/payment` | the Contract's Yearly Company |
 | `PATCH` / `DELETE /contract-menus/{id}` and its `status`, `production`, `drive-upload` | the Contract Menu's Contract |
@@ -336,6 +337,8 @@ Every other write to a record that belongs to a past Year is rejected with HTTP 
 | `POST /advisor-assignments`, `DELETE /advisor-assignments/{id}` | `yearId` of the Advisor Assignment |
 
 The check is enforced in the backend, regardless of Role (Administrator included). Reads (`GET`) are not restricted. Year-independent data — Companies, Users, Roles — is not affected.
+
+Confirming a past Year's Payment, or moving it back to `WAITING`, also changes that Yearly Company's `progress` (see Update Payment Status). That change is part of the allowed payment confirmation, not a separate write, so it is not rejected.
 
 ---
 
@@ -367,9 +370,37 @@ Permission:
 
 ---
 
+## Update Year
+
+Corrects a Year's name or period, e.g. after it was created with a typo (`spec/domain.md#Correcting a Year`).
+
+```
+PATCH /years/{yearId}
+```
+
+Request (all fields optional):
+
+```json
+{
+  "name": "2027",
+  "startDate": "2027-04-01",
+  "endDate": "2027-11-30"
+}
+```
+
+`name`, `startDate`, and `endDate` use the same format as Create Year. `isActive` is not accepted; it changes only through Create Year. Nothing the Year owns is changed.
+
+A past Year is rejected with `409 CONFLICT` (see Past Years Are Read-Only). Whether a past Year's name should become correctable is not decided (Issue #172). An unknown `yearId` returns `404`.
+
+Permission:
+
+* Administrator
+
+---
+
 ## No Year Deletion
 
-There is no `DELETE /years/{yearId}`. A Year is never deleted, by any Role (`spec/domain.md#Year`). It owns that cycle's Yearly Companies, Sponsorship Menus, Contracts, and Payments, and the next Year's `companyStatus` is computed from it. Correcting a mistakenly created Year (name, dates) is not designed yet (Issue #172).
+There is no `DELETE /years/{yearId}`. A Year is never deleted, by any Role (`spec/domain.md#Year`). It owns that cycle's Yearly Companies, Sponsorship Menus, Contracts, and Payments, and the next Year's `companyStatus` is computed from it. A mistakenly created Year is corrected with Update Year instead.
 
 ---
 
@@ -649,6 +680,8 @@ Example:
 
 Updates this Year's contact snapshot and overwrites the same fields on the Company master. Other Yearly Companies for that Company are not updated (`spec/model.md#YearlyCompany`).
 
+Writes a `COMPANY_CONTACT_UPDATED` Activity Log when at least one field actually changes.
+
 ```
 PATCH /yearly-companies/{yearlyCompanyId}/company-contact
 ```
@@ -769,11 +802,11 @@ Example response:
   "yearlyCompanyId": "yearly_company_id",
   "contractDate": "2026-06-01",
   "totalAmount": 100000,
-  "assigneeId": "user_id",
-  "assigneeName": "田中",
   "remarks": ""
 }
 ```
+
+The contract has no assignee field. The assignee is the Yearly Company's current assignment — `assignedMemberId` / `assignedMemberName` on Get Yearly Company (`spec/domain.md#Sponsorship Contract`).
 
 ---
 
@@ -795,7 +828,9 @@ Request:
 }
 ```
 
-`assigneeId` is never part of the request body. It is set server-side from the Sponsorship Member currently assigned to the Yearly Company (`CompanyAssignment`, see Company Assignment API above) — a contract never introduces a new assignment of its own (`spec/model.md#SponsorshipContract`).
+The request has no assignee. A contract never introduces an assignment of its own; the assignee is always the Yearly Company's current `CompanyAssignment` (`spec/model.md#SponsorshipContract`). A contract can be created while the Yearly Company has no assignee.
+
+Writes a `CONTRACT_CREATED` Activity Log whose actor is the authenticated user who created the contract.
 
 Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`). If previous progress was not already `CONFIRMED`, also sends a Slack mention to the assigned Sponsorship Member (UC-16, FR-014). Slack failure does not fail this request.
 
@@ -813,6 +848,8 @@ Updates contract information.
 ```
 PATCH /contracts/{contractId}
 ```
+
+Writes a `CONTRACT_UPDATED` Activity Log when `contractDate` or `remarks` actually changes.
 
 `totalAmount` is maintained by the server as the sum of `quantity * unitPrice` across the contract's Contract Menus (`spec/model.md#ContractMenu`) — it is accepted at creation as an initial value, but recalculated automatically whenever Contract Menus are added, updated, or removed (see Add Contract Menu below). Clients should treat it as read-only after creation.
 
@@ -883,6 +920,28 @@ PATCH /sponsorship-menus/{menuId}
 ```
 
 Accepts the same fields as Create, including `maxQuantity` (`null` clears the cap).
+
+Changing `requiresSubmission` does not rewrite existing Contract Menus that reference this menu; their `productionType` and `status` stay as stored. Setting `isActive` to `false` stops the menu from being added to contracts (see Add Contract Menu) without touching existing Contract Menus.
+
+---
+
+## Copy Sponsorship Menus from the Previous Year
+
+Copies the Sponsorship Menus of the Year immediately preceding `yearId` into `yearId` (`spec/domain.md#Copying Menus from the Previous Year`). It is run by hand after a new Year is created; Create Year never copies menus. The copied menus are then edited as usual (Update Sponsorship Menu), e.g. to change prices.
+
+```
+POST /years/{yearId}/sponsorship-menus/copy-from-previous-year
+```
+
+No request body. Each source menu becomes a new Sponsorship Menu in `yearId` with the same `name`, `defaultPrice`, `requiresSubmission`, `isActive`, and `maxQuantity`. The source Year's menus are not changed.
+
+`yearId` must be the active Year — a past Year is rejected with `409 CONFLICT` (see Past Years Are Read-Only). A Year with no preceding Year returns `409 CONFLICT`.
+
+Not decided yet (Issue #172): what happens when the target Year already has a menu with the same name (menu names are unique within a Year), and whether menus with `isActive = false` are copied.
+
+Permission:
+
+* Sponsorship Member / Administrator — the same as Create Sponsorship Menu
 
 ---
 
@@ -975,7 +1034,9 @@ Request:
 }
 ```
 
-`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
+
+Writes a `CONTRACT_MENU_ADDED` Activity Log.
 
 ---
 
@@ -1000,6 +1061,8 @@ Request (all fields optional):
 
 Same `unitPrice`/`isGoodsSponsorship` defaulting rule as Add Contract Menu. Recalculates the parent Contract's `totalAmount` and applies the Payment synchronization / confirmed-payment conflict rule described in Update Contract above.
 
+Writes a `CONTRACT_MENU_UPDATED` Activity Log when `quantity` or `unitPrice` actually changes (including a `unitPrice` forced to `0` by `isGoodsSponsorship`).
+
 Permission:
 
 * Sponsorship Member / Administrator
@@ -1013,6 +1076,8 @@ Removes a Contract Menu and recalculates the parent Contract's `totalAmount`, ap
 ```
 DELETE /contract-menus/{id}
 ```
+
+Writes a `CONTRACT_MENU_REMOVED` Activity Log.
 
 Permission:
 
@@ -1035,6 +1100,8 @@ Example:
   "status": "COMPLETED"
 }
 ```
+
+Any `ContractMenuStatus` may be set from any other, forward or back. The order is not enforced, because material is sent back and redone (`spec/model.md#ContractMenu`).
 
 ---
 
@@ -1115,6 +1182,8 @@ POST /contracts/{contractId}/payment
 
 Response `status` starts at `WAITING`.
 
+Side effect: if the Yearly Company's `progress` is `GOODS_RECEIVED`, it moves back to `CONFIRMED` — a contract with a Payment progresses through the payment stages (see Update Sponsorship Progress).
+
 ---
 
 ## Update Payment Status
@@ -1127,7 +1196,14 @@ Permission:
 
 * Finance Department
 
-Confirms a payment once the Finance Department has verified the bank transfer (see `spec/usecase.md` UC-09). `confirmedAt`/`confirmedById` are set server-side from the authenticated user and current timestamp — not part of the request body. `status` is one of `WAITING / CONFIRMED` only (no `CANCELLED`). Moving `status` back to `WAITING` clears `confirmedAt`/`confirmedById` server-side — it never touches `YearlyCompany.progress` (see `spec/frontend.md#Finance Management`).
+Confirms a payment once the Finance Department has verified the bank transfer (see `spec/usecase.md` UC-09). `confirmedAt`/`confirmedById` are set server-side from the authenticated user and current timestamp — not part of the request body. `status` is one of `WAITING / CONFIRMED` only (no `CANCELLED`). Moving `status` back to `WAITING` clears `confirmedAt`/`confirmedById` server-side.
+
+Side effects on `YearlyCompany.progress`, in the same transaction, so that progress always matches the Payment (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency):
+
+* `status` becomes `CONFIRMED` → `progress` becomes `PAYMENT_RECEIVED` (協賛金入金). If `progress` is already `RECEIPT_SENT` (領収書送付), it is kept.
+* `status` moves from `CONFIRMED` back to `WAITING` → if `progress` is `PAYMENT_RECEIVED` or `RECEIPT_SENT`, it becomes `CONFIRMED` (協賛確定). Other values are kept.
+
+Each actual progress change writes a `PROGRESS_UPDATED` Activity Log, in addition to `PAYMENT_STATUS_UPDATED`. The rule follows the `status` change however it is triggered, including when the actual received amount decides it (Issue #171). Whether the move back to `CONFIRMED` sends the Slack mention (FR-014) is not decided (Issue #172).
 
 Example:
 
@@ -1157,7 +1233,7 @@ Example:
 }
 ```
 
-`progress` is one of `NOT_CONTACTED / MATERIALS_SENT / CONFIRMED / INVOICE_SENT / PAYMENT_RECEIVED / RECEIPT_SENT / DECLINED / PENDING` (`spec/model.md#Enumerations` → `SponsorshipProgress`). This endpoint returns only the current value; historical events are handled by Activity Log APIs below.
+`progress` is one of `NOT_CONTACTED / MATERIALS_SENT / CONFIRMED / GOODS_RECEIVED / INVOICE_SENT / PAYMENT_RECEIVED / RECEIPT_SENT / DECLINED / PENDING` (`spec/model.md#Enumerations` → `SponsorshipProgress`). This endpoint returns only the current value; historical events are handled by Activity Log APIs below.
 
 ---
 
@@ -1175,7 +1251,19 @@ Example:
 }
 ```
 
+Consistency with the contract (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency) — rejected with `409 CONFLICT`:
+
+* `progress` = `CONFIRMED` while the Yearly Company has no contract. Create the contract instead; that sets `CONFIRMED`.
+* `progress` = `NOT_CONTACTED`, `MATERIALS_SENT`, `DECLINED`, or `PENDING` (pre-contract stages) while a contract exists. If the company declines after contracting, the contract must be deleted first. `INVOICE_SENT` is a post-contract stage and is allowed while a contract exists.
+* `progress` = `PAYMENT_RECEIVED` unless the contract's Payment is `CONFIRMED` (also when there is no contract or no Payment). It is reached only by confirming the Payment (Update Payment Status).
+* `progress` = `RECEIPT_SENT` when there is no contract, or while the contract's Payment is not `CONFIRMED`. Whether a goods-only contract (no Payment) may use `RECEIPT_SENT` is not decided (Issue #172).
+* `progress` = `GOODS_RECEIVED` (物品受領) when there is no contract, or the contract has a Payment. It is set by hand, only for goods-only contracts, and may be set back to `CONFIRMED` by hand.
+
+When Create Payment creates a Payment for a contract whose Yearly Company is at `GOODS_RECEIVED` (a paid Contract Menu was added), `progress` moves back to `CONFIRMED` in the same transaction and writes a `PROGRESS_UPDATED` Activity Log.
+
 Side effect: when `progress` changes to `CONFIRMED` from any other value, send a Slack mention to the assigned Sponsorship Member (UC-16, FR-014). A no-op if Slack is not configured, if nobody is assigned, or if they have no `slackId`. Slack failure does not fail this request.
+
+Writes a `PROGRESS_UPDATED` Activity Log only when the value actually changes.
 
 ---
 
@@ -1211,13 +1299,23 @@ Entries are exclusively system-generated. There is no manual/user-authored entry
 
 | eventType | Written when |
 | --- | --- |
-| `PROGRESS_UPDATED` | `YearlyCompany.progress` changes |
+| `PROGRESS_UPDATED` | `YearlyCompany.progress` changes, by hand or as a side effect of Create Contract / Update Payment Status |
 | `COMPANY_STATUS_UPDATED` | `YearlyCompany.companyStatus` changes |
 | `PHASE_UPDATED` | `YearlyCompany.phase` changes |
+| `COMPANY_CONTACT_UPDATED` | the Yearly Company's contact information changes (Update Yearly Company Contact) |
 | `ASSIGNMENT_UPDATED` | CompanyAssignment is set or cleared |
-| `CONTRACT_CREATED` | a Sponsorship Contract is created |
+| `CONTRACT_CREATED` | a Sponsorship Contract is created (actor = who made the contract) |
+| `CONTRACT_UPDATED` | a contract's `contractDate` or `remarks` changes |
+| `CONTRACT_MENU_ADDED` | a Contract Menu is added |
+| `CONTRACT_MENU_UPDATED` | a Contract Menu's `quantity` or `unitPrice` changes |
+| `CONTRACT_MENU_REMOVED` | a Contract Menu is deleted |
 | `CONTRACT_MENU_STATUS_UPDATED` | a Contract Menu's status changes |
-| `PAYMENT_STATUS_UPDATED` | a Payment is confirmed |
+| `PAYMENT_STATUS_UPDATED` | a Payment is confirmed, or moved back from `CONFIRMED` to `WAITING` |
+| `PAYMENT_DETAILS_UPDATED` | a Payment's actual received amount or remarks change (the fields are defined by Issue #170 / #171) |
+
+An entry is written only when the value actually changes; saving the same value writes nothing. The `message` names what changed in business language (e.g. `「パンフレット広告1P」の数量を「1」から「2」に更新`, `入金確認を取り消し`).
+
+Not recorded: Contract Menu `productionType`, Drive / production information (`PATCH /contract-menus/{id}/production`, `drive-upload` — these do not change the Contract Menu status), and `PATCH /companies/{companyId}` (Company master only — there is no Yearly Company to attach the entry to). Whether to record these is not decided (Issue #172).
 
 `MANUAL_NOTE` may appear on rows written before manual entry was removed; new rows never use it.
 
@@ -1245,7 +1343,9 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 | Manage company master data      | -         | ○                   | -       | -       | ○              |
 | Create Year                     | -         | -                   | -       | -       | ○              |
 | Assign companies / advisors     | -         | -                   | -       | -       | ○              |
+| Update Year (name / period, active Year only) | - | - | - | - | ○ |
 | Manage menus (Sponsorship Menu / Contract Menu) — create/update only | - | ○ | - | - | ○ |
+| Copy Sponsorship Menus from the previous Year | - | ○ | - | - | ○ |
 | Create payment                  | -         | ○                   | -       | ○       | ○              |
 | Update payment status            | -         | -                   | -       | ○       | ○              |
 | Manage users / Roles            | -         | -                   | -       | -       | ○              |

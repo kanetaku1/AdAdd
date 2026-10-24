@@ -23,6 +23,7 @@ Manage each festival year independently.
 The system shall allow administrators to:
 
 * Create a new festival year
+* Correct the active year's name and period (a year is never deleted — `spec/domain.md#Correcting a Year`)
 * Archive completed years — automatic: creating a new Year makes every earlier Year a past Year (`spec/domain.md#Active Year and Past Years`)
 * Keep exactly one active year — the most recently created one; a past Year never becomes active again
 * View past years, read-only, except payment confirmation
@@ -108,7 +109,9 @@ The system shall allow users to:
 * Edit contracts
 * View contract history
 * Calculate contract totals (sum of quantity × unit price across the contract's Contract Menus)
-* Assign a Sponsorship Member to the contract (shared by all Contract Menus under it — see `spec/model.md` → SponsorshipContract)
+* Show the contract's Sponsorship Member — always the Yearly Company's current assignment, shared by all Contract Menus under it; the contract stores no assignee of its own (`spec/model.md#SponsorshipContract`)
+* Register a contract even when no Sponsorship Member is assigned yet
+* Keep sponsorship progress consistent with the contract and payment, enforced by the server (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency)
 * Support contracts whose content originates from manual entry rather than Google Forms (e.g. goods sponsorship — 物品協賛)
 
 ### Related Use Cases
@@ -132,7 +135,8 @@ Manage sponsorship menus, both as yearly master data and as concrete items contr
 The system shall provide:
 
 * Sponsorship Menu management (yearly master: name, default price, whether submission is required, whether currently offered)
-* Contract Menu management (the menus a company actually contracted for, including quantity and unit price)
+* Copying the previous year's Sponsorship Menus into a new year on demand, then editing them (not automatic — `spec/domain.md#Copying Menus from the Previous Year`)
+* Contract Menu management (the menus a company actually contracted for, including quantity and unit price). A menu that is not currently offered cannot be newly added to a contract.
 * Production method selection (when submission is required)
 * Progress management, varying by whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission)
 * Google Drive linkage
@@ -158,9 +162,11 @@ Manage sponsorship payments.
 
 The system shall allow Finance Department users to:
 
-* Register payment confirmation
+* Register payment confirmation, and revert it to correct a mistake
 * View payment history
 * Track payment status
+
+Progress always matches the payment status. Confirming a payment moves the Yearly Company's progress to 協賛金入金 automatically (領収書送付 is kept); reverting it moves 協賛金入金 / 領収書送付 back to 協賛確定. 協賛金入金 and 領収書送付 cannot be set by hand before the payment is confirmed. A goods-only contract, which has no payment, uses 物品受領 instead (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 
 ### Related Use Cases
 
@@ -182,9 +188,18 @@ Record business history.
 
 The system shall:
 
-* Record important operations automatically (progress, Contract Menu status, Payment status changes — no manual entry point)
+* Record important operations automatically, with no manual entry point:
+  * progress, company status, and phase changes (including automatic progress changes)
+  * member assignment
+  * contract creation and contract edits
+  * Contract Menu add / remove, quantity and unit price changes, and status changes
+  * payment confirmation, payment confirmation revert, and changes to the payment's actual received amount or remarks
+  * company contact information changes
+* Record an operation only when a value actually changes
 * Preserve history permanently
 * Display historical records
+
+The event types are listed in `spec/api.md#List Activity Logs for a Yearly Company`.
 
 ### Related Use Cases
 
@@ -456,7 +471,7 @@ No external service shall become the authoritative data source.
 
 ## NFR-007 Auditability
 
-Important business operations shall be traceable through Activity Logs.
+Important business operations shall be traceable through Activity Logs. The operations in scope are those listed in FR-007.
 
 ---
 

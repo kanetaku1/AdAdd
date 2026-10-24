@@ -71,6 +71,12 @@ Everything else in a past Year — Yearly Companies, assignments, Contracts, Con
 
 Company master data is not part of any Year and stays editable.
 
+### Correcting a Year
+
+A Year is never deleted, so a Year created with a wrong name or period is corrected in place. An Administrator can change the Year's `name`, `startDate`, and `endDate` (`spec/api.md#Update Year`). The correction does not touch anything the Year owns.
+
+The Past Years rule above applies to the Year itself: a past Year's name and period cannot be changed. Whether a past Year's name should become correctable is not decided (Issue #172).
+
 ---
 
 ## Sponsorship Menu
@@ -87,6 +93,10 @@ This is master data. It defines what can be sponsored, not what a specific compa
 * Whether the menu is currently offered
 * Optional sponsorship cap (max quantity) for menus with limited availability
 
+A menu that is not currently offered (`isActive = false`) cannot be newly added to a contract. Contract Menus that already reference it stay as they are.
+
+Changing a menu's `requiresSubmission` later does not change existing Contract Menus. Their stored production type and status are kept; only Contract Menus added afterwards follow the new value.
+
 ### Relationships
 
 ```
@@ -94,6 +104,17 @@ Year
  └── SponsorshipMenu (0..*)
       └── ContractMenu (0..*)
 ```
+
+### Copying Menus from the Previous Year
+
+Sponsorship Menus are defined per Year, and most menus repeat from one Year to the next. After a new Year is created, a user who can manage Sponsorship Menus may run **copy menus from the previous Year**, and then edit prices and other attributes in the new Year.
+
+* It is optional and manual. Creating a Year never copies menus by itself.
+* The source is the Year immediately preceding the target Year — the same "previous Year" that Company Status uses (see Company Status below).
+* Each copied menu is a new Sponsorship Menu owned by the target Year. The previous Year's menus, and the Contract Menus that reference them, are not changed.
+* The target must be the active Year (past Years are read-only).
+
+See `spec/api.md#Copy Sponsorship Menus from the Previous Year`.
 
 ---
 
@@ -166,6 +187,12 @@ A Yearly Company has at most one contract (zero before it is created). A single 
 
 * Contract information
 * Sponsorship contents (Contract Menus)
+
+### Assignee
+
+A Sponsorship Contract has no assignee of its own. The member responsible for the contract, and for every Contract Menu under it, is always the Yearly Company's current Company Assignment. Changing the assignment changes who is shown for the contract at once; there is no second copy to fall out of date.
+
+A contract can be created while the Yearly Company has no assignee. Who created the contract is recorded in the Activity Log (`CONTRACT_CREATED`, with the acting user), not on the contract.
 
 ### Relationships
 
@@ -242,12 +269,22 @@ Messages are written in Japanese using business labels (`spec/frontend.md` Princ
 
 `createdAt` is shown in Japan Standard Time (JST, Asia/Tokyo). Persistence remains a timezone-aware datetime; the UI always renders JST so committee work is read in Japan time regardless of the viewer's browser timezone.
 
-### Examples
+### What Is Recorded
 
-* Member assigned
-* Contract confirmed
+An entry is written only when a value actually changes. Saving the same value again writes nothing.
+
+* Progress, company status, and phase changes (including progress changed automatically by the server — see Lifecycle → Sponsorship Progress Consistency)
+* Member assigned or cleared
+* Contract created (the acting user is who made the contract)
+* Contract edited (contract date, remarks)
+* Contract Menu added or removed
+* Contract Menu quantity or unit price changed
 * Contract Menu status changed (ad status)
-* Payment confirmed
+* Payment confirmed, and payment confirmation reverted
+* Payment actual received amount or remarks changed (the fields are defined by Issue #170 / #171)
+* Company contact information changed on the Yearly Company
+
+The exact event types are in `spec/api.md#List Activity Logs for a Yearly Company`.
 
 ---
 
@@ -287,7 +324,7 @@ A Yearly Company has at most one Company Assignment — zero before an Administr
 ### Responsibilities
 
 * Link one Sponsorship Member to a Yearly Company
-* Carry forward the assignee to the Sponsorship Contract once one is created (see `spec/model.md#SponsorshipContract`)
+* Be the only source of the assignee for the Yearly Company's Sponsorship Contract and its Contract Menus (see Sponsorship Contract → Assignee)
 
 ### Relationships
 
@@ -370,11 +407,14 @@ Typical values:
 * Not Contacted
 * Materials Sent
 * Sponsorship Confirmed
+* Goods Received (物品受領) — goods-sponsorship-only contracts, which have no Payment
 * Invoice Sent
 * Payment Received
 * Receipt Sent
 * Declined
 * Pending
+
+Goods Received comes after Sponsorship Confirmed. It replaces the payment stages for a contract that has no Payment (goods-only, total ¥0). A contract with both money and goods moves through the payment stages instead. The rules are in Lifecycle → Sponsorship Progress Consistency.
 
 ---
 
@@ -484,6 +524,49 @@ Overall progress toward completing the engagement (materials sent, invoice sent,
 
 Creating a Sponsorship Contract sets `YearlyCompany.progress` to Confirmed (協賛確定) automatically — the contract's existence *is* what "confirmed" means, so this isn't a manual step performed separately. A `Payment` (`spec/model.md#Payment`) is created separately when the payment is registered for a contract whose `totalAmount > 0`; a goods-sponsorship-only contract (`totalAmount = 0`) gets no Payment, since no money changes hands.
 
+A contract can be created whether or not a member is assigned to the Yearly Company (see Sponsorship Contract → Assignee).
+
+---
+
+## Sponsorship Progress Consistency
+
+`YearlyCompany.progress` is set by members, but it must not contradict the contract and the payment. In particular, the payment stages of progress always match the Payment's status. The server enforces these rules:
+
+| Situation | Rule |
+| --------- | ---- |
+| Setting progress to 協賛確定 (`CONFIRMED`) while the Yearly Company has no contract | Rejected (409). Creating the contract is what sets 協賛確定. |
+| Setting progress to a pre-contract stage — 未連絡 (`NOT_CONTACTED`), 資料送付 (`MATERIALS_SENT`), 見送り (`DECLINED`), 保留 (`PENDING`) — while a contract exists | Rejected (409). If the company declines after contracting, the contract must be deleted first. |
+| Setting progress to 請求書送付 (`INVOICE_SENT`) while a contract exists | Allowed. It is a post-contract stage, used while the Payment is still Waiting. |
+| Setting progress to 協賛金入金 (`PAYMENT_RECEIVED`) unless the contract's Payment is Confirmed (including when there is no contract or no Payment) | Rejected (409). 協賛金入金 can only be reached by confirming the Payment. |
+| Setting progress to 領収書送付 (`RECEIPT_SENT`) when there is no contract, or while the contract's Payment is not Confirmed | Rejected (409). For a goods-only contract (no Payment), see the undecided points below. |
+| Setting progress to 物品受領 (`GOODS_RECEIVED`) when there is no contract, or the contract has a Payment | Rejected (409). 物品受領 is only for goods-only contracts. |
+| The contract's Payment becomes Confirmed | Progress moves to 協賛金入金 (`PAYMENT_RECEIVED`) automatically — unless it is already 領収書送付 (`RECEIPT_SENT`), which is kept. |
+| The Payment moves back from Confirmed to Waiting | If progress is 協賛金入金 or 領収書送付, it moves back to 協賛確定 (`CONFIRMED`) automatically. Other values are kept. |
+
+The automatic changes are part of the payment confirmation itself. They also apply when a past Year's Payment is confirmed or reverted, since payment confirmation is the one change a past Year accepts (see Active Year and Past Years). Each automatic change is recorded in the Activity Log like a manual one.
+
+### Why the receipt stage follows confirmation
+
+The order in which things happen in the field varies:
+
+* Face-to-face contracts: the member brings both the invoice and the receipt, and is paid on the spot.
+* Email contracts: the receipt is usually sent after the payment is confirmed, but not always.
+
+So a receipt PDF can be generated while the Payment is still Waiting (decided in Issue #170 / #171, which changes the earlier rule from Issue #159). Progress, however, is recorded in a fixed order: the Finance Department confirms the Payment in AdAdd (progress becomes 協賛金入金), and only then does progress move to 領収書送付. Even when the receipt was handed over on the spot, 領収書送付 is recorded only after Finance has confirmed the Payment.
+
+### Goods-only contracts
+
+A goods-sponsorship-only contract (`totalAmount = 0`) has no Payment, so the payment stages never apply. After 協賛確定, a member sets 物品受領 (`GOODS_RECEIVED`) by hand once the goods have arrived. A contract with both money and goods has a Payment and moves through the payment stages above; 物品受領 is not used for it.
+
+* A member may set 物品受領 back to 協賛確定 by hand.
+* If a paid Contract Menu is later added to a contract at 物品受領 and a Payment is created for it, progress moves back to 協賛確定 automatically, because a contract with a Payment progresses through the payment stages.
+
+Not decided yet (Issue #172):
+
+* Whether 物品受領 and 領収書送付 can follow each other, and whether 領収書送付 can be set for a goods-only contract, which has no Payment to confirm
+* How a contract is deleted (needed when a company declines after contracting) — contract deletion is not specified yet
+* Whether the automatic move back to 協賛確定 sends the Slack mention (FR-014)
+
 ---
 
 ## Contract Menu
@@ -508,7 +591,7 @@ Completed
 Submitted
 ```
 
-For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Waiting to Completed.
+This is the usual order, not an enforced one. A Contract Menu's status may be changed to any status, forward or back, because material is often sent back to the company or redone. For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Waiting to Completed.
 
 A homepage banner requires submission (`requiresSubmission = true`) — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 
@@ -524,7 +607,7 @@ Waiting
 Confirmed
 ```
 
-Confirmation is performed manually by the Finance Department.
+Confirmation is performed manually by the Finance Department. Confirming the Payment, and moving it back to Waiting, also moves `YearlyCompany.progress` so that it matches the Payment (see Sponsorship Progress Consistency above).
 
 ---
 
@@ -601,6 +684,18 @@ A Sponsorship Menu never belongs to a specific Company or Contract.
 A Contract Menu belongs to exactly one Sponsorship Contract and references exactly one Sponsorship Menu.
 
 A Contract Menu must never duplicate attributes already defined on its Sponsorship Menu (e.g. name, default price).
+
+---
+
+## Rule 12
+
+A Yearly Company's progress must not contradict its contract and payment (see Lifecycle → Sponsorship Progress Consistency). The server enforces this, not the frontend.
+
+---
+
+## Rule 13
+
+The assignee of a Sponsorship Contract and its Contract Menus is the Yearly Company's Company Assignment. Neither the contract nor a Contract Menu stores an assignee of its own.
 
 ---
 

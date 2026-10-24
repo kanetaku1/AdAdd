@@ -207,7 +207,11 @@ Examples:
 * Member assignment
 * Material sent
 * Contract confirmed
-* Payment confirmed
+* Contract and Contract Menu changes (quantity, unit price, add / remove)
+* Payment confirmed, and payment confirmation reverted
+* Company contact changed
+
+The full list is in `spec/domain.md#Activity Log`.
 
 ---
 
@@ -366,6 +370,10 @@ Typical progress includes:
 * Receipt Sent
 
 Additional statuses such as "Declined" or "Pending" may also exist.
+
+A goods-sponsorship-only contract has no payment. After Sponsorship Confirmed it moves to Goods Received (物品受領) instead of the payment stages.
+
+Payment Received and Receipt Sent follow the Finance Department's confirmation in AdAdd. In the field the order varies: in a face-to-face contract the member brings both the invoice and the receipt and is paid on the spot; by email the receipt is usually sent after the payment is confirmed, but not always. A receipt can be prepared before confirmation, but progress is still recorded in order — Finance confirms, then Receipt Sent (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 
 ---
 

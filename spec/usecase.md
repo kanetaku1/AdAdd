@@ -51,7 +51,9 @@ Step 3–4's Yearly Company generation computes `companyStatus` automatically �
 
 Yearly Company creation also happens through **Company CSV import** while a Year is active: each imported Company is registered into the active Year in the same operation (`spec/api.md#Bulk Import Companies`). This is how the first Year's companies are loaded when moving to AdAdd (`spec/operations.md#Initial Data Migration`).
 
-A Year is never deleted (`spec/domain.md#Year`).
+A Year is never deleted (`spec/domain.md#Year`). A wrong name or period is corrected by an Administrator while the Year is active (`spec/domain.md#Correcting a Year`).
+
+Sponsorship Menus are not copied by this flow. After the Year is created, a Sponsorship Member or Administrator may copy the previous Year's menus and then edit prices and other attributes (`spec/domain.md#Copying Menus from the Previous Year`).
 
 Yearly Company creation also happens **individually**, outside this bulk flow, for a company discovered mid-cycle after a Year already exists (see `spec/frontend.md` → Company List — the same underlying operation as step 4, invoked once for a single Company instead of for every Company).
 
@@ -178,7 +180,7 @@ The sponsorship contract is registered.
 
 Goods sponsorship (物品協賛) always uses the "Email agreement" / "Face-to-face agreement" trigger and manual entry at step 3 — it is never imported from Google Forms, since the goods description and estimated value must be entered by hand (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
 
-The contract's assignee is not entered at step 3. By the time a contract is created, the Company Management Team or an Advisor has already assigned a Sponsorship Member to the Yearly Company (UC-04) — the contract simply carries that assignee over (see `spec/model.md#SponsorshipContract`).
+The contract's assignee is not entered at step 3. The contract has no assignee of its own: it is always the member currently assigned to the Yearly Company (UC-04), so reassigning the company also changes who handles the contract (see `spec/model.md#SponsorshipContract`). A contract can be recorded even if nobody is assigned yet. Who recorded it is kept in 活動記録.
 
 Regardless of trigger, entering the contract at step 3 is always a manual action performed by the Sponsorship Member: reading the submitted Google Forms response, or an email/face-to-face agreement, and transcribing it into AdAdd. Google Forms is never imported automatically (`spec/domain.md` → Google Forms is a contract input method, not the source of truth).
 
@@ -250,7 +252,11 @@ Record sponsorship payment.
 
 ## Result
 
-Payment status becomes confirmed.
+Payment status becomes confirmed, and the Yearly Company's progress moves to 協賛金入金 automatically (if it is already 領収書送付, it is kept).
+
+## Notes
+
+A mistaken confirmation is reverted by moving the Payment back to waiting. If progress is 協賛金入金 or 領収書送付, it moves back to 協賛確定 automatically (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 
 ---
 
@@ -362,11 +368,11 @@ Understand past business activities.
 
 1. Open Yearly Company.
 2. Open 活動記録.
-3. Review recorded events (system-generated only — progress, Contract Menu status, and Payment status changes; no manual entry — see `spec/domain.md#Activity Log`).
+3. Review recorded events (system-generated only — progress and other status changes, assignment, contract and Contract Menu changes, payment confirmation and its revert, contact changes; no manual entry — see `spec/domain.md#Activity Log`).
 
 ## Result
 
-Business history is visible. A handover note that isn't itself one of those status changes belongs on `Company.memo`, not 活動記録.
+Business history is visible. A handover note that isn't itself one of those recorded changes belongs on `Company.memo`, not 活動記録.
 
 ---
 
@@ -392,7 +398,7 @@ The past Year is read-only except payment confirmation (`spec/domain.md#Active Y
 
 ## Notes
 
-There is no separate archive action. Before creating the next Year, finish any change other than payment confirmation in the current Year — contracts, contract menus, and assignments can no longer be changed afterwards.
+There is no separate archive action. Before creating the next Year, finish any change other than payment confirmation in the current Year — contracts, contract menus, and assignments can no longer be changed afterwards. The past Year's own name and period can no longer be corrected either (`spec/domain.md#Correcting a Year`).
 
 ---
 
