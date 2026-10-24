@@ -407,6 +407,27 @@ Payments belong to Sponsorship Contracts.
 
 Only the Finance Department can update payment status.
 
+A contract is billed once, for its total amount. What actually arrives in the bank account can differ:
+
+* **Bank fee deducted / overpayment** — the company deducts the transfer fee, or pays more than billed. The Finance Department records the amount actually received, may still confirm the payment, and writes the reason for the difference in the payment's remarks (備考). The received amount and the remarks can be corrected after confirmation.
+* **Split payment** — the company pays in several transfers. Each time money arrives, the Finance Department overwrites the received amount with the cumulative total so far. The payment is confirmed once the full amount has arrived. There is no "partially paid" status; the history of each transfer is traced through 活動記録 and the remarks.
+
+A contract still has exactly one payment record in every case.
+
+---
+
+## Invoices and Receipts
+
+The invoice (請求書) and receipt (領収書) follow these format rules (Issue #170):
+
+* No invoice number or receipt number is issued.
+* Amounts are printed as plain amounts. There is no consumption-tax breakdown.
+* No revenue stamp (収入印紙) is affixed to receipts.
+* Goods sponsorship (物品協賛) lines are not printed. A contract that consists only of goods sponsorship (total ¥0) gets neither an invoice nor a receipt.
+* A receipt is usually sent after the Finance Department has confirmed the payment, but not always. In a face-to-face contract, the member brings both the invoice and the receipt and receives the money on the spot; the Finance Department confirms it in AdAdd afterwards. A receipt can therefore be issued before confirmation.
+
+The issuer information (the committee's name, address, contact email) and the bank transfer account printed on the documents are kept per festival Year and are maintained by an Administrator, because they can change from one Year to the next. A new Year starts with the previous Year's values, which the Administrator then edits. The committee's seal (印影) stays as an image file in the source code repository, by the user's decision (Issue #176).
+
 ---
 
 ## Activity History

@@ -50,6 +50,33 @@ Represents one festival year.
 | startDate | date    | ✓        | Festival cycle start   |
 | endDate   | date    | ✓        | Festival cycle end     |
 | isActive  | boolean | ✓        | Current operating year |
+| issuerName            | string |  | Document issuer name (e.g. 長岡技術科学大学 技大祭実行委員会) |
+| issuerPostalCode      | string |  | Issuer postal code |
+| issuerAddressLine1    | string |  | Issuer address, first line |
+| issuerAddressLine2    | string |  | Issuer address, second line (e.g. 長岡技術科学大学内) |
+| issuerEmail           | string |  | Issuer contact email (the sponsorship Google Group) |
+| bankName              | string |  | Bank transfer destination: bank name |
+| bankBranchName        | string |  | Bank transfer destination: branch name |
+| bankAccountType       | string |  | Bank transfer destination: account type (e.g. 普通預金) |
+| bankAccountNumber     | string |  | Bank transfer destination: account number |
+| bankAccountHolderName | string |  | Bank transfer destination: account holder name |
+
+The `issuer*` and `bank*` attributes are the **document issuer information** printed on that Year's invoices and receipts (FR-015, `spec/domain.md#Document Issuer Information`). They replace the constants previously hard-coded in the frontend (`apps/web/src/lib/pdf/constants.ts`), so an Administrator can change them without a redeploy. They are plain text, printed as entered — e.g. the bank and branch codes may be written inside `bankName` / `bankBranchName` as they are today (`大光銀行（金融機関コード : 0532）`).
+
+Both documents use the `issuer*` attributes; only the invoice uses the `bank*` attributes.
+
+Creating a new Year (`POST /years`) copies every `issuer*` and `bank*` attribute from the previous Year. The Administrator then edits them (`spec/api.md#Update Document Issuer Information`). The first Year, with no previous Year, starts empty.
+
+**Required fields for document generation.** The attributes are nullable in storage, but a document cannot be generated while a field it needs is empty — the UI blocks generation and lists the missing fields (`spec/frontend.md#Invoice and Receipt Documents`):
+
+| Document | Required |
+| -------- | -------- |
+| Invoice  | `issuerName`, `issuerPostalCode`, `issuerAddressLine1`, `issuerEmail`, `bankName`, `bankBranchName`, `bankAccountType`, `bankAccountNumber`, `bankAccountHolderName` |
+| Receipt  | `issuerName`, `issuerPostalCode`, `issuerAddressLine1`, `issuerEmail` |
+
+`issuerAddressLine2` is optional.
+
+The seal image (印影) is not a Year attribute. It stays in the repository as `apps/web/public/images/43rd_Stamp.png`, by the user's decision on Issue #176 (`spec/domain.md#Document Issuer Information`).
 
 `name`, `startDate`, and `endDate` can be corrected by an Administrator while the Year is active (`spec/api.md#Update Year`). `isActive` is never edited directly; it changes only when a new Year is created (`spec/domain.md#Active Year and Past Years`).
 
@@ -225,14 +252,33 @@ Represents payment information for a contract's sponsorship amount.
 | ------------- | -------- |
 | id            | UUID     |
 | contractId    | UUID     |
-| amount        | decimal  |
-| status        | enum     |
-| confirmedAt   | datetime |
-| confirmedById | UUID     |
+| amount         | decimal            |
+| receivedAmount | decimal, nullable  |
+| remarks        | text               |
+| status         | enum               |
+| confirmedAt    | datetime           |
+| confirmedById  | UUID               |
+
+`amount` is the **billed amount** (請求額): the contract total that was invoiced. `receivedAmount` is the **received amount** (実入金額): what the Finance Department has actually seen arrive in the bank account. `null` means nothing has been recorded yet. The difference (`receivedAmount − amount`) is computed for display and is not stored. `remarks` (備考) is free text for the Finance Department, typically the reason for a difference (Issue #171).
+
+`receivedAmount` and `remarks` are entered by the Finance Department (and Administrator), in both `Waiting` and `Confirmed`:
+
+* **Bank fee deducted / overpayment** — `receivedAmount` is the amount as it arrived; the Payment may be `Confirmed` although it differs from `amount`; the reason goes in `remarks`.
+* **Split payment** — `receivedAmount` is overwritten with the cumulative total each time a transfer arrives. The Payment is `Confirmed` once the full amount has arrived. There is no partial-payment status.
+
+Rules:
+
+* **Required to confirm.** A Payment cannot move to `Confirmed` while `receivedAmount` is `null`. The confirmation input defaults to `amount` (the billed amount).
+* **Editable after confirmation.** `receivedAmount` and `remarks` can be changed while the Payment stays `Confirmed`; it does not need to go back to `Waiting`.
+* **Kept on revert.** Moving a Payment back to `Waiting` keeps `receivedAmount` (only `confirmedAt`/`confirmedById` are cleared).
+* **Recorded.** Every change of `receivedAmount` or `remarks` is recorded in ActivityLog as `PAYMENT_DETAILS_UPDATED` (event type defined with Issue #172).
+* **Printed on the receipt.** The receipt for a `Confirmed` Payment uses `receivedAmount` as its amount (FR-015 → Receipt Timing).
+
+AdAdd does not block confirmation on a difference between `receivedAmount` and `amount`.
 
 `confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with the `xId`-suffixed foreign-key naming used elsewhere, e.g. `yearlyCompanyId`).
 
-`confirmedAt` is the **payment confirmation date** — the date the Finance Department confirmed the bank transfer in AdAdd (`spec/domain.md` → Payment), not necessarily the date the bank transfer itself occurred. It is set automatically to the day the status is changed to Confirmed; there is no separate "actual transfer date" field. This date is used when generating the receipt (`spec/usecase.md` UC-10 Send Receipt).
+`confirmedAt` is the **payment confirmation date** — the date the Finance Department confirmed the bank transfer in AdAdd (`spec/domain.md` → Payment), not necessarily the date the bank transfer itself occurred. It is set automatically to the day the status is changed to Confirmed; there is no separate "actual transfer date" field. This date is the default payment date when generating the receipt for a `Confirmed` Payment (`spec/usecase.md` UC-10 Send Receipt). A receipt generated while the Payment is `Waiting` has no default payment date; it is entered manually.
 
 A `Payment` is created when it is registered for a contract whose current `totalAmount > 0` — a goods-sponsorship-only contract has no `Payment` row at all, not a `Payment` with `amount = 0`. Moving `status` back from `Confirmed` to `Waiting` clears `confirmedAt`/`confirmedById`.
 
@@ -244,7 +290,7 @@ The Yearly Company's `progress` always matches `status`, and the server keeps it
 
 While a Payment is `Waiting`, its `amount` is not independently edited: it is kept in sync with the parent `SponsorshipContract.totalAmount`. Any Contract Menu add/update/delete recalculates the Contract total and, in the same transaction, updates the Waiting Payment amount to the same value.
 
-Once a Payment is `Confirmed`, its `amount` represents the Finance Department's confirmed amount. A Contract Menu add/update/delete that would change the parent Contract total must be rejected while the Payment remains Confirmed, rather than silently creating a mismatch. To change the contract amount after confirmation, the Payment must first be moved back to `Waiting`, which clears `confirmedAt`/`confirmedById`; the Contract Menu change can then resynchronize the Waiting Payment amount.
+Once a Payment is `Confirmed`, its `amount` (billed amount) is fixed as the amount the Finance Department confirmed against; what actually arrived is `receivedAmount`. A Contract Menu add/update/delete that would change the parent Contract total must be rejected while the Payment remains Confirmed, rather than silently creating a mismatch. To change the contract amount after confirmation, the Payment must first be moved back to `Waiting`, which clears `confirmedAt`/`confirmedById`; the Contract Menu change can then resynchronize the Waiting Payment amount.
 
 ---
 
@@ -488,7 +534,7 @@ SponsorshipContract
       │
       ├── ContractMenu (1 ----- *)
       │
-      └── Payment (1 ----- *)
+      └── Payment (1 ----- 0..1)
 ```
 
 ---
@@ -604,8 +650,9 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 ## Payment
 
 * Every payment belongs to one contract.
-* A Sponsorship Contract has at most one Payment — `contractId` is unique on `Payment` (no split/installment payments).
+* A Sponsorship Contract has at most one Payment — `contractId` is unique on `Payment`. A split/installment payment is still one Payment; each transfer overwrites `receivedAmount` with the cumulative total.
 * A Waiting Payment's `amount` must equal its Contract's `totalAmount`.
+* `receivedAmount` is never synchronized from the Contract; only the Finance Department (or Administrator) sets it. It may differ from `amount`, including on a `Confirmed` Payment.
 * A Confirmed Payment's `amount` must not be silently changed by Contract Menu edits; any Contract Menu change that would alter the Contract total while the Payment is Confirmed is rejected.
 
 ---

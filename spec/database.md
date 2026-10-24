@@ -72,6 +72,12 @@ Year
 1 ─── * SponsorshipMenu
 ```
 
+### Notes
+
+A Year also holds the document issuer information for its invoices and receipts — issuer name, postal code, address, contact email, and bank transfer account (`spec/model.md#Year`). It is data, edited by an Administrator, not a constant in the source code. A new Year copies these values from the previous Year.
+
+The seal image (印影) is not stored in the database. It stays in the source code repository (`apps/web/public/images/43rd_Stamp.png`) by the user's decision on Issue #176 (`spec/domain.md#Document Issuer Information`).
+
 ---
 
 # Company
@@ -284,6 +290,8 @@ SponsorshipContract
 ### Notes
 
 Payment is confirmed by the Finance Department.
+
+A Payment keeps the billed amount (`amount`, the contract total) and the received amount (`receivedAmount`) side by side, with `remarks` for the reason of any difference. A split payment is still one Payment row; `receivedAmount` holds the cumulative total (`spec/model.md#Payment`).
 
 ---
 

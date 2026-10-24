@@ -441,6 +441,25 @@ Below Contract Menu. Shows payment status and `totalAmount` only (line-item deta
 
 `contractDate` is shown as a caption under `totalAmount`. It is not part of the summary proper, but Yearly Company Detail is the only screen that surfaces it at all, so dropping it entirely would make the agreed contract date unreachable from the UI. `remarks` is not shown here — it is carried into the generated invoice (FR-015) and does not drive day-to-day work on this screen. The Contract's committee assignee is not repeated either; it is the Yearly Company's assignment already shown in the Assignment strip above.
 
+When a Payment exists, the summary also shows its received amount (実入金額) and, when it differs from the billed amount, the difference and the payment remarks (備考) — read-only here, as with the status.
+
+### Invoice and Receipt Documents
+
+Rules for the generation actions next to the Contract summary (FR-015 → Document Format, Issue #170):
+
+* **Invoice action** — shown only when the Contract's `totalAmount > 0`. A goods-sponsorship-only contract gets no invoice.
+* **Receipt action** — shown whenever a Payment exists, `WAITING` or `CONFIRMED` (FR-015 → Receipt Timing). This replaces the earlier "`CONFIRMED` only" rule (Issue #159): in a face-to-face contract the member hands over the receipt when receiving the money, before Finance confirms it.
+  * `CONFIRMED` — amount defaults to `Payment.receivedAmount`; payment date (入金日) defaults to `Payment.confirmedAt`.
+  * `WAITING` — amount defaults to `Payment.amount` (billed amount); payment date has no default and must be entered before download.
+  * The amount stays editable in the dialog in both cases.
+* **Invoice line items** — the Contract Menus with `isGoodsSponsorship = false`. Goods sponsorship lines are not printed.
+* **No document number, no consumption-tax breakdown, no revenue stamp field.** The documents print amounts only.
+* **Issuer block and bank transfer account** — read from the Contract's Year (`GET /years`, `spec/model.md#Year`), not from constants in the frontend source.
+* **Missing issuer information** — if a field the document requires is empty (`spec/model.md#Year` → Required fields for document generation), generation is blocked and the dialog lists the missing fields by their Japanese labels, so the user can ask an Administrator to fill them in on Year List.
+* **Seal image** — the receipt keeps using the static file `apps/web/public/images/43rd_Stamp.png`, as today (Issue #176, the user's decision).
+
+When a `WAITING` Payment already has a `receivedAmount` (part of a split payment), whether the receipt amount should default to it instead of the billed amount is TBD (FR-015).
+
 ### 活動記録
 
 Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (the operations listed in `spec/domain.md#Activity Log` — status changes, assignment, contract and Contract Menu changes, payment confirmation and its revert, contact changes); there is no manual entry action. A handover note that isn't one of those recorded changes belongs on the Yearly Company's contact `memo` (copied to `Company.memo` on save), not 活動記録.
@@ -608,7 +627,10 @@ Display:
 | ------------------------ |
 | Company (+ companyNameKana, カタカナ表記 — for matching against bank passbook records) |
 | Assigned Sponsorship Member |
-| Contract amount         |
+| Contract amount (billed amount, `Payment.amount`) |
+| Received amount (実入金額, `Payment.receivedAmount`) |
+| Difference (received − billed; shown only when they differ) |
+| Remarks (備考, `Payment.remarks`) |
 | Payment status          |
 | Payment date            |
 
@@ -616,8 +638,14 @@ Data source: `GET /years/{yearId}/payments` (`spec/api.md`), which already joins
 
 Actions:
 
-* Confirm payment
-* Update status
+* Record the received amount — for a split payment, overwrite it with the cumulative total each time money arrives
+* Edit remarks — e.g. the reason for a bank fee deduction or overpayment
+* Confirm payment — the received amount is required; its input is pre-filled with the billed amount. Confirming is allowed even when the received amount differs from the billed amount; the difference stays visible
+* Update status — moving back to 入金待ち keeps the received amount
+
+The received amount and remarks stay editable after confirmation (no need to move back to 入金待ち). Each change is recorded in 活動記録.
+
+There is no partial-payment status. A split payment stays 入金待ち until the full amount has arrived (`spec/domain.md#Payment`).
 
 Confirming a payment moves the company's progress to 協賛金入金 (領収書送付 is kept). Moving it back to waiting moves 協賛金入金 / 領収書送付 back to 協賛確定. The server does both (`spec/api.md#Update Payment Status`); the list and Yearly Company views show the new progress after refetching.
 
@@ -755,9 +783,12 @@ Display:
 
 Actions:
 
-* Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before.
+* Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before. The issuer information and bank transfer account are copied from the previous Year.
 * Correct the active Year's name, start date, and end date (Administrator — `PATCH /years/{yearId}`, `spec/domain.md#Correcting a Year`). Past Years are not editable (see Viewing a Past Year).
 * Click a row to open that Year's Yearly Company List (`/yearly-companies?yearId=`, current or past), scoped to that Year regardless of which Year is active.
+* Edit the Year's document issuer information (Administrator) — issuer name, postal code, address lines, contact email, and the bank transfer account printed on invoices and receipts (`PATCH /years/{yearId}/document-issuer`, `spec/model.md#Year`). Fields required for document generation are marked, so a missing value is visible before anyone tries to generate a document.
+
+Where this edit action sits on the screen (inline on the row, or a separate Year detail view) is TBD. There is no seal-image action; the seal stays a static file in the repository (Issue #176).
 
 Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year (or the clicked-through Year, per above).
 

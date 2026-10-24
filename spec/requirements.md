@@ -163,10 +163,16 @@ Manage sponsorship payments.
 The system shall allow Finance Department users to:
 
 * Register payment confirmation, and revert it to correct a mistake
+* Record the amount actually received (`Payment.receivedAmount`, 実入金額), separately from the billed amount (`Payment.amount`, the contract total)
+* Record the reason for a difference between the two in the payment's remarks (`Payment.remarks`, 備考)
 * View payment history
 * Track payment status
 
 Progress always matches the payment status. Confirming a payment moves the Yearly Company's progress to 協賛金入金 automatically (領収書送付 is kept); reverting it moves 協賛金入金 / 領収書送付 back to 協賛確定. 協賛金入金 and 領収書送付 cannot be set by hand before the payment is confirmed. A goods-only contract, which has no payment, uses 物品受領 instead (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
+
+A Payment may be confirmed even when the received amount differs from the billed amount (bank fee deducted, overpayment). The difference is shown, not blocked. A split payment is recorded by overwriting `receivedAmount` with the cumulative total each time money arrives, and the Payment is confirmed once the full amount has arrived — there is no partial-payment status (`spec/domain.md#Payment`).
+
+`receivedAmount` is required to confirm a Payment; the input defaults to the billed amount. `receivedAmount` and `remarks` stay editable after confirmation, without moving the Payment back to Waiting, and every change is recorded in 活動記録. Moving a Payment back to Waiting keeps `receivedAmount`.
 
 ### Related Use Cases
 
@@ -411,12 +417,38 @@ Reduce manual document creation by generating invoice and receipt PDFs directly 
 
 The system shall:
 
-* Allow a Sponsorship Member to generate an invoice (請求書) PDF from a Sponsorship Contract, on demand, pre-filled with the company's name/contact person, the contract's Contract Menus (name/quantity/unit price), and the total amount
-* Allow a Sponsorship Member to generate a receipt (領収書) PDF from a confirmed Payment, on demand, pre-filled with the company's name, the payment amount, and the payment confirmation date (`Payment.confirmedAt`)
+* Allow a Sponsorship Member to generate an invoice (請求書) PDF from a Sponsorship Contract whose `totalAmount > 0`, on demand, pre-filled with the company's name/contact person, the contract's paid Contract Menus (name/quantity/unit price), and the total amount
+* Allow a Sponsorship Member to generate a receipt (領収書) PDF from a Payment — `WAITING` or `CONFIRMED` — on demand, pre-filled with the company's name, the amount, and (when `CONFIRMED`) the payment confirmation date (`Payment.confirmedAt`). See Receipt Timing below
 * Allow the pre-filled content to be edited before download (e.g. remarks, payment deadline)
 * Produce a downloadable PDF file — AdAdd does not send it; sending remains a manual step via Google Groups (see UC-17, UC-10)
 
-Generated documents are not persisted — each is produced fresh from the current Contract/Payment/Company data, and there is no stored Invoice/Receipt entity (see `spec/domain.md`).
+Generated documents are not persisted — each is produced fresh from the current Contract/Payment/Company/Year data, and there is no stored Invoice/Receipt entity (see `spec/domain.md`).
+
+### Document Format
+
+Decided in Issue #170:
+
+* **No numbering.** Neither the invoice nor the receipt carries a document number.
+* **No consumption-tax breakdown.** Only amounts are printed — no tax rate, tax amount, or tax-included/excluded split.
+* **No revenue stamp.** The receipt has no revenue stamp (収入印紙) field.
+* **Goods sponsorship lines are not printed.** Contract Menus with `isGoodsSponsorship = true` are left out of the invoice line items. A contract whose `totalAmount` is `0` (goods-sponsorship-only) gets no invoice, and — having no Payment — no receipt.
+* **Issuer information and bank transfer account come from the Year.** The committee name, postal code, address, contact email, and bank transfer account are read from the Contract's Year (`spec/model.md#Year`), maintained by an Administrator in the UI. They are not hard-coded in the frontend, so a change does not require a redeploy. If a required field is empty, generation is blocked and the UI lists the missing fields (`spec/model.md#Year` → required fields).
+* **The seal image (印影) stays in the repository.** The receipt keeps using `apps/web/public/images/43rd_Stamp.png`, as today. No seal-image management feature is built. This was the user's decision on Issue #176: the seal is not moved out of the public repository (the bank account is — see above).
+
+### Receipt Timing
+
+This replaces the earlier "receipt only from a `CONFIRMED` Payment" rule (Issue #159).
+
+In face-to-face contracts, the member brings both the invoice and the receipt and receives the money on the spot. By email, the receipt is usually sent after payment confirmation, but not always. A receipt can therefore be generated while the Payment is still `WAITING`; the Finance Department confirms the received money in AdAdd afterwards (UC-09).
+
+| Payment status | Amount (default, editable) | Payment date (入金日) |
+| -------------- | -------------------------- | --------------------- |
+| `CONFIRMED`    | `Payment.receivedAmount`   | defaults to `Payment.confirmedAt` |
+| `WAITING`      | `Payment.amount` (billed amount) | no default — must be entered manually |
+
+The amount is editable in the generation dialog in both cases. When a `WAITING` Payment already has a `receivedAmount` (part of a split payment), whether the default should be that value instead of the billed amount is **TBD**.
+
+A contract with `totalAmount = 0` (goods-sponsorship-only) has no Payment and still gets neither an invoice nor a receipt.
 
 ### Related Use Cases
 
