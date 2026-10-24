@@ -37,8 +37,6 @@ func main() {
 			echo.HeaderOrigin,
 			echo.HeaderContentType,
 			echo.HeaderAccept,
-			"X-User-ID",
-			"X-User-Roles",
 			echo.HeaderAuthorization,
 		},
 		AllowMethods: []string{
@@ -62,17 +60,13 @@ func main() {
 
 // initAuth wires the JWT issuer and Google id_token verifier used by
 // AuthMiddleware and POST /auth/google (spec/api.md#Authentication).
+// JWT_SECRET is required in every environment: the repository is public, so
+// a built-in fallback secret would let anyone sign a session (Issue #156).
 func initAuth(cfg *config.Config) {
-	secret := cfg.JWTSecret
-	if secret == "" {
-		if cfg.AppEnv == "development" {
-			secret = "dev-insecure-jwt-secret"
-			log.Println("WARNING: JWT_SECRET not set, using an insecure development default")
-		} else {
-			log.Fatal("JWT_SECRET must be set outside development")
-		}
+	if cfg.JWTSecret == "" {
+		log.Fatal("JWT_SECRET must be set (see .env.example)")
 	}
-	issuer := auth.NewJWTIssuer(secret)
+	issuer := auth.NewJWTIssuer(cfg.JWTSecret)
 
 	var verifier *auth.GoogleVerifier
 	if cfg.GoogleClientID == "" {
@@ -86,5 +80,5 @@ func initAuth(cfg *config.Config) {
 		}
 	}
 
-	handler.InitAuth(issuer, verifier, cfg.DevAuthEnabled)
+	handler.InitAuth(issuer, verifier)
 }

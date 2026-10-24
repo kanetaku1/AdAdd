@@ -5,7 +5,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
@@ -47,8 +46,7 @@ func importCompanies(t *testing.T, client *apiClient, csv string, dryRun bool) c
 
 	request := httptest.NewRequest(http.MethodPost, "/companies/bulk", &body)
 	request.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
-	request.Header.Set("X-User-ID", client.userID)
-	request.Header.Set("X-User-Roles", strings.Join(client.roles, ","))
+	client.authenticate(request)
 	response := httptest.NewRecorder()
 	client.server.ServeHTTP(response, request)
 

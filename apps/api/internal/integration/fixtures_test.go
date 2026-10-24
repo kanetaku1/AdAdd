@@ -10,8 +10,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// Users acting in the tests. Role checks only read the X-User-Roles header,
-// but the Users also exist in MySQL as they would in operation.
+// Users acting in the tests. Each exists in MySQL with its Roles, and the
+// API reads them on every request as it does in operation.
 const (
 	administratorID      = "user-administrator"
 	sponsorshipMemberID  = "user-member-1"
@@ -34,11 +34,8 @@ func newActors(t *testing.T) actors {
 	t.Helper()
 	server := newAPI(t)
 
-	for _, id := range []string{administratorID, sponsorshipMemberID, sponsorshipMember2ID, advisorID, advisor2ID, financeID} {
-		if err := db.DB.Create(&model.User{ID: id, Name: id, Email: id + "@example.com", IsActive: true}).Error; err != nil {
-			t.Fatalf("create user %s: %v", id, err)
-		}
-	}
+	// A second Advisor exists but never sends requests.
+	createUserWithRoles(t, advisor2ID, "ADVISOR")
 
 	return actors{
 		administrator:      asUser(t, server, administratorID, "ADMINISTRATOR"),

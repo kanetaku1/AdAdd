@@ -19,7 +19,6 @@ type Config struct {
 	DBName         string
 	MigrateOnStart bool
 	MigrationsPath string
-	DevAuthEnabled bool
 	GoogleClientID string
 	JWTSecret      string
 	SlackBotToken  string
@@ -51,12 +50,6 @@ func Load() *Config {
 		allowedOrigins = append(allowedOrigins, "http://localhost:3000", "http://localhost:3001")
 	}
 
-	// DEV_AUTH_ENABLED gates the X-User-ID/X-User-Roles dev stub
-	// (spec/api.md#Authentication). Forced off outside development
-	// regardless of the env var, so a misconfiguration can't open the
-	// bypass in production.
-	devAuthEnabled := appEnv == "development" && getEnv("DEV_AUTH_ENABLED", "false") == "true"
-
 	return &Config{
 		AppEnv:         appEnv,
 		AllowedOrigins: allowedOrigins,
@@ -68,7 +61,6 @@ func Load() *Config {
 		DBName:         getEnv("DB_NAME", "adadd"),
 		MigrateOnStart: migrateOnStart,
 		MigrationsPath: getEnv("MIGRATIONS_PATH", "./migrations"),
-		DevAuthEnabled: devAuthEnabled,
 		GoogleClientID: getEnv("GOOGLE_CLIENT_ID", ""),
 		JWTSecret:      getEnv("JWT_SECRET", ""),
 		SlackBotToken:  getEnv("SLACK_BOT_TOKEN", ""),
