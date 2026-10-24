@@ -6,14 +6,11 @@
  * imports so the rules can be unit tested.
  */
 
-/** Request headers taken from the browser. Everything else is dropped. */
-export const FORWARDED_REQUEST_HEADERS = ["Accept", "Content-Type"] as const
-
 /**
- * Development header stub (spec/decisions/0004-development-modes-and-sessions.md).
- * Forwarded only without a session; removing it entirely is Issue #156.
+ * Request headers taken from the browser. Everything else is dropped,
+ * including X-User-ID / X-User-Roles (Issue #156).
  */
-export const DEVELOPMENT_AUTH_HEADERS = ["X-User-ID", "X-User-Roles"] as const
+export const FORWARDED_REQUEST_HEADERS = ["Accept", "Content-Type"] as const
 
 /**
  * A segment Next.js has already percent-decoded is rejected when it could
@@ -57,8 +54,7 @@ export function buildProxyTargetUrl(
 
 /**
  * Headers sent to the Go API. `Authorization` is never taken from the
- * browser: with a session it is set from the session cookie, without one
- * only the development header stub is passed on.
+ * browser: it is set from the session cookie, and omitted without one.
  */
 export function buildProxyRequestHeaders(
   incoming: Headers,
@@ -72,12 +68,6 @@ export function buildProxyRequestHeaders(
 
   if (sessionToken) {
     headers.set("Authorization", `Bearer ${sessionToken}`)
-    return headers
-  }
-
-  for (const name of DEVELOPMENT_AUTH_HEADERS) {
-    const value = incoming.get(name)
-    if (value !== null) headers.set(name, value)
   }
   return headers
 }
