@@ -14,6 +14,8 @@ Hosting (where the web app and API run) is still undecided — see `spec/decisio
 
 The production database is a separate MySQL database. It is never shared with development, test, or E2E data.
 
+It also runs in its own MySQL container with its own volume, separate from the development `adadd-mysql` container (see Backup → Production container).
+
 ## Create the database
 
 MySQL 8.4. Create the database and a user that can reach only that database. Replace `adadd_prod` and the password with your own values.
@@ -195,25 +197,22 @@ Every release that adds a migration changes the production schema. The database 
 
 ### 1. Back up
 
-Take a dump right before the change (see Backup below). It is the way back if anything fails. Keep it until the new version has run without problems.
+Take a manual dump right before the change and upload it (see Backup → Before a risky operation below). It is the way back if anything fails. Keep it until the new version has run without problems.
 
 ### 2. Rehearse on a copy
 
-Restore the dump into a separate database (e.g. `adadd_rehearsal`) and run the new version against it. A migration that fails or breaks real data shows up here, not in production.
+Restore the dump into a database named `adadd_rehearsal` in the temporary `adadd-restore-check` container (Backup → Restore check below), never into the production MySQL, and run the new version against it. A migration that fails or breaks real data shows up here, not in production. This rehearsal also counts as the restore check before a production migration.
 
-```bash
-mysql -u root -p -e "CREATE DATABASE adadd_rehearsal CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;"
-mysql -u root -p adadd_rehearsal < adadd_prod-YYYYMMDD.sql
-```
+For the rehearsal, start the temporary container with its port published on localhost only (add `-p 127.0.0.1:3307:3306` to its `docker run`), and load the dump as in Restore check steps 2–3 with `adadd_rehearsal` in place of `adadd_prod`.
 
-Then, with **`DB_NAME=adadd_rehearsal`** (and a user granted on it) in place of the production settings, so that nothing below touches `adadd_prod`:
+Then, with **`DB_HOST=127.0.0.1`, `DB_PORT=3307`, `DB_NAME=adadd_rehearsal`** (and the temporary container's credentials) in place of the production settings, so that nothing below touches `adadd_prod`:
 
 ```bash
 go run ./cmd/migrate up -database adadd_rehearsal
 go run ./cmd/server   # sign in and try the main screens
 ```
 
-`up` refuses to run if `-database` and `DB_NAME` differ, so a forgotten `DB_NAME` stops here instead of changing production. Drop the copy afterwards — it holds real data.
+`up` refuses to run if `-database` and `DB_NAME` differ, so a forgotten `DB_NAME` stops here instead of changing production. Remove the temporary container afterwards (Restore check, last step) — it holds real data.
 
 ### 3. Stop the API
 
@@ -252,14 +251,209 @@ There are no down migrations to roll back with (`spec/development.md#Up only`).
 
 # Backup
 
-**Undecided.** The method (tool, frequency, storage location, restore check) is not decided yet — `spec/decisions/0002-deployment.md` defers it, and it is tracked in Issue #169.
+Decided in `spec/decisions/0005-production-database-backup.md` (Issue #169). Points still open are listed there under Confirmation Required and marked **TBD** below.
 
-Until it is decided:
+## Overview
 
-* The data lives in the MySQL server's data directory (with Docker Compose, the `mysql-data` volume). `docker compose down -v` deletes it.
-* Take a manual dump before every risky operation (CSV import, every upgrade — see Upgrading Production):
+| What | Decision |
+| ---- | -------- |
+| Method | `mysqldump` of the production database. A scheduled job once a day, plus a manual dump before every risky operation |
+| Storage | A folder in the festival's Google Shared Drive (共有ドライブ) that only a limited set of members can access. Never only on the production machine |
+| Upload and encryption | rclone, through a `crypt` remote: dumps are encrypted before they reach the Shared Drive. The same job deletes old dumps |
+| Encryption key | The `crypt` password and salt, kept separately by the Administrator |
+| Retention | Daily: 30 days. The first daily dump of each month: until the end of that festival Year. Manual: at least until the operation is confirmed to have worked |
+| Restore check | Each semester (学期ごと) and before every production migration, into a separate temporary container |
+
+A dump contains real company contact data. Treat every copy — on the machine, in Drive, in a temporary container — like the production database itself, and delete local copies once they are in the Shared Drive.
+
+## Production container
+
+The production MySQL runs in its own Docker Compose project (its own compose file, project name, container, and named volume). It is never the development `adadd-mysql` container, which holds `adadd`, `adadd_test`, and `adadd_e2e`.
+
+* `docker compose down -v` in the development project deletes only the development `mysql-data` volume. Production data is not affected.
+* Never run `down -v` in the production project. Removing the production volume deletes the production database; only a restore from a dump brings it back.
+* The production compose file itself is created with Issue #156.
+
+The commands below use `adadd-prod-mysql` as the production container name and the root password from its `MYSQL_ROOT_PASSWORD`. Replace them with the values of the production compose file.
+
+They copy files with `docker cp` instead of shell redirection (`>` / `<`), so they work the same on any OS. (Windows PowerShell 5.1 re-encodes redirected output and breaks a dump.)
+
+## Take a dump
 
 ```bash
-mysqldump --single-transaction --routines --default-character-set=utf8mb4 \
-  -u adadd_prod -p adadd_prod > adadd_prod-YYYYMMDD.sql
+# 1. Dump inside the container
+docker exec adadd-prod-mysql sh -c 'mysqldump --single-transaction --routines --no-tablespaces \
+  --default-character-set=utf8mb4 -u root -p"$MYSQL_ROOT_PASSWORD" \
+  --result-file=/tmp/adadd_prod-YYYYMMDD.sql adadd_prod'
+
+# 2. Copy it out, and remove it from the container
+docker cp adadd-prod-mysql:/tmp/adadd_prod-YYYYMMDD.sql .
+docker exec adadd-prod-mysql rm /tmp/adadd_prod-YYYYMMDD.sql
 ```
+
+`--single-transaction` gives a consistent dump without stopping the API. The dump does not contain `CREATE DATABASE`; the database name is chosen when restoring.
+
+### Daily
+
+A scheduled job on the production machine, once a day:
+
+1. Takes the dump above (`adadd_prod-YYYYMMDD.sql`).
+2. Uploads it through the `crypt` remote (see rclone setup below):
+
+```bash
+rclone copy adadd_prod-YYYYMMDD.sql adadd-backup:daily/
+# only for the first dump of a month (no file of this month in monthly/ yet)
+rclone copy adadd_prod-YYYYMMDD.sql adadd-backup:monthly/
+```
+
+3. Deletes old dumps (see Storage and retention):
+
+```bash
+rclone delete adadd-backup:daily/ --min-age 30d
+# once a festival Year's end date has passed: the monthly dumps taken during that Year,
+# one --include per month of the Year
+rclone delete adadd-backup:monthly/ --include "adadd_prod-YYYYMM*.sql"
+```
+
+The job takes the Year's start and end dates from Year List (`years`). How it reads them is decided with the job's implementation.
+
+4. Deletes the local dump file.
+
+**TBD** (ADR-0005, Confirmation Required): the scheduler (cron, Task Scheduler — depends on the machine's OS, which is not recorded), the time of day and what happens when the machine is off, and how a failure is noticed.
+
+### rclone setup
+
+rclone is installed on the production machine with two remotes (`rclone config`):
+
+| Remote | Type | Settings |
+| ------ | ---- | -------- |
+| `adadd-backup-drive` | `drive` | The festival's Shared Drive (`team_drive` = its ID), `root_folder_id` = the restricted backup folder |
+| `adadd-backup` | `crypt` | `remote = adadd-backup-drive:`, password and salt from the Administrator. File names and contents encrypted |
+
+```text
+adadd-backup:            (decrypted view — always use this one)
+├── daily/               adadd_prod-YYYYMMDD.sql
+├── monthly/             the first daily dump of each month
+└── manual/              adadd_prod-YYYYMMDD-<reason>.sql
+```
+
+* Always read and write through `adadd-backup`. Files written directly to `adadd-backup-drive` are not encrypted. Seen in the Drive web UI, the folder contains only encrypted names.
+* The `crypt` password and salt are kept separately by the Administrator. They are never committed to the repository and never kept only on the production machine (rclone's config file stores them only obscured, not safely). Without them, every backup is unreadable. **TBD:** where exactly they are stored.
+* Check the setup with `rclone lsl adadd-backup:` — it lists the dumps with readable names.
+* On a new machine (e.g. after the production machine is lost), install rclone and configure the same two remotes with the same password and salt. The existing backups are then readable again.
+
+**TBD:** the Google account the `adadd-backup-drive` remote signs in with.
+
+### Before a risky operation
+
+Take a dump by hand, right before:
+
+* upgrading production (applying a migration)
+* a CSV import
+* restoring a dump into production (keeps the state you are about to overwrite)
+* any direct SQL on the production database (e.g. First Administrator)
+
+Do not rely on the last daily dump. Name the file after the reason (e.g. `adadd_prod-YYYYMMDD-before-upgrade.sql`), upload it, and delete the local copy once it is no longer needed:
+
+```bash
+rclone copy adadd_prod-YYYYMMDD-before-upgrade.sql adadd-backup:manual/
+```
+
+## Storage and retention
+
+* **Where:** the restricted backup folder in the festival's Google Shared Drive. It belongs to the organization, so the backups survive a member's graduation.
+* **Who:** only a limited set of members. Membership of another Shared Drive (e.g. ad material, ADR-0003) must not give access. When the Administrator changes, access to the folder is handed over too (see Handing over). **TBD:** exactly who, and how the folder is restricted.
+* **How long:**
+
+| Dump | Kept |
+| ---- | ---- |
+| Daily | 30 days |
+| The first daily dump of each month | Until the end of that festival Year |
+| Manual | At least until the operation is confirmed to have worked |
+
+The daily job deletes old daily and monthly dumps (see Daily). Manual dumps are deleted by hand (`rclone delete adadd-backup:manual/<file>`) once the operation is confirmed to have worked.
+
+## Restore
+
+Restoring into production replaces everything written since the dump. Agree on it with the members first.
+
+1. Copy the dump back to the production machine through the `crypt` remote, which decrypts it. Find the file with `rclone lsl adadd-backup:daily/` (or `monthly/`, `manual/`):
+
+```bash
+rclone copy adadd-backup:daily/adadd_prod-YYYYMMDD.sql .
+```
+
+2. Stop the API, so no one writes during the restore.
+3. Take a manual dump of the current state (see Before a risky operation), in case the restore must be undone.
+4. Recreate the database and load the dump. The `adadd_prod` user's privileges stay in place (they are granted by database name).
+
+```bash
+docker cp adadd_prod-YYYYMMDD.sql adadd-prod-mysql:/tmp/restore.sql
+docker exec adadd-prod-mysql sh -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e \
+  "DROP DATABASE adadd_prod; CREATE DATABASE adadd_prod CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;"'
+docker exec adadd-prod-mysql sh -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD" \
+  --default-character-set=utf8mb4 adadd_prod < /tmp/restore.sql'
+docker exec adadd-prod-mysql rm /tmp/restore.sql
+```
+
+The database is dropped first, so tables created after the dump (by a later migration) do not remain.
+
+5. Check the migration state. It must show the version of the dump and `dirty = 0`:
+
+```sql
+SELECT version, dirty FROM schema_migrations;
+```
+
+6. Start the version of AdAdd whose migrations match that version, sign in, and check the main screens (Yearly Company List, a contract, Payments).
+7. Tell the members what was restored and from which date, so they can re-enter what was lost.
+
+## Restore check
+
+A dump is restored into a **separate, temporary container** — never into the production container — and checked:
+
+* once per semester (学期ごと), with the latest daily dump
+* before every production migration, with the manual dump taken for it (the rehearsal of the upgrade)
+
+Copying the dump back through `adadd-backup` also confirms that the `crypt` password and salt still decrypt the backups.
+
+```bash
+# 0. Copy the dump back through the crypt remote (decrypts it)
+rclone copy adadd-backup:daily/adadd_prod-YYYYMMDD.sql .
+
+# 1. Temporary MySQL with no named volume and no published port
+docker run -d --name adadd-restore-check -e MYSQL_ROOT_PASSWORD=restore_check \
+  mysql:8.4 --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_bin
+
+# 2. Wait until it accepts connections (repeat until it prints "mysqld is alive")
+docker exec adadd-restore-check mysqladmin ping -u root -prestore_check
+
+# 3. Load the dump
+docker cp adadd_prod-YYYYMMDD.sql adadd-restore-check:/tmp/restore.sql
+docker exec adadd-restore-check sh -c 'mysql -u root -prestore_check -e \
+  "CREATE DATABASE adadd_prod CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;"'
+docker exec adadd-restore-check sh -c 'mysql -u root -prestore_check \
+  --default-character-set=utf8mb4 adadd_prod < /tmp/restore.sql'
+```
+
+4. Check, with `docker exec -it adadd-restore-check mysql -u root -prestore_check adadd_prod`:
+
+```sql
+SELECT version, dirty FROM schema_migrations;   -- the expected version, dirty = 0
+SELECT COUNT(*) FROM companies;
+SELECT COUNT(*) FROM yearly_companies;
+SELECT COUNT(*) FROM sponsorship_contracts;
+SELECT COUNT(*) FROM payments;
+SELECT name FROM companies LIMIT 5;             -- Japanese text is not garbled
+```
+
+The loading must finish without errors, and the counts must match what AdAdd shows for the date of the dump (roughly, for an older dump). For the upgrade rehearsal, the new version is then run against this copy (see the upgrade procedure).
+
+5. Remove the container. It holds real data.
+
+```bash
+docker rm -f adadd-restore-check
+```
+
+Then delete the downloaded dump file from the machine.
+
+**TBD:** who runs the semester check, and where its date and result are recorded.
