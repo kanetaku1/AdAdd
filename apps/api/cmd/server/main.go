@@ -17,11 +17,15 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// Optionally apply migrations on startup if MIGRATE_ON_START=true
+	// MIGRATE_ON_START=true (development) applies migrations on startup.
+	// Otherwise (production) they are applied with cmd/migrate, and the API
+	// refuses to start until the schema matches (spec/operations.md).
 	if cfg.MigrateOnStart {
 		if err := db.ApplyMigrations(cfg); err != nil {
 			log.Fatalf("failed to apply migrations: %v", err)
 		}
+	} else if err := db.CheckMigrations(cfg); err != nil {
+		log.Fatalf("refusing to start: %v", err)
 	}
 
 	// Initialize DB connection
