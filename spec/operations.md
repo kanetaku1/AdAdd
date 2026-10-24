@@ -37,11 +37,41 @@ Point the API at the database with environment variables (`apps/api/.env.example
 | `DB_NAME` | `adadd_prod` |
 | `MIGRATE_ON_START` | `true` — applies every migration on start |
 
-Production must not run with development authentication. Production settings (`APP_ENV`, `JWT_SECRET`, network exposure) are tracked in Issue #156 and must be in place before real data is loaded.
+Run it with the production configuration below, never with the development `docker-compose.yml`. It must be in place before real data is loaded.
+
+## Production Configuration
+
+Production runs from its own Compose file, `compose.production.yml` (Issue #156). It contains MySQL and the API only. Where the web app runs, and how members reach it, is decided with the hosting (`spec/decisions/0002-deployment.md`).
+
+| Setting | Production value |
+| ------- | ---------------- |
+| Compose project | `adadd-prod` — its own containers (`adadd-prod-mysql`, `adadd-prod-api`) and named volume. `docker compose down -v` in the development project never touches it |
+| `APP_ENV` | `production`. Unset means `development`, so it is always set explicitly |
+| `JWT_SECRET` | A long random value, e.g. `openssl rand -base64 48`. The API refuses to start without it (in every environment). Never reuse the development value |
+| Database user and passwords | `DB_USER` / `DB_PASSWORD` and the MySQL root password: long random values of their own. Never the development values written in `docker-compose.yml` |
+| MySQL port | Not published. Only the API container reaches MySQL, over the Compose network |
+| API port | Published on `127.0.0.1:8080` only, never on every interface |
+| `ALLOWED_ORIGINS` | The origin of the production web app |
+| Authentication | AdAdd session JWTs only. There is no development authentication to switch off (`spec/api.md#Authentication`) |
+
+The values come from `.env.production` at the repository root. Copy `.env.production.example` and fill it in. The file is gitignored and is never committed: the repository is public. Every required value is checked by Compose (`${VAR:?}`), so a missing value stops `up` instead of starting with an empty one.
+
+```bash
+# from the repository root
+docker compose -f compose.production.yml --env-file .env.production up -d --build
+docker compose -f compose.production.yml --env-file .env.production ps
+```
+
+On its first start, the MySQL container creates the database and the user from `DB_NAME`, `DB_USER`, and `DB_PASSWORD`, with the collation set by its server options. The SQL in Create the database above is then not needed; it is for a MySQL outside Compose.
+
+The web app:
+
+* `NEXT_PUBLIC_API_BASE_URL` must be set when building it for production. Without it, the build runs in mock mode with fictitious data. After every deployment, sign in and check that the mock-mode banner is not shown.
+* The session cookie is `Secure` in a production build, so the web app must be served over HTTPS (`spec/frontend.md#Login`).
 
 ## Never run against the production database
 
-* `go run ./cmd/seed` — it creates fictional companies, users, and Years (`spec/development.md#Development Seed`).
+* `go run ./cmd/seed` — it creates fictional companies, users, and Years (`spec/development.md#Development Seed`). It refuses to run unless `APP_ENV=development` and the database is `adadd` or `adadd_e2e`, but do not rely on that.
 * Go integration tests and Playwright E2E — they empty tables. Their database names must end with `_test` / be the dedicated E2E database.
 
 ---

@@ -512,7 +512,7 @@ Domain rules and business flows are verified against a real MySQL, not mocks.
   * On first use in a test binary, it drops every table and applies all migrations from scratch. A broken or conflicting migration fails the tests.
   * Before every test, it empties all tables except `schema_migrations` and `roles` (Roles are master data seeded by migrations).
   * The database name must end with `_test`. Any other name is refused, because every table is dropped.
-* `apps/api/internal/integration` tests business flows through the full API (routing, role checks, handlers, services, MySQL), authenticated with the development `X-User-ID` / `X-User-Roles` headers.
+* `apps/api/internal/integration` tests business flows through the full API (routing, role checks, handlers, services, MySQL). Each acting User exists in MySQL with its Roles in `user_roles`, and requests carry a session JWT signed with a test-only secret, so they take the production session path (`spec/api.md#Authentication`).
 * Without `ADADD_API_TEST_DSN`, these tests are skipped locally. In CI (`CI=true`) they fail instead, so they are never skipped silently.
 * Packages share one test database, so run tests with `-p 1`.
 
@@ -557,7 +557,8 @@ npm run test:unit
 * All data is fictitious. Real companies, people, or payment data must never be added.
 * Every row has a fixed ID and each step only creates what is missing. Running the seed again leaves the database unchanged.
 * Business state is created through the services, so it follows the real business rules (Yearly Company generation and `companyStatus`, contract totals, Payments, Activity Logs).
-* It refuses to run unless `APP_ENV=development`, and it never sends Slack notifications.
+* It refuses to run unless `APP_ENV=development` **and** `DB_NAME` is one of the development databases, `adadd` or `adadd_e2e` (Issue #156). A production database is refused even when `APP_ENV` was left at `development` by mistake.
+* It never sends Slack notifications.
 * It applies migrations before loading data.
 
 From `apps/api`, with the database settings in `apps/api/.env` (see `.env.example`):
@@ -592,7 +593,7 @@ The seed only checks IDs. Do not run it against a database that already has a Ye
   * the Go API on port 18080 against the `adadd_e2e` database, after running the development seed;
   * the production build of the web app (`next build` + `next start`) on port 3100.
 * A local development API on port 8080 and its database are never touched.
-* Tests act as seed Users by signing a session JWT for them with the API's `JWT_SECRET` (set by `playwright.config.ts`) and storing it in the session cookie (`spec/decisions/0004-development-modes-and-sessions.md`). Every request takes the production session path (session cookie → `/api/proxy` → `Authorization: Bearer` → User and Roles read from MySQL). Only Google sign-in itself is not covered. The development header stub is off, and the UI shows controls by the User's Roles.
+* Tests act as seed Users by signing a session JWT for them with the API's `JWT_SECRET` (set by `playwright.config.ts`) and storing it in the session cookie (`spec/decisions/0004-development-modes-and-sessions.md`). Every request takes the production session path (session cookie → `/api/proxy` → `Authorization: Bearer` → User and Roles read from MySQL). Only Google sign-in itself is not covered. The UI shows controls by the User's Roles.
 * Tests create their own companies with unique names, so they do not need a fresh database and can be run repeatedly.
 * Each step is checked again after a reload, so the result is read back from MySQL.
 
@@ -749,19 +750,21 @@ In MySQL mode, a developer's Google account must be registered both as a test us
 | `NEXT_PUBLIC_API_BASE_URL` | Empty (`dev:mock` sets it) | `http://127.0.0.1:8080` | Empty means mock mode |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | — | Required | Google sign-in |
 | `GOOGLE_API_KEY` / `GOOGLE_DRIVE_ROOT_FOLDER_ID` | — | When using Drive | Drive Picker (exposed to the browser by `next.config.ts`) |
-| `NEXT_PUBLIC_DEV_AUTH_ENABLED` | — | Unset | Development header stub (pending, ADR-0004) |
 
 `apps/api` — the repository-root `.env` for Docker Compose (see `.env.example`), or `apps/api/.env` for `go run` (see `apps/api/.env.example`):
 
 | Variable | Purpose |
 | -------- | ------- |
 | `APP_ENV` | `development` locally. Production must set it explicitly; unset means `development`. |
-| `JWT_SECRET` | Signs session JWTs. Unset falls back to an insecure value in development only. |
+| `JWT_SECRET` | Signs session JWTs. Required in every environment — the API refuses to start without it. Locally any long random value works (e.g. `openssl rand -base64 48`). |
 | `GOOGLE_CLIENT_ID` | Verifies Google id_tokens (same value as in `apps/web`). |
 | `DB_*`, `MIGRATE_ON_START`, `MIGRATIONS_PATH`, `APP_PORT`, `ALLOWED_ORIGINS` | Database and server. |
 | `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Drive folder for ad material files. |
 | `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | Optional Slack mention (UC-16). |
-| `DEV_AUTH_ENABLED` | Development header stub (pending, ADR-0004). Never on a shared server or in production. |
+
+There is no development authentication setting. The former `DEV_AUTH_ENABLED` / `NEXT_PUBLIC_DEV_AUTH_ENABLED` header stub was removed (ADR-0004 Decision 7). Production settings are in `spec/operations.md#Production Configuration`.
+
+`docker-compose.yml` is for development only. It publishes MySQL and the API on `127.0.0.1` only, so they are not reachable from other machines on the network.
 
 E2E tests set their own values in `apps/web/playwright.config.ts` (`E2E_*` overrides the ports and database).
 

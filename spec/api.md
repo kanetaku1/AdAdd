@@ -53,7 +53,11 @@ On every request, the server verifies the token, then reads the `User` it names 
 * Role checks use the User's `UserRole` grants at that moment, so deactivating a User or revoking a Role takes effect on the next request.
 * Session renewal: when the token was issued more than one day ago, the response carries a new token in the `X-Session-Token` header. The caller replaces its stored token with it. The frontend's BFF proxy does this and never passes the header on to the browser (`spec/frontend.md#Login`). A token that is not renewed expires 30 days after it was issued.
 
-In development only, `X-User-ID` / `X-User-Roles` headers may be sent instead when the server has `DEV_AUTH_ENABLED=true`; this path must be disabled in production and on any shared server. Its future is decided in `spec/decisions/0004-development-modes-and-sessions.md`.
+There is no other way to authenticate, in any environment. The former development header stub (`X-User-ID` / `X-User-Roles`, `DEV_AUTH_ENABLED`) was removed (`spec/decisions/0004-development-modes-and-sessions.md` Decision 7, Issue #156); those headers are ignored.
+
+The token is signed with `JWT_SECRET`. The server refuses to start when it is empty, in every environment.
+
+Without a session, only `GET /health` and `POST /auth/google` are reachable. Every other path, including any later route under `/auth/`, requires a session.
 
 ## Login
 
