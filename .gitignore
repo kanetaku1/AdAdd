@@ -1,3 +1,4 @@
 docs/*
 backend_update.bundle
 .env
+.env.production

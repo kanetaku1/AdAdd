@@ -15,16 +15,14 @@ import (
 var (
 	jwtIssuer      *auth.JWTIssuer
 	googleVerifier *auth.GoogleVerifier
-	devAuthEnabled bool
 )
 
-// InitAuth wires the JWT issuer/verifier and dev-stub gate used by
-// AuthMiddleware and POST /auth/google (spec/api.md#Authentication). Must
-// be called before RegisterRoutes.
-func InitAuth(issuer *auth.JWTIssuer, verifier *auth.GoogleVerifier, devEnabled bool) {
+// InitAuth wires the JWT issuer/verifier used by AuthMiddleware and
+// POST /auth/google (spec/api.md#Authentication). Must be called before
+// RegisterRoutes.
+func InitAuth(issuer *auth.JWTIssuer, verifier *auth.GoogleVerifier) {
 	jwtIssuer = issuer
 	googleVerifier = verifier
-	devAuthEnabled = devEnabled
 }
 
 // Session renewal (spec/api.md#Authentication): a valid JWT older than
@@ -68,9 +66,8 @@ var loadSessionRoles = func(userID string) ([]string, error) {
 // reads the User and its Roles from MySQL on every request — never from
 // anything the client supplies, and never from the token itself — so
 // deactivating a User or revoking a Role takes effect on the next request
-// (spec/api.md#Authentication). The old X-User-ID/X-User-Roles header stub
-// only applies when devAuthEnabled (config.DevAuthEnabled, forced off
-// outside development).
+// (spec/api.md#Authentication). It is the only way to authenticate: the
+// former X-User-ID / X-User-Roles header stub was removed (Issue #156).
 func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if isPublicPath(c.Request().URL.Path) {
@@ -102,23 +99,6 @@ func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return next(c)
 		}
 
-		if devAuthEnabled {
-			userID := c.Request().Header.Get("X-User-ID")
-			rolesHeader := c.Request().Header.Get("X-User-Roles")
-			var roles []string
-			if rolesHeader != "" {
-				for _, r := range strings.Split(rolesHeader, ",") {
-					r = strings.TrimSpace(r)
-					if r != "" {
-						roles = append(roles, r)
-					}
-				}
-			}
-			c.Set("userId", userID)
-			c.Set("userRoles", roles)
-			return next(c)
-		}
-
 		return respondUnauthorized(c, "authentication required")
 	}
 }
@@ -127,8 +107,9 @@ func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 // health check and the login endpoint, which is how a session is obtained
 // in the first place (spec/api.md#Login). e.Use applies AuthMiddleware to
 // every route regardless of registration order, so they are skipped here.
+// Exact paths only: a route added later under /auth/ still needs a session.
 func isPublicPath(path string) bool {
-	return path == "/health" || strings.HasPrefix(path, "/auth/")
+	return path == "/health" || path == "/auth/google"
 }
 
 // RequireRoles returns middleware that enforces at least one of the allowed roles is present.

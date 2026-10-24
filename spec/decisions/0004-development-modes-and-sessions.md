@@ -2,17 +2,15 @@
 
 ## Status
 
-Proposed — 2026-10-12, revised 2026-10-13 and 2026-10-14
+Accepted — 2026-10-12, revised 2026-10-13, 2026-10-14, and 2026-10-24
 
 * Development modes, session checks, and the removal of development login:
   decided on the frontend side (2026-10-13).
 * Session renewal and easier re-login (Decisions 8 and 9): decided on the frontend side (2026-10-14).
-* Development header stub: waiting for confirmation from the backend department
-  (see Confirmation Required).
+* Development header stub: removed (Decision 7, option A — 2026-10-24, Issue #156).
 
 The specification (`spec/api.md`, `spec/frontend.md`, `spec/development.md`)
-already reflects the decided parts. The development header stub is described there
-as it is today until the backend department decides.
+reflects every decision.
 
 ### Revision history
 
@@ -23,6 +21,10 @@ as it is today until the backend department decides.
 * 2026-10-14: sessions are renewed while in use, and re-login skips Google's account chooser.
   Committee members use their own PCs and phones, so a session that ends after 30 days without
   use is enough; per-session revocation is not adopted.
+* 2026-10-24: the development header stub is removed (option A). Signing in with Google as a
+  User registered in AdAdd and as an OAuth test user is enough to check a Role's screens
+  against MySQL. Found again in the production check (Issue #156): `docker-compose.yml` turned
+  the stub on, so a request with only `X-User-Roles: ADMINISTRATOR` acted as an Administrator.
 
 ---
 
@@ -129,21 +131,28 @@ screens, and the MySQL mode uses Google like production. No development-only way
 * Every request then takes the production session path (cookie → `/api/proxy` →
   `Authorization: Bearer` → User and Roles read from MySQL). Only Google sign-in itself is not covered.
 
-### 7. Development header stub (confirmation required)
+### 7. Development header stub: removed (option A, decided 2026-10-24)
 
-Neither mode needs the header stub any more. Proposal:
+Neither mode needs the header stub any more. A developer who wants to check a Role's screens
+against MySQL signs in with Google as a User registered in AdAdd with that Role (Decision 2);
+mock mode covers every Role without MySQL (Decision 1).
 
-* **`apps/web`:** stop sending the headers. Remove `getDevAuthHeaders` from `apiFetch`,
-  `NEXT_PUBLIC_DEV_AUTH_ENABLED`, and the bypasses in `proxy.ts` and `roles.ts`.
-* **`apps/api`:** the backend department decides one of the options below.
+* **`apps/web`:** the headers are no longer sent. `getDevAuthHeaders`,
+  `NEXT_PUBLIC_DEV_AUTH_ENABLED`, and the bypasses in `proxy.ts` and `roles.ts` are removed.
+  `/api/proxy` never forwards `X-User-ID` / `X-User-Roles`.
+* **`apps/api`:** the header path in `AuthMiddleware` and `DEV_AUTH_ENABLED` are removed. The headers
+  are ignored. Integration tests sign JWTs with a test `JWTIssuer` for Users whose Roles are stored
+  in MySQL, as E2E tests do. Only one authentication path remains.
+* `JWT_SECRET` is required in every environment, development included. There is no built-in
+  fallback secret: the repository is public, so a fallback would let anyone sign a session.
+
+Options considered:
 
 | Option | Description |
 | ------ | ----------- |
-| A. Remove | Remove the header path from `AuthMiddleware` and `DEV_AUTH_ENABLED`. Integration tests sign JWTs with the test `JWTIssuer`, as E2E tests do. Only one authentication path remains. |
-| B. Keep for automated tests only | Keep the header path for `apps/api/internal/integration`. `DEV_AUTH_ENABLED` defaults to `false`, including `docker-compose.yml`. |
-| C. Keep as is | Not recommended. Problems 1 and 2 remain possible. |
-
-The frontend side recommends **A**. If the integration tests need time to change, B first, then A.
+| **A. Remove (adopted)** | One authentication path. Nothing to switch off in production. |
+| B. Keep for automated tests only | Rejected. A flag that opens a bypass can still be left on by mistake, as `docker-compose.yml` did. |
+| C. Keep as is | Rejected. Problems 1 and 2 remain possible. |
 
 ### 8. Sessions are renewed while in use
 
@@ -179,9 +188,8 @@ Questions for the backend department:
 
 1. **Session checks in `AuthMiddleware`** (Decision 3). Is one User query and one Role query per
    request acceptable? Is `401` for a deactivated User the right response?
-2. **Development header stub in `apps/api`.** A, B, or C?
-   For A: is switching the integration tests to JWTs signed by `JWTIssuer` acceptable?
-3. **Default of `DEV_AUTH_ENABLED` in `docker-compose.yml`.** Change it to `false`?
+2. ~~**Development header stub in `apps/api`.** A, B, or C?~~ Decided: A (2026-10-24).
+3. ~~**Default of `DEV_AUTH_ENABLED` in `docker-compose.yml`.**~~ Removed with the stub.
 
 ---
 
@@ -255,3 +263,6 @@ Implementation:
 * E2E: `playwright.config.ts` and `e2e/support.ts` sign JWTs for seed Users.
 * `docker-compose.yml`: `APP_ENV`, `JWT_SECRET`, and `GOOGLE_DRIVE_ROOT_FOLDER_ID` passed to `apps/api`.
 * Issue #152 is fixed as described above.
+* Decision 7 (Issue #156): the header stub is removed from `apps/api` and `apps/web`, the integration
+  tests sign JWTs, `JWT_SECRET` is required everywhere, and `docker-compose.yml` no longer sets
+  `DEV_AUTH_ENABLED`.

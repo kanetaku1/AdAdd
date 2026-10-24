@@ -83,13 +83,11 @@ test.describe("buildProxyRequestHeaders", () => {
     ])
   })
 
-  test("without a session: the development header stub, never the browser's Authorization", () => {
+  test("without a session: allowlisted headers only — no Authorization, no X-User-*", () => {
     const headers = buildProxyRequestHeaders(incoming(), undefined)
     expect([...headers.entries()]).toEqual([
       ["accept", "application/json"],
       ["content-type", "multipart/form-data; boundary=abc"],
-      ["x-user-id", "user_001"],
-      ["x-user-roles", "ADMINISTRATOR"],
     ])
   })
 

@@ -10,19 +10,10 @@ export function hasRole(roles: string[] | undefined, allowed: string[]): boolean
 }
 
 /**
- * When true, skip role gating entirely (mirrors proxy.ts's login-guard
- * bypass for the API-mode header stub). `/users/me`'s `roles` always
- * reflects the real DB `UserRole` grants, never the X-User-Roles dev-stub
- * header — without this bypass, an unassigned dev-stub user would have
- * every gated action hidden. Mock mode is not bypassed: the chosen mock
- * User's Roles apply (spec/frontend.md#Mock mode login).
+ * The gate to use in screens. The signed-in User's Roles (`/users/me`, or
+ * the chosen mock User in mock mode) always apply; there is no bypass
+ * (spec/decisions/0004-development-modes-and-sessions.md).
  */
-export function isDevAuthBypass(): boolean {
-  if (!process.env.NEXT_PUBLIC_API_BASE_URL?.trim()) return false
-  return process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true"
-}
-
-/** `hasRole`, but respects the dev-auth bypass. The gate to actually use. */
 export function canAccess(roles: string[] | undefined, allowed: string[]): boolean {
-  return isDevAuthBypass() || hasRole(roles, allowed)
+  return hasRole(roles, allowed)
 }

@@ -5,10 +5,8 @@ import { MOCK_USER_COOKIE, SESSION_COOKIE } from "@/lib/auth/constants"
 /**
  * Route guard (spec/frontend.md#Login) — redirects to /login when there's
  * no session cookie: the AdAdd JWT in API mode, or the chosen mock User in
- * mock mode (spec/frontend.md#Mock mode login).
- * `NEXT_PUBLIC_DEV_AUTH_ENABLED=true` bypasses this entirely, mirroring the
- * backend's DEV_AUTH_ENABLED header stub
- * (spec/decisions/0004-development-modes-and-sessions.md).
+ * mock mode (spec/frontend.md#Mock mode login). There is no bypass in any
+ * environment (spec/decisions/0004-development-modes-and-sessions.md).
  */
 // /api/proxy is excluded too — it isn't "public", but it forwards to the Go
 // API which does its own auth check. Redirecting it to the /login HTML page
@@ -20,10 +18,6 @@ function isMockMode(): boolean {
 }
 
 export function proxy(req: NextRequest) {
-  if (process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true" && !isMockMode()) {
-    return NextResponse.next()
-  }
-
   const { pathname } = req.nextUrl
   if (SKIP_GUARD_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return NextResponse.next()

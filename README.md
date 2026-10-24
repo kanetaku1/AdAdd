@@ -25,8 +25,11 @@ API の認証は、Google ログインで発行する AdAdd の JWT（セッシ�
 * **モックモード**：`apps/web` で `npm run dev:mock`。ログイン画面でロールごとのユーザーを選んで、各ロールの画面を確認できます。
 * **MySQL モード**：`docker compose up -d` のあと `apps/web` で `npm run dev`。本番と同じく Google でログインします（GCP の OAuth テストユーザーと AdAdd のユーザーの両方に登録が必要）。
 
-開発用の `X-User-ID` / `X-User-Roles` ヘッダー（`DEV_AUTH_ENABLED=true`）は残っていますが、扱いは `spec/decisions/0004-development-modes-and-sessions.md` でバックエンド部門と確認中です。
-**本番環境と共有のサーバーでは、`DEV_AUTH_ENABLED` を有効にしないでください。**
+開発用の `X-User-ID` / `X-User-Roles` ヘッダー認証はなくしました（`spec/decisions/0004-development-modes-and-sessions.md` の Decision 7）。どの環境でも、ログインは Google だけです。
+
+`JWT_SECRET` は開発でも必須です。設定しないと API が起動しません。ルートの `.env`（`.env.example` を参照）に、長いランダムな値を入れてください。
+
+**本番は `docker-compose.yml` ではなく `compose.production.yml` で動かします**（`spec/operations.md#Production Configuration`）。
 
 ---
 

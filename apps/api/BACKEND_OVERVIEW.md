@@ -33,8 +33,8 @@
 - マイグレーション実行ロジック
 
 ### `internal/auth`
-- 開発用認証/認可の実装
-- `X-User-ID`, `X-User-Roles` ヘッダを使ってユーザー情報を判定します
+- セッション JWT の発行・検証と、Google id_token の検証
+- ユーザーとロールは、リクエストのたびに MySQL から読みます（`spec/api.md#Authentication`）
 
 ### `internal/model`
 - ドメインモデルの定義
@@ -71,7 +71,7 @@
 
 1. クライアントが HTTP リクエストを送信
 2. `routes_register.go` のルート定義でハンドラが選択される
-3. 認証ミドルウェアが `X-User-ID` / `X-User-Roles` を検査
+3. 認証ミドルウェアが `Authorization: Bearer` のセッション JWT を検証し、ユーザーとロールを MySQL から読む
 4. ハンドラがリクエストを検証し、サービスを呼び出す
 5. サービスがリポジトリを使って DB 操作を実行
 6. 必要に応じて `ActivityLog` を追加記録
@@ -101,11 +101,10 @@
    - `MIGRATE_ON_START=true`
    - `APP_ENV=development`
    - `ALLOWED_ORIGINS=http://localhost:3000`
+   - `JWT_SECRET=<長いランダムな値>`（必須。ないと起動しません）
 4. サーバ起動
    - `go run ./cmd/server`
-5. API を呼ぶときは開発用ヘッダを付与
-   - `X-User-ID: 任意の ID`
-   - `X-User-Roles: SPONSORSHIP_MEMBER,ADMINISTRATOR`
+5. 画面から使うときは、web を MySQL モードで起動して Google でログインする（`spec/development.md#Development Modes`）。開発用ヘッダー認証はありません
 
 ---
 
