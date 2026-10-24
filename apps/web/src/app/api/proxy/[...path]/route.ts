@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { getApiBaseUrl } from "@/lib/api/client"
+import { buildProxyRequestHeaders, buildProxyTargetUrl } from "@/lib/api/proxy-request"
 import { SESSION_COOKIE } from "@/lib/auth/constants"
 import { getSessionToken, sessionCookieOptions } from "@/lib/auth/session"
 
@@ -13,11 +14,12 @@ const SESSION_TOKEN_HEADER = "X-Session-Token"
  * targets this route instead of the Go API directly when running in the
  * browser (lib/api/client.ts).
  *
- * When a session cookie exists, it takes over as `Authorization: Bearer`
- * and the caller's X-User-ID/X-User-Roles are stripped — the server, not
- * the client, decides who's authenticated. Without a session (nobody has
- * logged in via Google yet), whatever dev-stub headers the browser sent
- * are forwarded unchanged, preserving today's local-dev flow.
+ * Only Accept and Content-Type are taken from the browser's request
+ * (lib/api/proxy-request.ts). When a session cookie exists, it becomes
+ * `Authorization: Bearer` — the server, not the client, decides who's
+ * authenticated. Without a session (nobody has logged in via Google yet),
+ * the dev-stub X-User-ID/X-User-Roles headers are forwarded, preserving
+ * today's local-dev flow (to be removed in Issue #156).
  */
 async function handler(
   req: NextRequest,
@@ -31,21 +33,20 @@ async function handler(
     )
   }
 
+  // Only ever forward to the Go API: the request carries the session JWT
+  // (Issue #157). Next.js has already decoded each segment, so `%2F` arrives
+  // here as `/` and is rejected by buildProxyTargetUrl.
   const { path } = await params
-  const target = new URL(`/${path.join("/")}`, base)
-  target.search = req.nextUrl.search
-
-  const headers = new Headers(req.headers)
-  headers.delete("host")
-  headers.delete("connection")
-  headers.delete("content-length")
+  const target = buildProxyTargetUrl(path, req.nextUrl.search, base)
+  if (!target) {
+    return NextResponse.json(
+      { error: { code: "INVALID_REQUEST", message: "invalid API path" } },
+      { status: 400 }
+    )
+  }
 
   const sessionToken = await getSessionToken()
-  if (sessionToken) {
-    headers.set("Authorization", `Bearer ${sessionToken}`)
-    headers.delete("X-User-ID")
-    headers.delete("X-User-Roles")
-  }
+  const headers = buildProxyRequestHeaders(req.headers, sessionToken)
 
   const hasBody = !["GET", "HEAD"].includes(req.method)
   let upstream: Response
@@ -62,13 +63,16 @@ async function handler(
       duplex: "half",
     })
   } catch (err) {
-    const detail = err instanceof Error ? err.message : "unknown error"
+    // The API URL and the error detail stay in the server log only.
+    console.error(
+      `[api/proxy] Go API (${base}) に接続できません。docker compose の api が起動しているか、NEXT_PUBLIC_API_BASE_URL を確認してください。`,
+      err
+    )
     return NextResponse.json(
       {
         error: {
           code: "BAD_GATEWAY",
-          message: `Go API (${base}) に接続できません。docker compose の api が起動しているか、NEXT_PUBLIC_API_BASE_URL を確認してください。`,
-          detail,
+          message: "API サーバーに接続できません。",
         },
       },
       { status: 502 }
