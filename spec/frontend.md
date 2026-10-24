@@ -217,6 +217,13 @@ Re-login:
 
 Every screen fetches data from the browser through `/api/proxy`, so the session is attached in one place. When an API call returns `401` (missing, expired, or invalid session, or the User was deactivated), the browser is sent to `/login` instead of showing an error, and the rejected session cookie is removed.
 
+`/api/proxy` forwards only to the Go API (`NEXT_PUBLIC_API_BASE_URL`), because it attaches the session (Issue #157):
+
+* The path after `/api/proxy/` must be a path on the Go API. A path segment that is empty, `.`, contains `..`, `/`, or `\` (including encoded forms such as `%2F`, `%5C`) is rejected with `400 INVALID_REQUEST` and nothing is forwarded. (A whole `..` or `%2E%2E` segment is already resolved by URL normalization before routing, so it never reaches the proxy as a segment.) The target URL is built from the API base URL and must have the same origin; otherwise the request is rejected the same way.
+* Only `Accept` and `Content-Type` are forwarded from the browser's request. `Authorization` is never taken from the browser: the proxy sets it from the session cookie. Cookies and every other header are not forwarded.
+* Without a session, the development header stub (`X-User-ID` / `X-User-Roles`) is forwarded as well; with a session it is dropped. Removing it entirely is tracked in Issue #156.
+* When the Go API cannot be reached, the proxy returns `502` without the API URL or the error detail. Both are logged on the server.
+
 In local development, the `X-User-ID` / `X-User-Roles` dev headers (`DEV_AUTH_ENABLED=true` and `NEXT_PUBLIC_DEV_AUTH_ENABLED=true`) still bypass this flow entirely — see `spec/api.md#Authentication`. Their future is decided in `spec/decisions/0004-development-modes-and-sessions.md`.
 
 ### Mock mode login

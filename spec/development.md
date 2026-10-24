@@ -535,6 +535,21 @@ ADADD_API_TEST_DSN='adadd:adadd_password@tcp(127.0.0.1:3306)/adadd_test' go test
 
 ---
 
+## Web Unit Tests
+
+Pure functions in `apps/web` that need no browser or server (for example, the `/api/proxy` target URL and header rules, `spec/frontend.md#Login`) are tested with `*.test.ts` files next to the code in `apps/web/src`.
+
+* They run on the Playwright test runner with `apps/web/playwright.unit.config.ts`, which starts no servers and no browser, so no extra test framework is installed.
+* CI (`.github/workflows/web-ci.yml`) runs them on every web change.
+
+From `apps/web`:
+
+```bash
+npm run test:unit
+```
+
+---
+
 ## Development Seed
 
 `apps/api/cmd/seed` loads fictitious development data, so the API, the frontend in API mode, and E2E tests can start from a known state.
