@@ -258,7 +258,7 @@ Permission:
 
 ## List Roles
 
-Returns the fixed set of 7 Roles (`spec/model.md#Role`) — master data, not user-creatable.
+Returns the fixed set of 5 Roles (`spec/model.md#Role`) — master data, not user-creatable.
 
 ```
 GET /roles
@@ -334,7 +334,7 @@ Every other write to a record that belongs to a past Year is rejected with HTTP 
 | `POST /years/{yearId}/companies`, `POST /years/{yearId}/sponsorship-menus`, `POST /years/{yearId}/sponsorship-menus/copy-from-previous-year`, `PATCH /years/{yearId}/document-issuer` | `yearId` |
 | `PATCH /yearly-companies/{id}/…` (company-status, phase, progress, company-contact), `POST /yearly-companies/{id}/assignments`, `POST /yearly-companies/{id}/contract` | the Yearly Company |
 | `PATCH /contracts/{contractId}`, `POST /contracts/{contractId}/menus`, `POST /contracts/{contractId}/payment` | the Contract's Yearly Company |
-| `PATCH` / `DELETE /contract-menus/{id}` and its `status`, `production`, `drive-upload` | the Contract Menu's Contract |
+| `PATCH` / `DELETE /contract-menus/{id}` and its `status`, `production-department`, `production`, `drive-upload` | the Contract Menu's Contract |
 | `PATCH` / `DELETE /sponsorship-menus/{menuId}` | the Sponsorship Menu |
 | `POST /advisor-assignments`, `DELETE /advisor-assignments/{id}` | `yearId` of the Advisor Assignment |
 
@@ -1019,6 +1019,7 @@ Example response:
     "unitPrice": 80000,
     "isGoodsSponsorship": false,
     "productionType": "COMPANY",
+    "productionDepartment": null,
     "status": "WAITING",
     "driveUrl": null,
     "remarks": ""
@@ -1026,7 +1027,7 @@ Example response:
 ]
 ```
 
-`status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL` or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#Enumerations`).
+`status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL` or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#Enumerations`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
 
 ---
 
@@ -1046,6 +1047,8 @@ Query:
 | sponsorshipMenuId   | Filter by Sponsorship Menu       |
 | status              | Filter by Contract Menu status   |
 | productionType      | Filter by production type        |
+
+`productionType=INTERNAL` matches every `INTERNAL` Contract Menu, whether or not `productionDepartment` is assigned and whichever department it is. A filter by `productionDepartment` is not designed (未決).
 
 Each item additionally includes `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row.
 
@@ -1073,7 +1076,7 @@ Request:
 }
 ```
 
-`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. `productionDepartment` is not part of this request — a new Contract Menu always starts with `productionDepartment = null`, and the department is assigned afterwards (Assign Contract Menu Production Department below). Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
 
 Writes a `CONTRACT_MENU_ADDED` Activity Log.
 
@@ -1100,11 +1103,14 @@ Request (all fields optional):
 
 Same `unitPrice`/`isGoodsSponsorship` defaulting rule as Add Contract Menu. Recalculates the parent Contract's `totalAmount` and applies the Payment synchronization / confirmed-payment conflict rule described in Update Contract above.
 
+`productionDepartment` and `status` are not part of this request; they have their own endpoints below, with narrower permissions. When this request changes `productionType` from `INTERNAL` to another value, the server sets `productionDepartment` to `null` in the same update (`spec/model.md#ContractMenu`).
+
 Writes a `CONTRACT_MENU_UPDATED` Activity Log when `quantity` or `unitPrice` actually changes (including a `unitPrice` forced to `0` by `isGoodsSponsorship`).
 
 Permission:
 
-* Sponsorship Member / Administrator
+* Sponsorship Member / Administrator — every field
+* Advertisement Manager — `productionType` only (the 広告管理 screen's production type cell). `quantity`, `unitPrice`, and `isGoodsSponsorship` change the Contract's amount and stay Sponsorship Member / Administrator work: a request containing any of them from a User who holds Advertisement Manager without Sponsorship Member (or Administrator) returns `403 Forbidden`.
 
 ---
 
@@ -1142,6 +1148,45 @@ Example:
 
 Any `ContractMenuStatus` may be set from any other, forward or back. The order is not enforced, because material is sent back and redone (`spec/model.md#ContractMenu`).
 
+Permission:
+
+* Advertisement Manager / Administrator (superuser)
+
+Every other Role, Sponsorship Member included, receives `403 Forbidden`. The restriction is enforced in the backend, not only by hiding the control (Issue #126).
+
+---
+
+## Assign Contract Menu Production Department
+
+Assigns, changes, or clears the committee department that produces an `INTERNAL` Contract Menu (`spec/domain.md#Contract Menu Production Department`, Issue #127).
+
+```
+PATCH /contract-menus/{id}/production-department
+```
+
+Request:
+
+```json
+{
+  "productionDepartment": "PRODUCTION_BUREAU"
+}
+```
+
+`productionDepartment` is one of `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` to clear it. `productionType` is not changed — it stays `INTERNAL`.
+
+Validation:
+
+* The Contract Menu's `productionType` must be `INTERNAL`. Otherwise (`COMPANY`, `CONTINUED` — present in code, its place in spec is Issue #162 — or `null` because the menu does not require submission) the request returns `400 Bad Request` — a department cannot be assigned. Clearing with `null` follows the same rule.
+* An unknown value returns `400 Bad Request`.
+
+Does not change `totalAmount` and does not create an Activity Log entry (production changes are outside the recorded scope; whether to record them is undecided — Issue #172). Rejected for a past Year like every other Contract Menu write (Past Years Are Read-Only above).
+
+Permission:
+
+* Advertisement Manager / Administrator (superuser)
+
+Every other Role, Sponsorship Member included, receives `403 Forbidden`.
+
 ---
 
 ## Upload Production Information
@@ -1160,6 +1205,12 @@ Request:
   "remarks": "企業確認済み"
 }
 ```
+
+This call and `POST /contract-menus/{id}/drive-upload` do not change `status` and write no Activity Log entry (Issue #166). A Contract Menu becomes `SUBMITTED` only through Update Contract Menu Status above, by Advertisement Manager / Administrator.
+
+Permission (both calls):
+
+* Sponsorship Member / Advertisement Manager / Administrator
 
 ---
 
@@ -1398,24 +1449,33 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 
 # Authorization Matrix
 
-| Function                        | (no Role) | Sponsorship Member | Advisor | Finance | Administrator |
-| -------------------------------- | --------- | ------------------- | ------- | ------- | -------------- |
-| View assigned companies         | ○         | ○                   | ○       | △       | ○              |
-| Manage company master data      | -         | ○                   | -       | -       | ○              |
-| Create Year                     | -         | -                   | -       | -       | ○              |
-| Update document issuer information (Year) | - | - | - | - | ○ |
-| Assign companies / advisors     | -         | -                   | -       | -       | ○              |
-| Update Year (name / period, active Year only) | - | - | - | - | ○ |
-| Manage menus (Sponsorship Menu / Contract Menu) — create/update only | - | ○ | - | - | ○ |
-| Copy Sponsorship Menus from the previous Year | - | ○ | - | - | ○ |
-| Create payment                  | -         | ○                   | -       | ○       | ○              |
-| Update payment status            | -         | -                   | -       | ○       | ○              |
-| Manage users / Roles            | -         | -                   | -       | -       | ○              |
-| Delete any record (Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole, ...) | - | - | - | - | ○ |
+| Function                        | (no Role) | Sponsorship Member | Advisor | Finance | Advertisement Manager    | Administrator |
+| -------------------------------- | --------- | ------------------- | ------- | ------- | ------------------------ | -------------- |
+| View assigned companies         | ○         | ○                   | ○       | △       | ○                        | ○              |
+| Manage company master data      | -         | ○                   | -       | -       | -                        | ○              |
+| Create Year                     | -         | -                   | -       | -       | -                        | ○              |
+| Update document issuer information (Year) | - | -             | -       | -       | -                        | ○              |
+| Assign companies / advisors     | -         | -                   | -       | -       | -                        | ○              |
+| Update Year (name / period, active Year only) | - | -         | -       | -       | -                        | ○              |
+| Manage Sponsorship Menus, add Contract Menus — create/update only | - | ○ | - | - | - | ○ |
+| Copy Sponsorship Menus from the previous Year | - | ○         | -       | -       | -                        | ○              |
+| Edit Contract Menu quantity / unit price / goods sponsorship | - | ○ | - | - | -  | ○ |
+| Edit Contract Menu production type | -       | ○                   | -       | -       | ○                        | ○              |
+| Update production information (remarks, Drive URL) / Drive upload | - | ○ | - | - | ○ | ○ |
+| Update Contract Menu status     | -         | -                   | -       | -       | ○                        | ○              |
+| Assign Contract Menu production department | - | -             | -       | -       | ○                        | ○              |
+| Create payment                  | -         | ○                   | -       | ○       | -                        | ○              |
+| Update payment status            | -         | -                   | -       | ○       | -                        | ○              |
+| Manage users / Roles            | -         | -                   | -       | -       | -                        | ○              |
+| Delete any record (Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole, ...) | - | - | - | - | - | ○ |
 
 Deletion is Administrator-only system-wide — every other Role's "manage" access (row above) is create/update, never delete (`spec/model.md` Business Invariants).
 
-These 4 columns are the canonical Role set — see `spec/domain.md#Role` and `spec/model.md#Role`. Holding none of them (the "(no Role)" column) is the view-only baseline that replaced the earlier General Member Role. Company Management Department and Sponsorship Menu Management Team, previously separate columns, were removed — their responsibilities folded into Sponsorship Member (company/menu master data) and Administrator (Year creation, company/advisor assignment).
+Contract Menu status and production department belong to Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) and Administrator only; a Sponsorship Member receives `403` for both (Issue #126, #127). On its own, Advertisement Manager covers every operation of the 広告管理 screen (`spec/frontend.md#Contract Menu List`) — status, production department, production type, production information, Drive upload — because a User may hold it without Sponsorship Member (cooperation with other bureaus such as the SNS部門). Usually it is held together with Sponsorship Member.
+
+Money-related Contract Menu edits — `quantity`, `unitPrice`, `isGoodsSponsorship`, which change `totalAmount` and a Waiting Payment's amount — are not part of Advertisement Manager. A User holding Advertisement Manager alone receives `403` for them.
+
+These 5 columns are the canonical Role set — see `spec/domain.md#Role` and `spec/model.md#Role`. Holding none of them (the "(no Role)" column) is the view-only baseline that replaced the earlier General Member Role. Company Management Department and Sponsorship Menu Management Team, previously separate columns, were removed — their responsibilities folded into Sponsorship Member (company/menu master data) and Administrator (Year creation, company/advisor assignment).
 
 ---
 

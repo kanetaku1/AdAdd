@@ -50,6 +50,10 @@ master data, Sponsorship Menu management) moved to Sponsorship Member
 (Year creation stays Administrator-only). General Member was removed too —
 holding no Role at all is now the baseline, view-only state.
 
+Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) was then added as a 5th Role
+(Issue #126, #127): Contract Menu status and the production department of
+委員 Contract Menus belong to the 広告管理部門 alone.
+
 ## (No Role)
 
 Purpose:
@@ -83,7 +87,9 @@ Accessible features:
 * Company master management (create/edit Company)
 * Yearly company creation and phase management
 * Contract management
-* Contract menu progress and production update
+* Contract menu quantity, production type (including 委員), and Drive
+  submission — status and production department are read-only (see
+  Advertisement Manager below)
 * Sponsorship menu management
 * Payment record creation
 
@@ -129,6 +135,40 @@ Restrictions:
 
 ---
 
+## Advertisement Manager
+
+Display name 広告管理部門 (`ADVERTISEMENT_MANAGER`).
+
+Purpose:
+
+* Manage the progress and production destination of each contracted
+  advertisement (広告管理部門)
+
+Accessible features:
+
+* 広告管理 (Contract Menu List) and Yearly Company Detail's Contract Menu
+  table
+* Contract Menu status change (`spec/api.md#Update Contract Menu Status`)
+* Production department assignment for 委員 Contract Menus — 資料作成部門 /
+  制作局 / SNS部門 (`spec/api.md#Assign Contract Menu Production Department`)
+* Every other edit of the 広告管理 screen: production type, production
+  information (remarks, Drive URL), Drive upload
+
+Usually held together with Sponsorship Member, but may be held alone
+(cooperation with other bureaus such as the SNS部門). On its own it covers
+the 広告管理 screen only. Contracts, companies, and payments need
+Sponsorship Member.
+
+Restrictions:
+
+* Cannot edit quantity, unit price, or goods sponsorship — they change the
+  Contract's amount and stay Sponsorship Member / Administrator work. On
+  the 広告管理 screen, a User holding this Role alone sees quantity
+  read-only; the API returns `403` if such a User sends those fields
+  (`spec/api.md#Update Contract Menu`).
+
+---
+
 ## Administrator
 
 Purpose:
@@ -137,7 +177,8 @@ Purpose:
 
 Accessible features:
 
-* Every Sponsorship Member / Advisor / Finance Department feature
+* Every Sponsorship Member / Advisor / Finance Department / Advertisement
+  Management Department feature
 * Year creation
 * Sponsorship member assignment
 * Advisor assignment
@@ -431,8 +472,8 @@ The assigned member shown here is also the assignee of the contract and every Co
 
 Shown before Contract (production/status work happens more often than contract-level edits). The Contract Menu table is both the creation point (no contract yet — see below) and the ongoing edit point for a Contract's Contract Menus:
 
-* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately once a Contract Menu exists and `totalAmount > 0` (`POST /contracts/{contractId}/payment`); goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record. Field-level validation errors are highlighted at the specific field, not just a generic banner (see UI Design Principles below).
-* A contract exists — each line is editable in place (quantity, production type, status, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Upload Production Information`). `isGoodsSponsorship` is set only at creation or when adding a menu line (toggling it later would zero `unitPrice` and lose the negotiated price, so the Detail UI does not expose that toggle — the flag still displays as a badge when true). A delete action is exposed per line, but only to Administrator — deletion is Administrator-only system-wide (`spec/api.md#Authorization Matrix`), so the action is hidden entirely for every other Role rather than shown-and-rejected. It requires an explicit confirmation step before calling `DELETE /contract-menus/{id}`, since removal is irreversible from the UI's point of view and changes the Contract's `totalAmount`. If the Contract's Payment is already confirmed and the removal would change the amount, the API returns 409 and the deletion is refused (`spec/api.md#Delete Contract Menu`). Contract Menu List (below, the cross-contract view) is unaffected — it never adds/removes items.
+* No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Each line item's production type offers 委員 the same as the other values. The form has no production department field — a new Contract Menu starts unassigned, and the department is assigned later by the Advertisement Management Department. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately once a Contract Menu exists and `totalAmount > 0` (`POST /contracts/{contractId}/payment`); goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record. Field-level validation errors are highlighted at the specific field, not just a generic banner (see UI Design Principles below).
+* A contract exists — each line is editable in place (quantity, production type, status, production department, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Assign Contract Menu Production Department` / `#Upload Production Information`). Status and production department follow the same Role rules as Contract Menu List below: editable for Advertisement Manager / Administrator, a read-only badge or label for everyone else. `isGoodsSponsorship` is set only at creation or when adding a menu line (toggling it later would zero `unitPrice` and lose the negotiated price, so the Detail UI does not expose that toggle — the flag still displays as a badge when true). A delete action is exposed per line, but only to Administrator — deletion is Administrator-only system-wide (`spec/api.md#Authorization Matrix`), so the action is hidden entirely for every other Role rather than shown-and-rejected. It requires an explicit confirmation step before calling `DELETE /contract-menus/{id}`, since removal is irreversible from the UI's point of view and changes the Contract's `totalAmount`. If the Contract's Payment is already confirmed and the removal would change the amount, the API returns 409 and the deletion is refused (`spec/api.md#Delete Contract Menu`). Contract Menu List (below, the cross-contract view) is unaffected — it never adds/removes items.
 * Menu choices — when creating a contract or adding a line, only Sponsorship Menus with `isActive = true` are offered. The API also rejects an inactive menu (`spec/api.md#Add Contract Menu`). Existing lines that reference a menu turned inactive later stay as they are.
 
 ### Contract
@@ -505,9 +546,9 @@ Display:
 
 Purpose:
 
-Manage each contracted sponsorship item — the primary working screen for Sponsorship Members handling ad-material production/collection (informally "広告管理"; not a separate Role, see `spec/business.md#Roles`) across every company at once.
+Manage each contracted sponsorship item — the primary working screen for Sponsorship Members handling ad-material production/collection (informally "広告管理") across every company at once. The Advertisement Manager Role (`spec/business.md#Roles`) works here too: it alone changes status and assigns the production department.
 
-Quantity and producer (production type) are edited inline on this list (`spec/api.md#Update Contract Menu`). Ad status is toggled via `spec/api.md#Update Contract Menu Status`. Whether the deliverable is complete is read from Drive URL presence, not a separate flag. (Open consideration, not yet decided: a second Drive link for internal-production working files, separate from the company-facing submission `driveUrl` — see `spec/model.md#ContractMenu`.)
+Quantity and producer (production type) are edited inline on this list (`spec/api.md#Update Contract Menu`). Ad status is toggled via `spec/api.md#Update Contract Menu Status`, by Advertisement Manager / Administrator only. Whether the deliverable is complete is read from Drive URL presence, not a separate flag. (Open consideration, not yet decided: a second Drive link for internal-production working files, separate from the company-facing submission `driveUrl` — see `spec/model.md#ContractMenu`.)
 
 Display:
 
@@ -537,15 +578,39 @@ Progress (see above) can link directly into this list pre-filtered to a
 given Sponsorship Menu + `ContractMenuStatus` cell.
 
 Status is directly editable to any `ContractMenuStatus`, including
-`SUBMITTED` (`PATCH /contract-menus/{id}/status`). Quantity and production
+`SUBMITTED` (`PATCH /contract-menus/{id}/status`), for Advertisement
+Manager / Administrator only (Issue #126). Every other Role,
+Sponsorship Member included, sees the same status badge — same label and
+color — but it is not clickable and opens no editor. The API also returns
+`403` for them, so hiding the editor is not the enforcement.
+
+The production type cell shows `委員` for an unassigned `INTERNAL` Contract
+Menu and `委員（制作局）` (or 資料作成部門 / SNS部門) once a production
+department is assigned (Issue #127). For Advertisement Manager /
+Administrator, an `INTERNAL` row's cell also offers the
+department choice — exactly one of 資料作成部門 / 制作局 / SNS部門, or
+unassigned (`PATCH /contract-menus/{id}/production-department`). The
+department choice is not shown on `COMPANY` rows, and never to Sponsorship
+Members. Changing the production type away from 委員 clears the department
+(`spec/api.md#Update Contract Menu`). The Production type filter's 委員
+matches every 委員 row, with or without a department.
+
+This production department is the production destination. It is separate
+from the Assignee column (the Yearly Company's assigned Sponsorship Member,
+Issue #128).
+
+Quantity and production
 type are editable inline via `PATCH /contract-menus/{id}`
 (`spec/api.md#Update Contract Menu`) — the same cell-level pattern as
-status (Principle 4). Production type is only editable when the referenced
+status (Principle 4). Quantity is editable for Sponsorship Member /
+Administrator only; a User holding Advertisement Manager alone sees it
+read-only. Production type is editable for Sponsorship Member,
+Advertisement Manager, and Administrator. Production type is only editable when the referenced
 Sponsorship Menu has `requiresSubmission = true` (otherwise it stays
-null/`-`). Registering a Drive URL always finalizes the item:
-`PATCH /contract-menus/{id}/production` sets `status` to `SUBMITTED` as
-part of the same call (spec/api.md#Upload Production Information), so
-saving a Drive URL here updates both fields together.
+null/`-`). Registering a Drive URL or uploading to Drive does not change
+the status (Issue #166). The status becomes `SUBMITTED` only when an
+Advertisement Manager / Administrator sets it (`PATCH
+/contract-menus/{id}/status`).
 
 ---
 
@@ -569,7 +634,7 @@ Display:
 
 Display:
 
-* Assigned production department
+* Assigned production department (`ContractMenu.productionDepartment` — 資料作成部門 / 制作局 / SNS部門, or unassigned)
 * Request status
 * Completion status
 
@@ -684,7 +749,8 @@ Actor: Administrator. Entry: User List toolbar (`spec/frontend.md#User List`).
 
 Headers: `studentId`, `name` (required), `email` (required), `slackId`,
 `roles` (comma-separated Role `code`s — `SPONSORSHIP_MEMBER` /
-`ADVISOR` / `FINANCE_DEPARTMENT` / `ADMINISTRATOR`; empty means no Role,
+`ADVISOR` / `FINANCE_DEPARTMENT` / `ADVERTISEMENT_MANAGER` /
+`ADMINISTRATOR`; empty means no Role,
 which is the view-only baseline).
 
 Duplicate `email` (in the file or already in AdAdd) and unknown Role
@@ -829,7 +895,7 @@ Actions:
 * CSV bulk import (toolbar — Preview → Confirm; `spec/frontend.md#CSV Import / Export`). Year-turnover scale is about 100 Users.
 * Edit any field inline
 * Disable / re-enable (Active toggle)
-* Roles cell: chips, one per current `UserRole` grant (`spec/model.md#UserRole`), matching the Advisor Assignment pattern below — a "+" opens a dropdown of the 7 fixed Roles (`GET /roles`, `spec/api.md#List Roles`) not already granted; clicking a chip's "×" revokes that Role (`DELETE /users/{userId}/roles/{roleId}`). A User may hold zero Roles (e.g. immediately after being added, before an Administrator grants one) — they can still authenticate but see none of the role-gated navigation (Navigation Structure below).
+* Roles cell: chips, one per current `UserRole` grant (`spec/model.md#UserRole`), matching the Advisor Assignment pattern below — a "+" opens a dropdown of the 5 fixed Roles (`GET /roles`, `spec/api.md#List Roles`) not already granted; clicking a chip's "×" revokes that Role (`DELETE /users/{userId}/roles/{roleId}`). A User may hold zero Roles (e.g. immediately after being added, before an Administrator grants one) — they can still authenticate but see none of the role-gated navigation (Navigation Structure below).
 
 ---
 
@@ -888,7 +954,7 @@ Sidebar labels are Japanese (right column above is the internal/route name only,
 
 `広告進捗` sits with `広告管理` because both are daily production work (UC-07/UC-08), not master-data management. Users and Advisor Assignments are Settings tabs, not top-level sidebar items — one Administrator-only entry keeps the sidebar short.
 
-Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, Settings (and its Users / Advisor Assignments tabs) unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is implemented (`apps/web/src/components/app-sidebar.tsx` `allowedRoles` + `canAccess`, matching backend `RequireRoles`).
+Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, 広告管理 is shown to Sponsorship Member and Advertisement Manager, Settings (and its Users / Advisor Assignments tabs) unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is implemented (`apps/web/src/components/app-sidebar.tsx` `allowedRoles` + `canAccess`, matching backend `RequireRoles`).
 
 ---
 

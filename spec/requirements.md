@@ -138,7 +138,8 @@ The system shall provide:
 * Copying the previous year's Sponsorship Menus into a new year on demand, then editing them (not automatic — `spec/domain.md#Copying Menus from the Previous Year`)
 * Contract Menu management (the menus a company actually contracted for, including quantity and unit price). A menu that is not currently offered cannot be newly added to a contract.
 * Production method selection (when submission is required)
-* Progress management, varying by whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission)
+* Production department assignment for Internal Production (資料作成部門 / 制作局 / SNS部門), by the Advertisement Management Department only
+* Progress management (Contract Menu status changed by the Advertisement Management Department only), varying by whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission)
 * Google Drive linkage
 
 ### Related Use Cases

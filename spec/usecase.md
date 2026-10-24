@@ -18,6 +18,7 @@ The following actors interact with the system.
 * Sponsorship Member
 * Sponsorship Advisor
 * Sponsorship Menu Management Team
+* Advertisement Management Department（広告管理部門）
 * Finance Department
 * System Administrator
 
@@ -200,10 +201,10 @@ Manage the sponsorship menus contracted within a sponsorship contract.
 
 1. Open the Sponsorship Contract.
 2. View the list of contracted Sponsorship Menus (Contract Menus).
-3. For each Contract Menu, select production method (when submission is required).
-4. Assign production if required.
+3. For each Contract Menu, select production method (when submission is required). Sponsorship Member sets 委員 (Internal Production) here.
+4. Assign production if required: for a 委員 Contract Menu, the Advertisement Management Department assigns one of 資料作成部門 / 制作局 / SNS部門 (`spec/api.md#Assign Contract Menu Production Department`).
 5. Register Google Drive folder.
-6. Update progress according to whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission).
+6. Update progress (Contract Menu status — Advertisement Management Department only, `spec/api.md#Update Contract Menu Status`) according to whether the menu requires submission (submission management for advertisements — including web-based formats such as a homepage banner — or booth information management for booths with no submission).
 
 ## Result
 

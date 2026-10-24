@@ -364,13 +364,13 @@ Department
 
 Represents system permissions.
 
-Examples:
+Fixed set (`spec/model.md#Role`):
 
-* GeneralMember
-* CompanyManagement
-* MenuManagement
-* Finance
-* Administrator
+* SPONSORSHIP_MEMBER
+* ADVISOR
+* FINANCE_DEPARTMENT
+* ADVERTISEMENT_MANAGER
+* ADMINISTRATOR
 
 ### Relationship
 

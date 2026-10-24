@@ -226,6 +226,7 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 | unitPrice         | decimal  |
 | isGoodsSponsorship | boolean |
 | productionType    | enum     |
+| productionDepartment | enum (nullable) |
 | status            | enum     |
 | driveFolderId     | string   |
 | driveUrl          | string   |
@@ -237,6 +238,10 @@ ContractMenu does not have its own assignee. Like its contract, it is handled by
 `status` may be changed to any `ContractMenuStatus` value in any order. The order Waiting → Requested → Producing → Completed → Submitted is the usual one, not an enforced one, because material is sent back and redone (`spec/domain.md#Contract Menu`).
 
 `unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus. `quantity`, `unitPrice`, `isGoodsSponsorship`, and `productionType` remain editable after creation (not just at creation), each recalculating `totalAmount` per the rule above — see `spec/api.md#Update Contract Menu`.
+
+`productionDepartment` (`ContractMenuProductionDepartment`) is the committee department that produces an `INTERNAL` Contract Menu (`spec/domain.md#Contract Menu Production Department`, Issue #127). It is `null` until assigned, and always `null` when `productionType` is not `INTERNAL`. `productionType` stays `INTERNAL` when a department is assigned. Only the Advertisement Manager Role and Administrator set it, through its own endpoint (`spec/api.md#Assign Contract Menu Production Department`); it does not change `totalAmount`. When `productionType` changes from `INTERNAL` to anything else, the server clears `productionDepartment` in the same update.
+
+`status` is changed only by the Advertisement Manager Role and Administrator (`spec/api.md#Update Contract Menu Status`, Issue #126).
 
 `isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
 
@@ -373,7 +378,7 @@ Represents a system user.
 
 ## Role
 
-Represents system permissions. Fixed, seeded master data — not user-creatable (see `spec/domain.md#Role` for the canonical set of 4).
+Represents system permissions. Fixed, seeded master data — not user-creatable (see `spec/domain.md#Role` for the canonical set of 5).
 
 ### Attributes
 
@@ -388,6 +393,7 @@ Represents system permissions. Fixed, seeded master data — not user-creatable 
 * `SPONSORSHIP_MEMBER`
 * `ADVISOR`
 * `FINANCE_DEPARTMENT`
+* `ADVERTISEMENT_MANAGER` — 広告管理部門 (Issue #126, #127)
 * `ADMINISTRATOR`
 
 Holding none of these is a valid, deliberate state (a pre-registered User before an Administrator grants a Role) — it is the view-only baseline, not an error.
@@ -456,7 +462,19 @@ API / storage codes: `NOT_CONTACTED` (未連絡), `MATERIALS_SENT` (資料送付
 Applies only when the referenced Sponsorship Menu has `requiresSubmission = true`. Chosen by the company on the Google Forms application; determines whether the company's submission is a finished product or raw material (see `spec/business.md` → Contract Menu Production Type).
 
 * Company — company submits a finished product (完成品)
-* Internal — company submits raw material (素材) for the committee to produce from
+* Internal — company submits raw material (素材) for the committee to produce from. The business calls this 委員会; the UI label is 委員. The producing department is held separately in `ContractMenu.productionDepartment` (`ContractMenuProductionDepartment` below).
+
+---
+
+## ContractMenuProductionDepartment
+
+Applies to `ContractMenu.productionDepartment`, only when `productionType` is `INTERNAL`. `null` means not assigned yet.
+
+* `DOCUMENT_CREATION_DEPARTMENT` — 資料作成部門
+* `PRODUCTION_BUREAU` — 制作局
+* `SOCIAL_MEDIA_DEPARTMENT` — SNS部門
+
+This is a fixed enumeration, not a reference to the organizational Department (`spec/masters.md#Department`, which is not an entity).
 
 ---
 
@@ -617,7 +635,7 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 ## UserRole
 
 * `userId` + `roleId` must be unique — a Role cannot be granted to the same User twice.
-* Role is seeded master data (the 7 codes in `spec/model.md#Role`); Roles are never created through a user-facing API, only granted to/revoked from Users.
+* Role is seeded master data (the 5 codes in `spec/model.md#Role`); Roles are never created through a user-facing API, only granted to/revoked from Users.
 * Administrator is a superuser: it satisfies every permission check independent of any other Role the User holds.
 
 ---
@@ -644,6 +662,7 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 * Every Contract Menu references exactly one Sponsorship Menu.
 * `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company.
 * A newly added Contract Menu must reference a Sponsorship Menu with `isActive = true`.
+* `productionDepartment` is non-null only when `productionType` is `INTERNAL`.
 
 ---
 
