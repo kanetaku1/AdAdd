@@ -89,7 +89,7 @@ Business logic must never live in the Frontend.
 
 * Presents business state retrieved from `apps/api`.
 * Contains no business logic (see `spec/development.md` Frontend Development Rules).
-* Renders Invoice/Receipt PDFs from existing Contract/Payment/Company data for on-demand download (FR-015). This is presentation, not business logic — no new business rules are computed, only existing fields formatted into a document.
+* Renders Invoice/Receipt PDFs from existing Contract/Payment/Company/Year data for on-demand download (FR-015). The issuer information and bank transfer account come from the Year, not from constants in the frontend source (Issue #170). The receipt's seal image stays a static file under `apps/web/public/images/` (Issue #176, the user's decision). This is presentation, not business logic — no new business rules are computed, only existing fields formatted into a document.
 
 ## Session-scoped reference lists
 

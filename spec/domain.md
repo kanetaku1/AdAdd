@@ -50,6 +50,7 @@ Represents one festival cycle.
 * Manage festival years
 * Archive yearly data
 * Separate yearly business information
+* Document issuer information for that Year's invoices and receipts (committee name, address, contact email, bank transfer account)
 
 A Year is never deleted. It owns that cycle's Yearly Companies, Sponsorship Menus, Contracts, and Payments, and the next Year's Company Status is computed from it (see Company Status below). Deleting it would orphan that history and change later statuses (`spec/database.md#Preserve Historical Data`, `spec/api.md#Festival Year API`).
 
@@ -71,11 +72,23 @@ Everything else in a past Year — Yearly Companies, assignments, Contracts, Con
 
 Company master data is not part of any Year and stays editable.
 
+Payment confirmation in a past Year includes recording the received amount and the remarks of that Payment (see Payment below), since a late or split transfer is exactly the case this exception exists for.
+
 ### Correcting a Year
 
 A Year is never deleted, so a Year created with a wrong name or period is corrected in place. An Administrator can change the Year's `name`, `startDate`, and `endDate` (`spec/api.md#Update Year`). The correction does not touch anything the Year owns.
 
 The Past Years rule above applies to the Year itself: a past Year's name and period cannot be changed. Whether a past Year's name should become correctable is not decided (Issue #172).
+
+### Document Issuer Information
+
+The issuer block and the bank transfer account printed on invoices and receipts (FR-015) belong to the Year, not to the frontend source code. The committee's contact details and its bank account can change between Years, and an Administrator must be able to update them in the UI without a redeploy (Issue #170).
+
+Creating a new Year copies the issuer information and bank transfer account from the previous Year; the Administrator then edits them as needed.
+
+A document is always produced with the issuer information of the Contract's own Year, so a past Year's invoice or receipt keeps that Year's issuer and account. If a required field is empty, the document cannot be generated (`spec/model.md#Year`).
+
+The seal image (印影) is not part of the Year. It stays as an image file in the source code repository (`apps/web/public/images/43rd_Stamp.png`), as on the receipts issued so far. Issue #176 raised moving it out of the public repository; the user decided to keep it there, and no seal-image management feature is built. Only the bank account moves out of the source code.
 
 ---
 
@@ -243,11 +256,32 @@ SponsorshipContract
 
 Represents payment information for a contract.
 
+A Sponsorship Contract has at most one Payment, in every case below.
+
 ### Responsibilities
 
-* Amount
+* Billed amount (the contract total)
+* Received amount (実入金額 — what actually arrived, recorded by the Finance Department)
+* Remarks (備考 — e.g. the reason the received amount differs from the billed amount)
 * Payment status
 * Confirmation (date and performer of the Finance Department's manual confirmation — see `spec/model.md#Payment`, `confirmedAt`/`confirmedById`)
+
+### Amount Differences
+
+Decided in Issue #171:
+
+* **Bank fee deducted, or overpayment.** The Finance Department records the received amount as it arrived and may confirm the Payment even though it differs from the billed amount. The difference (received amount − billed amount) is shown, and the reason is written in the remarks.
+* **Split payment.** Each time a transfer arrives, the received amount is overwritten with the cumulative total so far. The Payment stays Waiting until the full amount is in, and is then confirmed. There is no partial-payment status. The history of each transfer is traced through 活動記録 and the remarks.
+
+AdAdd does not decide whether a difference is acceptable. Confirming is the Finance Department's judgment; the system only keeps the billed amount, the received amount, and the remarks side by side.
+
+The received amount is required to confirm a Payment; its input defaults to the billed amount. After confirmation, the received amount and the remarks stay editable without moving the Payment back to Waiting. Moving the Payment back to Waiting keeps the received amount.
+
+The receipt prints the received amount (see `spec/requirements.md` FR-015 → Receipt Timing).
+
+### Relation to Sponsorship Progress
+
+Confirming a Payment moves the Yearly Company's progress to Payment Received (協賛金入金), or keeps Receipt Sent (領収書送付); moving the Payment back to Waiting returns 協賛金入金 / 領収書送付 to Sponsorship Confirmed (協賛確定) (see Lifecycle → Sponsorship Progress Consistency). Payment reverts are recorded in 活動記録, and so are changes to the received amount and remarks (`PAYMENT_DETAILS_UPDATED`).
 
 ### Relationships
 
@@ -608,6 +642,8 @@ Confirmed
 ```
 
 Confirmation is performed manually by the Finance Department. Confirming the Payment, and moving it back to Waiting, also moves `YearlyCompany.progress` so that it matches the Payment (see Sponsorship Progress Consistency above).
+
+The received amount may be updated while Waiting (each transfer of a split payment) and while Confirmed (corrections). There is no intermediate status between Waiting and Confirmed (see Payment → Amount Differences).
 
 ---
 

@@ -245,18 +245,26 @@ Record sponsorship payment.
 
 ## Flow
 
-1. Confirm bank transfer.
+1. Confirm bank transfer (or, for a face-to-face contract, the money the member received on the spot).
 2. Open Sponsorship Contract.
-3. Register payment.
-4. Notify Sponsorship Member.
+3. Record the amount actually received (`Payment.receivedAmount`; the input defaults to the billed amount). For a split payment, enter the cumulative total received so far.
+4. If the received amount differs from the billed amount (bank fee deducted, overpayment), write the reason in the payment's remarks.
+5. Register payment (confirm) once the full amount has arrived — or, for a bank fee deduction or overpayment, once the difference has been explained in the remarks. `receivedAmount` is required to confirm.
+6. Notify Sponsorship Member.
 
 ## Result
 
-Payment status becomes confirmed, and the Yearly Company's progress moves to 協賛金入金 automatically (if it is already 領収書送付, it is kept).
+Payment status becomes confirmed, and the Yearly Company's progress moves to 協賛金入金 automatically (if it is already 領収書送付, it is kept). The billed amount, the received amount, and their difference remain visible.
 
 ## Notes
 
 A mistaken confirmation is reverted by moving the Payment back to waiting. If progress is 協賛金入金 or 領収書送付, it moves back to 協賛確定 automatically (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
+
+A split payment stays `WAITING` until the full amount is in; each partial transfer only updates `receivedAmount`. There is no partial-payment status (`spec/domain.md#Payment`).
+
+`receivedAmount` and remarks can still be corrected after confirmation without moving the Payment back to `WAITING`; each change is recorded in 活動記録. Moving the Payment back to `WAITING` keeps `receivedAmount`.
+
+A receipt may already have been handed over before this use case runs (face-to-face contracts — see UC-10).
 
 ---
 
@@ -268,18 +276,33 @@ Sponsorship Member
 
 ## Goal
 
-Send receipt after payment confirmation.
+Send a receipt for the sponsorship payment — usually after payment confirmation, or on the spot in a face-to-face contract.
 
 ## Flow
 
+By email (usual case):
+
 1. Confirm payment.
-2. Generate a receipt PDF from the Payment, pre-filled with the company name, amount, and `Payment.confirmedAt` (the payment confirmation date — see `spec/model.md` → Payment, FR-015).
+2. Generate a receipt PDF from the Payment, pre-filled with the company name, `Payment.receivedAmount`, and `Payment.confirmedAt` (the payment confirmation date — see `spec/model.md` → Payment, FR-015).
 3. Send receipt using Google Groups.
 4. Update sponsorship progress.
+
+Face-to-face contract:
+
+1. Generate the invoice and a receipt PDF while the Payment is still `WAITING`. The amount defaults to the billed amount; the payment date has no default and is entered manually.
+2. Bring both to the company and receive the money on the spot.
+3. Hand over the receipt.
+4. The Finance Department confirms the received money in AdAdd afterwards (UC-09).
 
 ## Result
 
 Business process is completed.
+
+## Notes
+
+A receipt can be generated from a `WAITING` or a `CONFIRMED` Payment (FR-015 → Receipt Timing). This replaces the earlier "`CONFIRMED` only" rule (Issue #159). A goods-sponsorship-only contract (`totalAmount = 0`) has no Payment and gets no receipt.
+
+The receipt has no receipt number, no consumption-tax breakdown, and no revenue stamp field (FR-015 → Document Format). The issuer information is read from the Contract's Year; the seal image stays in the repository (`apps/web/public/images/43rd_Stamp.png`).
 
 ---
 
@@ -455,7 +478,7 @@ Produce an invoice document to request payment from a sponsoring company.
 ## Flow
 
 1. Open the Sponsorship Contract.
-2. Generate an invoice PDF, pre-filled with the company's name/contact person, the contract's Contract Menus (name, quantity, unit price), and the total amount (see FR-015).
+2. Generate an invoice PDF, pre-filled with the company's name/contact person, the contract's paid Contract Menus (name, quantity, unit price — goods sponsorship lines are left out), and the total amount (see FR-015).
 3. Adjust content if needed (e.g. remarks, payment deadline).
 4. Download the PDF.
 5. Send it to the company via Google Groups.
@@ -468,6 +491,8 @@ The company receives an invoice, and sponsorship progress reflects that it was s
 ## Notes
 
 AdAdd generates the document but does not send it — sending remains a manual step via Google Groups, consistent with `spec/business.md` → External Systems → Google Groups. There is no stored Invoice entity; the PDF is produced fresh from current Contract data each time (see FR-015).
+
+A goods-sponsorship-only contract (`totalAmount = 0`) gets no invoice. The invoice has no invoice number and no consumption-tax breakdown. The issuer information and the bank transfer account are read from the Contract's Year (`spec/model.md#Year`), not from constants in the frontend (FR-015 → Document Format).
 
 ---
 

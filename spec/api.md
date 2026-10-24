@@ -318,18 +318,20 @@ Returns every festival Year.
 GET /years
 ```
 
+Each Year includes its document issuer information (`spec/model.md#Year`): `issuerName`, `issuerPostalCode`, `issuerAddressLine1`, `issuerAddressLine2`, `issuerEmail`, `bankName`, `bankBranchName`, `bankAccountType`, `bankAccountNumber`, `bankAccountHolderName`. The frontend reads these when it generates an invoice or receipt (FR-015). The seal image is not Year data and has no API; it stays a static file in the repository (`apps/web/public/images/43rd_Stamp.png`, Issue #176).
+
 ---
 
 ## Past Years Are Read-Only
 
-Only the active Year accepts changes. A past Year accepts exactly one kind of change: `PATCH /payments/{paymentId}` (payment confirmation, both `CONFIRMED` and back to `WAITING`) — see `spec/domain.md#Active Year and Past Years`.
+Only the active Year accepts changes. A past Year accepts exactly one kind of change: `PATCH /payments/{paymentId}` (payment confirmation, both `CONFIRMED` and back to `WAITING`, together with `receivedAmount` and `remarks`) — see `spec/domain.md#Active Year and Past Years`.
 
 Every other write to a record that belongs to a past Year is rejected with HTTP 409 `CONFLICT` and the message 過去の年度は閲覧のみです（入金確認を除く）. The Year of a record is resolved through its owner:
 
 | Endpoint | Year comes from |
 | -------- | --------------- |
 | `PATCH /years/{yearId}` | the Year itself |
-| `POST /years/{yearId}/companies`, `POST /years/{yearId}/sponsorship-menus`, `POST /years/{yearId}/sponsorship-menus/copy-from-previous-year` | `yearId` |
+| `POST /years/{yearId}/companies`, `POST /years/{yearId}/sponsorship-menus`, `POST /years/{yearId}/sponsorship-menus/copy-from-previous-year`, `PATCH /years/{yearId}/document-issuer` | `yearId` |
 | `PATCH /yearly-companies/{id}/…` (company-status, phase, progress, company-contact), `POST /yearly-companies/{id}/assignments`, `POST /yearly-companies/{id}/contract` | the Yearly Company |
 | `PATCH /contracts/{contractId}`, `POST /contracts/{contractId}/menus`, `POST /contracts/{contractId}/payment` | the Contract's Yearly Company |
 | `PATCH` / `DELETE /contract-menus/{id}` and its `status`, `production`, `drive-upload` | the Contract Menu's Contract |
@@ -363,6 +365,43 @@ Request:
 Side effect: bulk-generates a `YearlyCompany` for every existing `Company` (see `spec/usecase.md` UC-01, `spec/domain.md#Yearly Company`). For each Company, `companyStatus` is computed automatically (Continuing/New — never Dormant, see `spec/model.md#Value Objects` → `CompanyStatus`), `phase` defaults to `PHASE_3`, `progress` defaults to `NOT_CONTACTED`, and contact fields (`postalCode`, `address`, `phoneNumber`, `website`, `contactPersonName`, `contactEmailOrForm`, `memo`) are copied from that Company.
 
 `startDate` and `endDate` are plain `YYYY-MM-DD` dates, the same format as the response.
+
+Permission:
+
+* Administrator
+
+Side effect: the new Year's document issuer information (`issuer*`, `bank*`) is copied from the previous Year (`spec/model.md#Year`). The Administrator then edits it with Update Document Issuer Information below.
+
+---
+
+## Update Document Issuer Information
+
+Updates the issuer information and bank transfer account printed on the Year's invoices and receipts (FR-015, Issue #170). Replaces the constants that used to be hard-coded in `apps/web/src/lib/pdf/constants.ts`, so a change does not need a redeploy.
+
+```
+PATCH /years/{yearId}/document-issuer
+```
+
+Request (every field optional; omitted fields are unchanged):
+
+```json
+{
+  "issuerName": "長岡技術科学大学 技大祭実行委員会",
+  "issuerPostalCode": "〒940-2188",
+  "issuerAddressLine1": "新潟県長岡市上富岡町1603-1",
+  "issuerAddressLine2": "長岡技術科学大学内",
+  "issuerEmail": "sponsorship-group@example.com",
+  "bankName": "○○銀行（金融機関コード : 0000）",
+  "bankBranchName": "○○支店（支店コード : 000）",
+  "bankAccountType": "普通預金",
+  "bankAccountNumber": "0000000",
+  "bankAccountHolderName": "技大祭実行委員会(ギダイサイジツコウイインカイ)"
+}
+```
+
+Values are plain text and are printed as entered. Returns the updated Year.
+
+A past Year is rejected like any other past-Year write (Past Years Are Read-Only above).
 
 Permission:
 
@@ -1139,12 +1178,16 @@ Example response:
   "id": "payment_id",
   "contractId": "contract_id",
   "amount": 100000,
+  "receivedAmount": 99340,
+  "remarks": "振込手数料 660 円を差し引いて入金",
   "status": "WAITING",
   "confirmedAt": null,
   "confirmedById": null,
   "confirmedByName": null
 }
 ```
+
+`amount` is the billed amount (the contract total). `receivedAmount` is the amount actually received, `null` until the Finance Department records it. The difference is not returned; clients compute `receivedAmount − amount` for display (`spec/model.md#Payment`).
 
 Returns `404` if the contract has no Payment (e.g. a goods-sponsorship-only contract with `totalAmount = 0` — see Create Payment below).
 
@@ -1164,7 +1207,7 @@ Query:
 | --------- | ----------------------- |
 | status    | Filter by Payment status |
 
-Each item additionally includes `companyName`, `companyNameKana` (for bank-transfer-record matching, see `spec/frontend.md#Payment List`) and `yearlyCompanyId` (joined from the owning Contract's Yearly Company), `assignedMemberName` (joined from the Yearly Company's `CompanyAssignment`), and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row.
+Each item additionally includes `companyName`, `companyNameKana` (for bank-transfer-record matching, see `spec/frontend.md#Payment List`) and `yearlyCompanyId` (joined from the owning Contract's Yearly Company), `assignedMemberName` (joined from the Yearly Company's `CompanyAssignment`), and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row. `receivedAmount` and `remarks` are included as on Get Payment Status.
 
 A Payment whose Contract's Yearly Company has since been deleted is excluded from this list.
 
@@ -1180,7 +1223,7 @@ While the Payment remains `WAITING`, later Contract Menu changes keep `Payment.a
 POST /contracts/{contractId}/payment
 ```
 
-Response `status` starts at `WAITING`.
+Response `status` starts at `WAITING`, with `receivedAmount` `null` and `remarks` empty.
 
 Side effect: if the Yearly Company's `progress` is `GOODS_RECEIVED`, it moves back to `CONFIRMED` — a contract with a Payment progresses through the payment stages (see Update Sponsorship Progress).
 
@@ -1212,6 +1255,24 @@ Example:
   "status": "CONFIRMED"
 }
 ```
+
+The request may also carry `receivedAmount` and `remarks` (each optional; omitted fields are unchanged), with or without a `status` change (Issue #171):
+
+```json
+{
+  "receivedAmount": 99340,
+  "remarks": "振込手数料 660 円を差し引いて入金",
+  "status": "CONFIRMED"
+}
+```
+
+* `receivedAmount` may differ from `amount`. A difference does not reject the request — confirming with a bank-fee deduction or an overpayment is allowed, with the reason in `remarks`.
+* For a split payment, `receivedAmount` is sent as the cumulative total received so far, with `status` left `WAITING` until the full amount is in. There is no partial-payment status.
+* `amount` is not part of this request. It stays synchronized from the contract total (Create Payment above).
+* **`receivedAmount` is required to confirm.** A change to `CONFIRMED` is rejected with HTTP 400 if, after applying the request, `receivedAmount` would be `null`. The UI pre-fills the input with `amount` (the billed amount).
+* `receivedAmount` and `remarks` can be changed while the Payment stays `CONFIRMED` — send them without `status`. The Payment does not need to go back to `WAITING`.
+* Moving `status` back to `WAITING` keeps `receivedAmount`.
+* Every change of `receivedAmount` or `remarks` is recorded in 活動記録 as `PAYMENT_DETAILS_UPDATED` (event type defined with Issue #172).
 
 ---
 
@@ -1342,6 +1403,7 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 | View assigned companies         | ○         | ○                   | ○       | △       | ○              |
 | Manage company master data      | -         | ○                   | -       | -       | ○              |
 | Create Year                     | -         | -                   | -       | -       | ○              |
+| Update document issuer information (Year) | - | - | - | - | ○ |
 | Assign companies / advisors     | -         | -                   | -       | -       | ○              |
 | Update Year (name / period, active Year only) | - | - | - | - | ○ |
 | Manage menus (Sponsorship Menu / Contract Menu) — create/update only | - | ○ | - | - | ○ |
@@ -1419,4 +1481,4 @@ Potential future APIs:
 * Automatic bank transfer confirmation
 * Dashboard analytics
 
-Invoice/Receipt PDF generation (FR-015, UC-17, UC-10) needs no new API endpoint — it is generated client-side from data already returned by the existing Sponsorship Contract / Contract Menu / Payment / Company GET endpoints above.
+Invoice/Receipt PDF generation (FR-015, UC-17, UC-10) needs no generation endpoint — it is generated client-side from data already returned by the existing Sponsorship Contract / Contract Menu / Payment / Company / Year GET endpoints above. The issuer information and bank transfer account come from `GET /years` (Year fields). The receipt's seal image is a static frontend file, not an API resource.
