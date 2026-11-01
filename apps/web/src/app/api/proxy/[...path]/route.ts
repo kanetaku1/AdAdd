@@ -17,9 +17,7 @@ const SESSION_TOKEN_HEADER = "X-Session-Token"
  * Only Accept and Content-Type are taken from the browser's request
  * (lib/api/proxy-request.ts). When a session cookie exists, it becomes
  * `Authorization: Bearer` — the server, not the client, decides who's
- * authenticated. Without a session (nobody has logged in via Google yet),
- * the dev-stub X-User-ID/X-User-Roles headers are forwarded, preserving
- * today's local-dev flow (to be removed in Issue #156).
+ * authenticated. Without a session, no credentials are forwarded at all.
  */
 async function handler(
   req: NextRequest,

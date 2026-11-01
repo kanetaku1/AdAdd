@@ -4,8 +4,8 @@
 実装済みの主要エンドポイント、認証・認可の方法、リクエスト/レスポンス例を示します。
 
 ## 認証
-- 簡易開発用認証: HTTP ヘッダに `X-User-ID`（ユーザーID）と `X-User-Roles`（カンマ区切りロール）を付与してください。
-- 例: `X-User-ID: user-admin`, `X-User-Roles: ADMINISTRATOR,SPONSORSHIP_MEMBER`
+- `Authorization: Bearer {token}`。`{token}` は Google ログイン（`POST /auth/google`）で AdAdd が発行する JWT です（`spec/api.md#Authentication`）。
+- 開発用の `X-User-ID` / `X-User-Roles` ヘッダー認証はなくなりました（ADR-0004 Decision 7）。送っても無視されます。
 
 ## HTTP レスポンス概要
 - 成功: 200/201 と JSON `{ "data": ..., "message": "success|created|updated" }`

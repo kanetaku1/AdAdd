@@ -5,22 +5,29 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+	"time"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/auth"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/handler"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/testdb"
 	"github.com/labstack/echo/v4"
 )
 
-// apiClient sends requests to the full API as one User, authenticated with
-// the development X-User-ID / X-User-Roles headers (spec/api.md#Authentication).
+// testSessionIssuer signs the session JWTs of the tests. The API verifies
+// them like production sessions (spec/api.md#Authentication).
+var testSessionIssuer = auth.NewJWTIssuer("integration-test-secret")
+
+// apiClient sends requests to the full API as one User, with a session JWT.
+// Its Roles come from MySQL on every request, as in operation.
 type apiClient struct {
 	t      *testing.T
 	server *echo.Echo
 	userID string
-	roles  []string
 }
 
 // newAPI prepares an empty test database and the full API router.
@@ -28,15 +35,47 @@ func newAPI(t *testing.T) *echo.Echo {
 	t.Helper()
 	testdb.Open(t)
 
-	handler.InitAuth(nil, nil, true)
+	handler.InitAuth(testSessionIssuer, nil)
 	server := echo.New()
 	handler.RegisterHealthRoutes(server)
 	handler.RegisterRoutes(server)
 	return server
 }
 
-func asUser(t *testing.T, server *echo.Echo, userID string, roles ...string) *apiClient {
-	return &apiClient{t: t, server: server, userID: userID, roles: roles}
+// asUser stores an active User with the given Roles and returns a client
+// that acts as that User.
+func asUser(t *testing.T, server *echo.Echo, userID string, roleCodes ...string) *apiClient {
+	t.Helper()
+	createUserWithRoles(t, userID, roleCodes...)
+	return &apiClient{t: t, server: server, userID: userID}
+}
+
+// createUserWithRoles stores an active User and grants its Roles, as an
+// Administrator would.
+func createUserWithRoles(t *testing.T, userID string, roleCodes ...string) {
+	t.Helper()
+	if err := db.DB.Create(&model.User{ID: userID, Name: userID, Email: userID + "@example.com", IsActive: true}).Error; err != nil {
+		t.Fatalf("create user %s: %v", userID, err)
+	}
+	for _, roleCode := range roleCodes {
+		var role model.Role
+		if err := db.DB.First(&role, "code = ?", roleCode).Error; err != nil {
+			t.Fatalf("load role %s: %v", roleCode, err)
+		}
+		if err := db.DB.Create(&model.UserRole{UserID: userID, RoleID: role.ID, AssignedAt: time.Now()}).Error; err != nil {
+			t.Fatalf("grant role %s to %s: %v", roleCode, userID, err)
+		}
+	}
+}
+
+// authenticate attaches a session JWT for the client's User.
+func (c *apiClient) authenticate(request *http.Request) {
+	c.t.Helper()
+	token, err := testSessionIssuer.Issue(c.userID)
+	if err != nil {
+		c.t.Fatalf("issue session token: %v", err)
+	}
+	request.Header.Set(echo.HeaderAuthorization, "Bearer "+token)
 }
 
 // do sends a JSON request and returns the recorded response.
@@ -56,8 +95,7 @@ func (c *apiClient) do(method, path string, body any) *httptest.ResponseRecorder
 
 	request := httptest.NewRequest(method, path, reader)
 	request.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	request.Header.Set("X-User-ID", c.userID)
-	request.Header.Set("X-User-Roles", strings.Join(c.roles, ","))
+	c.authenticate(request)
 
 	recorder := httptest.NewRecorder()
 	c.server.ServeHTTP(recorder, request)

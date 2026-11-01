@@ -15,14 +15,12 @@ services:
       DB_USER: adadd
       DB_PASSWORD: adadd_password
       DB_NAME: adadd
+      # Development only. Production runs from compose.production.yml
+      # (spec/operations.md#Production Configuration).
       # Explicit, so this file never depends on the "unset means development" default.
       APP_ENV: development
-      # Empty falls back to an insecure development value (see .env.example).
-      JWT_SECRET: ${JWT_SECRET:-}
-      # APP_ENV defaults to "development"; DEV_AUTH_ENABLED must still be
-      # explicitly opted into even then (spec/api.md#Authentication) — this
-      # is what lets the X-User-ID/X-User-Roles stub keep working locally.
-      DEV_AUTH_ENABLED: "true"
+      # Required: the API refuses to start without it (see .env.example).
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required, see .env.example}
       MIGRATE_ON_START: "true"
       MIGRATIONS_PATH: /app/migrations
       # # Google OAuth client ID, used to verify id_tokens on POST /auth/google.
@@ -31,8 +29,9 @@ services:
       GOOGLE_DRIVE_ROOT_FOLDER_ID: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:-}
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID:-}
+    # Published on this machine only, not to the network.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
   mysql:
     image: mysql:8.4
@@ -45,8 +44,10 @@ services:
       MYSQL_PASSWORD: adadd_password
       MYSQL_ROOT_PASSWORD: root_password
 
+    # Published on this machine only, not to the network. The passwords above
+    # are development values; production never uses them.
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
 
     volumes:
       - mysql-data:/var/lib/mysql

@@ -2,9 +2,8 @@
  * API client for AdAdd backend.
  *
  * Requests go through /api/proxy, which attaches the session JWT
- * (spec/frontend.md#Login). The development header stub (X-User-ID /
- * X-User-Roles) is still sent; the proxy strips it when a session exists
- * (spec/decisions/0004-development-modes-and-sessions.md).
+ * (spec/frontend.md#Login). No other credentials exist: the development
+ * header stub was removed (spec/decisions/0004-development-modes-and-sessions.md).
  *
  * When NEXT_PUBLIC_API_BASE_URL is unset, callers should use the mock data
  * layer instead of this client.
@@ -56,28 +55,6 @@ export function isApiEnabled(): boolean {
   return getApiBaseUrl() !== null
 }
 
-/** Dev stub user ID — override via the `adadd.dev.userId` localStorage key. */
-export function getCurrentDevUserId(): string {
-  if (typeof window === "undefined") return "user_001"
-  return window.localStorage.getItem("adadd.dev.userId") ?? "user_001"
-}
-
-/** Dev stub credentials — override via localStorage keys when needed. */
-export function getDevAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") {
-    return {
-      "X-User-ID": "user_001",
-      "X-User-Roles": "ADMINISTRATOR,SPONSORSHIP_MEMBER",
-    }
-  }
-  const roles =
-    window.localStorage.getItem("adadd.dev.roles") ?? "ADMINISTRATOR,SPONSORSHIP_MEMBER"
-  return {
-    "X-User-ID": getCurrentDevUserId(),
-    "X-User-Roles": roles,
-  }
-}
-
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {}
@@ -93,11 +70,6 @@ export async function apiFetch<T>(
       headers.set("Content-Type", "application/json")
     }
   }
-  const auth = getDevAuthHeaders()
-  for (const [key, value] of Object.entries(auth)) {
-    headers.set(key, value)
-  }
-
   // Requests go through the Next.js BFF proxy (spec/frontend.md#Login)
   // rather than the Go API directly, so a logged-in session's JWT is
   // attached server-side in one place instead of ever reaching client-side

@@ -26,10 +26,8 @@ const apiEnvironment = {
   DB_USER: process.env.E2E_DB_USER ?? "adadd",
   DB_PASSWORD: process.env.E2E_DB_PASSWORD ?? "adadd_password",
   DB_NAME: process.env.E2E_DB_NAME ?? "adadd_e2e",
-  // Production session path: no header stub, and a known JWT_SECRET so
-  // tests can sign session JWTs. Set explicitly so a local apps/api/.env
-  // cannot change them.
-  DEV_AUTH_ENABLED: "false",
+  // A known JWT_SECRET so tests can sign session JWTs. Set explicitly so a
+  // local apps/api/.env cannot change it.
   JWT_SECRET: e2eJwtSecret,
   MIGRATE_ON_START: "true",
   MIGRATIONS_PATH: "./migrations",
@@ -41,8 +39,6 @@ const apiEnvironment = {
 
 const webEnvironment = {
   NEXT_PUBLIC_API_BASE_URL: apiBaseUrl,
-  // Set explicitly so a local .env.local cannot bypass the login guard.
-  NEXT_PUBLIC_DEV_AUTH_ENABLED: "false",
 }
 
 export default defineConfig({
