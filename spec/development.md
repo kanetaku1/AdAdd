@@ -340,16 +340,24 @@ Do not directly modify production databases.
 
 ## Migration Numbering
 
-Migrations live in `apps/api/migrations` as `NNNN_snake_case.up.sql` / `NNNN_snake_case.down.sql`, numbered in sequence.
+Migrations live in `apps/api/migrations` as `NNNN_snake_case.up.sql`, numbered in sequence. `0001_baseline.up.sql` is the whole schema at the start of production (see Baseline below). Every later change is a new file from `0002` on.
+
+### Up only
+
+There are no down migrations. The API and the tests only ever apply migrations forward (`m.Up()`), and a down file is never run. Many changes cannot be undone exactly anyway (dropped columns, deleted rows).
+
+* A mistake in a merged migration is fixed with a new migration.
+* The production database is rolled back by restoring a backup taken before the change (`spec/operations.md#Backup`), not by a down migration.
+* A local database is recreated (`spec/development.md#Development Seed`).
 
 ### Why the number matters
 
-golang-migrate records only the latest applied version, not each applied file. A migration whose number is lower than one already applied is **never applied, and no error is raised**. If PR A adds `0012` and PR B adds `0011`, and A is merged first, every database already at `0012` silently skips B's `0011`.
+golang-migrate records only the latest applied version, not each applied file. A migration whose number is lower than one already applied is **never applied, and no error is raised**. If PR A adds `0003` and PR B adds `0002`, and A is merged first, every database already at `0003` silently skips B's `0002`.
 
 ### Rules
 
 1. **A new migration takes the next number after the largest one on `main` at merge time.** Two open PRs may pick the same number while they are in progress.
-2. **Whichever PR merges second renumbers.** Merge `main` into the branch, rename both files to the next free number, and run the tests again. Only the file names change.
+2. **Whichever PR merges second renumbers.** Merge `main` into the branch, rename the file to the next free number, and run the tests again. Only the file name changes.
 3. **Never change, rename, or delete a migration that is on `main`.** It may already be applied on the production database. Fix a mistake with a new migration.
 4. A migration may depend on tables that exist only after another PR's migration. Then the merge order between those PRs is fixed. Say so in both PR descriptions.
 
@@ -357,7 +365,7 @@ golang-migrate records only the latest applied version, not each applied file. A
 
 `apps/api/scripts/check-migrations.sh <base>` enforces the rules. It fails when:
 
-* a number is shared, or lacks its up/down pair
+* a file is not `NNNN_snake_case.up.sql`, or a number is shared
 * an added migration's number is not above the largest in `<base>`
 * a migration in `<base>` was changed, renamed, or deleted
 
@@ -373,6 +381,109 @@ apps/api/scripts/check-migrations.sh origin/main
 ### A local database that ran an unmerged migration
 
 If you applied another branch's migration on your local database and that migration was renumbered later, your database records a version that no longer matches. Do not patch `schema_migrations` by hand. Recreate the local database (`spec/development.md#Development Seed`). Tell the team when others may be in the same state.
+
+---
+
+## Baseline
+
+Before any production data existed, the development-era migrations `0001`–`0012` (with their down files) were squashed into one file, `0001_baseline.up.sql`. It creates the same schema they produced — every column, default, index, foreign key, collation, and the four Roles — checked by comparing `information_schema` of both databases.
+
+Why: a new database, including the production one, is built from the finished schema instead of replaying the development history (7 Roles created then 3 deleted, columns added then dropped, tables converted to another collation).
+
+This was a one-time exception to rule 3, allowed only because no production database existed yet. It is never repeated: once the production database is running, its applied migrations are permanent.
+
+### Moving a local database to the baseline
+
+Every developer with a local database from before the squash does this **once**, after pulling the squash. A local database created before the squash records version `12`, which no longer has a file. The API then stops on start with `no migration found for version 12`.
+
+The integration test database (`*_test`) needs nothing: the tests rebuild it themselves. Only the development database (`adadd`) and the local E2E database (`adadd_e2e`) are moved.
+
+**Follow the steps in order.** The `adadd-api` container built before the squash still has the old migration files inside its image, and Docker Compose restarts it on its own (`restart: unless-stopped`). If it is still running when the version is changed to `1`, it applies the old `0002` and `0003` on its next restart, fails, and leaves the database `dirty` at version `3` (`Dirty database version 3. Fix and force version.`). That database can then only be recreated (step 3b).
+
+Run every command from the repository root unless noted.
+
+#### 1. Stop the old API container
+
+```bash
+docker compose stop api
+```
+
+#### 2. Check the state of each database
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password -e \
+  "SELECT 'adadd', version, dirty FROM adadd.schema_migrations; SELECT 'adadd_e2e', version, dirty FROM adadd_e2e.schema_migrations;"
+```
+
+`Unknown database 'adadd_e2e'` only means you never created the E2E database; skip it.
+
+| `version` / `dirty` | What to do |
+| ------------------- | ---------- |
+| `12` / `0` | 3a — keep the data |
+| `1` / `0` | Nothing — already moved |
+| Anything else, `dirty = 1`, or you applied a migration from an unmerged branch (e.g. the old `contract_menu_files` from the closed PR #139) | 3b — recreate |
+
+#### 3a. Keep the data: record the new version
+
+A database that ran every migration up to `0012_use_binary_collation` cleanly already has the baseline schema. Only the recorded version changes:
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
+  "UPDATE schema_migrations SET version = 1 WHERE version = 12 AND dirty = 0;"
+```
+
+For `adadd_e2e`, run the same command with `adadd_e2e` in place of `adadd`. The only output is a warning that a password was given on the command line; it can be ignored.
+
+#### 3b. Recreate: delete all local data
+
+This deletes every row, **including your own User**, so you can no longer sign in with Google until step 5.
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password -e \
+  "DROP DATABASE adadd; CREATE DATABASE adadd CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin; GRANT ALL PRIVILEGES ON adadd.* TO 'adadd'@'%';"
+```
+
+For `adadd_e2e`, run the same command with `adadd_e2e` in place of `adadd`. The next E2E run applies the baseline and the seed to it by itself.
+
+#### 4. Rebuild and start the API
+
+```bash
+docker compose up -d --build api
+docker logs adadd-api
+```
+
+`--build` is required: without it, the old image comes back. The log shows `migrations applied` and then `starting server on port 8080`. If you recreated `adadd` (3b), load the development data, from `apps/api`:
+
+```bash
+go run ./cmd/seed
+```
+
+#### 5. Register yourself again (only after 3b)
+
+The seed has only fictitious Users (`spec/development.md#Seed contents`). Signing in with your Google account shows `このメールアドレスは登録されていません。管理者に連絡してください。` until your User exists again. Insert yourself as an Administrator (replace the three values; the email must be the Google account you sign in with):
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
+  "SET @user_id = UUID();
+   INSERT INTO users (id, student_id, name, email, is_active) VALUES (@user_id, '<student id>', '<full name>', '<Google account email>', TRUE);
+   INSERT INTO user_roles (id, user_id, role_id) SELECT UUID(), @user_id, id FROM roles WHERE code = 'ADMINISTRATOR';"
+```
+
+Other Roles can then be granted from User List. Check with:
+
+```bash
+docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
+  "SELECT u.email, r.code FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id;"
+```
+
+#### Troubleshooting
+
+| Symptom | Cause | Fix |
+| ------- | ----- | ---- |
+| API log: `no migration found for version 12` | The database is still at the pre-squash version | Steps 1–4 |
+| API log: `Dirty database version 3` | The old container ran after the version was changed to `1` | Step 1, then 3b, 4, 5 |
+| `adadd-api` keeps restarting after step 4 | The image was not rebuilt | `docker compose up -d --build api` |
+| Sign-in shows `このメールアドレスは登録されていません。` | Your User was deleted with the database | Step 5 |
 
 ---
 
