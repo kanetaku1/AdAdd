@@ -233,7 +233,7 @@ func driveUploadContractMenu(c echo.Context) error {
 	if err != nil {
 		return respondBadRequest(c, "multipart form is required")
 	}
-	fileHeaders := append(form.File["files"], form.File["file"]...)
+	fileHeaders := append(form.File["file"], form.File["files"]...)
 	if len(fileHeaders) == 0 {
 		return respondBadRequest(c, "file or files is required")
 	}

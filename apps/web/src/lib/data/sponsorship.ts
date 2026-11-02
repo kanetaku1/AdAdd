@@ -541,7 +541,12 @@ export async function uploadContractMenuToDrive(
 ): Promise<ContractMenu> {
   if (isApiEnabled()) {
     const formData = new FormData()
-    for (const file of files) formData.append("files", file)
+    files.forEach((file, index) => {
+      // The first file keeps the legacy key so a rolling deployment remains
+      // compatible with the former single-file API. New servers also accept
+      // additional repeated `files` parts.
+      formData.append(index === 0 ? "file" : "files", file)
+    })
     formData.append("folderId", folderId)
     formData.append("accessToken", accessToken)
 

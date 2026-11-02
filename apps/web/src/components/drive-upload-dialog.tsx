@@ -14,6 +14,7 @@ import {
 import { ErrorBanner } from "@/components/query-state"
 import { uploadContractMenuToDrive } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
+import { ApiError } from "@/lib/api/client"
 import type { ContractMenu } from "@/types/contract-menu"
 
 export function DriveUploadDialog({
@@ -87,7 +88,18 @@ export function DriveUploadDialog({
                             onSuccess?.(updated)
                             onOpenChange(false)
                         } catch (err) {
-                            setError(getErrorMessage(err, { fallback: "アップロードに失敗しました" }))
+                            if (err instanceof ApiError && err.code === "INVALID_REQUEST") {
+                                const detail: Record<string, string> = {
+                                    "folderId is required": "アップロード先フォルダを選択してください。",
+                                    "accessToken is required": "Google Driveの認証情報を取得できませんでした。再度ログインしてください。",
+                                    "multipart form is required": "アップロードデータを読み取れませんでした。ファイルを選び直してください。",
+                                    "file or files is required": "アップロードするファイルを選択してください。",
+                                    "file is required": "アップロードするファイルを選択してください。",
+                                }
+                                setError(detail[err.message] ?? `アップロード内容を確認してください。（${err.message}）`)
+                            } else {
+                                setError(getErrorMessage(err, { fallback: "アップロードに失敗しました" }))
+                            }
                         } finally {
                             setBusy(false)
                         }
