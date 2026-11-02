@@ -28,7 +28,7 @@ export function DriveUploadDialog({
     /** Receives the updated Contract Menu so callers can refresh the row without refetching. */
     onSuccess?: (updated: ContractMenu) => void
 }) {
-    const [file, setFile] = useState<File | null>(null)
+    const [files, setFiles] = useState<File[]>([])
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [openPicker, authResponse] = useDrivePicker()
@@ -44,16 +44,14 @@ export function DriveUploadDialog({
     const GOOGLE_DRIVE_ROOT_FOLDER_ID = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_ROOT_FOLDER_ID || ""
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        maxFiles: 1,
+        multiple: true,
         onDrop: (acceptedFiles) => {
-            if (acceptedFiles.length > 0) {
-                setFile(acceptedFiles[0])
-            }
+            setFiles(acceptedFiles)
         },
     })
 
     async function handleUploadClick() {
-        if (!file) return
+        if (files.length === 0) return
 
         setBusy(true)
         setError(null)
@@ -85,7 +83,7 @@ export function DriveUploadDialog({
                         }
 
                         try {
-                            const updated = await uploadContractMenuToDrive(menuId, file, folderId, tokenToUse)
+                            const updated = await uploadContractMenuToDrive(menuId, files, folderId, tokenToUse)
                             onSuccess?.(updated)
                             onOpenChange(false)
                         } catch (err) {
@@ -108,7 +106,7 @@ export function DriveUploadDialog({
     return (
         <Dialog open={open} onOpenChange={(val) => {
             if (!busy) onOpenChange(val)
-            if (!val) setFile(null)
+            if (!val) setFiles([])
         }}>
             <DialogContent>
                 <DialogHeader>
@@ -123,20 +121,23 @@ export function DriveUploadDialog({
                         }`}
                 >
                     <input {...getInputProps()} />
-                    {file ? (
-                        <div className="font-medium text-green-700">選択済み: {file.name}</div>
+                    {files.length > 0 ? (
+                        <div className="space-y-1 text-left font-medium text-green-700">
+                            <div>選択済み: {files.length}件</div>
+                            {files.map((file) => <div key={`${file.name}-${file.lastModified}`} className="truncate text-sm">{file.name}</div>)}
+                        </div>
                     ) : (
                         <div className="text-gray-500">
                             {isDragActive
                                 ? "ここにファイルをドロップ..."
-                                : "ファイルをドラッグ＆ドロップ、またはクリックして選択"}
+                                : "複数ファイルをドラッグ＆ドロップ、またはクリックして選択"}
                         </div>
                     )}
                 </div>
 
                 <div className="flex justify-end gap-2 mt-4">
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>キャンセル</Button>
-                    <Button onClick={handleUploadClick} disabled={!file || busy || !GOOGLE_CLIENT_ID}>
+                    <Button onClick={handleUploadClick} disabled={files.length === 0 || busy || !GOOGLE_CLIENT_ID}>
                         {busy ? "アップロード中..." : "フォルダを選択してアップロード"}
                     </Button>
                 </div>

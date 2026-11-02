@@ -2,6 +2,8 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
@@ -11,6 +13,17 @@ import (
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
+
+var (
+	ErrPastYearReadOnly       = errors.New("contract menu files cannot be changed for a past year")
+	ErrSubmittedStateConflict = errors.New("SUBMITTED is derived from active files")
+	ErrInvalidDriveFile       = errors.New("invalid contract menu drive file")
+)
+
+type ContractMenuDriveFileInput struct {
+	DriveURL      string
+	DriveFileName string
+}
 
 type ContractMenuService struct {
 	repo *repository.ContractMenuRepository
@@ -87,11 +100,19 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 			return err
 		}
 		statusChanged := existing.Status != m.Status
+		var fileCount int64
+		if err := tx.Model(&model.ContractMenuDriveFile{}).
+			Where("contract_menu_id = ?", m.ID).Count(&fileCount).Error; err != nil {
+			return err
+		}
+		if (fileCount > 0 && m.Status != "SUBMITTED") || (fileCount == 0 && m.Status == "SUBMITTED") {
+			return ErrSubmittedStateConflict
+		}
 		m.CreatedAt = existing.CreatedAt
 		if m.IsGoodsSponsorship {
 			m.UnitPrice = decimal.Zero
 		}
-		if err := tx.Save(m).Error; err != nil {
+		if err := tx.Omit("Files").Save(m).Error; err != nil {
 			return err
 		}
 		if err := csvc.RecalculateTotalAmount(tx, m.ContractID); err != nil {
@@ -177,7 +198,7 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 			m.UnitPrice = smenu.DefaultPrice
 		}
 
-		if err := tx.Save(&m).Error; err != nil {
+		if err := tx.Omit("Files").Save(&m).Error; err != nil {
 			return err
 		}
 		return csvc.RecalculateTotalAmount(tx, m.ContractID)
@@ -187,4 +208,196 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		return nil, err
 	}
 	return &m, nil
+}
+
+func (s *ContractMenuService) ListFiles(contractMenuID string) ([]model.ContractMenuDriveFile, error) {
+	if _, err := s.repo.GetByID(contractMenuID); err != nil {
+		return nil, err
+	}
+	return s.repo.ListFiles(contractMenuID)
+}
+
+// EnsureFilesWritable rejects every material mutation after its Year becomes
+// historical. Handlers call it before performing an external Drive upload;
+// mutation methods repeat the check in their database transaction.
+func (s *ContractMenuService) EnsureFilesWritable(contractMenuID string) error {
+	return ensureContractMenuActiveYear(db.DB, contractMenuID)
+}
+
+func (s *ContractMenuService) AddFiles(contractMenuID string, inputs []ContractMenuDriveFileInput) (*model.ContractMenu, error) {
+	return s.addFiles(contractMenuID, inputs, nil)
+}
+
+func (s *ContractMenuService) AddUploadedFiles(contractMenuID, driveFolderID string, inputs []ContractMenuDriveFileInput) (*model.ContractMenu, error) {
+	return s.addFiles(contractMenuID, inputs, &driveFolderID)
+}
+
+func (s *ContractMenuService) addFiles(contractMenuID string, inputs []ContractMenuDriveFileInput, driveFolderID *string) (*model.ContractMenu, error) {
+	if len(inputs) == 0 {
+		return nil, fmt.Errorf("%w: at least one file is required", ErrInvalidDriveFile)
+	}
+	for i := range inputs {
+		inputs[i].DriveURL = strings.TrimSpace(inputs[i].DriveURL)
+		inputs[i].DriveFileName = strings.TrimSpace(inputs[i].DriveFileName)
+		if inputs[i].DriveURL == "" || inputs[i].DriveFileName == "" {
+			return nil, fmt.Errorf("%w: driveUrl and driveFileName are required", ErrInvalidDriveFile)
+		}
+	}
+
+	err := db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
+			return err
+		}
+		now := time.Now()
+		for _, input := range inputs {
+			file := &model.ContractMenuDriveFile{
+				ContractMenuID: contractMenuID,
+				DriveURL:       input.DriveURL,
+				DriveFileName:  input.DriveFileName,
+			}
+			if err := tx.Create(file).Error; err != nil {
+				return err
+			}
+		}
+		updates := map[string]interface{}{
+			"status":       "SUBMITTED",
+			"submitted_at": gorm.Expr("COALESCE(submitted_at, ?)", now),
+		}
+		if driveFolderID != nil {
+			updates["drive_folder_id"] = *driveFolderID
+		}
+		return tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).Updates(updates).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetByID(contractMenuID)
+}
+
+func (s *ContractMenuService) UpdateFile(contractMenuID, fileID string, driveURL, driveFileName *string) (*model.ContractMenuDriveFile, error) {
+	if driveURL == nil && driveFileName == nil {
+		return nil, fmt.Errorf("%w: driveUrl or driveFileName is required", ErrInvalidDriveFile)
+	}
+	updates := map[string]interface{}{}
+	if driveURL != nil {
+		value := strings.TrimSpace(*driveURL)
+		if value == "" {
+			return nil, fmt.Errorf("%w: driveUrl must not be empty", ErrInvalidDriveFile)
+		}
+		updates["drive_url"] = value
+	}
+	if driveFileName != nil {
+		value := strings.TrimSpace(*driveFileName)
+		if value == "" {
+			return nil, fmt.Errorf("%w: driveFileName must not be empty", ErrInvalidDriveFile)
+		}
+		updates["drive_file_name"] = value
+	}
+
+	var file model.ContractMenuDriveFile
+	err := db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
+			return err
+		}
+		if err := tx.First(&file, "id = ? AND contract_menu_id = ?", fileID, contractMenuID).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&file).Updates(updates).Error; err != nil {
+			return err
+		}
+		return tx.First(&file, "id = ?", file.ID).Error
+	})
+	return &file, err
+}
+
+func (s *ContractMenuService) DeleteFile(contractMenuID, fileID string) (*model.ContractMenu, error) {
+	err := db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
+			return err
+		}
+		var file model.ContractMenuDriveFile
+		if err := tx.First(&file, "id = ? AND contract_menu_id = ?", fileID, contractMenuID).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&file).Error; err != nil {
+			return err
+		}
+		var remaining int64
+		if err := tx.Model(&model.ContractMenuDriveFile{}).
+			Where("contract_menu_id = ?", contractMenuID).Count(&remaining).Error; err != nil {
+			return err
+		}
+		if remaining == 0 {
+			return tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).
+				Updates(map[string]interface{}{"status": "WAITING", "submitted_at": nil}).Error
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetByID(contractMenuID)
+}
+
+func (s *ContractMenuService) UpdateLegacyProduction(contractMenuID string, remarks *string, file *ContractMenuDriveFileInput) (*model.ContractMenu, error) {
+	if remarks == nil && file == nil {
+		return s.GetByID(contractMenuID)
+	}
+	if file != nil {
+		file.DriveURL = strings.TrimSpace(file.DriveURL)
+		file.DriveFileName = strings.TrimSpace(file.DriveFileName)
+		if file.DriveURL == "" || file.DriveFileName == "" {
+			return nil, fmt.Errorf("%w: driveUrl and driveFileName are required", ErrInvalidDriveFile)
+		}
+	}
+	err := db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
+			return err
+		}
+		if remarks != nil {
+			if err := tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).
+				Update("remarks", *remarks).Error; err != nil {
+				return err
+			}
+		}
+		if file == nil {
+			return nil
+		}
+		if err := tx.Create(&model.ContractMenuDriveFile{
+			ContractMenuID: contractMenuID,
+			DriveURL:       file.DriveURL,
+			DriveFileName:  file.DriveFileName,
+		}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).
+			Updates(map[string]interface{}{
+				"status":       "SUBMITTED",
+				"submitted_at": gorm.Expr("COALESCE(submitted_at, ?)", time.Now()),
+			}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetByID(contractMenuID)
+}
+
+func ensureContractMenuActiveYear(tx *gorm.DB, contractMenuID string) error {
+	var row struct {
+		IsActive bool `gorm:"column:is_active"`
+	}
+	err := tx.Table("contract_menus").
+		Select("years.is_active").
+		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = contract_menus.contract_id AND sponsorship_contracts.deleted_at IS NULL").
+		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id AND yearly_companies.deleted_at IS NULL").
+		Joins("JOIN years ON years.id = yearly_companies.year_id AND years.deleted_at IS NULL").
+		Where("contract_menus.id = ? AND contract_menus.deleted_at IS NULL", contractMenuID).
+		Take(&row).Error
+	if err != nil {
+		return err
+	}
+	if !row.IsActive {
+		return ErrPastYearReadOnly
+	}
+	return nil
 }
