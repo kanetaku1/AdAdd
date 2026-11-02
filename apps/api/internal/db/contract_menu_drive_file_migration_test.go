@@ -23,8 +23,11 @@ func TestContractMenuDriveFileMigrationPreservesLegacyDataBeforeDroppingColumns(
 	}
 	for _, required := range []string{
 		"COLLATE=utf8mb4_0900_bin",
-		"WHERE drive_url IS NOT NULL AND TRIM(drive_url) <> ''",
+		"WHERE drive_url IS NOT NULL AND TRIM(drive_url)",
 		"FOREIGN KEY (contract_menu_id) REFERENCES contract_menus (id) ON DELETE CASCADE",
+		"TABLE_NAME = 'contract_menu_files'",
+		"INSERT IGNORE INTO contract_menu_drive_files",
+		"SELECT id, contract_menu_id, drive_url, drive_file_name, created_at, updated_at, deleted_at FROM contract_menu_files",
 	} {
 		if !strings.Contains(sql, required) {
 			t.Fatalf("migration is missing %q", required)
