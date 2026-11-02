@@ -1025,11 +1025,19 @@ Example response:
     "productionType": "COMPANY",
     "productionDepartment": null,
     "status": "WAITING",
+    "files": [],
+    "fileCount": 0,
+    "isSubmitted": false,
+    "allowUpload": true,
+    "allowDelete": true,
     "driveUrl": null,
+    "driveFileName": null,
     "remarks": ""
   }
 ]
 ```
+
+`files` contains every undeleted `ContractMenuDriveFile`, ordered by creation time and ID. `fileCount` is `files.length`; `isSubmitted` and `status == SUBMITTED` are true exactly when `fileCount > 0`. `driveUrl` and `driveFileName` are deprecated read-only compatibility fields containing the first active file (or `null`). `allowUpload` / `allowDelete` combine the active-Year rule and the signed-in User's Role; the server still enforces the same checks on write endpoints.
 
 `status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL` or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#Enumerations`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
 
@@ -1150,7 +1158,7 @@ Example:
 }
 ```
 
-Any `ContractMenuStatus` may be set from any other, forward or back. The order is not enforced, because material is sent back and redone (`spec/model.md#ContractMenu`).
+Any non-`SUBMITTED` `ContractMenuStatus` may be set from any other while no active files exist. `SUBMITTED` cannot be set directly: adding the first file sets it, and deleting the last active file resets it to `WAITING`. A request that conflicts with the file-derived state returns `409 Conflict`.
 
 Permission:
 
@@ -1193,9 +1201,9 @@ Every other Role, Sponsorship Member included, receives `403 Forbidden`.
 
 ---
 
-## Upload Production Information
+## Legacy Production Information (compatibility)
 
-Registers production-related information.
+Registers production remarks and, when `driveFolderUrl` is supplied, appends one Drive-file reference. This endpoint remains for old clients; new clients use the files sub-resource below.
 
 ```
 PATCH /contract-menus/{id}/production
@@ -1206,15 +1214,65 @@ Request:
 ```json
 {
   "driveFolderUrl": "https://drive.google.com/...",
+  "driveFileName": "広告資料.pdf",
   "remarks": "企業確認済み"
 }
 ```
 
-This call and `POST /contract-menus/{id}/drive-upload` do not change `status` and write no Activity Log entry (Issue #166). A Contract Menu becomes `SUBMITTED` only through Update Contract Menu Status above, by Advertisement Manager / Administrator.
+When a file URL is supplied, the write follows the same rules as Add Contract Menu Files and sets the file-derived submitted state. `driveFileName` is optional only for compatibility and defaults to `資料`.
 
 Permission (both calls):
 
-* Sponsorship Member / Advertisement Manager / Administrator
+* Sponsorship Member / Advisor / Advertisement Manager / Administrator
+
+Both operations are rejected with `409 Conflict` for a past Year.
+
+---
+
+## List Contract Menu Files
+
+```
+GET /contract-menus/{id}/production/files
+```
+
+Returns active file references ordered by `createdAt`, then `id`. Reading is available to every authenticated User.
+
+## Add Contract Menu Files
+
+```
+POST /contract-menus/{id}/production/files
+```
+
+One request appends one or more references:
+
+```json
+{
+  "files": [
+    { "driveUrl": "https://drive.google.com/file/d/1/view", "driveFileName": "表面.pdf" },
+    { "driveUrl": "https://drive.google.com/file/d/2/view", "driveFileName": "裏面.pdf" }
+  ]
+}
+```
+
+`files` must contain at least one item and every URL/name must be non-empty. The operation is transactional. Adding the first active file makes the Contract Menu `SUBMITTED`. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only.
+
+The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. Every successfully uploaded Drive file is appended as a separate reference in one database transaction.
+
+## Update Contract Menu File
+
+```
+PATCH /contract-menus/{id}/production/files/{fileId}
+```
+
+Updates `driveUrl` and/or `driveFileName` on the named active reference. At least one field is required. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only.
+
+## Delete Contract Menu File
+
+```
+DELETE /contract-menus/{id}/production/files/{fileId}
+```
+
+Soft-deletes the reference. If it was the final active file, the Contract Menu leaves the submitted state and returns to `WAITING`. This does not delete the Google Drive body unless the Drive-specific upload flow explicitly performs that separate operation. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only. This exception does not weaken Administrator-only deletion of Company, Sponsorship Menu, or Contract Menu records.
 
 ---
 
@@ -1465,15 +1523,16 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 | Copy Sponsorship Menus from the previous Year | - | ○         | -       | -       | -                        | ○              |
 | Edit Contract Menu quantity / unit price / goods sponsorship | - | ○ | - | - | -  | ○ |
 | Edit Contract Menu production type | -       | ○                   | -       | -       | ○                        | ○              |
-| Update production information (remarks, Drive URL) / Drive upload | - | ○ | - | - | ○ | ○ |
+| Add/update production files / Drive upload | - | ○ | ○ | - | ○ | ○ |
+| Delete a production file reference | - | ○ | ○ | - | ○ | ○ |
 | Update Contract Menu status     | -         | -                   | -       | -       | ○                        | ○              |
 | Assign Contract Menu production department | - | -             | -       | -       | ○                        | ○              |
 | Create payment                  | -         | ○                   | -       | ○       | -                        | ○              |
 | Update payment status            | -         | -                   | -       | ○       | -                        | ○              |
 | Manage users / Roles            | -         | -                   | -       | -       | -                        | ○              |
-| Delete any record (Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole, ...) | - | - | - | - | - | ○ |
+| Delete an entity record (Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole, ...) | - | - | - | - | - | ○ |
 
-Deletion is Administrator-only system-wide — every other Role's "manage" access (row above) is create/update, never delete (`spec/model.md` Business Invariants).
+Entity deletion is Administrator-only system-wide. A production file reference is managed as submitted material and follows its dedicated row above; it is not permission to delete the Contract Menu, Sponsorship Menu, or Company.
 
 Contract Menu status and production department belong to Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) and Administrator only; a Sponsorship Member receives `403` for both (Issue #126, #127). On its own, Advertisement Manager covers every operation of the 広告管理 screen (`spec/frontend.md#Contract Menu List`) — status, production department, production type, production information, Drive upload — because a User may hold it without Sponsorship Member (cooperation with other bureaus such as the SNS部門). Usually it is held together with Sponsorship Member.
 

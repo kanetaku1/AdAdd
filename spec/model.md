@@ -21,6 +21,7 @@ Year
                 │
                 ├──── SponsorshipContract
                 │            ├──── ContractMenu ──→ SponsorshipMenu
+                │            │          └──── ContractMenuDriveFile
                 │            └──── Payment
                 │
                 ├──── CompanyAssignment (0..1)
@@ -229,13 +230,12 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 | productionDepartment | enum (nullable) |
 | status            | enum     |
 | driveFolderId     | string   |
-| driveUrl          | string   |
 | submittedAt       | datetime |
 | remarks           | text     |
 
 ContractMenu does not have its own assignee. Like its contract, it is handled by the Yearly Company's `CompanyAssignment`.
 
-`status` may be changed to any `ContractMenuStatus` value in any order. The order Waiting → Requested → Producing → Completed → Submitted is the usual one, not an enforced one, because material is sent back and redone (`spec/domain.md#Contract Menu`).
+`status` may be changed among the in-progress `ContractMenuStatus` values in any order. `SUBMITTED` is the material-submission state and is derived from the active Drive-file references: one or more undeleted `ContractMenuDriveFile` rows means `SUBMITTED`; zero means not submitted. Adding the first file sets the stored status to `SUBMITTED`, and deleting the last active file resets it to `WAITING`, so persisted data and API responses remain consistent.
 
 `unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus. `quantity`, `unitPrice`, `isGoodsSponsorship`, and `productionType` remain editable after creation (not just at creation), each recalculating `totalAmount` per the rule above — see `spec/api.md#Update Contract Menu`.
 
@@ -244,6 +244,26 @@ ContractMenu does not have its own assignee. Like its contract, it is handled by
 `status` is changed only by the Advertisement Manager Role and Administrator (`spec/api.md#Update Contract Menu Status`, Issue #126).
 
 `isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
+
+---
+
+## ContractMenuDriveFile
+
+Represents one Google Drive file reference attached to a Contract Menu. Google Drive stores the file body; AdAdd stores only its metadata and reference.
+
+### Attributes
+
+| Name           | Type     | Required |
+| -------------- | -------- | -------- |
+| id             | UUID     | ✓        |
+| contractMenuId | UUID     | ✓        |
+| driveUrl       | string   | ✓        |
+| driveFileName  | string   | ✓        |
+| createdAt      | datetime | ✓        |
+| updatedAt      | datetime | ✓        |
+| deletedAt      | datetime |          |
+
+A Contract Menu has zero or more Drive-file references. Soft-deleted rows are excluded from `files`, `fileCount`, and the submitted-state calculation. The former `ContractMenu.driveUrl` / `driveFileName` columns are migrated into this entity before those columns are removed; the API may expose the first active file through deprecated read-only compatibility fields, but new writes always target this entity.
 
 ---
 
@@ -663,6 +683,16 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 * `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company.
 * A newly added Contract Menu must reference a Sponsorship Menu with `isActive = true`.
 * `productionDepartment` is non-null only when `productionType` is `INTERNAL`.
+* A Contract Menu has zero or more `ContractMenuDriveFile` rows.
+* `SUBMITTED` is true exactly when at least one undeleted `ContractMenuDriveFile` exists.
+
+---
+
+## ContractMenuDriveFile
+
+* Every Drive-file reference belongs to exactly one Contract Menu.
+* File bodies remain in Google Drive; AdAdd never stores them.
+* Soft-deleted references do not count as submitted material.
 
 ---
 
@@ -692,7 +722,7 @@ The following rules must always be satisfied.
 * The assignee of a Sponsorship Contract and its Contract Menus is the Yearly Company's CompanyAssignment; neither stores one of its own.
 * A User must be pre-registered (by email, by an Administrator) before they can authenticate — there is no self-service signup, regardless of authentication provider.
 * Roles are granted by an Administrator through UserRole; a User is never able to grant themselves a Role.
-* Deletion is Administrator-only across the system (e.g. Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole). Non-Administrator Roles may create and update but never delete — see `spec/api.md#Authorization Matrix`.
+* Entity deletion is Administrator-only across the system (e.g. Company, Sponsorship Menu, Contract Menu, AdvisorAssignment, UserRole). Deleting a Contract Menu's Drive-file reference is a material-management operation, not entity-master deletion; Sponsorship Members, Advisors, Advertisement Managers, and Administrators may perform it for the active Year — see `spec/api.md#Authorization Matrix`.
 * ActivityLog entries are created only by the system, and only when a value actually changes — there is no manual/user-authored entry point. The recorded operations are listed in `spec/domain.md#Activity Log`.
 
 ---

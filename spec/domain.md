@@ -221,7 +221,7 @@ YearlyCompany
 
 Represents one Sponsorship Menu that a company has actually contracted for, as part of a Sponsorship Contract.
 
-A Contract Menu references exactly one Sponsorship Menu. A contract may contain multiple Contract Menus.
+A Contract Menu references exactly one Sponsorship Menu. A contract may contain multiple Contract Menus, and each Contract Menu may contain multiple Google Drive file references. Google Drive remains the source of truth for file bodies; AdAdd stores only file names, URLs, and lifecycle metadata.
 
 The management content differs depending on the referenced Sponsorship Menu's `requiresSubmission`: submission/production management when true (e.g. print advertisements, web-based formats such as a homepage banner), or none when false (e.g. company booth — booth logistics only).
 
@@ -241,7 +241,8 @@ Goods sponsorship is **not** a Sponsorship Menu of its own — the same Sponsors
 * Production method (when submission is required)
 * Production department (when the production method is Internal Production — see Contract Menu Production Department below)
 * Progress status
-* Google Drive folder
+* Google Drive folder and zero or more submitted-file references
+* Submitted-state derivation: at least one undeleted file reference means submitted; deleted references do not count
 
 ### Relationships
 
@@ -249,6 +250,7 @@ Goods sponsorship is **not** a Sponsorship Menu of its own — the same Sponsors
 SponsorshipContract
         │
         └── ContractMenu ──→ SponsorshipMenu
+                    └── ContractMenuDriveFile (0..*)
 ```
 
 ---
