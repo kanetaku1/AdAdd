@@ -317,6 +317,7 @@ An entry is written only when a value actually changes. Saving the same value ag
 * Contract Menu added or removed
 * Contract Menu quantity or unit price changed
 * Contract Menu status changed (ad status)
+* Ad material registered/uploaded, and its Drive file moved to trash
 * Payment confirmed, and payment confirmation reverted
 * Payment actual received amount or remarks changed (the fields are defined by Issue #170 / #171)
 * Company contact information changed on the Yearly Company

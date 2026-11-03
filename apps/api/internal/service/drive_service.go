@@ -2,34 +2,82 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 
 	"mime"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/config"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 )
 
-type DriveService struct{}
+var (
+	ErrDriveNotConfigured = errors.New("dedicated Google Drive account is not configured")
+	ErrDriveFileIDMissing = errors.New("Google Drive file ID is unavailable")
+	ErrDriveFolderTarget  = errors.New("the Drive reference points to a folder, not a file")
+)
+
+var driveFileIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+type DriveService struct {
+	clientID     string
+	clientSecret string
+	refreshToken string
+	apiEndpoint  string
+	tokenSource  oauth2.TokenSource
+}
 
 func NewDriveService() *DriveService {
-	return &DriveService{}
+	cfg := config.Load()
+	return &DriveService{
+		clientID:     cfg.GoogleDriveClientID,
+		clientSecret: cfg.GoogleDriveClientSecret,
+		refreshToken: cfg.GoogleDriveRefreshToken,
+	}
+}
+
+func (s *DriveService) driveClient(ctx context.Context) (*drive.Service, error) {
+	var client *http.Client
+	if s.tokenSource != nil {
+		client = oauth2.NewClient(ctx, s.tokenSource)
+	} else {
+		if strings.TrimSpace(s.clientID) == "" || strings.TrimSpace(s.clientSecret) == "" || strings.TrimSpace(s.refreshToken) == "" {
+			return nil, ErrDriveNotConfigured
+		}
+		oauthConfig := &oauth2.Config{
+			ClientID:     s.clientID,
+			ClientSecret: s.clientSecret,
+			Endpoint:     google.Endpoint,
+			Scopes:       []string{drive.DriveScope},
+		}
+		client = oauthConfig.Client(ctx, &oauth2.Token{RefreshToken: s.refreshToken})
+	}
+	options := []option.ClientOption{option.WithHTTPClient(client)}
+	if s.apiEndpoint != "" {
+		options = append(options, option.WithEndpoint(s.apiEndpoint))
+	}
+	srv, err := drive.NewService(ctx, options...)
+	if err != nil {
+		return nil, fmt.Errorf("create Drive client: %w", err)
+	}
+	return srv, nil
 }
 
 // UploadFile uploads a file to the specified Google Drive folder, renaming it
 // based on the folder hierarchy and a suffix (e.g. from ContractMenu.ProductionType).
-func (s *DriveService) UploadFile(ctx context.Context, accessToken, folderId, rootFolderId, suffix, originalExt, providedMimeType string, fileContent io.Reader) (*drive.File, error) {
-	token := &oauth2.Token{AccessToken: accessToken}
-	tokenSource := oauth2.StaticTokenSource(token)
-	client := oauth2.NewClient(ctx, tokenSource)
-
-	srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
+func (s *DriveService) UploadFile(ctx context.Context, folderId, rootFolderId, suffix, originalExt, providedMimeType string, fileContent io.Reader) (*drive.File, error) {
+	srv, err := s.driveClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create drive client: %w", err)
+		return nil, err
 	}
 
 	// 1. Traverse folder hierarchy to determine the base file name (all folders below rootFolderId)
@@ -89,36 +137,70 @@ func (s *DriveService) UploadFile(ctx context.Context, accessToken, folderId, ro
 
 	fileName := baseName + originalExt
 
-	// 3. Check if file with same name already exists in the folder
-	query := fmt.Sprintf("name='%s' and '%s' in parents and trashed=false", fileName, folderId)
-	fileList, err := srv.Files.List().Q(query).Fields("files(id)").SupportsAllDrives(true).IncludeItemsFromAllDrives(true).Do()
-	if err != nil {
-		return nil, fmt.Errorf("failed to check existing files: %w", err)
+	// 3. Always create a new Drive file. Drive permits duplicate names, and a
+	// ContractMenuDriveFile must never share a mutable body with another row.
+	fileMeta := &drive.File{
+		Name:     fileName,
+		Parents:  []string{folderId},
+		MimeType: mimeType,
 	}
-
-	var uploadedFile *drive.File
-	if len(fileList.Files) > 0 {
-		// Update existing file
-		existingFileId := fileList.Files[0].Id
-		f := &drive.File{
-			MimeType: mimeType,
-		} // keep existing metadata, update mimeType and media
-		uploadedFile, err = srv.Files.Update(existingFileId, f).Media(fileContent, googleapi.ContentType(mimeType)).Fields("id, webViewLink, name").SupportsAllDrives(true).Do()
-		if err != nil {
-			return nil, fmt.Errorf("failed to update existing file in drive: %w", err)
-		}
-	} else {
-		// Create new file
-		fileMeta := &drive.File{
-			Name:     fileName,
-			Parents:  []string{folderId},
-			MimeType: mimeType,
-		}
-		uploadedFile, err = srv.Files.Create(fileMeta).Media(fileContent, googleapi.ContentType(mimeType)).Fields("id, webViewLink, name").SupportsAllDrives(true).Do()
-		if err != nil {
-			return nil, fmt.Errorf("failed to upload file to drive: %w", err)
-		}
+	uploadedFile, err := srv.Files.Create(fileMeta).Media(fileContent, googleapi.ContentType(mimeType)).Fields("id, webViewLink, name").SupportsAllDrives(true).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload file to drive: %w", err)
 	}
 
 	return uploadedFile, nil
+}
+
+// TrashFile moves a Drive file to trash as the dedicated Google account. It
+// deliberately refuses folders and never calls Files.Delete (permanent delete).
+func (s *DriveService) TrashFile(ctx context.Context, fileID string) error {
+	fileID = strings.TrimSpace(fileID)
+	if !driveFileIDPattern.MatchString(fileID) {
+		return ErrDriveFileIDMissing
+	}
+	srv, err := s.driveClient(ctx)
+	if err != nil {
+		return err
+	}
+	file, err := srv.Files.Get(fileID).
+		Fields("id,mimeType,trashed").
+		SupportsAllDrives(true).
+		Do()
+	if err != nil {
+		return fmt.Errorf("read Drive file before trash: %w", err)
+	}
+	if file.MimeType == "application/vnd.google-apps.folder" {
+		return ErrDriveFolderTarget
+	}
+	if file.Trashed {
+		return nil
+	}
+	_, err = srv.Files.Update(fileID, &drive.File{Trashed: true}).
+		Fields("id,trashed").
+		SupportsAllDrives(true).
+		Do()
+	if err != nil {
+		return fmt.Errorf("move Drive file to trash: %w", err)
+	}
+	return nil
+}
+
+// ExtractDriveFileID recovers IDs from the Drive URL formats AdAdd has stored
+// historically. It rejects arbitrary URLs and never treats a whole URL as an ID.
+func ExtractDriveFileID(rawURL string) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || u.Host == "" || !strings.EqualFold(u.Host, "drive.google.com") {
+		return "", ErrDriveFileIDMissing
+	}
+	if id := strings.TrimSpace(u.Query().Get("id")); driveFileIDPattern.MatchString(id) {
+		return id, nil
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	for i, part := range parts[:max(0, len(parts)-1)] {
+		if part == "d" && driveFileIDPattern.MatchString(parts[i+1]) {
+			return parts[i+1], nil
+		}
+	}
+	return "", ErrDriveFileIDMissing
 }

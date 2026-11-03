@@ -887,7 +887,23 @@ In MySQL mode, a developer's Google account must be registered both as a test us
 | `GOOGLE_CLIENT_ID` | Verifies Google id_tokens (same value as in `apps/web`). |
 | `DB_*`, `MIGRATE_ON_START`, `MIGRATIONS_PATH`, `APP_PORT`, `ALLOWED_ORIGINS` | Database and server. |
 | `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Drive folder for ad material files. |
+| `GOOGLE_DRIVE_CLIENT_ID` / `GOOGLE_DRIVE_CLIENT_SECRET` | OAuth web client used only by the dedicated Drive account (ADR-0006). The client ID defaults to `GOOGLE_CLIENT_ID`. |
+| `GOOGLE_DRIVE_REFRESH_TOKEN` | Offline token for the dedicated Drive account. Secret; never commit or expose to the browser. |
+| `GOOGLE_DRIVE_ACCOUNT_EMAIL` | Optional login hint for the one-time Drive authorization command. |
 | `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | Optional Slack mention (UC-16). |
+
+Register `http://127.0.0.1:8787/callback` as an authorized redirect URI on
+the Drive OAuth client. Put its client ID, client secret, and optional dedicated
+account email in `apps/api/.env`, then run from `apps/api`:
+
+```powershell
+go run ./cmd/drive-auth -env-file ../../.env
+```
+
+Open the printed Google URL and authenticate the dedicated account with its
+passkey. The command stores the refresh token directly in the gitignored root
+`.env` without printing it. Restart the API container afterward. Ordinary
+AdAdd Users never run this command.
 
 There is no development authentication setting. The former `DEV_AUTH_ENABLED` / `NEXT_PUBLIC_DEV_AUTH_ENABLED` header stub was removed (ADR-0004 Decision 7). Production settings are in `spec/operations.md#Production Configuration`.
 

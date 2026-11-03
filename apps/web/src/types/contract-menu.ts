@@ -18,6 +18,7 @@ export type ContractMenuStatus =
 export type ContractMenuDriveFile = {
   id: string
   contractMenuId: string
+  driveFileId: string | null
   driveUrl: string
   driveFileName: string
   createdAt?: string

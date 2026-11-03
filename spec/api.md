@@ -1258,6 +1258,8 @@ One request appends one or more references:
 
 The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. The request contains `folderId` and file bodies; it does not contain a Google access token. The API uploads as the configured dedicated Google account and persists each returned `driveFileId`. Every successfully uploaded Drive file is appended as a separate reference in one database transaction. If the dedicated integration is unavailable, the endpoint returns `503 Service Unavailable` without adding a reference.
 
+Every body is created as a new Drive file even when another file in the folder has the same display name. If a later upload or the database transaction fails, the API makes a best-effort attempt to move the files created by that request to trash; no incomplete reference is committed.
+
 ## Update Contract Menu File
 
 ```
@@ -1484,12 +1486,14 @@ Entries are exclusively system-generated. There is no manual/user-authored entry
 | `CONTRACT_MENU_UPDATED` | a Contract Menu's `quantity` or `unitPrice` changes |
 | `CONTRACT_MENU_REMOVED` | a Contract Menu is deleted |
 | `CONTRACT_MENU_STATUS_UPDATED` | a Contract Menu's status changes |
+| `AD_MATERIAL_UPLOADED` | an ad-material Drive reference is registered or uploaded |
+| `AD_MATERIAL_TRASHED` | its Drive file is moved to trash and the reference is soft-deleted |
 | `PAYMENT_STATUS_UPDATED` | a Payment is confirmed, or moved back from `CONFIRMED` to `WAITING` |
 | `PAYMENT_DETAILS_UPDATED` | a Payment's actual received amount or remarks change (the fields are defined by Issue #170 / #171) |
 
 An entry is written only when the value actually changes; saving the same value writes nothing. The `message` names what changed in business language (e.g. `「パンフレット広告1P」の数量を「1」から「2」に更新`, `入金確認を取り消し`).
 
-Not recorded: Contract Menu `productionType`, Drive / production information (`PATCH /contract-menus/{id}/production`, `drive-upload` — these do not change the Contract Menu status), and `PATCH /companies/{companyId}` (Company master only — there is no Yearly Company to attach the entry to). Whether to record these is not decided (Issue #172).
+Not recorded: Contract Menu `productionType`, production-department changes, and `PATCH /companies/{companyId}` (Company master only — there is no Yearly Company to attach the entry to). Drive-file registration/upload and trash are recorded by the two ad-material events above.
 
 `MANUAL_NOTE` may appear on rows written before manual entry was removed; new rows never use it.
 

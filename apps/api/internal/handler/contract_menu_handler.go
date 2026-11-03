@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,8 +15,24 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
 	"github.com/shopspring/decimal"
+	"google.golang.org/api/drive/v3"
 	"gorm.io/gorm"
 )
+
+type ContractMenuDriveOperator interface {
+	UploadFile(context.Context, string, string, string, string, string, io.Reader) (*drive.File, error)
+	TrashFile(context.Context, string) error
+}
+
+var newContractMenuDriveOperator = func() ContractMenuDriveOperator {
+	return service.NewDriveService()
+}
+
+// SetContractMenuDriveOperatorFactory wires the Drive dependency. Production
+// uses the dedicated-account service above; integration tests inject a fake.
+func SetContractMenuDriveOperatorFactory(factory func() ContractMenuDriveOperator) {
+	newContractMenuDriveOperator = factory
+}
 
 func RegisterContractMenuRoutes(e *echo.Echo) {
 	r := e.Group("")
@@ -208,7 +225,8 @@ func uploadContractMenuProduction(c echo.Context) error {
 		}
 		file = &service.ContractMenuDriveFileInput{DriveURL: *body.DriveFolderUrl, DriveFileName: name}
 	}
-	cm, err := svc.UpdateLegacyProduction(id, body.Remarks, file)
+	userID, _ := c.Get("userId").(string)
+	cm, err := svc.UpdateLegacyProduction(id, body.Remarks, file, userID)
 	if err != nil {
 		return respondContractMenuFileError(c, err)
 	}
@@ -224,11 +242,6 @@ func driveUploadContractMenu(c echo.Context) error {
 	if folderId == "" {
 		return respondBadRequest(c, "folderId is required")
 	}
-	accessToken := c.FormValue("accessToken")
-	if accessToken == "" {
-		return respondBadRequest(c, "accessToken is required")
-	}
-
 	form, err := c.MultipartForm()
 	if err != nil {
 		return respondBadRequest(c, "multipart form is required")
@@ -273,17 +286,19 @@ func driveUploadContractMenu(c echo.Context) error {
 	suffix = fmt.Sprintf("%s_%s", suffix, companyName)
 
 	rootFolderId := os.Getenv("GOOGLE_DRIVE_ROOT_FOLDER_ID")
-	driveSvc := service.NewDriveService()
+	driveSvc := newContractMenuDriveOperator()
 	inputs := make([]service.ContractMenuDriveFileInput, 0, len(fileHeaders))
 	fileNames := make([]string, 0, len(fileHeaders))
 	for i, fileHeader := range fileHeaders {
 		file, err := fileHeader.Open()
 		if err != nil {
+			cleanupUploadedDriveFiles(c.Request().Context(), driveSvc, inputs)
 			return respondInternalServerError(c, err)
 		}
 		fileBytes, readErr := io.ReadAll(file)
 		file.Close()
 		if readErr != nil {
+			cleanupUploadedDriveFiles(c.Request().Context(), driveSvc, inputs)
 			return respondInternalServerError(c, fmt.Errorf("failed to read file content: %w", readErr))
 		}
 		originalExt := filepath.Ext(fileHeader.Filename)
@@ -295,7 +310,6 @@ func driveUploadContractMenu(c echo.Context) error {
 		}
 		uploadedFile, uploadErr := driveSvc.UploadFile(
 			c.Request().Context(),
-			accessToken,
 			folderId,
 			rootFolderId,
 			uploadSuffix,
@@ -304,17 +318,26 @@ func driveUploadContractMenu(c echo.Context) error {
 			bytes.NewReader(fileBytes),
 		)
 		if uploadErr != nil {
-			return respondInternalServerError(c, uploadErr)
+			cleanupUploadedDriveFiles(c.Request().Context(), driveSvc, inputs)
+			return respondDriveOperationError(c, uploadErr)
 		}
+		if uploadedFile == nil || strings.TrimSpace(uploadedFile.Id) == "" {
+			cleanupUploadedDriveFiles(c.Request().Context(), driveSvc, inputs)
+			return respondDriveOperationError(c, service.ErrDriveFileIDMissing)
+		}
+		driveFileID := uploadedFile.Id
 		inputs = append(inputs, service.ContractMenuDriveFileInput{
+			DriveFileID:   &driveFileID,
 			DriveURL:      uploadedFile.WebViewLink,
 			DriveFileName: uploadedFile.Name,
 		})
 		fileNames = append(fileNames, uploadedFile.Name)
 	}
 
-	cm, err = menuSvc.AddUploadedFiles(id, folderId, inputs)
+	userID, _ := c.Get("userId").(string)
+	cm, err = menuSvc.AddUploadedFiles(id, folderId, inputs, userID)
 	if err != nil {
+		cleanupUploadedDriveFiles(c.Request().Context(), driveSvc, inputs)
 		return respondContractMenuFileError(c, err)
 	}
 	applyContractMenuCapabilities(c, cm)
@@ -325,6 +348,17 @@ func driveUploadContractMenu(c echo.Context) error {
 		"fileNames": fileNames,
 		"fileName":  fileNames[0],
 	})
+}
+
+// cleanupUploadedDriveFiles is a best-effort compensation for a request that
+// uploaded Drive bodies but could not commit their AdAdd references.
+func cleanupUploadedDriveFiles(ctx context.Context, driveSvc ContractMenuDriveOperator, inputs []service.ContractMenuDriveFileInput) {
+	for _, input := range inputs {
+		if input.DriveFileID == nil || strings.TrimSpace(*input.DriveFileID) == "" {
+			continue
+		}
+		_ = driveSvc.TrashFile(ctx, *input.DriveFileID)
+	}
 }
 
 func updateContractMenuDetails(c echo.Context) error {
@@ -376,8 +410,9 @@ func listContractMenuFiles(c echo.Context) error {
 func addContractMenuFiles(c echo.Context) error {
 	var body struct {
 		Files []struct {
-			DriveURL      string `json:"driveUrl"`
-			DriveFileName string `json:"driveFileName"`
+			DriveFileID   *string `json:"driveFileId"`
+			DriveURL      string  `json:"driveUrl"`
+			DriveFileName string  `json:"driveFileName"`
 		} `json:"files"`
 	}
 	if err := c.Bind(&body); err != nil {
@@ -386,11 +421,13 @@ func addContractMenuFiles(c echo.Context) error {
 	inputs := make([]service.ContractMenuDriveFileInput, 0, len(body.Files))
 	for _, file := range body.Files {
 		inputs = append(inputs, service.ContractMenuDriveFileInput{
+			DriveFileID:   file.DriveFileID,
 			DriveURL:      file.DriveURL,
 			DriveFileName: file.DriveFileName,
 		})
 	}
-	cm, err := service.NewContractMenuService().AddFiles(c.Param("id"), inputs)
+	userID, _ := c.Get("userId").(string)
+	cm, err := service.NewContractMenuService().AddFiles(c.Param("id"), inputs, userID)
 	if err != nil {
 		return respondContractMenuFileError(c, err)
 	}
@@ -416,12 +453,41 @@ func updateContractMenuFile(c echo.Context) error {
 }
 
 func deleteContractMenuFile(c echo.Context) error {
-	cm, err := service.NewContractMenuService().DeleteFile(c.Param("id"), c.Param("fileId"))
+	menuSvc := service.NewContractMenuService()
+	file, err := menuSvc.GetFileForDeletion(c.Param("id"), c.Param("fileId"))
+	if err != nil {
+		return respondContractMenuFileError(c, err)
+	}
+	driveFileID := ""
+	if file.DriveFileID != nil {
+		driveFileID = strings.TrimSpace(*file.DriveFileID)
+	}
+	if driveFileID == "" {
+		driveFileID, err = service.ExtractDriveFileID(file.DriveURL)
+		if err != nil {
+			return respondConflict(c, "Google DriveのファイルIDを特定できないため削除できません")
+		}
+	}
+	if err := newContractMenuDriveOperator().TrashFile(c.Request().Context(), driveFileID); err != nil {
+		return respondDriveOperationError(c, err)
+	}
+	userID, _ := c.Get("userId").(string)
+	cm, err := menuSvc.DeleteFile(c.Param("id"), c.Param("fileId"), driveFileID, userID)
 	if err != nil {
 		return respondContractMenuFileError(c, err)
 	}
 	applyContractMenuCapabilities(c, cm)
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "deleted"})
+}
+
+func respondDriveOperationError(c echo.Context, err error) error {
+	if errors.Is(err, service.ErrDriveNotConfigured) {
+		return respondDriveUnavailable(c, http.StatusServiceUnavailable, "Google Drive連携が設定されていません。管理者に連絡してください")
+	}
+	if errors.Is(err, service.ErrDriveFileIDMissing) || errors.Is(err, service.ErrDriveFolderTarget) {
+		return respondConflict(c, err.Error())
+	}
+	return respondDriveUnavailable(c, http.StatusBadGateway, "Google Driveの操作に失敗しました。AdAddの資料は変更されていません")
 }
 
 func respondContractMenuFileError(c echo.Context, err error) error {

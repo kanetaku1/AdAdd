@@ -186,6 +186,7 @@ func (cm *ContractMenu) PrepareFileSummary() {
 type ContractMenuDriveFile struct {
 	ID             string         `gorm:"type:char(36);primaryKey" json:"id"`
 	ContractMenuID string         `gorm:"type:char(36);not null;index" json:"contractMenuId"`
+	DriveFileID    *string        `gorm:"size:255;index" json:"driveFileId"`
 	DriveURL       string         `gorm:"size:1024;not null" json:"driveUrl"`
 	DriveFileName  string         `gorm:"size:1024;not null" json:"driveFileName"`
 	CreatedAt      time.Time      `json:"createdAt"`

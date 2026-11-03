@@ -21,6 +21,7 @@ var (
 )
 
 type ContractMenuDriveFileInput struct {
+	DriveFileID   *string
 	DriveURL      string
 	DriveFileName string
 }
@@ -224,15 +225,15 @@ func (s *ContractMenuService) EnsureFilesWritable(contractMenuID string) error {
 	return ensureContractMenuActiveYear(db.DB, contractMenuID)
 }
 
-func (s *ContractMenuService) AddFiles(contractMenuID string, inputs []ContractMenuDriveFileInput) (*model.ContractMenu, error) {
-	return s.addFiles(contractMenuID, inputs, nil)
+func (s *ContractMenuService) AddFiles(contractMenuID string, inputs []ContractMenuDriveFileInput, userID string) (*model.ContractMenu, error) {
+	return s.addFiles(contractMenuID, inputs, nil, userID)
 }
 
-func (s *ContractMenuService) AddUploadedFiles(contractMenuID, driveFolderID string, inputs []ContractMenuDriveFileInput) (*model.ContractMenu, error) {
-	return s.addFiles(contractMenuID, inputs, &driveFolderID)
+func (s *ContractMenuService) AddUploadedFiles(contractMenuID, driveFolderID string, inputs []ContractMenuDriveFileInput, userID string) (*model.ContractMenu, error) {
+	return s.addFiles(contractMenuID, inputs, &driveFolderID, userID)
 }
 
-func (s *ContractMenuService) addFiles(contractMenuID string, inputs []ContractMenuDriveFileInput, driveFolderID *string) (*model.ContractMenu, error) {
+func (s *ContractMenuService) addFiles(contractMenuID string, inputs []ContractMenuDriveFileInput, driveFolderID *string, userID string) (*model.ContractMenu, error) {
 	if len(inputs) == 0 {
 		return nil, fmt.Errorf("%w: at least one file is required", ErrInvalidDriveFile)
 	}
@@ -248,15 +249,31 @@ func (s *ContractMenuService) addFiles(contractMenuID string, inputs []ContractM
 		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
 			return err
 		}
+		logContext, err := loadContractMenuFileLogContext(tx, contractMenuID)
+		if err != nil {
+			return err
+		}
 		now := time.Now()
 		for _, input := range inputs {
 			file := &model.ContractMenuDriveFile{
 				ContractMenuID: contractMenuID,
+				DriveFileID:    input.DriveFileID,
 				DriveURL:       input.DriveURL,
 				DriveFileName:  input.DriveFileName,
 			}
 			if err := tx.Create(file).Error; err != nil {
 				return err
+			}
+			if userID != "" {
+				if err := tx.Create(&model.ActivityLog{
+					YearlyCompanyID: logContext.YearlyCompanyID,
+					UserID:          userID,
+					Action:          model.EventAdMaterialUploaded,
+					Description:     fmt.Sprintf("%sの広告資料「%s」をアップロード", logContext.MenuName, file.DriveFileName),
+					CreatedAt:       now,
+				}).Error; err != nil {
+					return err
+				}
 			}
 		}
 		updates := map[string]interface{}{
@@ -310,7 +327,18 @@ func (s *ContractMenuService) UpdateFile(contractMenuID, fileID string, driveURL
 	return &file, err
 }
 
-func (s *ContractMenuService) DeleteFile(contractMenuID, fileID string) (*model.ContractMenu, error) {
+func (s *ContractMenuService) GetFileForDeletion(contractMenuID, fileID string) (*model.ContractMenuDriveFile, error) {
+	if err := ensureContractMenuActiveYear(db.DB, contractMenuID); err != nil {
+		return nil, err
+	}
+	var file model.ContractMenuDriveFile
+	if err := db.DB.First(&file, "id = ? AND contract_menu_id = ?", fileID, contractMenuID).Error; err != nil {
+		return nil, err
+	}
+	return &file, nil
+}
+
+func (s *ContractMenuService) DeleteFile(contractMenuID, fileID, driveFileID, userID string) (*model.ContractMenu, error) {
 	err := db.WithTx(func(tx *gorm.DB) error {
 		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
 			return err
@@ -319,8 +347,27 @@ func (s *ContractMenuService) DeleteFile(contractMenuID, fileID string) (*model.
 		if err := tx.First(&file, "id = ? AND contract_menu_id = ?", fileID, contractMenuID).Error; err != nil {
 			return err
 		}
+		logContext, err := loadContractMenuFileLogContext(tx, contractMenuID)
+		if err != nil {
+			return err
+		}
+		file.DriveFileID = &driveFileID
+		if err := tx.Model(&file).Update("drive_file_id", driveFileID).Error; err != nil {
+			return err
+		}
 		if err := tx.Delete(&file).Error; err != nil {
 			return err
+		}
+		if userID != "" {
+			if err := tx.Create(&model.ActivityLog{
+				YearlyCompanyID: logContext.YearlyCompanyID,
+				UserID:          userID,
+				Action:          model.EventAdMaterialTrashed,
+				Description:     fmt.Sprintf("%sの広告資料「%s」をゴミ箱へ移動", logContext.MenuName, file.DriveFileName),
+				CreatedAt:       time.Now(),
+			}).Error; err != nil {
+				return err
+			}
 		}
 		var remaining int64
 		if err := tx.Model(&model.ContractMenuDriveFile{}).
@@ -339,7 +386,7 @@ func (s *ContractMenuService) DeleteFile(contractMenuID, fileID string) (*model.
 	return s.GetByID(contractMenuID)
 }
 
-func (s *ContractMenuService) UpdateLegacyProduction(contractMenuID string, remarks *string, file *ContractMenuDriveFileInput) (*model.ContractMenu, error) {
+func (s *ContractMenuService) UpdateLegacyProduction(contractMenuID string, remarks *string, file *ContractMenuDriveFileInput, userID string) (*model.ContractMenu, error) {
 	if remarks == nil && file == nil {
 		return s.GetByID(contractMenuID)
 	}
@@ -363,12 +410,29 @@ func (s *ContractMenuService) UpdateLegacyProduction(contractMenuID string, rema
 		if file == nil {
 			return nil
 		}
-		if err := tx.Create(&model.ContractMenuDriveFile{
+		created := &model.ContractMenuDriveFile{
 			ContractMenuID: contractMenuID,
+			DriveFileID:    file.DriveFileID,
 			DriveURL:       file.DriveURL,
 			DriveFileName:  file.DriveFileName,
-		}).Error; err != nil {
+		}
+		if err := tx.Create(created).Error; err != nil {
 			return err
+		}
+		if userID != "" {
+			logContext, err := loadContractMenuFileLogContext(tx, contractMenuID)
+			if err != nil {
+				return err
+			}
+			if err := tx.Create(&model.ActivityLog{
+				YearlyCompanyID: logContext.YearlyCompanyID,
+				UserID:          userID,
+				Action:          model.EventAdMaterialUploaded,
+				Description:     fmt.Sprintf("%sの広告資料「%s」を登録", logContext.MenuName, created.DriveFileName),
+				CreatedAt:       time.Now(),
+			}).Error; err != nil {
+				return err
+			}
 		}
 		return tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).
 			Updates(map[string]interface{}{
@@ -380,6 +444,28 @@ func (s *ContractMenuService) UpdateLegacyProduction(contractMenuID string, rema
 		return nil, err
 	}
 	return s.GetByID(contractMenuID)
+}
+
+type contractMenuFileLogContext struct {
+	YearlyCompanyID string
+	MenuName        string
+}
+
+func loadContractMenuFileLogContext(tx *gorm.DB, contractMenuID string) (*contractMenuFileLogContext, error) {
+	var result contractMenuFileLogContext
+	err := tx.Table("contract_menus").
+		Select("sponsorship_contracts.yearly_company_id, sponsorship_menus.name AS menu_name").
+		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = contract_menus.contract_id").
+		Joins("JOIN sponsorship_menus ON sponsorship_menus.id = contract_menus.sponsorship_menu_id").
+		Where("contract_menus.id = ?", contractMenuID).
+		Take(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	if result.MenuName == "" {
+		result.MenuName = "協賛メニュー"
+	}
+	return &result, nil
 }
 
 func ensureContractMenuActiveYear(tx *gorm.DB, contractMenuID string) error {

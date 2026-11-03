@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import useDrivePicker from "react-google-drive-picker"
 import { useDropzone } from "react-dropzone"
 
@@ -32,12 +32,7 @@ export function DriveUploadDialog({
     const [files, setFiles] = useState<File[]>([])
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [openPicker, authResponse] = useDrivePicker()
-
-    const authRef = useRef<unknown>(null)
-    useEffect(() => {
-        authRef.current = authResponse
-    }, [authResponse])
+    const [openPicker] = useDrivePicker()
 
     // Notice: Google Developer Console Client ID and API Key required
     const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
@@ -67,31 +62,20 @@ export function DriveUploadDialog({
                 supportDrives: true,
                 multiselect: false,
                 setSelectFolderEnabled: true,
-                customScopes: ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file"],
+                customScopes: ["https://www.googleapis.com/auth/drive.metadata.readonly"],
                 callbackFunction: async (data: unknown) => {
                     if (data && typeof data === "object" && (data as { action?: string }).action === "picked") {
-                        const pickedData = data as { docs: { id: string }[], accessToken?: string }
+                        const pickedData = data as { docs: { id: string }[] }
                         const folderId = pickedData.docs[0].id
 
-                        const actualAuth = authRef.current as { access_token?: string } | null
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const tokenToUse = actualAuth?.access_token || pickedData.accessToken || (window as any).gapi?.client?.getToken()?.access_token || ""
-
-                        if (!tokenToUse) {
-                            setError("Google Driveの認証トークンが取得できませんでした。再度お試しください。")
-                            setBusy(false)
-                            return
-                        }
-
                         try {
-                            const updated = await uploadContractMenuToDrive(menuId, files, folderId, tokenToUse)
+                            const updated = await uploadContractMenuToDrive(menuId, files, folderId)
                             onSuccess?.(updated)
                             onOpenChange(false)
                         } catch (err) {
                             if (err instanceof ApiError && err.code === "INVALID_REQUEST") {
                                 const detail: Record<string, string> = {
                                     "folderId is required": "アップロード先フォルダを選択してください。",
-                                    "accessToken is required": "Google Driveの認証情報を取得できませんでした。再度ログインしてください。",
                                     "multipart form is required": "アップロードデータを読み取れませんでした。ファイルを選び直してください。",
                                     "file or files is required": "アップロードするファイルを選択してください。",
                                     "file is required": "アップロードするファイルを選択してください。",

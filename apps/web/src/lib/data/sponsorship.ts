@@ -157,6 +157,7 @@ function mapApiContractMenu(cm: {
   files?: Array<{
     id: string
     contractMenuId?: string
+    driveFileId?: string | null
     driveUrl: string
     driveFileName: string
     createdAt?: string
@@ -172,6 +173,7 @@ function mapApiContractMenu(cm: {
     ? [{
         id: `legacy-${cm.id}`,
         contractMenuId: cm.id,
+        driveFileId: null,
         driveUrl: cm.driveUrl,
         driveFileName: cm.driveFileName ?? "資料",
       }]
@@ -195,6 +197,7 @@ function mapApiContractMenu(cm: {
     files: files.map((file) => ({
       ...file,
       contractMenuId: file.contractMenuId ?? cm.id,
+      driveFileId: file.driveFileId ?? null,
     })),
     fileCount: cm.fileCount ?? files.length,
     isSubmitted,
@@ -515,6 +518,7 @@ export async function updateContractMenuProduction(
     {
       id: crypto.randomUUID(),
       contractMenuId: id,
+      driveFileId: null,
       driveUrl: input.driveFolderUrl,
       driveFileName: "資料",
     },
@@ -536,8 +540,7 @@ export async function updateContractMenuProduction(
 export async function uploadContractMenuToDrive(
   id: string,
   files: File[],
-  folderId: string,
-  accessToken: string
+  folderId: string
 ): Promise<ContractMenu> {
   if (isApiEnabled()) {
     const formData = new FormData()
@@ -548,7 +551,6 @@ export async function uploadContractMenuToDrive(
       formData.append(index === 0 ? "file" : "files", file)
     })
     formData.append("folderId", folderId)
-    formData.append("accessToken", accessToken)
 
     const updated = await apiFetch<{
       id: string
@@ -575,6 +577,7 @@ export async function uploadContractMenuToDrive(
       ...files.map((file) => ({
         id: crypto.randomUUID(),
         contractMenuId: id,
+        driveFileId: null,
         driveUrl: "http://mock.drive.url",
         driveFileName: file.name,
       })),
