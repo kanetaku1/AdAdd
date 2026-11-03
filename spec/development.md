@@ -894,16 +894,16 @@ In MySQL mode, a developer's Google account must be registered both as a test us
 
 Register `http://127.0.0.1:8787/callback` as an authorized redirect URI on
 the Drive OAuth client. Put its client ID, client secret, and optional dedicated
-account email in `apps/api/.env`, then run from `apps/api`:
+account email in the gitignored repository-root `.env`, then run from `apps/api`:
 
 ```powershell
 go run ./cmd/drive-auth -env-file ../../.env
 ```
 
-Open the printed Google URL and authenticate the dedicated account with its
-passkey. The command stores the refresh token directly in the gitignored root
-`.env` without printing it. Restart the API container afterward. Ordinary
-AdAdd Users never run this command.
+The command reads and updates the file named by `-env-file`. Open the printed
+Google URL and authenticate the dedicated account with its passkey. The command
+stores the refresh token in that file without printing it. Restart the API
+container afterward. Ordinary AdAdd Users never run this command.
 
 There is no development authentication setting. The former `DEV_AUTH_ENABLED` / `NEXT_PUBLIC_DEV_AUTH_ENABLED` header stub was removed (ADR-0004 Decision 7). Production settings are in `spec/operations.md#Production Configuration`.
 

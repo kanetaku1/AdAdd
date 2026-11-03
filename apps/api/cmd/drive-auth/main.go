@@ -31,6 +31,9 @@ func main() {
 	envFile := flag.String("env-file", "../../.env", "gitignored env file to update")
 	flag.Parse()
 
+	if err := godotenv.Overload(*envFile); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("load Drive environment file: %v", err)
+	}
 	cfg := config.Load()
 	if cfg.GoogleDriveClientID == "" || cfg.GoogleDriveClientSecret == "" {
 		log.Fatal("GOOGLE_DRIVE_CLIENT_ID (or GOOGLE_CLIENT_ID) and GOOGLE_DRIVE_CLIENT_SECRET are required")
