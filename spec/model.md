@@ -257,13 +257,14 @@ Represents one Google Drive file reference attached to a Contract Menu. Google D
 | -------------- | -------- | -------- |
 | id             | UUID     | ✓        |
 | contractMenuId | UUID     | ✓        |
+| driveFileId    | string   |          |
 | driveUrl       | string   | ✓        |
 | driveFileName  | string   | ✓        |
 | createdAt      | datetime | ✓        |
 | updatedAt      | datetime | ✓        |
 | deletedAt      | datetime |          |
 
-A Contract Menu has zero or more Drive-file references. Soft-deleted rows are excluded from `files`, `fileCount`, and the submitted-state calculation. The former `ContractMenu.driveUrl` / `driveFileName` columns are migrated into this entity before those columns are removed; the API may expose the first active file through deprecated read-only compatibility fields, but new writes always target this entity.
+A Contract Menu has zero or more Drive-file references. `driveFileId` is the immutable Google Drive file identifier used for trash operations. It is nullable only for references created before dedicated-account uploads; the server may recover it from a recognized legacy Drive URL. Soft-deleted rows are excluded from `files`, `fileCount`, and the submitted-state calculation. The former `ContractMenu.driveUrl` / `driveFileName` columns are migrated into this entity before those columns are removed; the API may expose the first active file through deprecated read-only compatibility fields, but new writes always target this entity.
 
 ---
 

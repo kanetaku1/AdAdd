@@ -1256,7 +1256,7 @@ One request appends one or more references:
 
 `files` must contain at least one item and every URL/name must be non-empty. The operation is transactional. Adding the first active file makes the Contract Menu `SUBMITTED`. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only.
 
-The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. Every successfully uploaded Drive file is appended as a separate reference in one database transaction.
+The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. The request contains `folderId` and file bodies; it does not contain a Google access token. The API uploads as the configured dedicated Google account and persists each returned `driveFileId`. Every successfully uploaded Drive file is appended as a separate reference in one database transaction. If the dedicated integration is unavailable, the endpoint returns `503 Service Unavailable` without adding a reference.
 
 ## Update Contract Menu File
 
@@ -1272,7 +1272,7 @@ Updates `driveUrl` and/or `driveFileName` on the named active reference. At leas
 DELETE /contract-menus/{id}/production/files/{fileId}
 ```
 
-Soft-deletes the reference. If it was the final active file, the Contract Menu leaves the submitted state and returns to `WAITING`. This does not delete the Google Drive body unless the Drive-specific upload flow explicitly performs that separate operation. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only. This exception does not weaken Administrator-only deletion of Company, Sponsorship Menu, or Contract Menu records.
+Moves the Google Drive body to trash (`trashed = true`) as the dedicated Google account, then soft-deletes the reference. If Drive rejects the operation, AdAdd leaves the reference active and returns an error. If it was the final active file, the Contract Menu leaves the submitted state and returns to `WAITING`. Permanent Drive deletion is never used. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only. This exception does not weaken Administrator-only deletion of Company, Sponsorship Menu, or Contract Menu records.
 
 ---
 

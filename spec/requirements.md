@@ -308,11 +308,13 @@ Reference Contract Menu submission files stored in Google Drive.
 
 The system shall:
 
-* Store Drive Folder IDs
+* Store Drive Folder IDs and immutable Drive File IDs
 * Open Drive folders
+* Upload through the API as the dedicated Google account
+* Move the Drive original to trash before deleting an AdAdd reference
 * Display uploaded file status
 
-The system shall not manage file contents. Drive files are referenced via `PATCH /contract-menus/{id}/production` and `POST /contract-menus/{id}/drive-upload` — there is no separate Integration Drive-link API.
+Google Drive stores file bodies. AdAdd relays uploads, stores metadata and Drive identifiers, and requests trash operations through `POST /contract-menus/{id}/drive-upload` and the file sub-resource. There is no separate Integration Drive-link API.
 
 ### Related Use Cases
 
