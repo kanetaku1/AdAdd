@@ -4,9 +4,31 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"time"
+	// Embeds the time zone database: the MySQL driver loads Asia/Tokyo by
+	// name when it connects, and the alpine image has no tzdata.
+	_ "time/tzdata"
 )
 
 const dateLayout = "2006-01-02"
+
+// JapanTimeZone is the time zone of every date and timestamp AdAdd stores:
+// the system is used in Japan (spec/architecture.md#Time Zone).
+var JapanTimeZone = mustLoadLocation("Asia/Tokyo")
+
+func mustLoadLocation(name string) *time.Location {
+	location, err := time.LoadLocation(name)
+	if err != nil {
+		panic(fmt.Sprintf("model: load time zone %s: %v", name, err))
+	}
+	return location
+}
+
+// BusinessDateOf returns the JST calendar day of the given instant, e.g. the
+// default contract date for "now", whatever the time zone of the machine.
+func BusinessDateOf(instant time.Time) Date {
+	year, month, day := instant.In(JapanTimeZone).Date()
+	return Date(time.Date(year, month, day, 0, 0, 0, 0, JapanTimeZone))
+}
 
 // Date is a date-only value (no time-of-day/timezone component). Used for
 // fields whose wire format is a plain "YYYY-MM-DD" string per spec/api.md
