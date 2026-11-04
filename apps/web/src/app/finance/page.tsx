@@ -16,6 +16,7 @@ import {
 import { EditablePaymentStatusBadge } from "@/components/editable-payment-status-badge"
 import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
+import { businessToday } from "@/lib/business-date"
 import { listPaymentsByYear, updatePaymentStatus } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
@@ -174,10 +175,8 @@ export default function FinancePage() {
                       initialData={{
                         companyName: payment.companyName,
                         amount: payment.amount,
-                        issuedDate: new Date().toISOString().slice(0, 10),
-                        paymentDate:
-                          payment.confirmedAt ??
-                          new Date().toISOString().slice(0, 10),
+                        issuedDate: businessToday(),
+                        paymentDate: payment.confirmedAt ?? businessToday(),
                       }}
                       fileName={`領収書_${payment.companyName}.pdf`}
                     />
