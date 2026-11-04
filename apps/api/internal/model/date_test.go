@@ -77,8 +77,8 @@ func TestBusinessDateOfUsesJapanTime(t *testing.T) {
 			if formatted := time.Time(got).Format(dateLayout); formatted != c.want {
 				t.Fatalf("got %s, want %s", formatted, c.want)
 			}
-			if location := time.Time(got).Location(); location != time.UTC {
-				t.Fatalf("got location %s, want UTC so a DATE column keeps the day", location)
+			if location := time.Time(got).Location().String(); location != "Asia/Tokyo" {
+				t.Fatalf("got location %s, want Asia/Tokyo", location)
 			}
 		})
 	}

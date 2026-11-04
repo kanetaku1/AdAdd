@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/config"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -35,18 +35,18 @@ func Init(cfg *config.Config) {
 }
 
 // ConfigureConnection applies the settings every AdAdd connection uses.
-// Timestamps are UTC on both sides (spec/architecture.md#Time Zone): Go
-// writes and reads DATETIME as UTC (loc), and the session time_zone makes
-// MySQL's CURRENT_TIMESTAMP defaults UTC as well — independent of the time
-// zone of the machine running the API or of the MySQL server.
+// Timestamps are stored in JST (spec/architecture.md#Time Zone): Go writes
+// and reads DATETIME as JST (loc), and the session time_zone makes MySQL's
+// CURRENT_TIMESTAMP defaults JST as well — independent of the time zone of
+// the machine running the API or of the MySQL server.
 func ConfigureConnection(connection *gomysql.Config) {
 	connection.ParseTime = true
-	connection.Loc = time.UTC
+	connection.Loc = model.JapanTimeZone
 	if connection.Params == nil {
 		connection.Params = map[string]string{}
 	}
 	connection.Params["charset"] = "utf8mb4"
-	connection.Params["time_zone"] = "'+00:00'"
+	connection.Params["time_zone"] = "'+09:00'"
 }
 
 // WithTx runs fn inside a database transaction and returns its error if any.

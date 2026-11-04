@@ -4,16 +4,16 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"time"
-	// Embeds the time zone database, so Asia/Tokyo loads even on an image
-	// without tzdata (the API runs on alpine).
+	// Embeds the time zone database: the MySQL driver loads Asia/Tokyo by
+	// name when it connects, and the alpine image has no tzdata.
 	_ "time/tzdata"
 )
 
 const dateLayout = "2006-01-02"
 
-// BusinessLocation is the time zone of business dates: the festival
-// committee works in Japan (spec/architecture.md#Time Zone).
-var BusinessLocation = mustLoadLocation("Asia/Tokyo")
+// JapanTimeZone is the time zone of every date and timestamp AdAdd stores:
+// the system is used in Japan (spec/architecture.md#Time Zone).
+var JapanTimeZone = mustLoadLocation("Asia/Tokyo")
 
 func mustLoadLocation(name string) *time.Location {
 	location, err := time.LoadLocation(name)
@@ -24,11 +24,10 @@ func mustLoadLocation(name string) *time.Location {
 }
 
 // BusinessDateOf returns the JST calendar day of the given instant, e.g. the
-// default contract date for "now". The Date is midnight UTC of that day, like
-// a parsed "YYYY-MM-DD", so storing it as a DATE never shifts the day.
+// default contract date for "now", whatever the time zone of the machine.
 func BusinessDateOf(instant time.Time) Date {
-	year, month, day := instant.In(BusinessLocation).Date()
-	return Date(time.Date(year, month, day, 0, 0, 0, 0, time.UTC))
+	year, month, day := instant.In(JapanTimeZone).Date()
+	return Date(time.Date(year, month, day, 0, 0, 0, 0, JapanTimeZone))
 }
 
 // Date is a date-only value (no time-of-day/timezone component). Used for

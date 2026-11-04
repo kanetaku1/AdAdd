@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/testdb"
 )
 
-// Timestamps are UTC on both sides (spec/architecture.md#Time Zone): MySQL's
-// CURRENT_TIMESTAMP defaults and the values Go reads are UTC, whatever the
+// Timestamps are stored in JST (spec/architecture.md#Time Zone): MySQL's
+// CURRENT_TIMESTAMP defaults and the values Go reads are JST, whatever the
 // time zone of the machine running the API (Issue #160).
-func TestDatabaseConnectionUsesUTC(t *testing.T) {
+func TestDatabaseConnectionUsesJapanTime(t *testing.T) {
 	database := testdb.Open(t)
 
 	var sessionTimeZone string
@@ -20,15 +21,17 @@ func TestDatabaseConnectionUsesUTC(t *testing.T) {
 		t.Fatalf("query time zone: %v", err)
 	}
 
-	if sessionTimeZone != "+00:00" {
-		t.Errorf("session time_zone = %q, want +00:00", sessionTimeZone)
+	if sessionTimeZone != "+09:00" {
+		t.Errorf("session time_zone = %q, want +09:00", sessionTimeZone)
 	}
-	if difference := currentTimestamp.Sub(utcTimestamp); difference < -time.Second || difference > time.Second {
-		t.Errorf("CURRENT_TIMESTAMP %s differs from UTC_TIMESTAMP %s", currentTimestamp, utcTimestamp)
+	if location := currentTimestamp.Location().String(); location != model.JapanTimeZone.String() {
+		t.Errorf("read location = %s, want %s", location, model.JapanTimeZone)
 	}
-	if currentTimestamp.Location() != time.UTC {
-		t.Errorf("read location = %s, want UTC", currentTimestamp.Location())
+	// MySQL writes the JST wall clock, 9 hours ahead of UTC.
+	if difference := currentTimestamp.Sub(utcTimestamp); difference < 9*time.Hour-time.Second || difference > 9*time.Hour+time.Second {
+		t.Errorf("CURRENT_TIMESTAMP %s is not 9 hours ahead of UTC_TIMESTAMP %s", currentTimestamp, utcTimestamp)
 	}
+	// Read back as JST, the wall clock is the current instant.
 	if difference := time.Since(currentTimestamp); difference < -time.Minute || difference > time.Minute {
 		t.Errorf("CURRENT_TIMESTAMP read back as %s, %s away from now", currentTimestamp, difference)
 	}
