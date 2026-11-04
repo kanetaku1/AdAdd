@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/golang-migrate/migrate/v4"
@@ -112,12 +111,7 @@ func setup(dsn string) error {
 		return fmt.Errorf("%s must point to a database whose name ends with _test, got %q", EnvDSN, config.DBName)
 	}
 	// Same connection settings as db.Init.
-	config.ParseTime = true
-	config.Loc = time.Local
-	if config.Params == nil {
-		config.Params = map[string]string{}
-	}
-	config.Params["charset"] = "utf8mb4"
+	db.ConfigureConnection(config)
 
 	if err := dropAllTables(config); err != nil {
 		return err
