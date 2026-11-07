@@ -9,8 +9,9 @@ import (
 
 func RegisterActivityLogRoutes(e *echo.Echo) {
 	r := e.Group("")
-	// activity logs are limited to staff and admin
-	r.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
+	// 活動記録 is sales history: Finance-only and no-Role Users do not need it
+	// (UC-14, spec/api.md#Authorization Matrix, Issue #167).
+	r.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
 	r.GET("/yearly-companies/:id/activity-logs", listActivityLogs)
 }
 

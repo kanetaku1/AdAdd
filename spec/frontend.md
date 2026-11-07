@@ -512,6 +512,8 @@ When a `WAITING` Payment already has a `receivedAmount` (part of a split payment
 
 ### 活動記録
 
+Shown only to Sponsorship Member, Advisor, Advertisement Manager, and Administrator (`spec/api.md#List Activity Logs for a Yearly Company`). For a User whose only Role is Finance, or who has no Role, the block is not shown and its data is not requested; the rest of Yearly Company Detail opens as usual (Finance reaches it from Payment List). Issue #167.
+
 Collapsed by default (expand on demand) — degrade to hidden entirely if rendering it costs noticeable load time, since it is a supplementary view, not a primary one. System-generated only (the operations listed in `spec/domain.md#Activity Log` — status changes, assignment, contract and Contract Menu changes, payment confirmation and its revert, contact changes); there is no manual entry action. A handover note that isn't one of those recorded changes belongs on the Yearly Company's contact `memo` (copied to `Company.memo` on save), not 活動記録.
 
 The heading and empty state use 活動記録. Each row shows `eventType` as a Japanese badge, `message` (already Japanese business language), `createdAt` in JST (`ja-JP` / `Asia/Tokyo`), and the actor's name.
