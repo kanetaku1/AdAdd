@@ -737,6 +737,7 @@ CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container
 | Payment confirmation | A Sponsorship Member cannot open the status for editing; Finance confirms; status and confirmer persist |
 | Master data deletion | An Administrator deletes a company and a menu after confirming; a Sponsorship Member sees no delete control; a company registered in a Year is rejected |
 | Session | No session or a rejected session leads to `/login`; a deactivated User is sent to `/login`; Company list and Company edit load with a session (Issue #152) |
+| Activity Log by Role | After an Administrator assigns a member, an Advisor and a Sponsorship Member open Yearly Company Detail and see the 活動記録 entry naming the member; Finance opens the screen but sees no 活動記録 (Issue #167) |
 
 ### Running locally
 

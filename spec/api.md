@@ -771,6 +771,11 @@ The body is `userId` only (`null` to clear). `CompanyAssignment` does not store 
 
 `CompanyAssignment` is domain-modeled as 0..1 per Yearly Company (`spec/model.md#CompanyAssignment`), so this endpoint always replaces any existing `CompanyAssignment` for the Yearly Company rather than adding a second row — sending `userId: null` clears the assignment.
 
+Response status:
+
+* `201` — a member is assigned, or the assignee changes.
+* `200` — the assignment is cleared, or nothing changes (the current assignee is sent again, or `null` is sent when there is no assignee). Nothing changing writes no Activity Log (Issue #167).
+
 Permission:
 
 * Administrator
@@ -1409,7 +1414,12 @@ Response item example:
 
 Permission:
 
-* Every signed-in User, with or without a Role — the same as viewing the Yearly Company itself (UC-14, Authorization Matrix "View assigned companies"; Issue #167).
+* Sponsorship Member
+* Advisor
+* Advertisement Manager
+* Administrator
+
+活動記録 is sales history. A User whose only Role is Finance, or who has no Role, receives `403` (UC-14, Authorization Matrix "View 活動記録"; Issue #167). Such a User still opens the Yearly Company itself.
 
 Entries are exclusively system-generated. There is no manual/user-authored entry endpoint — a free-text handover note belongs on `Company.memo` instead (`spec/model.md#Company`).
 
@@ -1460,6 +1470,7 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 | Function                        | (no Role) | Sponsorship Member | Advisor | Finance | Advertisement Manager    | Administrator |
 | -------------------------------- | --------- | ------------------- | ------- | ------- | ------------------------ | -------------- |
 | View assigned companies         | ○         | ○                   | ○       | △       | ○                        | ○              |
+| View 活動記録 (Activity Logs)    | -         | ○                   | ○       | -       | ○                        | ○              |
 | Manage company master data      | -         | ○                   | -       | -       | -                        | ○              |
 | Create Year                     | -         | -                   | -       | -       | -                        | ○              |
 | Update document issuer information (Year) | - | -             | -       | -       | -                        | ○              |

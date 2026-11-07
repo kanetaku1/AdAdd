@@ -9,22 +9,29 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 )
 
-// UC-14: every signed-in User can view 活動記録, like the Yearly Company
-// itself (spec/api.md#Authorization Matrix, Issue #167).
-func TestEveryRoleCanViewActivityLogs(t *testing.T) {
+// UC-14: 活動記録 is for Sponsorship Member, Advisor, Advertisement Manager,
+// and Administrator. Finance-only and no-Role Users cannot view it
+// (spec/api.md#Authorization Matrix, Issue #167).
+func TestActivityLogViewersByRole(t *testing.T) {
 	actor := newActors(t)
 	companyID := createCompany(t, actor.administrator, "活動記録閲覧テスト株式会社")
 	yearID := createYear(t, actor.administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2026, 11, 30))
 	path := "/yearly-companies/" + loadYearlyCompany(t, yearID, companyID).ID + "/activity-logs"
 
-	for name, client := range map[string]*apiClient{
-		"Advisor":            actor.advisor,
-		"Finance":            actor.finance,
-		"Sponsorship Member": actor.sponsorshipMember,
-		"Administrator":      actor.administrator,
-	} {
-		t.Run(name, func(t *testing.T) {
-			expectStatus(t, client.do(http.MethodGet, path, nil), http.StatusOK)
+	cases := []struct {
+		name   string
+		client *apiClient
+		want   int
+	}{
+		{"Advisor", actor.advisor, http.StatusOK},
+		{"Sponsorship Member", actor.sponsorshipMember, http.StatusOK},
+		{"Administrator", actor.administrator, http.StatusOK},
+		{"Finance", actor.finance, http.StatusForbidden},
+		{"no Role", actor.noRole, http.StatusForbidden},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			expectStatus(t, c.client.do(http.MethodGet, path, nil), c.want)
 		})
 	}
 }
@@ -64,8 +71,8 @@ func TestSavingTheSameValueWritesNoActivityLog(t *testing.T) {
 	}
 }
 
-// Assignment entries name the members, and re-assigning the current member
-// writes nothing (Issue #167).
+// Assignment entries name the members. Re-assigning the current member
+// changes nothing: 200, not 201, and no entry (Issue #167).
 func TestAssignmentActivityLogNamesTheMembers(t *testing.T) {
 	actor := newActors(t)
 	companyID := createCompany(t, actor.administrator, "担当記録テスト株式会社")
@@ -74,7 +81,7 @@ func TestAssignmentActivityLogNamesTheMembers(t *testing.T) {
 	path := "/yearly-companies/" + yearlyCompanyID + "/assignments"
 
 	expectStatus(t, actor.administrator.do(http.MethodPost, path, map[string]any{"userId": sponsorshipMemberID}), http.StatusCreated)
-	expectStatus(t, actor.administrator.do(http.MethodPost, path, map[string]any{"userId": sponsorshipMemberID}), http.StatusCreated)
+	expectStatus(t, actor.administrator.do(http.MethodPost, path, map[string]any{"userId": sponsorshipMemberID}), http.StatusOK)
 	expectAssignees(t, yearlyCompanyID, sponsorshipMemberID)
 	expectStatus(t, actor.administrator.do(http.MethodPost, path, map[string]any{"userId": sponsorshipMember2ID}), http.StatusCreated)
 	expectStatus(t, actor.administrator.do(http.MethodPost, path, map[string]any{"userId": nil}), http.StatusOK)

@@ -9,8 +9,9 @@ import (
 
 func RegisterActivityLogRoutes(e *echo.Echo) {
 	r := e.Group("")
-	// Every signed-in User can view 活動記録, like the Yearly Company itself
+	// 活動記録 is sales history: Finance-only and no-Role Users do not need it
 	// (UC-14, spec/api.md#Authorization Matrix, Issue #167).
+	r.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
 	r.GET("/yearly-companies/:id/activity-logs", listActivityLogs)
 }
 

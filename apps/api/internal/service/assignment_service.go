@@ -21,10 +21,10 @@ func NewAssignmentService() *AssignmentService {
 
 // AssignOrClear replaces the CompanyAssignment for a YearlyCompany (0..1).
 // Empty userId clears any existing assignment. Saving the current assignee
-// again changes nothing and writes no Activity Log (Issue #167).
-func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, actorUserID string) (*model.CompanyAssignment, error) {
-	var result *model.CompanyAssignment
-	err := db.WithTx(func(tx *gorm.DB) error {
+// again changes nothing, writes no Activity Log, and returns changed = false
+// (Issue #167).
+func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, actorUserID string) (result *model.CompanyAssignment, changed bool, err error) {
+	err = db.WithTx(func(tx *gorm.DB) error {
 		var current model.CompanyAssignment
 		currentUserID := ""
 		if err := tx.Where("yearly_company_id = ?", yearlyCompanyID).First(&current).Error; err == nil {
@@ -38,6 +38,7 @@ func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, actorUserID s
 			}
 			return nil
 		}
+		changed = true
 
 		fromName, err := assigneeName(tx, currentUserID)
 		if err != nil {
@@ -84,7 +85,7 @@ func (s *AssignmentService) AssignOrClear(yearlyCompanyID, userID, actorUserID s
 		}
 		return tx.Create(al).Error
 	})
-	return result, err
+	return result, changed, err
 }
 
 // assigneeName is the name recorded in 活動記録 for an assignee; "" for none.
