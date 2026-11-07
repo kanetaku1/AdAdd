@@ -1407,6 +1407,10 @@ Response item example:
 }
 ```
 
+Permission:
+
+* Every signed-in User, with or without a Role — the same as viewing the Yearly Company itself (UC-14, Authorization Matrix "View assigned companies"; Issue #167).
+
 Entries are exclusively system-generated. There is no manual/user-authored entry endpoint — a free-text handover note belongs on `Company.memo` instead (`spec/model.md#Company`).
 
 `message` is written in Japanese using the same business labels as the UI (`spec/frontend.md` Principle 2). Legacy English messages (`Progress changed from …`, `Member assigned to YearlyCompany`, …) and raw-enum Japanese (`進捗を MATERIALS_SENT から …`) are normalized to business labels on read — rows are not UPDATEd. `createdAt` is ISO-8601; the UI always displays it in JST (Asia/Tokyo).
@@ -1429,7 +1433,7 @@ Entries are exclusively system-generated. There is no manual/user-authored entry
 | `PAYMENT_STATUS_UPDATED` | a Payment is confirmed, or moved back from `CONFIRMED` to `WAITING` |
 | `PAYMENT_DETAILS_UPDATED` | a Payment's actual received amount or remarks change (the fields are defined by Issue #170 / #171) |
 
-An entry is written only when the value actually changes; saving the same value writes nothing. The `message` names what changed in business language (e.g. `「パンフレット広告1P」の数量を「1」から「2」に更新`, `入金確認を取り消し`).
+An entry is written only when the value actually changes; saving the same value writes nothing. The `message` names what changed in business language (e.g. `「パンフレット広告1P」の数量を「1」から「2」に更新`, `入金確認を取り消し`). An `ASSIGNMENT_UPDATED` message names the members: `担当メンバーを「鈴木」に設定`, `担当メンバーを「鈴木」から「田中」に更新`, `担当メンバー「田中」を解除`.
 
 Not recorded: Contract Menu `productionType`, Drive / production information (`PATCH /contract-menus/{id}/production`, `drive-upload` — these do not change the Contract Menu status), and `PATCH /companies/{companyId}` (Company master only — there is no Yearly Company to attach the entry to). Whether to record these is not decided (Issue #172).
 

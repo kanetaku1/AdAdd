@@ -66,6 +66,10 @@ func updateProgress(c echo.Context) error {
 		return respondNotFound(c, "yearly company not found")
 	}
 	oldVal := yc.Progress
+	// Saving the same value changes nothing and writes no Activity Log (Issue #167).
+	if oldVal == body.Progress {
+		return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
+	}
 	yc.Progress = body.Progress
 
 	userID := ""
@@ -131,6 +135,10 @@ func updateCompanyStatus(c echo.Context) error {
 		return respondNotFound(c, "yearly company not found")
 	}
 	oldVal := yc.CompanyStatus
+	// Saving the same value changes nothing and writes no Activity Log (Issue #167).
+	if oldVal == body.CompanyStatus {
+		return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
+	}
 	yc.CompanyStatus = body.CompanyStatus
 
 	userID := ""
@@ -167,6 +175,10 @@ func updatePhase(c echo.Context) error {
 		return respondNotFound(c, "yearly company not found")
 	}
 	oldVal := yc.Phase
+	// Saving the same value changes nothing and writes no Activity Log (Issue #167).
+	if oldVal == body.Phase {
+		return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
+	}
 	yc.Phase = body.Phase
 
 	userID := ""

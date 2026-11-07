@@ -9,8 +9,8 @@ import (
 
 func RegisterActivityLogRoutes(e *echo.Echo) {
 	r := e.Group("")
-	// activity logs are limited to staff and admin
-	r.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
+	// Every signed-in User can view 活動記録, like the Yearly Company itself
+	// (UC-14, spec/api.md#Authorization Matrix, Issue #167).
 	r.GET("/yearly-companies/:id/activity-logs", listActivityLogs)
 }
 
