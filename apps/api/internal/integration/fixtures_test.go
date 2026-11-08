@@ -19,6 +19,7 @@ const (
 	advisorID            = "user-advisor-1"
 	advisor2ID           = "user-advisor-2"
 	financeID            = "user-finance"
+	noRoleID             = "user-no-role"
 )
 
 type actors struct {
@@ -27,6 +28,7 @@ type actors struct {
 	sponsorshipMember2 *apiClient
 	advisor            *apiClient
 	finance            *apiClient
+	noRole             *apiClient
 }
 
 // newActors prepares an empty database, the API, and one client per Role.
@@ -43,6 +45,7 @@ func newActors(t *testing.T) actors {
 		sponsorshipMember2: asUser(t, server, sponsorshipMember2ID, "SPONSORSHIP_MEMBER"),
 		advisor:            asUser(t, server, advisorID, "ADVISOR"),
 		finance:            asUser(t, server, financeID, "FINANCE_DEPARTMENT"),
+		noRole:             asUser(t, server, noRoleID),
 	}
 }
 

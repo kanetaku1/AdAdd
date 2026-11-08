@@ -33,9 +33,12 @@ func createAssignment(c echo.Context) error {
 	}
 
 	svc := service.NewAssignmentService()
-	result, err := svc.AssignOrClear(ycId, userID, actorID)
+	result, changed, err := svc.AssignOrClear(ycId, userID, actorID)
 	if err != nil {
 		return respondInternalServerError(c, err)
+	}
+	if !changed {
+		return c.JSON(http.StatusOK, map[string]interface{}{"data": result, "message": "unchanged"})
 	}
 	if result == nil {
 		return c.JSON(http.StatusOK, map[string]interface{}{"data": nil, "message": "cleared"})
