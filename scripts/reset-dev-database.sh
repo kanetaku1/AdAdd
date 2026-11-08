@@ -32,7 +32,10 @@ for argument in "$@"; do
 done
 
 run_mysql() {
-  docker exec -i -e MYSQL_PWD="$mysql_root_password" "$mysql_container" mysql -uroot "$@"
+  # utf8mb4 explicitly: the client in the mysql image defaults to latin1, which
+  # stores Japanese names double-encoded (mojibake).
+  docker exec -i -e MYSQL_PWD="$mysql_root_password" "$mysql_container" \
+    mysql -uroot --default-character-set=utf8mb4 "$@"
 }
 
 # --- Developer Users: validate before touching anything ----------------------
