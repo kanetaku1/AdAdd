@@ -1,0 +1,13 @@
+# Developer Users registered by scripts/reset-dev-database.sh
+# (spec/development.md#Developer Users).
+#
+# Copy this file to scripts/dev-users.local.csv and replace the lines below
+# with the real developers. The .local.csv file is in .gitignore: never commit
+# real names or email addresses (the repository is public).
+#
+# email,name,student_id,role_codes
+# role_codes: Role codes joined with "|" (ADMINISTRATOR, SPONSORSHIP_MEMBER, FINANCE_DEPARTMENT, ADVISOR, and
+#   any Role a branch adds, e.g. ADVERTISEMENT_MANAGER; a code the branch lacks is skipped with a warning)
+# The email must be the Google account used to sign in. student_id may be empty.
+developer-one@example.com,開発 一郎,s000001,ADMINISTRATOR
+developer-two@example.com,開発 二郎,,SPONSORSHIP_MEMBER|FINANCE_DEPARTMENT
