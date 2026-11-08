@@ -1,3 +1,4 @@
+import { toBusinessDate } from "@/lib/business-date"
 import type { PaymentStatus } from "@/types/payment"
 
 /**
@@ -30,13 +31,5 @@ export function toConfirmationDate(
     const sliced = iso.slice(0, 10)
     return /^\d{4}-\d{2}-\d{2}$/.test(sliced) ? sliced : null
   }
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date)
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? ""
-  return `${get("year")}-${get("month")}-${get("day")}`
+  return toBusinessDate(date)
 }

@@ -3,8 +3,11 @@ package db
 import (
 	"fmt"
 	"log"
+	"net"
 
+	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/config"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -14,16 +17,36 @@ var DB *gorm.DB
 // Init connects to the database and assigns the global DB. It does NOT run AutoMigrate;
 // migrations must be applied separately (Migration First policy).
 func Init(cfg *config.Config) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
+	connection := gomysql.NewConfig()
+	connection.User = cfg.DBUser
+	connection.Passwd = cfg.DBPassword
+	connection.Net = "tcp"
+	connection.Addr = net.JoinHostPort(cfg.DBHost, cfg.DBPort)
+	connection.DBName = cfg.DBName
+	ConfigureConnection(connection)
 
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(connection.FormatDSN()), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
 	DB = db
 	log.Println("database connection established")
+}
+
+// ConfigureConnection applies the settings every AdAdd connection uses.
+// Timestamps are stored in JST (spec/architecture.md#Time Zone): Go writes
+// and reads DATETIME as JST (loc), and the session time_zone makes MySQL's
+// CURRENT_TIMESTAMP defaults JST as well — independent of the time zone of
+// the machine running the API or of the MySQL server.
+func ConfigureConnection(connection *gomysql.Config) {
+	connection.ParseTime = true
+	connection.Loc = model.JapanTimeZone
+	if connection.Params == nil {
+		connection.Params = map[string]string{}
+	}
+	connection.Params["charset"] = "utf8mb4"
+	connection.Params["time_zone"] = "'+09:00'"
 }
 
 // WithTx runs fn inside a database transaction and returns its error if any.

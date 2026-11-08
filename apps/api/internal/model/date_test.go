@@ -57,3 +57,29 @@ func TestSponsorshipContractContractDateRoundTrip(t *testing.T) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 }
+
+func TestBusinessDateOfUsesJapanTime(t *testing.T) {
+	cases := []struct {
+		name    string
+		instant time.Time
+		want    string
+	}{
+		// 00:30 JST on 11/4 is still 11/3 in UTC (Issue #160).
+		{"JST 0-9 o'clock", time.Date(2026, 11, 3, 15, 30, 0, 0, time.UTC), "2026-11-04"},
+		{"JST afternoon", time.Date(2026, 11, 4, 5, 0, 0, 0, time.UTC), "2026-11-04"},
+		{"JST 23:59", time.Date(2026, 11, 4, 14, 59, 0, 0, time.UTC), "2026-11-04"},
+		// The instant's own location does not matter.
+		{"instant in another zone", time.Date(2026, 11, 3, 22, 30, 0, 0, time.FixedZone("WIB", 7*60*60)), "2026-11-04"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := BusinessDateOf(c.instant)
+			if formatted := time.Time(got).Format(dateLayout); formatted != c.want {
+				t.Fatalf("got %s, want %s", formatted, c.want)
+			}
+			if location := time.Time(got).Location().String(); location != "Asia/Tokyo" {
+				t.Fatalf("got location %s, want Asia/Tokyo", location)
+			}
+		})
+	}
+}

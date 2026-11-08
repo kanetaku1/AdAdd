@@ -15,16 +15,13 @@ import {
   ContractMenuItemFields,
   type ContractMenuItemValue,
 } from "@/components/contract-menu-item-fields"
+import { businessToday } from "@/lib/business-date"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 export type ContractCreationInput = {
   contractDate: string
   remarks: string
   items: ContractMenuItemValue[]
-}
-
-function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
 }
 
 function emptyItem(menus: SponsorshipMenu[]): ContractMenuItemValue {
@@ -57,7 +54,7 @@ export function ContractCreationForm({
   onCreate: (input: ContractCreationInput) => Promise<boolean>
 }) {
   const [creating, setCreating] = useState(false)
-  const [contractDate, setContractDate] = useState(formatDate(new Date()))
+  const [contractDate, setContractDate] = useState(businessToday)
   const [remarks, setRemarks] = useState("")
   const [items, setItems] = useState<ContractMenuItemValue[]>([])
   const [contractDateError, setContractDateError] = useState<string | null>(
