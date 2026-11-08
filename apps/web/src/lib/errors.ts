@@ -13,6 +13,7 @@ const ERROR_CODE_MESSAGE: Record<string, string> = {
   NOT_FOUND: "データが見つかりませんでした。",
   CONFLICT: "既に登録されている、または競合するデータがあります。",
   INTERNAL_ERROR: "サーバーでエラーが発生しました。時間をおいて再度お試しください。",
+  DRIVE_UNAVAILABLE: "Google Driveとの連携に失敗しました。管理者に連絡してください。",
 }
 
 /**

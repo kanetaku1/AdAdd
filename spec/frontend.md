@@ -482,7 +482,7 @@ The assigned member shown here is also the assignee of the contract and every Co
 Shown before Contract (production/status work happens more often than contract-level edits). The Contract Menu table is both the creation point (no contract yet — see below) and the ongoing edit point for a Contract's Contract Menus:
 
 * No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Each line item's production type offers 委員 the same as the other values. The form has no production department field — a new Contract Menu starts unassigned, and the department is assigned later by the Advertisement Management Department. Creating a contract also sets `YearlyCompany.progress` to Confirmed. A `Payment` record is created separately once a Contract Menu exists and `totalAmount > 0` (`POST /contracts/{contractId}/payment`); goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record. Field-level validation errors are highlighted at the specific field, not just a generic banner (see UI Design Principles below).
-* A contract exists — each line is editable in place (quantity, production type, status, production department, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Assign Contract Menu Production Department` / `#Upload Production Information`). Status and production department follow the same Role rules as Contract Menu List below: editable for Advertisement Manager / Administrator, a read-only badge or label for everyone else. `isGoodsSponsorship` is set only at creation or when adding a menu line (toggling it later would zero `unitPrice` and lose the negotiated price, so the Detail UI does not expose that toggle — the flag still displays as a badge when true). A delete action is exposed per line, but only to Administrator — deletion is Administrator-only system-wide (`spec/api.md#Authorization Matrix`), so the action is hidden entirely for every other Role rather than shown-and-rejected. It requires an explicit confirmation step before calling `DELETE /contract-menus/{id}`, since removal is irreversible from the UI's point of view and changes the Contract's `totalAmount`. If the Contract's Payment is already confirmed and the removal would change the amount, the API returns 409 and the deletion is refused (`spec/api.md#Delete Contract Menu`). Contract Menu List (below, the cross-contract view) is unaffected — it never adds/removes items.
+* A contract exists — each line is editable in place (quantity, production type, status, production department, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Assign Contract Menu Production Department` / `#Add Contract Menu Files`). Files use the same compact `資料 N件` summary as Contract Menu List; opening it shows file names/links and per-file delete actions. Upload/delete controls follow the API-provided `allowUpload` / `allowDelete` flags, so they disappear for past Years. Upload sends no member Google token: the API operates Drive as the dedicated account. File deletion moves the Drive body to trash before disappearing from AdAdd; a Drive failure is shown and the item remains. `isGoodsSponsorship` is set only at creation or when adding a menu line. Contract Menu entity deletion remains Administrator-only and separate from file-reference deletion.
 * Menu choices — when creating a contract or adding a line, only Sponsorship Menus with `isActive = true` are offered. The API also rejects an inactive menu (`spec/api.md#Add Contract Menu`). Existing lines that reference a menu turned inactive later stay as they are.
 
 ### Contract
@@ -557,7 +557,7 @@ Purpose:
 
 Manage each contracted sponsorship item — the primary working screen for Sponsorship Members handling ad-material production/collection (informally "広告管理") across every company at once. The Advertisement Manager Role (`spec/business.md#Roles`) works here too: it alone changes status and assigns the production department.
 
-Quantity and producer (production type) are edited inline on this list (`spec/api.md#Update Contract Menu`). Ad status is toggled via `spec/api.md#Update Contract Menu Status`, by Advertisement Manager / Administrator only. Whether the deliverable is complete is read from Drive URL presence, not a separate flag. (Open consideration, not yet decided: a second Drive link for internal-production working files, separate from the company-facing submission `driveUrl` — see `spec/model.md#ContractMenu`.)
+Quantity and producer (production type) are edited inline on this list (`spec/api.md#Update Contract Menu`). Submission is derived from active Drive-file references: `fileCount > 0` is submitted. The list never renders long file names in the table cell; it shows `資料 N件` (or `未提出`) and exposes names/links in a compact detail/popover.
 
 Display:
 
@@ -569,7 +569,7 @@ Display:
 | Quantity        |
 | Production type |
 | Status          |
-| Drive URL       |
+| Materials count |
 
 Scoped to the active Year (`GET /years/{yearId}/contract-menus`, see
 spec/api.md#List Contract Menus Across a Year).
@@ -586,9 +586,9 @@ Sponsorship Menu and Status accept an initial value from the URL
 Progress (see above) can link directly into this list pre-filtered to a
 given Sponsorship Menu + `ContractMenuStatus` cell.
 
-Status is directly editable to any `ContractMenuStatus`, including
-`SUBMITTED` (`PATCH /contract-menus/{id}/status`), for Advertisement
-Manager / Administrator only (Issue #126). Every other Role,
+Non-submission status is directly editable via `PATCH /contract-menus/{id}/status`
+for Advertisement Manager / Administrator only (Issue #126). `SUBMITTED`
+is not manually selectable; it is derived from active files. Every other Role,
 Sponsorship Member included, sees the same status badge — same label and
 color — but it is not clickable and opens no editor. The API also returns
 `403` for them, so hiding the editor is not the enforcement.
@@ -616,10 +616,16 @@ Administrator only; a User holding Advertisement Manager alone sees it
 read-only. Production type is editable for Sponsorship Member,
 Advertisement Manager, and Administrator. Production type is only editable when the referenced
 Sponsorship Menu has `requiresSubmission = true` (otherwise it stays
-null/`-`). Registering a Drive URL or uploading to Drive does not change
-the status (Issue #166). The status becomes `SUBMITTED` only when an
-Advertisement Manager / Administrator sets it (`PATCH
-/contract-menus/{id}/status`).
+null/`-`). Adding the first Drive-file reference changes the displayed state
+to `SUBMITTED`; deleting the final active reference returns it to `WAITING`.
+Upload/delete controls are driven by `allowUpload` / `allowDelete` and are
+therefore unavailable for past Years. Sponsorship Members, Advisors,
+Advertisement Managers, and Administrators may manage file references in the
+active Year; Contract Menu entity deletion stays Administrator-only.
+
+CSV export uses the same summary instead of concatenating file names: the
+資料列 is `資料N件` when `fileCount > 0`, otherwise `未提出`. The status column
+uses the same file-derived state as the screen and Yearly Company Detail.
 
 ---
 

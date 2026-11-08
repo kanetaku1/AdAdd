@@ -1,5 +1,5 @@
 /**
- * Role (spec/model.md#Role) — the 4 canonical codes, matching the Role
+ * Role (spec/model.md#Role) — the 5 canonical codes, matching the Role
  * table's fixed master data (spec/domain.md#Role, apps/api migration
  * 0001_baseline). `User.roles` holds these codes,
  * resolved server-side from real `UserRole` grants in API mode
@@ -10,6 +10,7 @@ export const ROLES = [
   "SPONSORSHIP_MEMBER",
   "ADVISOR",
   "FINANCE_DEPARTMENT",
+  "ADVERTISEMENT_MANAGER",
   "ADMINISTRATOR",
 ] as const
 
@@ -20,6 +21,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   SPONSORSHIP_MEMBER: "協賛実働メンバー",
   ADVISOR: "協賛アドバイザー",
   FINANCE_DEPARTMENT: "財務部門",
+  ADVERTISEMENT_MANAGER: "広告管理部門",
   ADMINISTRATOR: "管理者",
 }
 

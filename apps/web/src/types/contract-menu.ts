@@ -15,6 +15,16 @@ export type ContractMenuStatus =
   | "COMPLETED"
   | "SUBMITTED"
 
+export type ContractMenuDriveFile = {
+  id: string
+  contractMenuId: string
+  driveFileId: string | null
+  driveUrl: string
+  driveFileName: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 /**
  * ContractMenu (spec/model.md#ContractMenu) — one Sponsorship Menu a company
  * has actually contracted for, as part of a Sponsorship Contract.
@@ -39,6 +49,12 @@ export type ContractMenu = {
   productionType: ContractMenuProductionType | null
   status: ContractMenuStatus
   driveFolderId: string | null
+  files: ContractMenuDriveFile[]
+  fileCount: number
+  isSubmitted: boolean
+  allowUpload: boolean
+  allowDelete: boolean
+  /** Deprecated read-only compatibility fields for the first active file. */
   driveUrl: string | null
   driveFileName: string | null
   remarks: string

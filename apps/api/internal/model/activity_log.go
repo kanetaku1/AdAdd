@@ -10,6 +10,8 @@ const (
 	EventContractCreated           = "CONTRACT_CREATED"
 	EventContractMenuStatusUpdated = "CONTRACT_MENU_STATUS_UPDATED"
 	EventPaymentStatusUpdated      = "PAYMENT_STATUS_UPDATED"
+	EventAdMaterialUploaded        = "AD_MATERIAL_UPLOADED"
+	EventAdMaterialTrashed         = "AD_MATERIAL_TRASHED"
 	EventManualNote                = "MANUAL_NOTE"
 )
 

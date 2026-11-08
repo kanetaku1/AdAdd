@@ -36,11 +36,13 @@ import { ErrorBanner } from "@/components/query-state"
 import {
   addContractMenuToContract,
   deleteContractMenu,
+  deleteContractMenuDriveFile,
   updateContractMenu,
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
 import { DriveUploadDialog } from "@/components/drive-upload-dialog"
+import { ContractMenuFilesSummary } from "@/components/contract-menu-files-summary"
 import type {
   ContractMenu,
   ContractMenuProductionType,
@@ -110,6 +112,7 @@ export function ContractMenuSection({
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingMenuId, setUploadingMenuId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ContractMenu | null>(null)
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -168,6 +171,24 @@ export function ContractMenuSection({
       )
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function handleDeleteFile(contractMenuId: string, fileId: string) {
+    if (!window.confirm("この資料参照を削除しますか？")) return
+    setDeletingFileId(fileId)
+    setError(null)
+    try {
+      const updated = await deleteContractMenuDriveFile(contractMenuId, fileId)
+      applyMenus(
+        contractMenus.map((menu) =>
+          menu.id === contractMenuId ? updated : menu
+        )
+      )
+    } catch (e) {
+      setError(getErrorMessage(e, { fallback: "資料の削除に失敗しました" }))
+    } finally {
+      setDeletingFileId(null)
     }
   }
 
@@ -276,21 +297,14 @@ export function ContractMenuSection({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {cm.driveUrl ? (
-                        <a
-                          href={cm.driveUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-sm"
-                        >
-                          {cm.driveFileName || "確認"}
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                      {canManage && (
+                      <ContractMenuFilesSummary
+                        menu={cm}
+                        deletingFileId={deletingFileId}
+                        onDelete={cm.allowDelete ? (fileId) => void handleDeleteFile(cm.id, fileId) : undefined}
+                      />
+                      {cm.allowUpload && (
                         <IconActionButton
-                          label={cm.driveUrl ? "再アップロード" : "アップロード"}
+                          label={cm.fileCount > 0 ? "資料を追加" : "アップロード"}
                           variant="outline"
                           onClick={() => setUploadingMenuId(cm.id)}
                         >
