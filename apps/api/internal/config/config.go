@@ -9,20 +9,24 @@ import (
 )
 
 type Config struct {
-	AppEnv         string
-	AllowedOrigins []string
-	AppPort        string
-	DBHost         string
-	DBPort         string
-	DBUser         string
-	DBPassword     string
-	DBName         string
-	MigrateOnStart bool
-	MigrationsPath string
-	GoogleClientID string
-	JWTSecret      string
-	SlackBotToken  string
-	SlackChannelID string
+	AppEnv                  string
+	AllowedOrigins          []string
+	AppPort                 string
+	DBHost                  string
+	DBPort                  string
+	DBUser                  string
+	DBPassword              string
+	DBName                  string
+	MigrateOnStart          bool
+	MigrationsPath          string
+	GoogleClientID          string
+	GoogleDriveClientID     string
+	GoogleDriveClientSecret string
+	GoogleDriveRefreshToken string
+	GoogleDriveAccountEmail string
+	JWTSecret               string
+	SlackBotToken           string
+	SlackChannelID          string
 }
 
 func Load() *Config {
@@ -50,21 +54,30 @@ func Load() *Config {
 		allowedOrigins = append(allowedOrigins, "http://localhost:3000", "http://localhost:3001")
 	}
 
+	googleClientID := getEnv("GOOGLE_CLIENT_ID", "")
+	googleDriveClientID := getEnv("GOOGLE_DRIVE_CLIENT_ID", "")
+	if googleDriveClientID == "" {
+		googleDriveClientID = googleClientID
+	}
 	return &Config{
-		AppEnv:         appEnv,
-		AllowedOrigins: allowedOrigins,
-		AppPort:        getEnv("APP_PORT", "8080"),
-		DBHost:         getEnv("DB_HOST", "127.0.0.1"),
-		DBPort:         getEnv("DB_PORT", "3306"),
-		DBUser:         getEnv("DB_USER", "root"),
-		DBPassword:     getEnv("DB_PASSWORD", ""),
-		DBName:         getEnv("DB_NAME", "adadd"),
-		MigrateOnStart: migrateOnStart,
-		MigrationsPath: getEnv("MIGRATIONS_PATH", "./migrations"),
-		GoogleClientID: getEnv("GOOGLE_CLIENT_ID", ""),
-		JWTSecret:      getEnv("JWT_SECRET", ""),
-		SlackBotToken:  getEnv("SLACK_BOT_TOKEN", ""),
-		SlackChannelID: getEnv("SLACK_CHANNEL_ID", ""),
+		AppEnv:                  appEnv,
+		AllowedOrigins:          allowedOrigins,
+		AppPort:                 getEnv("APP_PORT", "8080"),
+		DBHost:                  getEnv("DB_HOST", "127.0.0.1"),
+		DBPort:                  getEnv("DB_PORT", "3306"),
+		DBUser:                  getEnv("DB_USER", "root"),
+		DBPassword:              getEnv("DB_PASSWORD", ""),
+		DBName:                  getEnv("DB_NAME", "adadd"),
+		MigrateOnStart:          migrateOnStart,
+		MigrationsPath:          getEnv("MIGRATIONS_PATH", "./migrations"),
+		GoogleClientID:          googleClientID,
+		GoogleDriveClientID:     googleDriveClientID,
+		GoogleDriveClientSecret: getEnv("GOOGLE_DRIVE_CLIENT_SECRET", ""),
+		GoogleDriveRefreshToken: getEnv("GOOGLE_DRIVE_REFRESH_TOKEN", ""),
+		GoogleDriveAccountEmail: getEnv("GOOGLE_DRIVE_ACCOUNT_EMAIL", ""),
+		JWTSecret:               getEnv("JWT_SECRET", ""),
+		SlackBotToken:           getEnv("SLACK_BOT_TOKEN", ""),
+		SlackChannelID:          getEnv("SLACK_CHANNEL_ID", ""),
 	}
 }
 

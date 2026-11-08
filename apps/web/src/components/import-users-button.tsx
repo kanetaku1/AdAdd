@@ -17,7 +17,7 @@ export function ImportUsersButton({ onImported }: { onImported: () => void }) {
   return (
     <CsvBulkImportDialog<User>
       title="ユーザーをCSVで一括登録"
-      description="UTF-8のCSVを選ぶと、登録前に内容を確認できます。ロールは SPONSORSHIP_MEMBER / ADVISOR / FINANCE_DEPARTMENT / ADMINISTRATOR のコードをカンマ区切りで指定します。空欄はロールなし（閲覧のみ）です。"
+      description="UTF-8のCSVを選ぶと、登録前に内容を確認できます。ロールは SPONSORSHIP_MEMBER / ADVISOR / FINANCE_DEPARTMENT / ADVERTISEMENT_MANAGER / ADMINISTRATOR のコードをカンマ区切りで指定します。空欄はロールなし（閲覧のみ）です。"
       templateFileName="users-import-template.csv"
       templateHeaders={USER_CSV_HEADERS}
       templateExampleRow={USER_CSV_EXAMPLE_ROW}
