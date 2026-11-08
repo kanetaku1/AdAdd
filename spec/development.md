@@ -77,6 +77,8 @@ AdAdd/
 │
 ├── packages/
 │
+├── scripts/
+│
 ├── spec/
 │
 ├── docs/
@@ -396,7 +398,7 @@ apps/api/scripts/check-migrations.sh origin/main
 
 ### A local database that ran an unmerged migration
 
-If you applied another branch's migration on your local database and that migration was renumbered later, your database records a version that no longer matches. Do not patch `schema_migrations` by hand. Recreate the local database (`spec/development.md#Development Seed`). Tell the team when others may be in the same state.
+If you applied another branch's migration on your local database, your database records a version that this branch does not have, or that was renumbered later. Do not patch `schema_migrations` by hand. Recreate the local database with `scripts/reset-dev-database.sh` (`spec/development.md#Resetting the local database`). Tell the team when others may be in the same state.
 
 ---
 
@@ -709,6 +711,39 @@ The seed only checks IDs. Do not run it against a database that already has a Ye
 | 2026 `companyStatus` | `c_001`, `c_002` Continuing. `c_003`, `c_004`, `c_005` New. |
 | 2026 assignments | `c_001`, `c_003` → 鈴木. `c_002` → 山田. `c_004`, `c_005` unassigned. 伊藤 advises 鈴木 and 山田. |
 | 2026 contract | `c_001`: pamphlet ad, homepage ad, and a goods sponsorship booth (total 95,000). Payment waiting for Finance. |
+
+### Resetting the local database
+
+`scripts/reset-dev-database.sh` recreates the local databases and loads the seed in one command. Use it whenever the local database no longer matches the checked-out branch, typically after switching away from a branch with an unmerged migration (the API then stops on start with `no migration found for version N`).
+
+Local data is disposable: the seed rebuilds the known state, so a branch with a different migration history never blocks development. Do not patch `schema_migrations` by hand instead (see `A local database that ran an unmerged migration`).
+
+From the repository root, with Docker Compose running MySQL:
+
+```bash
+scripts/reset-dev-database.sh
+```
+
+It asks for confirmation (`--yes` skips it), then:
+
+1. Stops the `api` container, so it cannot apply migrations while the databases are recreated.
+2. Drops and recreates `adadd` and `adadd_e2e`. Every local row is deleted.
+3. Rebuilds and starts the `api` container (`docker compose up -d --build api`), which applies the branch's migrations, and waits for `/health`.
+4. Runs the development seed against `adadd`.
+5. Registers the developers listed in `scripts/dev-users.local.csv`, if that file exists.
+
+The next E2E run loads the seed into `adadd_e2e` by itself.
+
+#### Developer Users
+
+The seed has only fictitious Users, so a developer's own Google account must be registered again after every reset to sign in (`Development Modes`). The script does this from `scripts/dev-users.local.csv`.
+
+* The file holds real names and email addresses, so it is **never committed**: it is in `.gitignore`. The repository is public, and the seed stays fictitious.
+* Each developer creates it on their own machine from `scripts/dev-users.example.csv`.
+* One User per line: `email,name,student_id,role_codes`. `role_codes` is one or more Role codes separated by `|` (e.g. `ADMINISTRATOR`, `SPONSORSHIP_MEMBER`, `FINANCE_DEPARTMENT`, `ADVISOR`). `student_id` may be empty. Spaces and tabs around a field or a Role code are ignored. Lines starting with `#` and blank lines are skipped.
+* The email must be the Google account used to sign in.
+* A field must not contain `,`, `'`, `"`, or `\`, and a Role code is uppercase letters and `_` only. The script checks every line before deleting anything, and stops on an invalid line without changing the databases.
+* Role codes are checked against the `roles` table that the checked-out branch's migrations built, because a branch may add a Role in a migration (e.g. `ADVERTISEMENT_MANAGER`, before it is merged). A code that does not exist on the branch is skipped with a warning; the User is still registered with the other Roles. The same file therefore works on every branch.
 
 ---
 
