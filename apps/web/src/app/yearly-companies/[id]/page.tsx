@@ -38,6 +38,7 @@ import {
   updateYearlyCompanyProgress,
   updateYearlyCompanyStatus,
 } from "@/lib/data/sponsorship"
+import { addBusinessDays, businessToday } from "@/lib/business-date"
 import { getErrorMessage } from "@/lib/errors"
 import type { InvoiceData } from "@/lib/pdf/invoice-document"
 import { yearlyCompanyContact, websiteHref } from "@/lib/yearly-company-contact"
@@ -61,10 +62,6 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
   currency: "JPY",
 })
-
-function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
 
 /**
  * Yearly Company Detail — main operation screen (spec/frontend.md#Yearly Company Detail).
@@ -222,15 +219,13 @@ export default function YearlyCompanyDetailPage() {
 
   const invoiceData: InvoiceData | null = useMemo(() => {
     if (!yearlyCompany || !contract) return null
-    const today = new Date()
-    const deadline = new Date(today)
-    deadline.setDate(deadline.getDate() + 14)
+    const today = businessToday()
     return {
       companyName: yearlyCompany.companyName,
       contactPersonName: yearlyCompany.contactPersonName,
       subject: "技大祭企業協賛",
-      issuedDate: formatDate(today),
-      deadline: formatDate(deadline),
+      issuedDate: today,
+      deadline: addBusinessDays(today, 14),
       staffName: contract.assigneeName ?? yearlyCompany.assignedMemberName ?? "",
       remark: contract.remarks,
       items: contractMenus.map((cm) => ({
@@ -527,10 +522,8 @@ export default function YearlyCompanyDetailPage() {
                   initialData={{
                     companyName: yearlyCompany.companyName,
                     amount: payment.amount,
-                    issuedDate: new Date().toISOString().slice(0, 10),
-                    paymentDate:
-                      payment.confirmedAt ??
-                      new Date().toISOString().slice(0, 10),
+                    issuedDate: businessToday(),
+                    paymentDate: payment.confirmedAt ?? businessToday(),
                   }}
                   fileName={`領収書_${yearlyCompany.companyName}.pdf`}
                 />

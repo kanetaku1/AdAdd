@@ -2,3 +2,4 @@ docs/*
 backend_update.bundle
 .env
 .env.production
+scripts/dev-users.local.csv

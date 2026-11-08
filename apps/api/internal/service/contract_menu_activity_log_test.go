@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
@@ -21,15 +22,12 @@ func TestContractMenuStatusLogMessage(t *testing.T) {
 	}
 }
 
-func TestUpdateWithUserLogsAnyStatusChangeOnce(t *testing.T) {
-	testdb.Open(t)
-
+// seedStatusLogContractMenu creates one WAITING Contract Menu without files.
+func seedStatusLogContractMenu(t *testing.T) *model.ContractMenu {
+	t.Helper()
 	contractID, menuMasterID, _ := seedPaymentSyncContract(t, "WAITING", decimal.Zero)
-	yearlyCompanyID := testYearlyCompanyID
-	cmID := "test-contract-menu"
-
 	cm := &model.ContractMenu{
-		ID:                cmID,
+		ID:                "test-contract-menu",
 		ContractID:        contractID,
 		SponsorshipMenuID: menuMasterID,
 		Quantity:          1,
@@ -39,43 +37,92 @@ func TestUpdateWithUserLogsAnyStatusChangeOnce(t *testing.T) {
 	if err := db.DB.Create(cm).Error; err != nil {
 		t.Fatalf("seed contract menu: %v", err)
 	}
+	return cm
+}
 
+func activityLogActions(t *testing.T) []string {
+	t.Helper()
+	var actions []string
+	if err := db.DB.Model(&model.ActivityLog{}).
+		Where("yearly_company_id = ?", testYearlyCompanyID).
+		Order("created_at, id").
+		Pluck("action", &actions).Error; err != nil {
+		t.Fatalf("list logs: %v", err)
+	}
+	return actions
+}
+
+// Each status change through UpdateWithUser writes one
+// CONTRACT_MENU_STATUS_UPDATED entry; the same status writes nothing. Only
+// transitions allowed without files are used here: SUBMITTED is derived from
+// active files (see TestAddFilesSubmitsAndLogsUpload).
+func TestUpdateWithUserLogsAnyStatusChangeOnce(t *testing.T) {
+	testdb.Open(t)
+	cm := seedStatusLogContractMenu(t)
 	svc := NewContractMenuService()
-	cm.Status = "PRODUCING"
-	if err := svc.UpdateWithUser(cm, "user-test"); err != nil {
-		t.Fatalf("WAITING -> PRODUCING: %v", err)
-	}
 
-	var logs []model.ActivityLog
-	if err := db.DB.Where("yearly_company_id = ?", yearlyCompanyID).Find(&logs).Error; err != nil {
-		t.Fatalf("list logs: %v", err)
+	steps := []struct {
+		status   string
+		wantLogs int
+	}{
+		{"PRODUCING", 1},
+		{"PRODUCING", 1}, // same status: no new entry
+		{"COMPLETED", 2},
 	}
-	if len(logs) != 1 {
-		t.Fatalf("after first change: got %d logs, want 1", len(logs))
+	for _, step := range steps {
+		cm.Status = step.status
+		if err := svc.UpdateWithUser(cm, "user-test"); err != nil {
+			t.Fatalf("update to %s: %v", step.status, err)
+		}
+		actions := activityLogActions(t)
+		if len(actions) != step.wantLogs {
+			t.Fatalf("after %s: got %d logs, want %d", step.status, len(actions), step.wantLogs)
+		}
+		for _, action := range actions {
+			if action != model.EventContractMenuStatusUpdated {
+				t.Fatalf("action = %q, want %q", action, model.EventContractMenuStatusUpdated)
+			}
+		}
 	}
-	if logs[0].Action != model.EventContractMenuStatusUpdated {
-		t.Fatalf("action = %q", logs[0].Action)
-	}
+}
 
-	cm.Status = "PRODUCING"
-	if err := svc.UpdateWithUser(cm, "user-test"); err != nil {
-		t.Fatalf("same status: %v", err)
-	}
-	if err := db.DB.Where("yearly_company_id = ?", yearlyCompanyID).Find(&logs).Error; err != nil {
-		t.Fatalf("list logs: %v", err)
-	}
-	if len(logs) != 1 {
-		t.Fatalf("same-status PATCH must not add a log, got %d", len(logs))
-	}
+// SUBMITTED cannot be set through UpdateWithUser while no file is
+// registered, and the rejected change writes no log.
+func TestUpdateWithUserRejectsSubmittedWithoutFiles(t *testing.T) {
+	testdb.Open(t)
+	cm := seedStatusLogContractMenu(t)
 
 	cm.Status = "SUBMITTED"
-	if err := svc.UpdateWithUser(cm, "user-test"); err != nil {
-		t.Fatalf("PRODUCING -> SUBMITTED: %v", err)
+	if err := NewContractMenuService().UpdateWithUser(cm, "user-test"); !errors.Is(err, ErrSubmittedStateConflict) {
+		t.Fatalf("err = %v, want ErrSubmittedStateConflict", err)
 	}
-	if err := db.DB.Where("yearly_company_id = ?", yearlyCompanyID).Find(&logs).Error; err != nil {
-		t.Fatalf("list logs: %v", err)
+	if actions := activityLogActions(t); len(actions) != 0 {
+		t.Fatalf("got logs %q, want none", actions)
 	}
-	if len(logs) != 2 {
-		t.Fatalf("upload-equivalent SUBMITTED must write exactly one more log, got %d", len(logs))
+}
+
+// Registering a file makes the Contract Menu SUBMITTED and writes one
+// AD_MATERIAL_UPLOADED entry per file, not CONTRACT_MENU_STATUS_UPDATED.
+func TestAddFilesSubmitsAndLogsUpload(t *testing.T) {
+	testdb.Open(t)
+	cm := seedStatusLogContractMenu(t)
+	// addFiles accepts only the active Year.
+	if err := db.DB.Model(&model.Year{}).Where("id = ?", testYearID).Update("is_active", true).Error; err != nil {
+		t.Fatalf("activate year: %v", err)
+	}
+
+	updated, err := NewContractMenuService().AddFiles(cm.ID, []ContractMenuDriveFileInput{{
+		DriveURL:      "https://drive.google.com/file/d/test-file/view",
+		DriveFileName: "ad.pdf",
+	}}, "user-test")
+	if err != nil {
+		t.Fatalf("add files: %v", err)
+	}
+	if updated.Status != "SUBMITTED" {
+		t.Fatalf("status = %q, want SUBMITTED", updated.Status)
+	}
+	actions := activityLogActions(t)
+	if len(actions) != 1 || actions[0] != model.EventAdMaterialUploaded {
+		t.Fatalf("logs = %q, want one %q", actions, model.EventAdMaterialUploaded)
 	}
 }

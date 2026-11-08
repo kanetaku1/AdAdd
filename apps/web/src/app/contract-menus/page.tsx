@@ -32,6 +32,8 @@ import {
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
+import { downloadCsv } from "@/lib/csv"
+import { ContractMenuFilesSummary } from "@/components/contract-menu-files-summary"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 import {
@@ -57,11 +59,11 @@ function isContractMenuStatus(
  * companies at once (UC-07, UC-08) — not scoped to one Contract like the
  * table embedded in yearly-companies/[id]/page.tsx.
  *
- * Status is freely editable to any `ContractMenuStatus`, including
- * `SUBMITTED` (`PATCH /contract-menus/{id}/status`). Quantity and
+ * In-progress status is editable via `PATCH /contract-menus/{id}/status`;
+ * `SUBMITTED` is derived from active file references. Quantity and
  * production type are editable inline via `PATCH /contract-menus/{id}`
- * (spec/api.md#Update Contract Menu). Deliverable completeness is read from
- * Drive URL presence (no separate flag).
+ * (spec/api.md#Update Contract Menu). Materials use a count-first compact
+ * display, shared with Yearly Company Detail and CSV export.
  *
  * Accepts `?menuId=&status=&companyName=` query params as initial filter
  * values, so the per-menu status breakdown and the follow-up list in
@@ -213,6 +215,24 @@ function ContractMenusList() {
     }
   }
 
+  function handleCsvExport() {
+    downloadCsv(
+      `広告管理-${activeYear?.name ?? "年度"}.csv`,
+      ["会社名", "担当者", "メニュー", "数量", "制作者", "ステータス", "資料"],
+      visibleContractMenus.map((cm) => [
+        cm.companyName,
+        cm.assignedMemberName ?? "未割当",
+        cm.sponsorshipMenuName,
+        String(cm.quantity),
+        cm.productionType
+          ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[cm.productionType]
+          : "-",
+        CONTRACT_MENU_STATUS_LABEL[cm.status],
+        cm.fileCount > 0 ? `資料${cm.fileCount}件` : "未提出",
+      ])
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -235,6 +255,7 @@ function ContractMenusList() {
       />
 
       <div className="flex flex-col gap-3 rounded-md border bg-background p-3">
+        <div className="flex items-start gap-2">
         <div className="min-w-56 max-w-md flex-1">
           <Input
             placeholder="企業名で検索"
@@ -261,6 +282,14 @@ function ContractMenusList() {
               )}
             </div>
           )}
+        </div>
+          <Button
+            variant="outline"
+            onClick={handleCsvExport}
+            disabled={visibleContractMenus.length === 0}
+          >
+            CSVを出力
+          </Button>
         </div>
 
         {hasActiveFilters && (
@@ -376,9 +405,6 @@ function ContractMenusList() {
               </TableHead>
               <TableHead>
                 資料(Google Drive)
-                <span className="ml-1.5 font-normal text-muted-foreground">
-                  （登録すると提出済みになります）
-                </span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -445,15 +471,7 @@ function ContractMenusList() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {cm.driveUrl ? (
-                          <a href={cm.driveUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
-                            {cm.driveFileName || "確認"}
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </div>
+                      <ContractMenuFilesSummary menu={cm} />
                     </TableCell>
                   </TableRow>
                 )

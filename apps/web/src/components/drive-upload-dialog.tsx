@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import useDrivePicker from "react-google-drive-picker"
 import { useDropzone } from "react-dropzone"
 
@@ -14,6 +14,7 @@ import {
 import { ErrorBanner } from "@/components/query-state"
 import { uploadContractMenuToDrive } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
+import { ApiError } from "@/lib/api/client"
 import type { ContractMenu } from "@/types/contract-menu"
 
 export function DriveUploadDialog({
@@ -28,15 +29,10 @@ export function DriveUploadDialog({
     /** Receives the updated Contract Menu so callers can refresh the row without refetching. */
     onSuccess?: (updated: ContractMenu) => void
 }) {
-    const [file, setFile] = useState<File | null>(null)
+    const [files, setFiles] = useState<File[]>([])
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [openPicker, authResponse] = useDrivePicker()
-
-    const authRef = useRef<unknown>(null)
-    useEffect(() => {
-        authRef.current = authResponse
-    }, [authResponse])
+    const [openPicker] = useDrivePicker()
 
     // Notice: Google Developer Console Client ID and API Key required
     const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
@@ -44,16 +40,14 @@ export function DriveUploadDialog({
     const GOOGLE_DRIVE_ROOT_FOLDER_ID = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_ROOT_FOLDER_ID || ""
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        maxFiles: 1,
+        multiple: true,
         onDrop: (acceptedFiles) => {
-            if (acceptedFiles.length > 0) {
-                setFile(acceptedFiles[0])
-            }
+            setFiles(acceptedFiles)
         },
     })
 
     async function handleUploadClick() {
-        if (!file) return
+        if (files.length === 0) return
 
         setBusy(true)
         setError(null)
@@ -68,28 +62,28 @@ export function DriveUploadDialog({
                 supportDrives: true,
                 multiselect: false,
                 setSelectFolderEnabled: true,
-                customScopes: ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file"],
+                customScopes: ["https://www.googleapis.com/auth/drive.metadata.readonly"],
                 callbackFunction: async (data: unknown) => {
                     if (data && typeof data === "object" && (data as { action?: string }).action === "picked") {
-                        const pickedData = data as { docs: { id: string }[], accessToken?: string }
+                        const pickedData = data as { docs: { id: string }[] }
                         const folderId = pickedData.docs[0].id
 
-                        const actualAuth = authRef.current as { access_token?: string } | null
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const tokenToUse = actualAuth?.access_token || pickedData.accessToken || (window as any).gapi?.client?.getToken()?.access_token || ""
-
-                        if (!tokenToUse) {
-                            setError("Google Driveの認証トークンが取得できませんでした。再度お試しください。")
-                            setBusy(false)
-                            return
-                        }
-
                         try {
-                            const updated = await uploadContractMenuToDrive(menuId, file, folderId, tokenToUse)
+                            const updated = await uploadContractMenuToDrive(menuId, files, folderId)
                             onSuccess?.(updated)
                             onOpenChange(false)
                         } catch (err) {
-                            setError(getErrorMessage(err, { fallback: "アップロードに失敗しました" }))
+                            if (err instanceof ApiError && err.code === "INVALID_REQUEST") {
+                                const detail: Record<string, string> = {
+                                    "folderId is required": "アップロード先フォルダを選択してください。",
+                                    "multipart form is required": "アップロードデータを読み取れませんでした。ファイルを選び直してください。",
+                                    "file or files is required": "アップロードするファイルを選択してください。",
+                                    "file is required": "アップロードするファイルを選択してください。",
+                                }
+                                setError(detail[err.message] ?? `アップロード内容を確認してください。（${err.message}）`)
+                            } else {
+                                setError(getErrorMessage(err, { fallback: "アップロードに失敗しました" }))
+                            }
                         } finally {
                             setBusy(false)
                         }
@@ -108,7 +102,7 @@ export function DriveUploadDialog({
     return (
         <Dialog open={open} onOpenChange={(val) => {
             if (!busy) onOpenChange(val)
-            if (!val) setFile(null)
+            if (!val) setFiles([])
         }}>
             <DialogContent>
                 <DialogHeader>
@@ -123,20 +117,23 @@ export function DriveUploadDialog({
                         }`}
                 >
                     <input {...getInputProps()} />
-                    {file ? (
-                        <div className="font-medium text-green-700">選択済み: {file.name}</div>
+                    {files.length > 0 ? (
+                        <div className="space-y-1 text-left font-medium text-green-700">
+                            <div>選択済み: {files.length}件</div>
+                            {files.map((file) => <div key={`${file.name}-${file.lastModified}`} className="truncate text-sm">{file.name}</div>)}
+                        </div>
                     ) : (
                         <div className="text-gray-500">
                             {isDragActive
                                 ? "ここにファイルをドロップ..."
-                                : "ファイルをドラッグ＆ドロップ、またはクリックして選択"}
+                                : "複数ファイルをドラッグ＆ドロップ、またはクリックして選択"}
                         </div>
                     )}
                 </div>
 
                 <div className="flex justify-end gap-2 mt-4">
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>キャンセル</Button>
-                    <Button onClick={handleUploadClick} disabled={!file || busy || !GOOGLE_CLIENT_ID}>
+                    <Button onClick={handleUploadClick} disabled={files.length === 0 || busy || !GOOGLE_CLIENT_ID}>
                         {busy ? "アップロード中..." : "フォルダを選択してアップロード"}
                     </Button>
                 </div>

@@ -110,6 +110,23 @@ Per-company records (the Yearly Company itself, its Company, Contract, contract-
 
 ---
 
+# Time Zone
+
+AdAdd is used in Japan. Every date and timestamp is in **Japan Standard Time (JST, Asia/Tokyo)**, whatever the time zone of the server, the MySQL server, or the browser (Issue #160).
+
+| Kind | Examples | Rule |
+| ---- | -------- | ---- |
+| Business date | Contract date, invoice issued date and payment deadline, receipt issued date and payment date | The calendar day in JST. "Today" is today in JST. |
+| Timestamp | `created_at`, `updated_at`, `confirmed_at`, `assigned_at`, `submitted_at`, Activity Log `createdAt` | Stored as the JST wall clock and shown in JST. |
+
+* A business date is a `DATE` column and a `YYYY-MM-DD` string in the API.
+* A timestamp is a `DATETIME` column holding the JST wall clock, so a value read directly from MySQL (or exported) is already Japan time. The API connects to MySQL with `loc=Asia/Tokyo` and the session `time_zone` `+09:00`, so the values Go writes and the `CURRENT_TIMESTAMP` defaults MySQL writes are both JST. The API returns timestamps as ISO-8601 with the `+09:00` offset.
+* When a business date is derived from a timestamp, it is the JST day of that timestamp. The receipt's payment date is the JST day of the Payment's `confirmedAt`.
+* The API computes a default business date (the contract date when none is sent) as today in JST. The web app computes business dates (form defaults, invoice and receipt dates, the payment deadline = invoice issued date + 14 days) with one shared JST function, never with `Date.toISOString()`, which is UTC.
+* Timestamps written before this rule (Issue #160) may be UTC. They are not converted.
+
+---
+
 # Infrastructure
 
 ## Local Development
@@ -144,7 +161,7 @@ Secrets are never committed to the repository.
 
 | Service        | Purpose                                   | System Responsibility            |
 |----------------|--------------------------------------------|-----------------------------------|
-| Google Drive   | Advertisement file storage                 | Store metadata and Drive reference only (`PATCH /contract-menus/{id}/production`, `POST /contract-menus/{id}/drive-upload`) |
+| Google Drive   | Advertisement file storage                 | Upload and trash through the dedicated account; store metadata and Drive reference only (`PATCH /contract-menus/{id}/production`, `POST /contract-menus/{id}/drive-upload`) |
 | Google Forms   | Contract input method                      | None — members transcribe into AdAdd; MySQL is the source of truth. Automatic import is a Future Extension |
 | Google Groups  | Email distribution for sponsorship contacts | None — email content is not stored |
 | Slack          | Assignee notification when sponsorship progress becomes Confirmed (UC-16, FR-014) | Send notifications only — Slack is never read from, and message content is not stored |

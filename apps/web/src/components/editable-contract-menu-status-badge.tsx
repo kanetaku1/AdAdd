@@ -31,6 +31,7 @@ export function EditableContractMenuStatusBadge({
   disabled?: boolean
 }) {
   const [editing, setEditing] = useState(false)
+	const submissionDerived = value === "SUBMITTED"
 
   if (editing) {
     return (
@@ -49,7 +50,7 @@ export function EditableContractMenuStatusBadge({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(CONTRACT_MENU_STATUS_LABEL).map(([v, label]) => (
+          {Object.entries(CONTRACT_MENU_STATUS_LABEL).filter(([v]) => v !== "SUBMITTED").map(([v, label]) => (
             <SelectItem key={v} value={v}>
               {label}
             </SelectItem>
@@ -62,9 +63,9 @@ export function EditableContractMenuStatusBadge({
   return (
     <Badge
       variant={CONTRACT_MENU_STATUS_BADGE_VARIANT[value]}
-      className={disabled ? "opacity-50" : "cursor-pointer"}
+      className={disabled || submissionDerived ? "opacity-50" : "cursor-pointer"}
       onClick={() => {
-        if (!disabled) setEditing(true)
+        if (!disabled && !submissionDerived) setEditing(true)
       }}
     >
       {CONTRACT_MENU_STATUS_LABEL[value]}
