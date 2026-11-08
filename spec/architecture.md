@@ -161,7 +161,7 @@ Secrets are never committed to the repository.
 
 | Service        | Purpose                                   | System Responsibility            |
 |----------------|--------------------------------------------|-----------------------------------|
-| Google Drive   | Advertisement file storage                 | Store metadata and Drive reference only (`PATCH /contract-menus/{id}/production`, `POST /contract-menus/{id}/drive-upload`) |
+| Google Drive   | Advertisement file storage                 | Upload and trash through the dedicated account; store metadata and Drive reference only (`PATCH /contract-menus/{id}/production`, `POST /contract-menus/{id}/drive-upload`) |
 | Google Forms   | Contract input method                      | None — members transcribe into AdAdd; MySQL is the source of truth. Automatic import is a Future Extension |
 | Google Groups  | Email distribution for sponsorship contacts | None — email content is not stored |
 | Slack          | Assignee notification when sponsorship progress becomes Confirmed (UC-16, FR-014) | Send notifications only — Slack is never read from, and message content is not stored |

@@ -42,6 +42,14 @@ export function InvoiceGeneratorModal({
     setData((prev) => ({ ...prev, [key]: value }))
   }
 
+  // initialData is recomputed by the caller whenever the Contract changes, so
+  // re-seed on every open — otherwise an earlier, stale amount would be
+  // reused and an Invoice/Receipt with the wrong total could be sent (#158).
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) setData(initialData)
+    setOpen(nextOpen)
+  }
+
   async function handleDownload() {
     setBusy(true)
     try {
@@ -58,7 +66,7 @@ export function InvoiceGeneratorModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <IconActionDialogTrigger label="請求書を生成">
         <FileText />
       </IconActionDialogTrigger>

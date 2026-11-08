@@ -20,7 +20,7 @@ func TestMigrationsSeedCanonicalRoles(t *testing.T) {
 	}
 	sort.Strings(codes)
 
-	want := []string{"ADMINISTRATOR", "ADVISOR", "FINANCE_DEPARTMENT", "SPONSORSHIP_MEMBER"}
+	want := []string{"ADMINISTRATOR", "ADVERTISEMENT_MANAGER", "ADVISOR", "FINANCE_DEPARTMENT", "SPONSORSHIP_MEMBER"}
 	if len(codes) != len(want) {
 		t.Fatalf("role codes = %v, want %v", codes, want)
 	}

@@ -67,8 +67,11 @@ Production runs from its own Compose file, `compose.production.yml` (Issue #156)
 | API port | Published on `127.0.0.1:8080` only, never on every interface |
 | `ALLOWED_ORIGINS` | The origin of the production web app |
 | Authentication | AdAdd session JWTs only. There is no development authentication to switch off (`spec/api.md#Authentication`) |
+| Dedicated Drive account | `GOOGLE_DRIVE_CLIENT_SECRET` and `GOOGLE_DRIVE_REFRESH_TOKEN` are required secrets; `GOOGLE_DRIVE_CLIENT_ID` defaults to `GOOGLE_CLIENT_ID`. `GOOGLE_DRIVE_ACCOUNT_EMAIL` identifies the authorized account for operators. |
 
 The values come from `.env.production` at the repository root. Copy `.env.production.example` and fill it in. The file is gitignored and is never committed: the repository is public. Every required value is checked by Compose (`${VAR:?}`), so a missing value stops `up` instead of starting with an empty one.
+
+Generate the dedicated account's refresh token on an administrator's trusted machine using `go run ./cmd/drive-auth -env-file <gitignored-env-file>` as described in `spec/development.md#environment-variables`, then place it in the production secret manager. Do not copy it into a deployment log, ticket, database, or browser setting. When the integration administrator changes, first authorize the successor-controlled account recovery/passkeys, then revoke the old OAuth grant and generate a replacement token during a planned maintenance window.
 
 ```bash
 # from the repository root

@@ -19,12 +19,13 @@ type ErrorResponse struct {
 }
 
 const (
-	ErrCodeInvalidRequest = "INVALID_REQUEST"
-	ErrCodeNotFound       = "NOT_FOUND"
-	ErrCodeConflict       = "CONFLICT"
-	ErrCodeInternal       = "INTERNAL_ERROR"
-	ErrCodeUnauthorized   = "UNAUTHORIZED"
-	ErrCodeForbidden      = "FORBIDDEN"
+	ErrCodeInvalidRequest   = "INVALID_REQUEST"
+	ErrCodeNotFound         = "NOT_FOUND"
+	ErrCodeConflict         = "CONFLICT"
+	ErrCodeInternal         = "INTERNAL_ERROR"
+	ErrCodeUnauthorized     = "UNAUTHORIZED"
+	ErrCodeForbidden        = "FORBIDDEN"
+	ErrCodeDriveUnavailable = "DRIVE_UNAVAILABLE"
 )
 
 // respondError is a generic helper to send standardized error responses
@@ -60,6 +61,10 @@ func respondUnauthorized(c echo.Context, message string) error {
 // respondForbidden shortcuts HTTP 403 errors
 func respondForbidden(c echo.Context, message string) error {
 	return respondError(c, http.StatusForbidden, ErrCodeForbidden, message)
+}
+
+func respondDriveUnavailable(c echo.Context, status int, message string) error {
+	return respondError(c, status, ErrCodeDriveUnavailable, message)
 }
 
 // respondInternalServerError parses the error. If it's a MySQL unique constraint violation (1062),
