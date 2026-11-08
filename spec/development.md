@@ -77,6 +77,8 @@ AdAdd/
 │
 ├── packages/
 │
+├── scripts/
+│
 ├── spec/
 │
 ├── docs/
@@ -348,7 +350,7 @@ There are no down migrations. The API and the tests only ever apply migrations f
 
 * A mistake in a merged migration is fixed with a new migration.
 * The production database is rolled back by restoring a backup taken before the change (`spec/operations.md#Backup`), not by a down migration.
-* A local database is recreated (`spec/development.md#Development Seed`).
+* A local database is recreated (`spec/development.md#Resetting the local database`).
 
 `MIGRATE_ON_START=true` (Docker Compose, E2E) applies migrations whenever the API starts. That is for development only. Production applies them as an explicit step after a backup (`spec/operations.md#Upgrading Production`), with `go run ./cmd/migrate status` / `up -database <DB_NAME>`. Without `MIGRATE_ON_START=true`, the API refuses to start while a migration is pending or the state is dirty or unknown; run `go run ./cmd/migrate up -database <DB_NAME>` first.
 
@@ -396,7 +398,7 @@ apps/api/scripts/check-migrations.sh origin/main
 
 ### A local database that ran an unmerged migration
 
-If you applied another branch's migration on your local database and that migration was renumbered later, your database records a version that no longer matches. Do not patch `schema_migrations` by hand. Recreate the local database (`spec/development.md#Development Seed`). Tell the team when others may be in the same state.
+If you applied another branch's migration on your local database, your database records a version that this branch does not have, or that was renumbered later. Do not patch `schema_migrations` by hand. Recreate the local database with `scripts/reset-dev-database.sh` (`spec/development.md#Resetting the local database`). Tell the team when others may be in the same state.
 
 ---
 
@@ -410,96 +412,7 @@ This was a one-time exception to rule 3, allowed only because no production data
 
 ### Moving a local database to the baseline
 
-Every developer with a local database from before the squash does this **once**, after pulling the squash. A local database created before the squash records version `12`, which no longer has a file. The API then stops on start with `no migration found for version 12`.
-
-The integration test database (`*_test`) needs nothing: the tests rebuild it themselves. Only the development database (`adadd`) and the local E2E database (`adadd_e2e`) are moved.
-
-**Follow the steps in order.** The `adadd-api` container built before the squash still has the old migration files inside its image, and Docker Compose restarts it on its own (`restart: unless-stopped`). If it is still running when the version is changed to `1`, it applies the old `0002` and `0003` on its next restart, fails, and leaves the database `dirty` at version `3` (`Dirty database version 3. Fix and force version.`). That database can then only be recreated (step 3b).
-
-Run every command from the repository root unless noted.
-
-#### 1. Stop the old API container
-
-```bash
-docker compose stop api
-```
-
-#### 2. Check the state of each database
-
-```bash
-docker exec adadd-mysql mysql -uroot -proot_password -e \
-  "SELECT 'adadd', version, dirty FROM adadd.schema_migrations; SELECT 'adadd_e2e', version, dirty FROM adadd_e2e.schema_migrations;"
-```
-
-`Unknown database 'adadd_e2e'` only means you never created the E2E database; skip it.
-
-| `version` / `dirty` | What to do |
-| ------------------- | ---------- |
-| `12` / `0` | 3a — keep the data |
-| `1` / `0` | Nothing — already moved |
-| Anything else, `dirty = 1`, or you applied a migration from an unmerged branch (e.g. the old `contract_menu_files` from the closed PR #139) | 3b — recreate |
-
-#### 3a. Keep the data: record the new version
-
-A database that ran every migration up to `0012_use_binary_collation` cleanly already has the baseline schema. Only the recorded version changes:
-
-```bash
-docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
-  "UPDATE schema_migrations SET version = 1 WHERE version = 12 AND dirty = 0;"
-```
-
-For `adadd_e2e`, run the same command with `adadd_e2e` in place of `adadd`. The only output is a warning that a password was given on the command line; it can be ignored.
-
-#### 3b. Recreate: delete all local data
-
-This deletes every row, **including your own User**, so you can no longer sign in with Google until step 5.
-
-```bash
-docker exec adadd-mysql mysql -uroot -proot_password -e \
-  "DROP DATABASE adadd; CREATE DATABASE adadd CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin; GRANT ALL PRIVILEGES ON adadd.* TO 'adadd'@'%';"
-```
-
-For `adadd_e2e`, run the same command with `adadd_e2e` in place of `adadd`. The next E2E run applies the baseline and the seed to it by itself.
-
-#### 4. Rebuild and start the API
-
-```bash
-docker compose up -d --build api
-docker logs adadd-api
-```
-
-`--build` is required: without it, the old image comes back. The log shows `migrations applied` and then `starting server on port 8080`. If you recreated `adadd` (3b), load the development data, from `apps/api`:
-
-```bash
-go run ./cmd/seed
-```
-
-#### 5. Register yourself again (only after 3b)
-
-The seed has only fictitious Users (`spec/development.md#Seed contents`). Signing in with your Google account shows `このメールアドレスは登録されていません。管理者に連絡してください。` until your User exists again. Insert yourself as an Administrator (replace the three values; the email must be the Google account you sign in with):
-
-```bash
-docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
-  "SET @user_id = UUID();
-   INSERT INTO users (id, student_id, name, email, is_active) VALUES (@user_id, '<student id>', '<full name>', '<Google account email>', TRUE);
-   INSERT INTO user_roles (id, user_id, role_id) SELECT UUID(), @user_id, id FROM roles WHERE code = 'ADMINISTRATOR';"
-```
-
-Other Roles can then be granted from User List. Check with:
-
-```bash
-docker exec adadd-mysql mysql -uroot -proot_password adadd -e \
-  "SELECT u.email, r.code FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id;"
-```
-
-#### Troubleshooting
-
-| Symptom | Cause | Fix |
-| ------- | ----- | ---- |
-| API log: `no migration found for version 12` | The database is still at the pre-squash version | Steps 1–4 |
-| API log: `Dirty database version 3` | The old container ran after the version was changed to `1` | Step 1, then 3b, 4, 5 |
-| `adadd-api` keeps restarting after step 4 | The image was not rebuilt | `docker compose up -d --build api` |
-| Sign-in shows `このメールアドレスは登録されていません。` | Your User was deleted with the database | Step 5 |
+A local database created before the squash records version `12`, which no longer has a file, and the API stops on start with `no migration found for version 12`. Recreate it with `scripts/reset-dev-database.sh` (`spec/development.md#Resetting the local database`). The integration test database (`*_test`) needs nothing: the tests rebuild it themselves.
 
 ---
 
@@ -710,6 +623,39 @@ The seed only checks IDs. Do not run it against a database that already has a Ye
 | 2026 assignments | `c_001`, `c_003` → 鈴木. `c_002` → 山田. `c_004`, `c_005` unassigned. 伊藤 advises 鈴木 and 山田. |
 | 2026 contract | `c_001`: pamphlet ad, homepage ad, and a goods sponsorship booth (total 95,000). Payment waiting for Finance. |
 
+### Resetting the local database
+
+`scripts/reset-dev-database.sh` recreates the local databases and loads the seed in one command. Use it whenever the local database no longer matches the checked-out branch, typically after switching away from a branch with an unmerged migration (the API then stops on start with `no migration found for version N`).
+
+Local data is disposable: the seed rebuilds the known state, so a branch with a different migration history never blocks development. Do not patch `schema_migrations` by hand instead (see `A local database that ran an unmerged migration`).
+
+From the repository root, with Docker Compose running MySQL:
+
+```bash
+scripts/reset-dev-database.sh
+```
+
+It asks for confirmation (`--yes` skips it), then:
+
+1. Stops the `api` container, so it cannot apply migrations while the databases are recreated.
+2. Drops and recreates `adadd` and `adadd_e2e`. Every local row is deleted.
+3. Rebuilds and starts the `api` container (`docker compose up -d --build api`), which applies the branch's migrations, and waits for `/health`.
+4. Runs the development seed against `adadd`.
+5. Registers the developers listed in `scripts/dev-users.local.csv`, if that file exists.
+
+The next E2E run loads the seed into `adadd_e2e` by itself.
+
+#### Developer Users
+
+The seed has only fictitious Users, so a developer's own Google account must be registered again after every reset to sign in (`Development Modes`). The script does this from `scripts/dev-users.local.csv`.
+
+* The file holds real names and email addresses, so it is **never committed**: it is in `.gitignore`. The repository is public, and the seed stays fictitious.
+* Each developer creates it on their own machine from `scripts/dev-users.example.csv`.
+* One User per line: `email,name,student_id,role_codes`. `role_codes` is one or more Role codes separated by `|`, from the five in `spec/model.md#Role` (`ADMINISTRATOR`, `SPONSORSHIP_MEMBER`, `FINANCE_DEPARTMENT`, `ADVERTISEMENT_MANAGER`, `ADVISOR`). `student_id` may be empty. Spaces and tabs around a field or a Role code are ignored. Lines starting with `#` and blank lines are skipped.
+* The email must be the Google account used to sign in.
+* A field must not contain `,`, `'`, `"`, or `\`, and a Role code is uppercase letters and `_` only. The script checks every line before deleting anything, and stops on an invalid line without changing the databases.
+* Role codes are checked against the `roles` table that the checked-out branch's migrations built. A branch whose migrations do not create a Role yet (e.g. `ADVERTISEMENT_MANAGER` before its migration is merged) skips that code with a warning; the User is still registered with the other Roles. The same file therefore works on every branch.
+
 ---
 
 ## E2E Tests
@@ -735,6 +681,7 @@ CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container
 | Assignment | An Administrator assigns a member; it persists after reload |
 | Contract | A Sponsorship Member creates a contract with menus; total and Payment (waiting) persist |
 | Payment confirmation | A Sponsorship Member cannot open the status for editing; Finance confirms; status and confirmer persist |
+| Invoice / Receipt | After a Contract Menu is added on the Yearly Company Detail (no reload), the Invoice total and the Receipt amount show the new total (Issue #158) |
 | Master data deletion | An Administrator deletes a company and a menu after confirming; a Sponsorship Member sees no delete control; a company registered in a Year is rejected |
 | Session | No session or a rejected session leads to `/login`; a deactivated User is sent to `/login`; Company list and Company edit load with a session (Issue #152) |
 | Business date | At 00:30 JST (still the previous day in UTC), the contract date, invoice issued date, and payment deadline are JST days; the contract date persists (Issue #160) |
@@ -868,7 +815,7 @@ AdAdd runs in one of two modes during development (`spec/decisions/0004-developm
 | Role gating | Applied | Applied |
 | Use | Checking each Role's screens; the Vercel preview (ADR-0002) | Checking the real flow as in production |
 
-In MySQL mode, a developer's Google account must be registered both as a test user of the AdAdd OAuth client and as an AdAdd `User` with the Roles to check. After the first sign-in, the session is renewed while in use and ends after 30 days without use.
+In MySQL mode, a developer's Google account must be registered both as a test user of the AdAdd OAuth client and as an AdAdd `User` with the Roles to check. Locally, the AdAdd `User` is registered from `scripts/dev-users.local.csv` (`spec/development.md#Developer Users`). After the first sign-in, the session is renewed while in use and ends after 30 days without use.
 
 ### Environment variables
 
@@ -889,7 +836,23 @@ In MySQL mode, a developer's Google account must be registered both as a test us
 | `GOOGLE_CLIENT_ID` | Verifies Google id_tokens (same value as in `apps/web`). |
 | `DB_*`, `MIGRATE_ON_START`, `MIGRATIONS_PATH`, `APP_PORT`, `ALLOWED_ORIGINS` | Database and server. |
 | `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Drive folder for ad material files. |
+| `GOOGLE_DRIVE_CLIENT_ID` / `GOOGLE_DRIVE_CLIENT_SECRET` | OAuth web client used only by the dedicated Drive account (ADR-0006). The client ID defaults to `GOOGLE_CLIENT_ID`. |
+| `GOOGLE_DRIVE_REFRESH_TOKEN` | Offline token for the dedicated Drive account. Secret; never commit or expose to the browser. |
+| `GOOGLE_DRIVE_ACCOUNT_EMAIL` | Optional login hint for the one-time Drive authorization command. |
 | `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | Optional Slack mention (UC-16). |
+
+Register `http://127.0.0.1:8787/callback` as an authorized redirect URI on
+the Drive OAuth client. Put its client ID, client secret, and optional dedicated
+account email in the gitignored repository-root `.env`, then run from `apps/api`:
+
+```powershell
+go run ./cmd/drive-auth -env-file ../../.env
+```
+
+The command reads and updates the file named by `-env-file`. Open the printed
+Google URL and authenticate the dedicated account with its passkey. The command
+stores the refresh token in that file without printing it. Restart the API
+container afterward. Ordinary AdAdd Users never run this command.
 
 There is no development authentication setting. The former `DEV_AUTH_ENABLED` / `NEXT_PUBLIC_DEV_AUTH_ENABLED` header stub was removed (ADR-0004 Decision 7). Production settings are in `spec/operations.md#Production Configuration`.
 

@@ -154,8 +154,31 @@ function mapApiContractMenu(cm: {
   driveFolderId?: string
   driveUrl?: string
   driveFileName?: string
+  files?: Array<{
+    id: string
+    contractMenuId?: string
+    driveFileId?: string | null
+    driveUrl: string
+    driveFileName: string
+    createdAt?: string
+    updatedAt?: string
+  }>
+  fileCount?: number
+  isSubmitted?: boolean
+  allowUpload?: boolean
+  allowDelete?: boolean
   remarks?: string
 }): ContractMenu {
+  const files = cm.files ?? (cm.driveUrl
+    ? [{
+        id: `legacy-${cm.id}`,
+        contractMenuId: cm.id,
+        driveFileId: null,
+        driveUrl: cm.driveUrl,
+        driveFileName: cm.driveFileName ?? "資料",
+      }]
+    : [])
+  const isSubmitted = cm.isSubmitted ?? files.length > 0
   return {
     id: cm.id,
     contractId: cm.contractId,
@@ -165,10 +188,23 @@ function mapApiContractMenu(cm: {
     isGoodsSponsorship: cm.isGoodsSponsorship,
     productionType:
       (cm.productionType as ContractMenu["productionType"]) ?? null,
-    status: cm.status as ContractMenu["status"],
+    status: (isSubmitted
+      ? "SUBMITTED"
+      : cm.status === "SUBMITTED"
+        ? "WAITING"
+        : cm.status) as ContractMenu["status"],
     driveFolderId: cm.driveFolderId ?? null,
-    driveUrl: cm.driveUrl ?? null,
-    driveFileName: cm.driveFileName ?? null,
+    files: files.map((file) => ({
+      ...file,
+      contractMenuId: file.contractMenuId ?? cm.id,
+      driveFileId: file.driveFileId ?? null,
+    })),
+    fileCount: cm.fileCount ?? files.length,
+    isSubmitted,
+    allowUpload: cm.allowUpload ?? true,
+    allowDelete: cm.allowDelete ?? true,
+    driveUrl: files[0]?.driveUrl ?? null,
+    driveFileName: files[0]?.driveFileName ?? null,
     remarks: cm.remarks ?? "",
   }
 }
@@ -476,8 +512,23 @@ export async function updateContractMenuProduction(
     })
     return mapApiContractMenu(updated)
   }
+  const current = mockContractMenus.find((menu) => menu.id === id)
+  const files = [
+    ...(current?.files ?? []),
+    {
+      id: crypto.randomUUID(),
+      contractMenuId: id,
+      driveFileId: null,
+      driveUrl: input.driveFolderUrl,
+      driveFileName: "資料",
+    },
+  ]
   return updateMockContractMenu(id, {
-    driveUrl: input.driveFolderUrl,
+    files,
+    fileCount: files.length,
+    isSubmitted: true,
+    driveUrl: files[0].driveUrl,
+    driveFileName: files[0].driveFileName,
     remarks: input.remarks,
     status: "SUBMITTED",
   })
@@ -488,15 +539,18 @@ export async function updateContractMenuProduction(
  */
 export async function uploadContractMenuToDrive(
   id: string,
-  file: File,
-  folderId: string,
-  accessToken: string
+  files: File[],
+  folderId: string
 ): Promise<ContractMenu> {
   if (isApiEnabled()) {
     const formData = new FormData()
-    formData.append("file", file)
+    files.forEach((file, index) => {
+      // The first file keeps the legacy key so a rolling deployment remains
+      // compatible with the former single-file API. New servers also accept
+      // additional repeated `files` parts.
+      formData.append(index === 0 ? "file" : "files", file)
+    })
     formData.append("folderId", folderId)
-    formData.append("accessToken", accessToken)
 
     const updated = await apiFetch<{
       id: string
@@ -518,8 +572,46 @@ export async function uploadContractMenuToDrive(
     return mapApiContractMenu(updated)
   }
   return updateMockContractMenu(id, {
-    driveUrl: "http://mock.drive.url",
+    files: [
+      ...((mockContractMenus.find((menu) => menu.id === id)?.files) ?? []),
+      ...files.map((file) => ({
+        id: crypto.randomUUID(),
+        contractMenuId: id,
+        driveFileId: null,
+        driveUrl: "http://mock.drive.url",
+        driveFileName: file.name,
+      })),
+    ],
+    fileCount:
+      (mockContractMenus.find((menu) => menu.id === id)?.fileCount ?? 0) +
+      files.length,
+    isSubmitted: true,
     status: "SUBMITTED",
+  })
+}
+
+export async function deleteContractMenuDriveFile(
+  contractMenuId: string,
+  fileId: string
+): Promise<ContractMenu> {
+  if (isApiEnabled()) {
+    const updated = await apiFetch<Parameters<typeof mapApiContractMenu>[0]>(
+      `/contract-menus/${contractMenuId}/production/files/${fileId}`,
+      { method: "DELETE" }
+    )
+    return mapApiContractMenu(updated)
+  }
+
+  const current = mockContractMenus.find((menu) => menu.id === contractMenuId)
+  if (!current) throw new Error("contract menu not found")
+  const files = current.files.filter((file) => file.id !== fileId)
+  return updateMockContractMenu(contractMenuId, {
+    files,
+    fileCount: files.length,
+    isSubmitted: files.length > 0,
+    status: files.length > 0 ? "SUBMITTED" : "WAITING",
+    driveUrl: files[0]?.driveUrl ?? null,
+    driveFileName: files[0]?.driveFileName ?? null,
   })
 }
 
@@ -853,6 +945,11 @@ export async function createContractWithMenus(
       productionType: item.productionType,
       status: "WAITING",
       driveFolderId: null,
+      files: [],
+      fileCount: 0,
+      isSubmitted: false,
+      allowUpload: true,
+      allowDelete: true,
       driveUrl: null,
       driveFileName: null,
       remarks: "",
@@ -902,6 +999,11 @@ export async function addContractMenuToContract(
     productionType: item.productionType,
     status: "WAITING",
     driveFolderId: null,
+    files: [],
+    fileCount: 0,
+    isSubmitted: false,
+    allowUpload: true,
+    allowDelete: true,
     driveUrl: null,
     driveFileName: null,
     remarks: "",

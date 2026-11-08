@@ -4,7 +4,9 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,11 +18,23 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/testdb"
 	"github.com/labstack/echo/v4"
+	"google.golang.org/api/drive/v3"
 )
 
 // testSessionIssuer signs the session JWTs of the tests. The API verifies
 // them like production sessions (spec/api.md#Authentication).
 var testSessionIssuer = auth.NewJWTIssuer("integration-test-secret")
+var integrationDriveTrashErr error
+
+type integrationDriveOperator struct{}
+
+func (integrationDriveOperator) UploadFile(context.Context, string, string, string, string, string, io.Reader) (*drive.File, error) {
+	return &drive.File{Id: "integration-upload", Name: "integration.pdf", WebViewLink: "https://drive.google.com/file/d/integration-upload/view"}, nil
+}
+
+func (integrationDriveOperator) TrashFile(context.Context, string) error {
+	return integrationDriveTrashErr
+}
 
 // apiClient sends requests to the full API as one User, with a session JWT.
 // Its Roles come from MySQL on every request, as in operation.
@@ -36,6 +50,9 @@ func newAPI(t *testing.T) *echo.Echo {
 	testdb.Open(t)
 
 	handler.InitAuth(testSessionIssuer, nil)
+	handler.SetContractMenuDriveOperatorFactory(func() handler.ContractMenuDriveOperator {
+		return integrationDriveOperator{}
+	})
 	server := echo.New()
 	handler.RegisterHealthRoutes(server)
 	handler.RegisterRoutes(server)
