@@ -210,8 +210,9 @@ type contractMenuInput struct {
 	sponsorshipMenuID  string
 	unitPrice          int64
 	isGoodsSponsorship bool
-	productionType     string
-	status             string
+	// productionType is empty for a menu that does not require submission.
+	productionType string
+	status         string
 }
 
 type contractInput struct {
@@ -248,7 +249,7 @@ func ensureContract(input contractInput) error {
 			Quantity:           1,
 			UnitPrice:          &unitPrice,
 			IsGoodsSponsorship: menu.isGoodsSponsorship,
-			ProductionType:     menu.productionType,
+			ProductionType:     optionalProductionType(menu.productionType),
 			Status:             menu.status,
 		})
 	}
@@ -391,4 +392,11 @@ func ensureCurrentYearContracts() error {
 	return db.DB.Model(&model.YearlyCompany{}).
 		Where("id = ? AND progress = ?", yearlyCompany, "NOT_CONTACTED").
 		Updates(map[string]any{"progress": "MATERIALS_SENT", "phase": "PHASE_1"}).Error
+}
+
+func optionalProductionType(productionType string) *string {
+	if productionType == "" {
+		return nil
+	}
+	return &productionType
 }

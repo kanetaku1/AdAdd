@@ -19,7 +19,7 @@ func TestPatchContractMenuDetailsFallback(t *testing.T) {
 		SponsorshipMenuID:  menuID,
 		Quantity:           1,
 		IsGoodsSponsorship: true,
-		ProductionType:     "COMPANY",
+		ProductionType:     stringPointer("COMPANY"),
 	}, "user-test")
 	if err != nil {
 		t.Fatalf("create contract menu: %v", err)
@@ -30,7 +30,7 @@ func TestPatchContractMenuDetailsFallback(t *testing.T) {
 	// 2. Patch: change IsGoodsSponsorship to false, leaving unitPrice nil.
 	// Expectation: it falls back to the DefaultPrice (100) from the SponsorshipMenu
 	falseVal := false
-	updated, err := svc.PatchDetails(menu.ID, nil, nil, &falseVal, nil, "user-test")
+	updated, err := svc.PatchDetails(menu.ID, nil, nil, &falseVal, ProductionTypeChange{}, "user-test")
 	if err != nil {
 		t.Fatalf("patch details failed: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestPatchContractMenuDetailsFallback(t *testing.T) {
 	// 3. Patch: change IsGoodsSponsorship back to true, leaving unitPrice nil.
 	// Expectation: it should force unitPrice to 0.
 	trueVal := true
-	updated2, err2 := svc.PatchDetails(menu.ID, nil, nil, &trueVal, nil, "user-test")
+	updated2, err2 := svc.PatchDetails(menu.ID, nil, nil, &trueVal, ProductionTypeChange{}, "user-test")
 	if err2 != nil {
 		t.Fatalf("patch details failed: %v", err2)
 	}
@@ -55,3 +55,5 @@ func TestPatchContractMenuDetailsFallback(t *testing.T) {
 
 	assertContractTotal(t, contractID, decimal.Zero)
 }
+
+func stringPointer(value string) *string { return &value }

@@ -118,7 +118,7 @@ func TestContractMenuChangesSyncWaitingPaymentAmount(t *testing.T) {
 		SponsorshipMenuID: menuID,
 		Quantity:          2,
 		UnitPrice:         &unitPrice,
-		ProductionType:    "COMPANY",
+		ProductionType:    stringPointer("COMPANY"),
 	}, "user-test")
 	if err != nil {
 		t.Fatalf("create contract menu: %v", err)
@@ -173,7 +173,7 @@ func TestContractMenuChangeRejectsConfirmedPaymentAmountMismatch(t *testing.T) {
 		SponsorshipMenuID: menuID,
 		Quantity:          2,
 		UnitPrice:         &unitPrice,
-		ProductionType:    "COMPANY",
+		ProductionType:    stringPointer("COMPANY"),
 	}, "user-test")
 	if !errors.Is(err, ErrConfirmedPaymentAmountMismatch) {
 		t.Fatalf("create contract menu error = %v, want ErrConfirmedPaymentAmountMismatch", err)

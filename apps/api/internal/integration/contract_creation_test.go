@@ -30,7 +30,7 @@ func TestCreateContractWithContractMenus(t *testing.T) {
 		"contractMenus": []map[string]any{
 			{"sponsorshipMenuId": pamphletMenuID, "quantity": 2, "productionType": "COMPANY"},
 			{"sponsorshipMenuId": bannerMenuID, "quantity": 1, "unitPrice": "10000", "productionType": "COMPANY"},
-			{"sponsorshipMenuId": bannerMenuID, "quantity": 1, "unitPrice": "10000", "isGoodsSponsorship": true},
+			{"sponsorshipMenuId": bannerMenuID, "quantity": 1, "unitPrice": "10000", "isGoodsSponsorship": true, "productionType": "COMPANY"},
 		},
 	})
 	expectStatus(t, response, http.StatusCreated)
@@ -71,7 +71,7 @@ func TestCreateContractIsAllOrNothing(t *testing.T) {
 	}), http.StatusOK)
 	yearlyCompanyID := loadYearlyCompany(t, yearID, companyID).ID
 	path := "/yearly-companies/" + yearlyCompanyID + "/contract"
-	valid := map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1}
+	valid := map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"}
 
 	cases := []struct {
 		name   string
@@ -80,11 +80,11 @@ func TestCreateContractIsAllOrNothing(t *testing.T) {
 	}{
 		{"no contractMenus", map[string]any{}, http.StatusBadRequest},
 		{"empty contractMenus", map[string]any{"contractMenus": []map[string]any{}}, http.StatusBadRequest},
-		{"quantity 0", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": pamphletMenuID, "quantity": 0}}}, http.StatusBadRequest},
-		{"negative unitPrice", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "unitPrice": "-1"}}}, http.StatusBadRequest},
-		{"unknown menu", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": "00000000-0000-0000-0000-000000000000", "quantity": 1}}}, http.StatusBadRequest},
-		{"other Year's menu", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": previousMenuID, "quantity": 1}}}, http.StatusBadRequest},
-		{"inactive menu", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": inactiveMenuID, "quantity": 1}}}, http.StatusConflict},
+		{"quantity 0", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": pamphletMenuID, "quantity": 0, "productionType": "COMPANY"}}}, http.StatusBadRequest},
+		{"negative unitPrice", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "unitPrice": "-1", "productionType": "COMPANY"}}}, http.StatusBadRequest},
+		{"unknown menu", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": "00000000-0000-0000-0000-000000000000", "quantity": 1, "productionType": "COMPANY"}}}, http.StatusBadRequest},
+		{"other Year's menu", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": previousMenuID, "quantity": 1, "productionType": "COMPANY"}}}, http.StatusBadRequest},
+		{"inactive menu", map[string]any{"contractMenus": []map[string]any{valid, {"sponsorshipMenuId": inactiveMenuID, "quantity": 1, "productionType": "COMPANY"}}}, http.StatusConflict},
 	}
 	for _, c := range cases {
 		response := member.do(http.MethodPost, path, c.body)
@@ -132,7 +132,7 @@ func TestWaitingPaymentIsRemovedWhenTotalBecomesZero(t *testing.T) {
 	yearID := createYear(t, actor.administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2026, 11, 30))
 	pamphletMenuID := createSponsorshipMenu(t, actor.administrator, yearID, "パンフレット広告", 80000)
 	yearlyCompanyID := loadYearlyCompany(t, yearID, companyID).ID
-	contract := createContract(t, member, yearlyCompanyID, map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1})
+	contract := createContract(t, member, yearlyCompanyID, map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"})
 	contractMenuID := listContractMenuIDs(t, contract.ID)[0]
 	paymentPath := "/contracts/" + contract.ID + "/payment"
 
@@ -169,7 +169,7 @@ func TestConfirmedPaymentBlocksZeroTotal(t *testing.T) {
 	companyID := createCompany(t, actor.administrator, "入金確認済株式会社")
 	yearID := createYear(t, actor.administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2026, 11, 30))
 	pamphletMenuID := createSponsorshipMenu(t, actor.administrator, yearID, "パンフレット広告", 80000)
-	contract := createContract(t, member, loadYearlyCompany(t, yearID, companyID).ID, map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1})
+	contract := createContract(t, member, loadYearlyCompany(t, yearID, companyID).ID, map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"})
 	contractMenuID := listContractMenuIDs(t, contract.ID)[0]
 
 	created := member.do(http.MethodPost, "/contracts/"+contract.ID+"/payment", nil)
@@ -193,7 +193,7 @@ func TestContractAndContractMenuChangesAreRecorded(t *testing.T) {
 	pamphletMenuID := createSponsorshipMenu(t, actor.administrator, yearID, "パンフレット広告1P", 80000)
 	bannerMenuID := createSponsorshipMenu(t, actor.administrator, yearID, "ホームページバナー広告", 15000)
 	yearlyCompanyID := loadYearlyCompany(t, yearID, companyID).ID
-	contract := createContract(t, member, yearlyCompanyID, map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1})
+	contract := createContract(t, member, yearlyCompanyID, map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"})
 	pamphletID := listContractMenuIDs(t, contract.ID)[0]
 
 	// Update Contract
@@ -211,7 +211,7 @@ func TestContractAndContractMenuChangesAreRecorded(t *testing.T) {
 		"sponsorshipMenuId": bannerMenuID, "quantity": 1, "productionType": "COMPANY",
 	}), http.StatusCreated)
 	expectStatus(t, member.do(http.MethodPost, "/contracts/"+contract.ID+"/menus", map[string]any{
-		"sponsorshipMenuId": bannerMenuID, "quantity": 2, "isGoodsSponsorship": true,
+		"sponsorshipMenuId": bannerMenuID, "quantity": 2, "isGoodsSponsorship": true, "productionType": "COMPANY",
 	}), http.StatusCreated)
 	expectActivityLogs(t, yearlyCompanyID, model.EventContractMenuAdded,
 		"「ホームページバナー広告」を追加（数量 1、単価 ¥15,000）",

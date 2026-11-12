@@ -35,3 +35,21 @@ func TestCleanupUploadedDriveFilesOnlyTrashesPersistableIDs(t *testing.T) {
 		t.Fatalf("trashed = %v, want [%s]", operator.trashed, firstID)
 	}
 }
+
+func TestContractMenuFileSuffix(t *testing.T) {
+	code := func(value string) *string { return &value }
+	cases := []struct {
+		productionType *string
+		want           string
+	}{
+		{code("COMPANY"), "企業_長岡テクノ"},
+		{code("INTERNAL"), "委員_長岡テクノ"},
+		{code("CONTINUED"), "継続_長岡テクノ"},
+		{nil, "長岡テクノ"},
+	}
+	for _, c := range cases {
+		if got := contractMenuFileSuffix(c.productionType, "長岡テクノ"); got != c.want {
+			t.Fatalf("contractMenuFileSuffix(%v) = %q, want %q", c.productionType, got, c.want)
+		}
+	}
+}

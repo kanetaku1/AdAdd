@@ -97,7 +97,7 @@ func createContract(t *testing.T, client *apiClient, yearlyCompanyID string, con
 			t.Fatalf("load yearly company: %v", err)
 		}
 		menuID := createSponsorshipMenu(t, client, yearlyCompany.YearID, "契約作成用メニュー "+yearlyCompanyID, 1000)
-		contractMenus = []map[string]any{{"sponsorshipMenuId": menuID, "quantity": 1, "isGoodsSponsorship": true}}
+		contractMenus = []map[string]any{{"sponsorshipMenuId": menuID, "quantity": 1, "isGoodsSponsorship": true, "productionType": "COMPANY"}}
 	}
 	response := client.do(http.MethodPost, "/yearly-companies/"+yearlyCompanyID+"/contract", map[string]any{
 		"contractMenus": contractMenus,
