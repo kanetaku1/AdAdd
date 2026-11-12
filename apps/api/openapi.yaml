@@ -74,7 +74,7 @@ paths:
         '200':
           description: OK
     post:
-      summary: SponsorshipContract 作成（progress を CONFIRMED に更新、assigneeId は CompanyAssignment から設定）
+      summary: SponsorshipContract を契約メニューとまとめて作成（1トランザクション。totalAmount はサーバー計算。progress を CONFIRMED に更新）
       parameters:
         - name: id
           in: path
@@ -94,8 +94,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SponsorshipContract'
+        '400':
+          description: contractMenus が空、または契約メニューの入力が不正
+        '404':
+          description: YearlyCompany が存在しない
         '409':
-          description: Conflict (duplicate contract for YearlyCompany)
+          description: Conflict (契約が既に存在する、または協賛メニューが無効)
   /contracts/{contractId}:
     patch:
       summary: 契約を更新（totalAmount / assigneeId はサーバ管理のため更新不可）
@@ -196,6 +200,10 @@ paths:
       responses:
         '200':
           description: Updated
+        '400':
+          description: status が WAITING / CONFIRMED 以外
+        '404':
+          description: Payment が存在しない
   /advisor-assignments:
     get:
       summary: Year の AdvisorAssignment 一覧
@@ -269,14 +277,18 @@ components:
           format: date-time
     ContractInput:
       type: object
+      required: [contractMenus]
       properties:
         contractDate:
           type: string
           format: date
-        totalAmount:
-          type: number
         remarks:
           type: string
+        contractMenus:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ContractMenuInput'
     SponsorshipContract:
       type: object
       properties:

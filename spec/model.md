@@ -180,7 +180,7 @@ A `SponsorshipContract` record is only created once an agreement is actually rea
 
 Creating a `SponsorshipContract` sets `YearlyCompany.progress` to `Confirmed` automatically. A `Payment` is created separately when registered for a contract whose `totalAmount > 0`; a goods-sponsorship-only contract (`totalAmount = 0`) gets no `Payment` (`spec/domain.md#Sponsorship Contract`).
 
-`totalAmount` is accepted at creation as an initial value but is server-maintained thereafter: it is recalculated as the sum of `quantity * unitPrice` across the contract's Contract Menus every time a Contract Menu is added, updated, or removed (see `ContractMenu` below). Clients should treat it as read-only once Contract Menus exist.
+A contract is always created together with at least one Contract Menu, in one transaction (`spec/api.md#Create Contract`). `totalAmount` is maintained only by the server: it is the sum of `quantity * unitPrice` across the contract's Contract Menus, calculated at creation and recalculated every time a Contract Menu is added, updated, or removed (see `ContractMenu` below). It is never accepted from a client.
 
 ---
 
@@ -314,7 +314,7 @@ The Yearly Company's `progress` always matches `status`, and the server keeps it
 * `status` moves back from `Confirmed` to `Waiting` → if `progress` is `PaymentReceived` or `ReceiptSent`, it becomes `Confirmed`; other values are kept.
  How the actual received amount decides when the Payment becomes `Confirmed` is defined by Issue #171; the progress rule applies whenever `status` changes, however that change is triggered.
 
-While a Payment is `Waiting`, its `amount` is not independently edited: it is kept in sync with the parent `SponsorshipContract.totalAmount`. Any Contract Menu add/update/delete recalculates the Contract total and, in the same transaction, updates the Waiting Payment amount to the same value.
+While a Payment is `Waiting`, its `amount` is not independently edited: it is kept in sync with the parent `SponsorshipContract.totalAmount`. Any Contract Menu add/update/delete recalculates the Contract total and, in the same transaction, updates the Waiting Payment amount to the same value. When the new total is `0`, the Waiting Payment is deleted instead (a goods-sponsorship-only contract has no Payment), with a `PAYMENT_REMOVED` ActivityLog entry — unless `receivedAmount` is already set, in which case the Contract Menu change is rejected, because money has arrived and its record must not disappear.
 
 Once a Payment is `Confirmed`, its `amount` (billed amount) is fixed as the amount the Finance Department confirmed against; what actually arrived is `receivedAmount`. A Contract Menu add/update/delete that would change the parent Contract total must be rejected while the Payment remains Confirmed, rather than silently creating a mismatch. To change the contract amount after confirmation, the Payment must first be moved back to `Waiting`, which clears `confirmedAt`/`confirmedById`; the Contract Menu change can then resynchronize the Waiting Payment amount.
 
@@ -702,6 +702,7 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 * Every payment belongs to one contract.
 * A Sponsorship Contract has at most one Payment — `contractId` is unique on `Payment`. A split/installment payment is still one Payment; each transfer overwrites `receivedAmount` with the cumulative total.
 * A Waiting Payment's `amount` must equal its Contract's `totalAmount`.
+* A Contract with `totalAmount = 0` has no Payment. A Payment cannot be created for a Contract with no Contract Menu or with `totalAmount = 0`.
 * `receivedAmount` is never synchronized from the Contract; only the Finance Department (or Administrator) sets it. It may differ from `amount`, including on a `Confirmed` Payment.
 * A Confirmed Payment's `amount` must not be silently changed by Contract Menu edits; any Contract Menu change that would alter the Contract total while the Payment is Confirmed is rejected.
 
