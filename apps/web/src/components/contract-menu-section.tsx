@@ -69,10 +69,6 @@ function emptyItem(menus: SponsorshipMenu[]): ContractMenuItemValue {
   }
 }
 
-function recalcTotal(menus: ContractMenu[]): number {
-  return menus.reduce((sum, cm) => sum + cm.quantity * cm.unitPrice, 0)
-}
-
 /**
  * Contract Menu table + total amount + "メニューを追加"
  * (spec/usecase.md UC-07 / spec/frontend.md#Yearly Company Detail).
@@ -81,29 +77,32 @@ function recalcTotal(menus: ContractMenu[]): number {
  * `RequireRoles("ADMINISTRATOR")` on `DELETE /contract-menus/{id}`.
  * `isGoodsSponsorship` is chosen only when adding a menu
  * (`ContractMenuItemFields`) and shown as a badge when true.
+ * The total is the server's `totalAmount`, passed in by the parent; this
+ * component never calculates it (spec/frontend.md#Yearly Company Detail).
  */
 export function ContractMenuSection({
   contractId,
   initialContractMenus,
-  initialTotalAmount,
+  totalAmount,
   menus,
   onChanged,
 }: {
   contractId: string
   initialContractMenus: ContractMenu[]
-  initialTotalAmount: number
+  /** The contract's server-calculated total. */
+  totalAmount: number
   menus: SponsorshipMenu[]
-  /** Called after add/edit so the parent can sync contract total without a full-page reload. */
-  onChanged?: (next: {
-    contractMenus: ContractMenu[]
-    totalAmount: number
-  }) => void
+  /**
+   * Called after a line is added, edited, or deleted. The parent reads the
+   * contract and Payment again: the server may have changed the total, the
+   * Payment amount, or removed the Payment.
+   */
+  onChanged?: (contractMenus: ContractMenu[]) => void
 }) {
   const { currentUser } = useCurrentUser()
   const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const canDelete = canAccess(currentUser?.roles, DELETE_ROLES)
   const [contractMenus, setContractMenus] = useState(initialContractMenus)
-  const [totalAmount, setTotalAmount] = useState(initialTotalAmount)
   const [open, setOpen] = useState(false)
   const [newItem, setNewItem] = useState<ContractMenuItemValue>(
     emptyItem(menus)
@@ -117,10 +116,8 @@ export function ContractMenuSection({
   const [error, setError] = useState<string | null>(null)
 
   function applyMenus(nextContractMenus: ContractMenu[]) {
-    const nextTotal = recalcTotal(nextContractMenus)
     setContractMenus(nextContractMenus)
-    setTotalAmount(nextTotal)
-    onChanged?.({ contractMenus: nextContractMenus, totalAmount: nextTotal })
+    onChanged?.(nextContractMenus)
   }
 
   async function handlePatch(

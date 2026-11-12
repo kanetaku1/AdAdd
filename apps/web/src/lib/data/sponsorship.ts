@@ -441,17 +441,100 @@ export async function updateContractMenu(
     next.unitPrice = 0
     next.isGoodsSponsorship = true
   }
+  const nextQuantity = next.quantity ?? existing.quantity
+  const nextUnitPrice = next.unitPrice ?? existing.unitPrice
 
-  const updated = updateMockContractMenu(id, next)
-  const siblings = mockContractMenus.filter(
-    (cm) => cm.contractId === updated.contractId
+  let updated: ContractMenu = existing
+  syncMockContractTotal(
+    existing.contractId,
+    mockContractMenus.map((cm) =>
+      cm.id === id ? { ...cm, quantity: nextQuantity, unitPrice: nextUnitPrice } : cm
+    ),
+    () => {
+      updated = updateMockContractMenu(id, next)
+    }
   )
-  const total = siblings.reduce(
-    (sum, cm) => sum + cm.quantity * cm.unitPrice,
-    0
-  )
-  updateContractTotalAmount(updated.contractId, total)
+
+  const changes: string[] = []
+  if (nextQuantity !== existing.quantity) {
+    changes.push(`数量を「${existing.quantity}」から「${nextQuantity}」に`)
+  }
+  if (nextUnitPrice !== existing.unitPrice) {
+    changes.push(`単価を「${formatYen(existing.unitPrice)}」から「${formatYen(nextUnitPrice)}」に`)
+  }
+  if (changes.length > 0) {
+    addContractMenuLog(
+      existing.contractId,
+      "CONTRACT_MENU_UPDATED",
+      `「${sponsorshipMenuName(existing.sponsorshipMenuId)}」の${changes.join("、")}更新`
+    )
+  }
   return updated
+}
+
+function formatYen(amount: number): string {
+  return `¥${amount.toLocaleString("ja-JP")}`
+}
+
+function sponsorshipMenuName(sponsorshipMenuId: string): string {
+  return (
+    mockSponsorshipMenus.find((menu) => menu.id === sponsorshipMenuId)?.name ??
+    "協賛メニュー"
+  )
+}
+
+function addContractMenuLog(
+  contractId: string,
+  eventType: "CONTRACT_MENU_ADDED" | "CONTRACT_MENU_UPDATED" | "CONTRACT_MENU_REMOVED",
+  message: string
+) {
+  const contract = mockSponsorshipContracts.find((c) => c.id === contractId)
+  if (contract) {
+    addMockActivityLog({ yearlyCompanyId: contract.yearlyCompanyId, eventType, message })
+  }
+}
+
+/**
+ * Mock stand-in for the server's total recalculation
+ * (spec/api.md#Update Contract → Payment synchronization): the total is the
+ * sum of `nextMenus` for the contract; a CONFIRMED Payment that would change
+ * is rejected before `apply` runs; a WAITING Payment follows the total, or is
+ * removed when the total becomes 0.
+ */
+function syncMockContractTotal(
+  contractId: string,
+  nextMenus: ContractMenu[],
+  apply: () => void
+) {
+  const total = nextMenus
+    .filter((cm) => cm.contractId === contractId)
+    .reduce((sum, cm) => sum + cm.quantity * cm.unitPrice, 0)
+  const paymentIndex = mockPayments.findIndex((p) => p.contractId === contractId)
+  const payment = paymentIndex >= 0 ? mockPayments[paymentIndex] : null
+  if (payment?.status === "CONFIRMED" && payment.amount !== total) {
+    throw new ApiError(
+      409,
+      "confirmed payment amount would no longer match contract total",
+      "CONFLICT"
+    )
+  }
+  apply()
+  if (payment?.status === "WAITING") {
+    if (total === 0) {
+      mockPayments.splice(paymentIndex, 1)
+      const contract = mockSponsorshipContracts.find((c) => c.id === contractId)
+      if (contract) {
+        addMockActivityLog({
+          yearlyCompanyId: contract.yearlyCompanyId,
+          eventType: "PAYMENT_REMOVED",
+          message: `契約金額が0円になったため入金を削除（請求額 ${formatYen(payment.amount)}）`,
+        })
+      }
+    } else {
+      payment.amount = total
+    }
+  }
+  updateContractTotalAmount(contractId, total)
 }
 
 /** PATCH /contract-menus/{id}/status (spec/api.md#Update Contract Menu Status). */
@@ -860,6 +943,11 @@ export async function updateYearlyCompanyContact(
   return enrichYearlyCompany(yc)
 }
 
+/**
+ * POST /yearly-companies/{id}/contract (spec/api.md#Create Contract) — the
+ * contract and every Contract Menu in one request. The server creates all or
+ * nothing and calculates totalAmount; the client never sends a total.
+ */
 export async function createContractWithMenus(
   yearlyCompanyId: string,
   input: {
@@ -868,10 +956,7 @@ export async function createContractWithMenus(
     items: ContractMenuItemValue[]
   }
 ): Promise<SponsorshipContract> {
-  const previewTotal = input.items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0
-  )
+  const items = input.items.filter((item) => item.sponsorshipMenuId)
 
   if (isApiEnabled()) {
     const contract = await apiFetch<{
@@ -885,79 +970,87 @@ export async function createContractWithMenus(
       method: "POST",
       body: JSON.stringify({
         contractDate: input.contractDate,
-        totalAmount: previewTotal,
         remarks: input.remarks,
+        contractMenus: items.map(contractMenuRequestBody),
       }),
     })
-
-    for (const item of input.items) {
-      if (!item.sponsorshipMenuId) continue
-      await apiFetch(`/contracts/${contract.id}/menus`, {
-        method: "POST",
-        body: JSON.stringify({
-          sponsorshipMenuId: item.sponsorshipMenuId,
-          quantity: item.quantity,
-          unitPrice: item.isGoodsSponsorship ? 0 : item.unitPrice,
-          isGoodsSponsorship: item.isGoodsSponsorship,
-          productionType: item.productionType,
-        }),
-      })
-    }
-
-    const refreshed = await getContractByYearlyCompany(yearlyCompanyId)
-    if (refreshed) return refreshed
-
-    return mapApiContract({
-      ...contract,
-      contractDate: contract.contractDate ?? input.contractDate,
-      remarks: contract.remarks ?? input.remarks,
-    })
+    return mapApiContract(contract)
   }
 
+  if (items.length === 0) {
+    throw new ApiError(400, "contractMenus must contain at least one item", "INVALID_REQUEST")
+  }
+  if (mockSponsorshipContracts.some((c) => c.yearlyCompanyId === yearlyCompanyId)) {
+    throw new ApiError(409, "contract already exists for this YearlyCompany", "CONFLICT")
+  }
   const yc = mockYearlyCompanies.find((row) => row.id === yearlyCompanyId)
   const contractId = crypto.randomUUID()
+  const menus = items.map((item) => newMockContractMenu(contractId, item))
+  const total = menus.reduce((sum, cm) => sum + cm.quantity * cm.unitPrice, 0)
   const contract: SponsorshipContract = {
     id: contractId,
     yearlyCompanyId,
     contractDate: input.contractDate,
-    totalAmount: previewTotal,
+    totalAmount: total,
     assigneeId: yc?.assignedMemberId ?? null,
     assigneeName: yc?.assignedMemberName ?? null,
     remarks: input.remarks,
   }
   addSponsorshipContract(contract)
-  if (yc) yc.progress = "CONFIRMED"
+  menus.forEach(addContractMenu)
+  const lines = menus.map(
+    (cm) =>
+      `${sponsorshipMenuName(cm.sponsorshipMenuId)} ×${cm.quantity}${cm.isGoodsSponsorship ? "（物品協賛）" : ""}`
+  )
   addMockActivityLog({
     yearlyCompanyId,
     eventType: "CONTRACT_CREATED",
-    message: `契約を作成（合計: ¥${previewTotal.toLocaleString("ja-JP")}）`,
+    message: `契約を作成（${lines.join("、")}、合計 ${formatYen(total)}）`,
   })
-
-  for (const item of input.items) {
-    if (!item.sponsorshipMenuId) continue
-    const menu: ContractMenu = {
-      id: crypto.randomUUID(),
-      contractId,
-      sponsorshipMenuId: item.sponsorshipMenuId,
-      quantity: item.quantity,
-      unitPrice: item.isGoodsSponsorship ? 0 : item.unitPrice,
-      isGoodsSponsorship: item.isGoodsSponsorship,
-      productionType: item.productionType,
-      status: "WAITING",
-      driveFolderId: null,
-      files: [],
-      fileCount: 0,
-      isSubmitted: false,
-      allowUpload: true,
-      allowDelete: true,
-      driveUrl: null,
-      driveFileName: null,
-      remarks: "",
-    }
-    addContractMenu(menu)
+  if (yc && yc.progress !== "CONFIRMED") {
+    addMockActivityLog({
+      yearlyCompanyId,
+      eventType: "PROGRESS_UPDATED",
+      message: `進捗を「${SPONSORSHIP_PROGRESS_LABEL[yc.progress]}」から「${SPONSORSHIP_PROGRESS_LABEL.CONFIRMED}」に更新`,
+    })
   }
-  updateContractTotalAmount(contractId, previewTotal)
+  if (yc) yc.progress = "CONFIRMED"
   return contract
+}
+
+function contractMenuRequestBody(item: ContractMenuItemValue) {
+  return {
+    sponsorshipMenuId: item.sponsorshipMenuId,
+    quantity: item.quantity,
+    unitPrice: item.isGoodsSponsorship ? 0 : item.unitPrice,
+    isGoodsSponsorship: item.isGoodsSponsorship,
+    productionType: item.productionType,
+  }
+}
+
+function newMockContractMenu(
+  contractId: string,
+  item: ContractMenuItemValue
+): ContractMenu {
+  return {
+    id: crypto.randomUUID(),
+    contractId,
+    sponsorshipMenuId: item.sponsorshipMenuId,
+    quantity: item.quantity,
+    unitPrice: item.isGoodsSponsorship ? 0 : item.unitPrice,
+    isGoodsSponsorship: item.isGoodsSponsorship,
+    productionType: item.productionType,
+    status: "WAITING",
+    driveFolderId: null,
+    files: [],
+    fileCount: 0,
+    isSubmitted: false,
+    allowUpload: true,
+    allowDelete: true,
+    driveUrl: null,
+    driveFileName: null,
+    remarks: "",
+  }
 }
 
 export async function addContractMenuToContract(
@@ -978,40 +1071,23 @@ export async function addContractMenuToContract(
       remarks?: string
     }>(`/contracts/${contractId}/menus`, {
       method: "POST",
-      body: JSON.stringify({
-        sponsorshipMenuId: item.sponsorshipMenuId,
-        quantity: item.quantity,
-        unitPrice: item.isGoodsSponsorship ? 0 : item.unitPrice,
-        isGoodsSponsorship: item.isGoodsSponsorship,
-        productionType: item.productionType,
-      }),
+      body: JSON.stringify(contractMenuRequestBody(item)),
     })
     return mapApiContractMenu(created)
   }
 
-  const menu: ContractMenu = {
-    id: crypto.randomUUID(),
+  const menu = newMockContractMenu(contractId, item)
+  syncMockContractTotal(contractId, [...mockContractMenus, menu], () =>
+    addContractMenu(menu)
+  )
+  const menuName = sponsorshipMenuName(menu.sponsorshipMenuId)
+  addContractMenuLog(
     contractId,
-    sponsorshipMenuId: item.sponsorshipMenuId,
-    quantity: item.quantity,
-    unitPrice: item.isGoodsSponsorship ? 0 : item.unitPrice,
-    isGoodsSponsorship: item.isGoodsSponsorship,
-    productionType: item.productionType,
-    status: "WAITING",
-    driveFolderId: null,
-    files: [],
-    fileCount: 0,
-    isSubmitted: false,
-    allowUpload: true,
-    allowDelete: true,
-    driveUrl: null,
-    driveFileName: null,
-    remarks: "",
-  }
-  addContractMenu(menu)
-  const menus = mockContractMenus.filter((cm) => cm.contractId === contractId)
-  const total = menus.reduce((sum, cm) => sum + cm.quantity * cm.unitPrice, 0)
-  updateContractTotalAmount(contractId, total)
+    "CONTRACT_MENU_ADDED",
+    menu.isGoodsSponsorship
+      ? `「${menuName}」を物品協賛として追加（数量 ${menu.quantity}）`
+      : `「${menuName}」を追加（数量 ${menu.quantity}、単価 ${formatYen(menu.unitPrice)}）`
+  )
   return menu
 }
 
@@ -1026,16 +1102,20 @@ export async function deleteContractMenu(id: string): Promise<void> {
     await apiFetch(`/contract-menus/${id}`, { method: "DELETE" })
     return
   }
-  const removed = removeMockContractMenu(id)
-  if (!removed) return
-  const remaining = mockContractMenus.filter(
-    (cm) => cm.contractId === removed.contractId
+  const existing = mockContractMenus.find((cm) => cm.id === id)
+  if (!existing) return
+  syncMockContractTotal(
+    existing.contractId,
+    mockContractMenus.filter((cm) => cm.id !== id),
+    () => {
+      removeMockContractMenu(id)
+    }
   )
-  const total = remaining.reduce(
-    (sum, cm) => sum + cm.quantity * cm.unitPrice,
-    0
+  addContractMenuLog(
+    existing.contractId,
+    "CONTRACT_MENU_REMOVED",
+    `「${sponsorshipMenuName(existing.sponsorshipMenuId)}」を削除`
   )
-  updateContractTotalAmount(removed.contractId, total)
 }
 
 export async function createPayment(contractId: string): Promise<Payment> {
@@ -1058,8 +1138,14 @@ export async function createPayment(contractId: string): Promise<Payment> {
   }
 
   const contract = mockSponsorshipContracts.find((c) => c.id === contractId)
-  if (!contract || contract.totalAmount <= 0) {
-    throw new Error("cannot create payment for zero total amount")
+  if (!contract) {
+    throw new ApiError(404, "contract not found", "NOT_FOUND")
+  }
+  if (
+    !mockContractMenus.some((cm) => cm.contractId === contractId) ||
+    contract.totalAmount <= 0
+  ) {
+    throw new ApiError(409, "cannot create payment for this contract", "CONFLICT")
   }
   if (mockPayments.some((p) => p.contractId === contractId)) {
     throw new Error("payment already exists")

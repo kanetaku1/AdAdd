@@ -184,6 +184,18 @@ export default function YearlyCompanyDetailPage() {
     }
   }, [id, applyCompanyScope])
 
+  // After a Contract Menu change, read the contract total, the Payment (which
+  // the server may have resynchronized or removed), and 活動記録 again —
+  // without the full-page loading state.
+  const refreshContractScope = useCallback(async () => {
+    if (!yearlyCompany) return
+    try {
+      await applyCompanyScope(yearlyCompany)
+    } catch (e) {
+      setError(getErrorMessage(e, { fallback: "契約情報の再読み込みに失敗しました" }))
+    }
+  }, [yearlyCompany, applyCompanyScope])
+
   const memberAdvisorNames = useMemo(() => {
     const memberId = yearlyCompany?.assignedMemberId
     if (!memberId) return []
@@ -339,7 +351,10 @@ export default function YearlyCompanyDetailPage() {
       setError(
         getErrorMessage(e, {
           fallback: "契約の作成に失敗しました",
-          overrides: { CONFLICT: "この企業には既に契約が存在します。" },
+          overrides: {
+            CONFLICT:
+              "この企業には既に契約が存在するか、無効になった協賛メニューが含まれています。画面を再読み込みしてください。",
+          },
         })
       )
       return false
@@ -440,17 +455,12 @@ export default function YearlyCompanyDetailPage() {
             key={contract.id}
             contractId={contract.id}
             initialContractMenus={contractMenus}
-            initialTotalAmount={contract.totalAmount}
+            totalAmount={contract.totalAmount}
             menus={menus}
-            onChanged={({ contractMenus: nextMenus, totalAmount }) => {
+            onChanged={(nextMenus) => {
               setContractMenus(nextMenus)
-              setContract((prev) => (prev ? { ...prev, totalAmount } : prev))
-              setPayment((prev) =>
-                prev && prev.status === "WAITING"
-                  ? { ...prev, amount: totalAmount }
-                  : prev
-              )
               invalidateContractMenusAcrossYear(yc.yearId)
+              void refreshContractScope()
             }}
           />
         ) : (
