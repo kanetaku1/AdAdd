@@ -17,30 +17,51 @@ import type { ContractMenuProductionType } from "@/types/contract-menu"
 
 /**
  * Inline-editable production type cell (spec/frontend.md UI Principle 4;
- * Contract Menu List / Yearly Company Detail). Null (no submission required)
- * stays as "-" and is not editable. Editable values use the same badge
- * affordance as status/progress, plus a chevron so the control reads as a
- * picker at rest.
+ * Contract Menu List / Yearly Company Detail). Editable values use the same
+ * badge affordance as status/progress, plus a chevron so the control reads
+ * as a picker at rest.
+ *
+ * Whether it can be edited follows the Sponsorship Menu's current
+ * `requiresSubmission` (spec/model.md#ContractMenuProductionType):
+ * - not required — no production type: "-", or a value stored before the
+ *   menu stopped requiring submission, shown read-only;
+ * - required — editable; a line with no value yet shows "未設定".
  */
 export function EditableProductionTypeCell({
   value,
+  requiresSubmission,
   onChange,
   disabled,
 }: {
   value: ContractMenuProductionType | null
+  /** The referenced Sponsorship Menu's current requiresSubmission. */
+  requiresSubmission: boolean
   onChange: (value: ContractMenuProductionType) => void
   disabled?: boolean
 }) {
   const [editing, setEditing] = useState(false)
 
-  if (value === null) {
-    return <span className="text-muted-foreground">-</span>
+  if (!requiresSubmission) {
+    if (value === null) {
+      return <span className="text-muted-foreground">-</span>
+    }
+    return (
+      <Badge
+        variant="outline"
+        title="提出不要の協賛メニューのため変更できません"
+        className="font-normal opacity-50"
+      >
+        {CONTRACT_MENU_PRODUCTION_TYPE_LABEL[value]}
+      </Badge>
+    )
   }
+
+  const label = value ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[value] : "未設定"
 
   if (editing) {
     return (
       <Select
-        value={value}
+        value={value ?? undefined}
         defaultOpen
         onValueChange={(next) => {
           if (next) {
@@ -72,7 +93,7 @@ export function EditableProductionTypeCell({
     <Badge
       variant="outline"
       title={disabled ? undefined : "クリックして変更"}
-      aria-label={`制作者 ${CONTRACT_MENU_PRODUCTION_TYPE_LABEL[value]}${disabled ? "" : "（変更）"}`}
+      aria-label={`制作者 ${label}${disabled ? "" : "（変更）"}`}
       className={cn(
         "gap-1 font-normal",
         disabled ? "opacity-50" : "cursor-pointer hover:bg-muted"
@@ -81,7 +102,7 @@ export function EditableProductionTypeCell({
         if (!disabled) setEditing(true)
       }}
     >
-      {CONTRACT_MENU_PRODUCTION_TYPE_LABEL[value]}
+      {label}
       {!disabled && (
         <ChevronsUpDown
           className="size-3 text-muted-foreground"

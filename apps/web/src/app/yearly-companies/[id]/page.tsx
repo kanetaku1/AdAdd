@@ -99,6 +99,8 @@ export default function YearlyCompanyDetailPage() {
     advisorAssignments: advisorAssignmentsForYear,
     ensureSponsorshipMenus,
     ensureAdvisorAssignments,
+    contractMenusAcrossYear,
+    ensureContractMenusAcrossYear,
     invalidateContractMenusAcrossYear,
   } = useYearCatalog()
 
@@ -114,6 +116,27 @@ export default function YearlyCompanyDetailPage() {
   const yearId = yearlyCompany?.yearId ?? null
   const menus = sponsorshipMenus(yearId)
   const advisorAssignments = advisorAssignmentsForYear(yearId)
+
+  /*
+   * The Year's contracted quantity per Sponsorship Menu, for the capacity
+   * warning on the contract creation form and "メニューを追加"
+   * (spec/frontend.md#Yearly Company Detail). The list is fetched again after
+   * it is invalidated by a Contract Menu change. A failure only hides the
+   * warning, so it is ignored here.
+   */
+  const yearContractMenus = contractMenusAcrossYear(yearId)
+  useEffect(() => {
+    if (!yearId) return
+    ensureContractMenusAcrossYear(yearId).catch(() => {})
+  }, [yearId, yearContractMenus, ensureContractMenusAcrossYear])
+  const contractedQuantityByMenu = useMemo(() => {
+    const quantities: Record<string, number> = {}
+    for (const contractMenu of yearContractMenus) {
+      quantities[contractMenu.sponsorshipMenuId] =
+        (quantities[contractMenu.sponsorshipMenuId] ?? 0) + contractMenu.quantity
+    }
+    return quantities
+  }, [yearContractMenus])
 
   const applyCompanyScope = useCallback(async (yc: YearlyCompany) => {
     setYearlyCompany(yc)
@@ -483,6 +506,7 @@ export default function YearlyCompanyDetailPage() {
             initialContractMenus={contractMenus}
             totalAmount={contract.totalAmount}
             menus={menus}
+            contractedQuantityByMenu={contractedQuantityByMenu}
             onChanged={(nextMenus) => {
               setContractMenus(nextMenus)
               invalidateContractMenusAcrossYear(yc.yearId)
@@ -497,6 +521,7 @@ export default function YearlyCompanyDetailPage() {
                 menus={menus}
                 busy={busy}
                 onCreate={handleCreateContract}
+                contractedQuantityByMenu={contractedQuantityByMenu}
               />
             ) : (
               <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">

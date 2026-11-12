@@ -35,6 +35,7 @@ export function ContractMenuItemFields({
   onChange,
   onRemove,
   invalid,
+  contractedQuantity,
 }: {
   value: ContractMenuItemValue
   menus: SponsorshipMenu[]
@@ -42,8 +43,20 @@ export function ContractMenuItemFields({
   onRemove?: () => void
   /** Highlights the menu picker, e.g. when submission failed because no menu was selected on this row. */
   invalid?: boolean
+  /**
+   * The Year's quantity of the selected Sponsorship Menu already contracted
+   * outside this line (other contracts, and other lines of the same form).
+   * Used only for the capacity warning; omitted when unknown.
+   */
+  contractedQuantity?: number
 }) {
   const menu = menus.find((m) => m.id === value.sponsorshipMenuId)
+  // maxQuantity is a guide, not a limit: the line can still be saved
+  // (spec/model.md#SponsorshipMenu).
+  const exceedsCapacity =
+    menu?.maxQuantity != null &&
+    contractedQuantity !== undefined &&
+    contractedQuantity + value.quantity > menu.maxQuantity
 
   function handleMenuChange(sponsorshipMenuId: string | null) {
     if (!sponsorshipMenuId) return
@@ -145,6 +158,12 @@ export function ContractMenuItemFields({
         <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
           削除
         </Button>
+      )}
+
+      {exceedsCapacity && (
+        <p role="status" className="basis-full text-xs text-amber-700 dark:text-amber-400">
+          上限 {menu.maxQuantity} のうち {contractedQuantity} が契約済みです。この数量で上限を超えます（保存はできます）
+        </p>
       )}
     </div>
   )
