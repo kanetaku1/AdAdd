@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
 func RegisterPaymentRoutes(e *echo.Echo) {
@@ -70,6 +72,9 @@ func updatePayment(c echo.Context) error {
 
 	svc := service.NewPaymentService()
 	if err := svc.Update(&updateModel); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return respondNotFound(c, "入金が見つかりません")
+		}
 		return respondInternalServerError(c, err)
 	}
 
@@ -91,8 +96,17 @@ func createPayment(c echo.Context) error {
 		return respondNotFound(c, "contract not found")
 	}
 
+	// A goods-sponsorship-only contract, or one with no Contract Menu, has no
+	// Payment (spec/model.md#Payment).
+	contractMenus, err := service.NewContractMenuService().ListByContract(contractId)
+	if err != nil {
+		return respondInternalServerError(c, err)
+	}
+	if len(contractMenus) == 0 {
+		return respondConflict(c, "契約メニューがない契約には入金を登録できません")
+	}
 	if contract.TotalAmount.IsZero() {
-		return respondBadRequest(c, "cannot create payment for contract with zero total amount")
+		return respondConflict(c, "契約金額が0円（物品協賛のみ）の契約には入金を登録できません")
 	}
 
 	psvc := service.NewPaymentService()

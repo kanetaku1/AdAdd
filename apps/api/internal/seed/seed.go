@@ -240,29 +240,26 @@ func ensureContract(input contractInput) error {
 	}
 
 	contractDate := model.Date(input.contractDate)
-	contract := &model.SponsorshipContract{
-		ID:              input.id,
-		YearlyCompanyID: yearlyCompany,
-		ContractDate:    &contractDate,
-		AssigneeID:      input.assigneeID,
-	}
-	if err := service.NewContractService().CreateWithUser(contract, AdministratorUserID); err != nil {
-		return err
-	}
-
-	contractMenuService := service.NewContractMenuService()
+	menus := make([]service.ContractMenuInput, 0, len(input.menus))
 	for _, menu := range input.menus {
-		if err := contractMenuService.Create(&model.ContractMenu{
-			ContractID:         input.id,
+		unitPrice := decimal.NewFromInt(menu.unitPrice)
+		menus = append(menus, service.ContractMenuInput{
 			SponsorshipMenuID:  menu.sponsorshipMenuID,
 			Quantity:           1,
-			UnitPrice:          decimal.NewFromInt(menu.unitPrice),
+			UnitPrice:          &unitPrice,
 			IsGoodsSponsorship: menu.isGoodsSponsorship,
 			ProductionType:     menu.productionType,
 			Status:             menu.status,
-		}, true); err != nil {
-			return err
-		}
+		})
+	}
+	if _, err := service.NewContractService().CreateWithMenus(service.ContractCreationInput{
+		ContractID:      input.id,
+		YearlyCompanyID: yearlyCompany,
+		ContractDate:    &contractDate,
+		AssigneeID:      input.assigneeID,
+		ContractMenus:   menus,
+	}, AdministratorUserID); err != nil {
+		return err
 	}
 
 	if input.paymentStatus != "" {
