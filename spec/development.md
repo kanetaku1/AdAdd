@@ -684,6 +684,7 @@ CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container
 | Invoice / Receipt | After a Contract Menu is added on the Yearly Company Detail (no reload), the Invoice total and the Receipt amount show the new total (Issue #158) |
 | Master data deletion | An Administrator deletes a company and a menu after confirming; a Sponsorship Member sees no delete control; a company registered in a Year is rejected |
 | Session | No session or a rejected session leads to `/login`; a deactivated User is sent to `/login`; Company list and Company edit load with a session (Issue #152) |
+| Activity Log by Role | After an Administrator assigns a member, an Advisor and a Sponsorship Member open Yearly Company Detail and see the 活動記録 entry naming the member; Finance opens the screen but sees no 活動記録 (Issue #167) |
 | Business date | At 00:30 JST (still the previous day in UTC), the contract date, invoice issued date, and payment deadline are JST days; the contract date persists (Issue #160) |
 
 ### Running locally

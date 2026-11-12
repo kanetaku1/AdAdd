@@ -382,7 +382,9 @@ All related information is available from one place.
 
 ## Actor
 
-All Internal Users
+Sponsorship Member, Advisor, Advertisement Manager, Administrator
+
+活動記録 is sales history, so a User whose only Role is Finance, or who has no Role, does not see it (`spec/frontend.md` UI Design Principle 1; Issue #167).
 
 ## Goal
 

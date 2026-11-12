@@ -771,6 +771,11 @@ The body is `userId` only (`null` to clear). `CompanyAssignment` does not store 
 
 `CompanyAssignment` is domain-modeled as 0..1 per Yearly Company (`spec/model.md#CompanyAssignment`), so this endpoint always replaces any existing `CompanyAssignment` for the Yearly Company rather than adding a second row — sending `userId: null` clears the assignment.
 
+Response status:
+
+* `201` — a member is assigned, or the assignee changes.
+* `200` — the assignment is cleared, or nothing changes (the current assignee is sent again, or `null` is sent when there is no assignee). Nothing changing writes no Activity Log (Issue #167).
+
 Permission:
 
 * Administrator
@@ -1503,6 +1508,15 @@ Response item example:
 }
 ```
 
+Permission:
+
+* Sponsorship Member
+* Advisor
+* Advertisement Manager
+* Administrator
+
+活動記録 is sales history. A User whose only Role is Finance, or who has no Role, receives `403` (UC-14, Authorization Matrix "View 活動記録"; Issue #167). Such a User still opens the Yearly Company itself.
+
 Entries are exclusively system-generated. There is no manual/user-authored entry endpoint — a free-text handover note belongs on `Company.memo` instead (`spec/model.md#Company`).
 
 `message` is written in Japanese using the same business labels as the UI (`spec/frontend.md` Principle 2). Legacy English messages (`Progress changed from …`, `Member assigned to YearlyCompany`, …) and raw-enum Japanese (`進捗を MATERIALS_SENT から …`) are normalized to business labels on read — rows are not UPDATEd. `createdAt` is ISO-8601; the UI always displays it in JST (Asia/Tokyo).
@@ -1528,7 +1542,7 @@ Entries are exclusively system-generated. There is no manual/user-authored entry
 | `PAYMENT_REMOVED` | a `WAITING` Payment is deleted because its contract's total became `0` (Update Contract → Payment synchronization) |
 | `PAYMENT_DETAILS_UPDATED` | a Payment's actual received amount or remarks change (the fields are defined by Issue #170 / #171) |
 
-An entry is written only when the value actually changes; saving the same value writes nothing. The `message` names what changed in business language (e.g. `「パンフレット広告1P」の数量を「1」から「2」に更新`, `入金確認を取り消し`).
+An entry is written only when the value actually changes; saving the same value writes nothing. The `message` names what changed in business language (e.g. `「パンフレット広告1P」の数量を「1」から「2」に更新`, `入金確認を取り消し`). An `ASSIGNMENT_UPDATED` message names the members: `担当メンバーを「鈴木」に設定`, `担当メンバーを「鈴木」から「田中」に更新`, `担当メンバー「田中」を解除`.
 
 Not recorded: Contract Menu `productionType`, production-department changes, and `PATCH /companies/{companyId}` (Company master only — there is no Yearly Company to attach the entry to). Drive-file registration/upload and trash are recorded by the two ad-material events above.
 
@@ -1555,6 +1569,7 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 | Function                        | (no Role) | Sponsorship Member | Advisor | Finance | Advertisement Manager    | Administrator |
 | -------------------------------- | --------- | ------------------- | ------- | ------- | ------------------------ | -------------- |
 | View assigned companies         | ○         | ○                   | ○       | △       | ○                        | ○              |
+| View 活動記録 (Activity Logs)    | -         | ○                   | ○       | -       | ○                        | ○              |
 | Manage company master data      | -         | ○                   | -       | -       | -                        | ○              |
 | Create Year                     | -         | -                   | -       | -       | -                        | ○              |
 | Update document issuer information (Year) | - | -             | -       | -       | -                        | ○              |

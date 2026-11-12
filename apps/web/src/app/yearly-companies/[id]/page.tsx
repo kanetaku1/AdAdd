@@ -85,6 +85,14 @@ export default function YearlyCompanyDetailPage() {
     "ADMINISTRATOR",
     "FINANCE_DEPARTMENT",
   ])
+  // 活動記録 is sales history: Finance-only and no-Role Users do not see it
+  // (spec/frontend.md#活動記録, Issue #167).
+  const canViewActivityLogs = canAccess(currentUser?.roles, [
+    "SPONSORSHIP_MEMBER",
+    "ADVISOR",
+    "ADVERTISEMENT_MANAGER",
+    "ADMINISTRATOR",
+  ])
   const { users, ensureUsers } = useUsers()
   const {
     sponsorshipMenus,
@@ -109,12 +117,8 @@ export default function YearlyCompanyDetailPage() {
 
   const applyCompanyScope = useCallback(async (yc: YearlyCompany) => {
     setYearlyCompany(yc)
-    const [ct, logs] = await Promise.all([
-      getContractByYearlyCompany(yc.id),
-      listActivityLogsByYearlyCompany(yc.id),
-    ])
+    const ct = await getContractByYearlyCompany(yc.id)
     setContract(ct)
-    setActivityLogs(logs)
     if (ct) {
       const [cms, pay] = await Promise.all([
         listContractMenus(ct.id),
@@ -184,17 +188,39 @@ export default function YearlyCompanyDetailPage() {
     }
   }, [id, applyCompanyScope])
 
-  // After a Contract Menu change, read the contract total, the Payment (which
-  // the server may have resynchronized or removed), and 活動記録 again —
-  // without the full-page loading state.
+  // After a Contract Menu change, read the contract total and the Payment
+  // (which the server may have resynchronized or removed) again — without the
+  // full-page loading state. The Yearly Company is fetched again too, so the
+  // new object also refetches 活動記録 (the effect below).
   const refreshContractScope = useCallback(async () => {
-    if (!yearlyCompany) return
     try {
-      await applyCompanyScope(yearlyCompany)
+      const yc = await getYearlyCompany(id)
+      if (yc) await applyCompanyScope(yc)
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "契約情報の再読み込みに失敗しました" }))
     }
-  }, [yearlyCompany, applyCompanyScope])
+  }, [id, applyCompanyScope])
+
+  /*
+   * 活動記録 is fetched apart from the rest of the company, only for the Roles
+   * that see it, so a Finance-only User still opens the screen. It refetches
+   * whenever the Yearly Company is reloaded or updated, to show new entries.
+   */
+  useEffect(() => {
+    if (!yearlyCompany || !canViewActivityLogs) return
+    let cancelled = false
+    listActivityLogsByYearlyCompany(yearlyCompany.id)
+      .then((logs) => {
+        if (!cancelled) setActivityLogs(logs)
+      })
+      .catch(() => {
+        // Supplementary view (spec/frontend.md#活動記録): leave it empty.
+        if (!cancelled) setActivityLogs([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [yearlyCompany, canViewActivityLogs])
 
   const memberAdvisorNames = useMemo(() => {
     const memberId = yearlyCompany?.assignedMemberId
@@ -550,7 +576,7 @@ export default function YearlyCompanyDetailPage() {
         )}
       </section>
 
-      <ActivityLogSection logs={activityLogs} />
+      {canViewActivityLogs && <ActivityLogSection logs={activityLogs} />}
     </div>
   )
 }

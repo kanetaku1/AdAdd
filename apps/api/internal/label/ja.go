@@ -127,3 +127,16 @@ func ContractMenuStatus(code string) string {
 func StatusChange(subject, from, to string) string {
 	return subject + "を「" + from + "」から「" + to + "」に更新"
 }
+
+// AssignmentChange is the 活動記録 message for a CompanyAssignment change,
+// naming the members involved (Issue #167). An empty name means no assignee.
+func AssignmentChange(fromName, toName string) string {
+	switch {
+	case fromName == "":
+		return "担当メンバーを「" + toName + "」に設定"
+	case toName == "":
+		return "担当メンバー「" + fromName + "」を解除"
+	default:
+		return StatusChange("担当メンバー", fromName, toName)
+	}
+}

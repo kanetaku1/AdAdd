@@ -22,6 +22,7 @@ export const seedUsers = {
   sponsorshipMember: { id: "user_002", name: "鈴木" },
   finance: { id: "user_003", name: "佐藤" },
   inactive: { id: "user_004", name: "高橋" },
+  advisor: { id: "user_006", name: "伊藤" },
 } as const
 
 export type SeedUser = (typeof seedUsers)[keyof typeof seedUsers]

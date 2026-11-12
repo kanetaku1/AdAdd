@@ -345,7 +345,7 @@ func ensureCurrentYearAssignments() error {
 		if existing != nil {
 			continue
 		}
-		if _, err := assignmentService.AssignOrClear(yearlyCompany, assignments[companyID], AdministratorUserID); err != nil {
+		if _, _, err := assignmentService.AssignOrClear(yearlyCompany, assignments[companyID], AdministratorUserID); err != nil {
 			return err
 		}
 	}
