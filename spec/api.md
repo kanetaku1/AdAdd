@@ -899,7 +899,7 @@ The request has no assignee. A contract never introduces an assignment of its ow
 Errors:
 
 * `404 Not Found` — the Yearly Company does not exist.
-* `400 Bad Request` — `contractMenus` is missing or empty; an item has no `sponsorshipMenuId`, `quantity < 1`, or a negative `unitPrice`; an item's Sponsorship Menu does not exist or belongs to a different Year.
+* `400 Bad Request` — `contractMenus` is missing or empty; an item has no `sponsorshipMenuId`, `quantity < 1`, a negative `unitPrice`, or a `productionType` that does not match its Sponsorship Menu's `requiresSubmission`; an item's Sponsorship Menu does not exist or belongs to a different Year.
 * `409 Conflict` — the Yearly Company already has a contract; an item's Sponsorship Menu has `isActive = false`.
 
 Writes one `CONTRACT_CREATED` Activity Log whose actor is the authenticated user who created the contract. Its message lists the Contract Menus and the total, e.g. `契約を作成（パンフレット広告1P ×1、ホームページバナー広告 ×1（物品協賛）、合計 ¥80,000）`. The Contract Menus created by this request do not write separate `CONTRACT_MENU_ADDED` entries.
@@ -1001,7 +1001,7 @@ PATCH /sponsorship-menus/{menuId}
 
 Accepts the same fields as Create, including `maxQuantity` (`null` clears the cap).
 
-Changing `requiresSubmission` does not rewrite existing Contract Menus that reference this menu; their `productionType` and `status` stay as stored. Setting `isActive` to `false` stops the menu from being added to contracts (see Add Contract Menu) without touching existing Contract Menus.
+Changing `requiresSubmission` does not rewrite existing Contract Menus that reference this menu; their `productionType` and `status` stay as stored. Such a Contract Menu may then no longer match the `productionType` rule; it is kept, and is corrected only when `productionType` is sent again (`spec/model.md#ContractMenuProductionType`). Setting `isActive` to `false` stops the menu from being added to contracts (see Add Contract Menu) without touching existing Contract Menus.
 
 ---
 
@@ -1076,7 +1076,7 @@ Example response:
 
 `files` contains every undeleted `ContractMenuDriveFile`, ordered by creation time and ID. `fileCount` is `files.length`; `isSubmitted` and `status == SUBMITTED` are true exactly when `fileCount > 0`. `driveUrl` and `driveFileName` are deprecated read-only compatibility fields containing the first active file (or `null`). `allowUpload` / `allowDelete` combine the active-Year rule and the signed-in User's Role; the server still enforces the same checks on write endpoints.
 
-`status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL` or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#Enumerations`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
+`status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL / CONTINUED`, or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#ContractMenuProductionType`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
 
 ---
 
@@ -1125,9 +1125,9 @@ Request:
 }
 ```
 
-`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. `productionDepartment` is not part of this request — a new Contract Menu always starts with `productionDepartment = null`, and the department is assigned afterwards (Assign Contract Menu Production Department below). Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. `productionType` is required (`COMPANY` / `INTERNAL` / `CONTINUED`) when the Sponsorship Menu has `requiresSubmission = true`, and must be omitted or `null` when it is `false` (`spec/model.md#ContractMenuProductionType`). A new Contract Menu starts with `status = COMPLETED` when `productionType` is `CONTINUED`, otherwise `WAITING` (`spec/model.md#ContractMenu`). `productionDepartment` is not part of this request — a new Contract Menu always starts with `productionDepartment = null`, and the department is assigned afterwards (Assign Contract Menu Production Department below). The quantity is not checked against `SponsorshipMenu.maxQuantity`: the cap is a guide shown on the screens (`spec/model.md#SponsorshipMenu`). Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
 
-Errors: `404 Not Found` when the contract does not exist; `400 Bad Request` when `sponsorshipMenuId` is missing, the Sponsorship Menu does not exist or belongs to a different Year, `quantity < 1`, or `unitPrice` is negative; `409 Conflict` for an inactive Sponsorship Menu or a Payment conflict (Update Contract above).
+Errors: `404 Not Found` when the contract does not exist; `400 Bad Request` when `sponsorshipMenuId` is missing, the Sponsorship Menu does not exist or belongs to a different Year, `quantity < 1`, `unitPrice` is negative, or `productionType` breaks the rule above; `409 Conflict` for an inactive Sponsorship Menu or a Payment conflict (Update Contract above).
 
 Writes a `CONTRACT_MENU_ADDED` Activity Log: `「パンフレット広告1P」を追加（数量 1、単価 ¥80,000）`, or `「パンフレット広告1P」を物品協賛として追加（数量 1）` for goods sponsorship.
 
@@ -1153,6 +1153,8 @@ Request (all fields optional):
 ```
 
 Same `unitPrice`/`isGoodsSponsorship` defaulting rule as Add Contract Menu. Recalculates the parent Contract's `totalAmount` and applies the Payment synchronization / confirmed-payment conflict rule described in Update Contract above.
+
+When `productionType` is sent, it must satisfy the rule in Add Contract Menu against the Sponsorship Menu's current `requiresSubmission`, or the request returns `400 Bad Request`. Sending `null` explicitly clears it (allowed only when the menu does not require submission); omitting it leaves the stored value. An update that does not send `productionType` is accepted even when the stored value no longer matches the menu (`spec/model.md#ContractMenuProductionType`). Changing `productionType` does not change `status`.
 
 `productionDepartment` and `status` are not part of this request; they have their own endpoints below, with narrower permissions. When this request changes `productionType` from `INTERNAL` to another value, the server sets `productionDepartment` to `null` in the same update (`spec/model.md#ContractMenu`).
 
@@ -1227,7 +1229,7 @@ Request:
 
 Validation:
 
-* The Contract Menu's `productionType` must be `INTERNAL`. Otherwise (`COMPANY`, `CONTINUED` — present in code, its place in spec is Issue #162 — or `null` because the menu does not require submission) the request returns `400 Bad Request` — a department cannot be assigned. Clearing with `null` follows the same rule.
+* The Contract Menu's `productionType` must be `INTERNAL`. Otherwise (`COMPANY`, `CONTINUED`, or `null` because the menu does not require submission) the request returns `400 Bad Request` — a department cannot be assigned. Clearing with `null` follows the same rule.
 * An unknown value returns `400 Bad Request`.
 
 Does not change `totalAmount` and does not create an Activity Log entry (production changes are outside the recorded scope; whether to record them is undecided — Issue #172). Rejected for a past Year like every other Contract Menu write (Past Years Are Read-Only above).
@@ -1297,6 +1299,13 @@ One request appends one or more references:
 
 The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. The request contains `folderId` and file bodies; it does not contain a Google access token. The API uploads as the configured dedicated Google account and persists each returned `driveFileId`. Every successfully uploaded Drive file is appended as a separate reference in one database transaction. If the dedicated integration is unavailable, the endpoint returns `503 Service Unavailable` without adding a reference.
 
+Each uploaded file is renamed in Drive as `<folders>_<production type>_<company name><extension>`:
+
+* `<folders>` — the names of the folders from the one directly below the configured root folder down to the upload folder, joined with `_`.
+* `<production type>` — the Contract Menu's production type label: `企業` (`COMPANY`), `委員` (`INTERNAL`), `継続` (`CONTINUED`). A Contract Menu with no production type (its Sponsorship Menu does not require submission) has no such part: `<folders>_<company name><extension>`.
+* `<company name>` — the Yearly Company's company name.
+* When one request uploads several files, each name also gets `_<two-digit sequence>_<original file name without extension>` before the extension, e.g. `2026_パンフレット_企業_長岡テクノ_01_表面.pdf`.
+
 Every body is created as a new Drive file even when another file in the folder has the same display name. If a later upload or the database transaction fails, the API makes a best-effort attempt to move the files created by that request to trash; no incomplete reference is committed.
 
 ## Update Contract Menu File
@@ -1313,7 +1322,7 @@ Updates `driveUrl` and/or `driveFileName` on the named active reference. At leas
 DELETE /contract-menus/{id}/production/files/{fileId}
 ```
 
-Moves the Google Drive body to trash (`trashed = true`) as the dedicated Google account, then soft-deletes the reference. If Drive rejects the operation, AdAdd leaves the reference active and returns an error. If it was the final active file, the Contract Menu leaves the submitted state and returns to `WAITING`. Permanent Drive deletion is never used. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only. This exception does not weaken Administrator-only deletion of Company, Sponsorship Menu, or Contract Menu records.
+Moves the Google Drive body to trash (`trashed = true`) as the dedicated Google account, then soft-deletes the reference. If Drive rejects the operation, AdAdd leaves the reference active and returns an error. If it was the final active file, the Contract Menu leaves the submitted state and returns to `WAITING` — also for a `CONTINUED` Contract Menu: its design is complete, but whether it is submitted is decided only by its Drive files. Permanent Drive deletion is never used. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only. This exception does not weaken Administrator-only deletion of Company, Sponsorship Menu, or Contract Menu records.
 
 ---
 

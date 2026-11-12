@@ -74,7 +74,7 @@ Prepare companies before sponsorship activities begin.
 
 1. Open Yearly Companies.
 2. Review each company's status (Continuing / New / Dormant), referencing its past sponsorship history.
-3. Set the company's sponsorship phase (Phase1 / Phase2 / Phase3) to rank outreach priority for this Year.
+3. Set the company's sponsorship phase (Phase1 – Phase4) to rank outreach priority for this Year.
 4. Save.
 
 ## Result
