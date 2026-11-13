@@ -49,6 +49,7 @@ test("入金待ちの領収書は入金日の入力が必要で、確認済み�
   const row = page.getByRole("row").filter({ has: page.getByRole("link", { name: companyName, exact: true }) })
   await row.getByText("入金待ち", { exact: true }).click()
   await page.getByRole("option", { name: "入金確認済み", exact: true }).click()
+  await page.getByRole("dialog", { name: "入金を確認済みにしますか？" }).getByRole("button", { name: "確認済みにする" }).click()
   await expect(row.getByText("入金確認済み", { exact: true })).toBeVisible()
   const confirmedDate = toBusinessDate(new Date())
 

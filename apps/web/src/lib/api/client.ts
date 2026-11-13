@@ -14,6 +14,15 @@ export type ApiEnvelope<T> = {
   message?: string
 }
 
+/**
+ * Dispatched on `window` when a write request is rejected with 401, so the
+ * screen can keep what was entered (spec/frontend.md#Login).
+ */
+export const SESSION_EXPIRED_EVENT = "adadd:session-expired"
+
+/** ApiError.code when the request never reached the web app's proxy. */
+export const NETWORK_ERROR_CODE = "NETWORK_ERROR"
+
 export class ApiError extends Error {
   status: number
   code: string | null
@@ -80,7 +89,16 @@ export async function apiFetch<T>(
       `apiFetch(${path}) runs in the browser only — fetch from a Client Component so /api/proxy attaches the session`
     )
   }
-  const res = await fetch(`/api/proxy${path}`, { ...init, headers })
+  let res: Response
+  try {
+    res = await fetch(`/api/proxy${path}`, { ...init, headers })
+  } catch (e) {
+    // The browser could not reach the web app at all (offline, network
+    // error). The browser's own text (e.g. "Failed to fetch") is English, so
+    // it is replaced by a code getErrorMessage maps to Japanese
+    // (spec/frontend.md Principle 6, Issue #168).
+    throw new ApiError(0, e instanceof Error ? e.message : String(e), NETWORK_ERROR_CODE)
+  }
   const text = await res.text()
   let json: unknown = null
   if (text) {
@@ -91,11 +109,18 @@ export async function apiFetch<T>(
     }
   }
 
-  // No valid session: send the user to log in instead of showing an error
-  // (spec/frontend.md#Login). /login itself asks for the current user, so
-  // it must not redirect to itself.
+  // No valid session (spec/frontend.md#Login, Issue #168). /login itself
+  // asks for the current user, so it must not react to its own 401.
+  // - Reading: go to /login; nothing entered is lost yet.
+  // - Writing: stay on the screen so the entered values survive, and let
+  //   SessionExpiredDialog tell the member to sign in again in a new tab.
   if (res.status === 401 && window.location.pathname !== "/login") {
-    window.location.assign("/login")
+    const method = (init.method ?? "GET").toUpperCase()
+    if (method === "GET" || method === "HEAD") {
+      window.location.assign("/login")
+    } else {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+    }
   }
 
   if (!res.ok) {

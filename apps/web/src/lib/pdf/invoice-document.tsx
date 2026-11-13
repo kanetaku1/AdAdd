@@ -163,6 +163,14 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
               </View>
               <Text style={styles.text_M}>御中</Text>
             </View>
+            {/* The contact person goes below the company name, without an
+                underline, and only when there is one (spec/frontend.md#Invoice
+                and Receipt Documents → Addressee). */}
+            {data.contactPersonName.trim() !== "" && (
+              <Text style={[styles.text_S, styles.marginBottom]}>
+                ご担当： {data.contactPersonName.trim()} 様
+              </Text>
+            )}
 
             <Text style={[styles.text_S, styles.underline, styles.marginBottom]}>
               件名 : <Text style={styles.text_M}>{data.subject}</Text>

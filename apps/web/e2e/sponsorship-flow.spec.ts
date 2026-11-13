@@ -83,14 +83,34 @@ test.describe.serial("協賛の一連の業務フロー", () => {
     await financePage.goto("/finance")
     row = paymentRow(financePage, companyName)
     await expect(row.getByText(yen(160000))).toBeVisible()
+
+    // Choosing a status asks first; cancelling keeps it (Issue #168).
     await row.getByText("入金待ち", { exact: true }).click()
     await financePage.getByRole("option", { name: "入金確認済み", exact: true }).click()
+    let confirmation = financePage.getByRole("dialog", { name: "入金を確認済みにしますか？" })
+    await expect(confirmation).toContainText(`${companyName}の入金（`)
+    await confirmation.getByRole("button", { name: "キャンセル" }).click()
+    await expect(confirmation).toBeHidden()
+    await expect(row.getByText("入金待ち", { exact: true })).toBeVisible()
+
+    await row.getByText("入金待ち", { exact: true }).click()
+    await financePage.getByRole("option", { name: "入金確認済み", exact: true }).click()
+    confirmation = financePage.getByRole("dialog", { name: "入金を確認済みにしますか？" })
+    await confirmation.getByRole("button", { name: "確認済みにする" }).click()
+    await expect(confirmation).toBeHidden()
     await expect(row.getByText("入金確認済み", { exact: true })).toBeVisible()
 
     await financePage.reload()
     row = paymentRow(financePage, companyName)
     await expect(row.getByText("入金確認済み", { exact: true })).toBeVisible()
     await expect(row.getByText(seedUsers.finance.name, { exact: true })).toBeVisible()
+
+    // Moving back to waiting asks too.
+    await row.getByText("入金確認済み", { exact: true }).click()
+    await financePage.getByRole("option", { name: "入金待ち", exact: true }).click()
+    confirmation = financePage.getByRole("dialog", { name: "入金待ちに戻しますか？" })
+    await confirmation.getByRole("button", { name: "キャンセル" }).click()
+    await expect(row.getByText("入金確認済み", { exact: true })).toBeVisible()
     await financePage.close()
   })
 })
