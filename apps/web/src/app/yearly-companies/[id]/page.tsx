@@ -39,6 +39,7 @@ import {
   updateYearlyCompanyStatus,
 } from "@/lib/data/sponsorship"
 import { addBusinessDays, businessToday } from "@/lib/business-date"
+import { receiptPaymentDate } from "@/lib/payment-labels"
 import { getErrorMessage } from "@/lib/errors"
 import type { InvoiceData } from "@/lib/pdf/invoice-document"
 import { yearlyCompanyContact, websiteHref } from "@/lib/yearly-company-contact"
@@ -523,7 +524,7 @@ export default function YearlyCompanyDetailPage() {
                     companyName: yearlyCompany.companyName,
                     amount: payment.amount,
                     issuedDate: businessToday(),
-                    paymentDate: payment.confirmedAt ?? businessToday(),
+                    paymentDate: receiptPaymentDate(payment),
                   }}
                   fileName={`領収書_${yearlyCompany.companyName}.pdf`}
                 />

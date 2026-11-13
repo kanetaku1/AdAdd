@@ -686,6 +686,7 @@ CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container
 | Session | No session or a rejected session leads to `/login`; a deactivated User is sent to `/login`; Company list and Company edit load with a session (Issue #152) |
 | Activity Log by Role | After an Administrator assigns a member, an Advisor and a Sponsorship Member open Yearly Company Detail and see the 活動記録 entry naming the member; Finance opens the screen but sees no 活動記録 (Issue #167) |
 | Business date | At 00:30 JST (still the previous day in UTC), the contract date, invoice issued date, and payment deadline are JST days; the contract date persists (Issue #160) |
+| Receipt timing | A WAITING Payment's receipt has the billed amount and no payment date, and cannot be downloaded until one is entered; after Finance confirms, the payment date defaults to the confirmation date (Issue #159) |
 
 ### Running locally
 
