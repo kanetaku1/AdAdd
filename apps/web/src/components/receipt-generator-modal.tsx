@@ -15,7 +15,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import { ReceiptDocument, type ReceiptData } from "@/lib/pdf/receipt-document"
 
 /**
@@ -36,6 +41,8 @@ export function ReceiptGeneratorModal({
   const [open, setOpen] = useState(false)
   const [data, setData] = useState<ReceiptData>(initialData)
   const [busy, setBusy] = useState(false)
+  // A WAITING Payment has no default payment date (FR-015 → Receipt Timing).
+  const paymentDateMissing = !data.paymentDate
 
   function set<K extends keyof ReceiptData>(key: K, value: ReceiptData[K]) {
     setData((prev) => ({ ...prev, [key]: value }))
@@ -103,14 +110,18 @@ export function ReceiptGeneratorModal({
                 onChange={(e) => set("issuedDate", e.target.value)}
               />
             </Field>
-            <Field>
+            <Field data-invalid={paymentDateMissing}>
               <FieldLabel htmlFor="rcpt-paymentDate">入金日</FieldLabel>
               <Input
                 id="rcpt-paymentDate"
                 type="date"
                 value={data.paymentDate}
                 onChange={(e) => set("paymentDate", e.target.value)}
+                aria-invalid={paymentDateMissing}
               />
+              {paymentDateMissing && (
+                <FieldError>入金を受け取った日を入力してください</FieldError>
+              )}
             </Field>
           </FieldGroup>
 
@@ -127,7 +138,10 @@ export function ReceiptGeneratorModal({
         </div>
 
         <DialogFooter>
-          <Button onClick={handleDownload} disabled={busy}>
+          <Button
+            onClick={handleDownload}
+            disabled={busy || paymentDateMissing}
+          >
             ダウンロード
           </Button>
         </DialogFooter>

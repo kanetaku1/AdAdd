@@ -1,5 +1,5 @@
 import { toBusinessDate } from "@/lib/business-date"
-import type { PaymentStatus } from "@/types/payment"
+import type { Payment, PaymentStatus } from "@/types/payment"
 
 /**
  * UI Design Principle 2 (spec/frontend.md): show business language, not raw enum values.
@@ -32,4 +32,16 @@ export function toConfirmationDate(
     return /^\d{4}-\d{2}-\d{2}$/.test(sliced) ? sliced : null
   }
   return toBusinessDate(date)
+}
+
+/**
+ * Default receipt payment date (入金日) — FR-015 → Receipt Timing. A
+ * CONFIRMED Payment defaults to its confirmation date. A WAITING one (a
+ * face-to-face contract, before Finance confirms) has no default: the member
+ * enters the day the money was received.
+ */
+export function receiptPaymentDate(
+  payment: Pick<Payment, "status" | "confirmedAt">
+): string {
+  return payment.status === "CONFIRMED" ? (payment.confirmedAt ?? "") : ""
 }
