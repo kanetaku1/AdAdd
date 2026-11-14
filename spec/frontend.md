@@ -215,7 +215,10 @@ Re-login:
 * The Google authorization request does not force the account chooser. After a successful sign-in, Next.js keeps the signed-in email in an httpOnly cookie (`adadd_login_hint`, 180 days) and sends it to Google as `login_hint`, so a browser still signed in to that Google account comes straight back. The hint is kept after logging out, and removed when sign-in fails because the email is not registered.
 * `/login` never redirects to Google by itself; the member presses the button.
 
-Every screen fetches data from the browser through `/api/proxy`, so the session is attached in one place. When an API call returns `401` (missing, expired, or invalid session, or the User was deactivated), the browser is sent to `/login` instead of showing an error, and the rejected session cookie is removed.
+Every screen fetches data from the browser through `/api/proxy`, so the session is attached in one place. An API call returns `401` when the session is missing, expired (30 days without use), or invalid (e.g. `JWT_SECRET` was changed), or the User was deactivated. `/api/proxy` then removes the rejected session cookie, and the screen reacts by the kind of request (Issue #168):
+
+* Reading (`GET`), e.g. opening a screen — the browser is sent to `/login`. Nothing entered is lost at this point.
+* Writing (`POST` / `PATCH` / `PUT` / `DELETE`), e.g. saving a form — the screen stays as it is, so what the member entered is not lost, and a dialog says so: `ログインの有効期限が切れたため、保存できませんでした。入力中の内容はこの画面に残っています。新しいタブでログインし直してから、この画面でもう一度操作してください。` It offers `新しいタブでログイン` (opens `/login` in a new tab) and `閉じる`. After signing in in the other tab, the new session cookie is used by this screen too, so the member saves again here. A deactivated User cannot sign in again; `/login` shows that the account is not registered.
 
 `/api/proxy` forwards only to the Go API (`NEXT_PUBLIC_API_BASE_URL`), because it attaches the session (Issue #157):
 
@@ -504,6 +507,7 @@ Rules for the generation actions next to the Contract summary (FR-015 → Docume
   * `CONFIRMED` — amount defaults to `Payment.receivedAmount`; payment date (入金日) defaults to `Payment.confirmedAt`.
   * `WAITING` — amount defaults to `Payment.amount` (billed amount); payment date has no default and must be entered before download.
   * The amount stays editable in the dialog in both cases.
+* **Addressee** — the company name followed by `御中`, underlined; on the line below, in smaller text and not underlined, the company-side contact person (`YearlyCompany.contactPersonName`) as `ご担当： <contact person> 様`. Both are pre-filled in the dialog and can be overwritten there, like the other fields. When the contact person is empty, that line is not printed (Issue #168).
 * **Invoice line items** — the Contract Menus with `isGoodsSponsorship = false`. Goods sponsorship lines are not printed.
 * **No document number, no consumption-tax breakdown, no revenue stamp field.** The documents print amounts only.
 * **Issuer block and bank transfer account** — read from the Contract's Year (`GET /years`, `spec/model.md#Year`), not from constants in the frontend source.
@@ -726,6 +730,7 @@ Actions:
 * Edit remarks — e.g. the reason for a bank fee deduction or overpayment
 * Confirm payment — the received amount is required; its input is pre-filled with the billed amount. Confirming is allowed even when the received amount differs from the billed amount; the difference stays visible
 * Update status — moving back to 入金待ち keeps the received amount
+* Confirmation step — choosing a new payment status does not save it at once. A dialog names the company, the amount, and the change (e.g. `〇〇株式会社の入金（¥95,000）を確認済みにします。よろしいですか？`, or `…を入金待ちに戻します。…` when reverting), and the change is saved only after the user confirms. Both directions are confirmed, because both move the company's progress (below) and decide what a receipt shows. Cancelling leaves the status as it was (Issue #168).
 
 The received amount and remarks stay editable after confirmation (no need to move back to 入金待ち). Each change is recorded in 活動記録.
 
@@ -1043,6 +1048,11 @@ Row-level and toolbar actions (edit, delete, add, upload, etc.) use icons with a
 ## Principle 6: Point at the Error, Not Just at the Form
 
 When a submission is rejected (e.g. Create Contract validation), highlight the specific invalid field(s) inline, not just a generic top-of-form error banner — the user should not have to guess which of several inputs is wrong.
+
+Error messages are Japanese business language, never a developer-facing or English string (Principle 2). In particular (Issue #168):
+
+* The web app cannot reach the API (`502 BAD_GATEWAY` from `/api/proxy`) — `サーバーに接続できませんでした。時間をおいて再度お試しください。` The developer-facing cause (which URL, which setting) goes to the server log only.
+* The browser cannot reach the web app at all (offline, network error; e.g. `Failed to fetch`) — `サーバーに接続できませんでした。通信環境を確認してください。`
 
 ---
 

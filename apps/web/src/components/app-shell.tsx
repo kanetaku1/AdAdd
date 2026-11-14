@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { MockModeBanner } from "@/components/mock-mode-banner"
+import { SessionExpiredDialog } from "@/components/session-expired-dialog"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 /**
@@ -35,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex-1 p-6">{children}</div>
         </main>
+        <SessionExpiredDialog />
       </SidebarProvider>
     </TooltipProvider>
   )

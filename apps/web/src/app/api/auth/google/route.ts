@@ -3,6 +3,7 @@ import crypto from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 
 import { LOGIN_HINT_COOKIE, OAUTH_STATE_COOKIE } from "@/lib/auth/constants"
+import { appUrl } from "@/lib/auth/app-origin"
 import { buildGoogleAuthUrl } from "@/lib/auth/google-oauth"
 
 /**
@@ -14,7 +15,7 @@ import { buildGoogleAuthUrl } from "@/lib/auth/google-oauth"
  */
 export async function GET(req: NextRequest) {
   const state = crypto.randomBytes(16).toString("hex")
-  const redirectUri = new URL("/api/auth/google/callback", req.url).toString()
+  const redirectUri = appUrl("/api/auth/google/callback", req.url).toString()
 
   const loginHint = req.cookies.get(LOGIN_HINT_COOKIE)?.value
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
   try {
     authUrl = buildGoogleAuthUrl(redirectUri, state, loginHint)
   } catch {
-    return NextResponse.redirect(new URL("/login?error=not_configured", req.url))
+    return NextResponse.redirect(appUrl("/login?error=not_configured", req.url))
   }
 
   const res = NextResponse.redirect(authUrl)

@@ -265,13 +265,17 @@ export default function YearlyCompanyDetailPage() {
       deadline: addBusinessDays(today, 14),
       staffName: contract.assigneeName ?? yearlyCompany.assignedMemberName ?? "",
       remark: contract.remarks,
-      items: contractMenus.map((cm) => ({
-        name:
-          menus.find((m) => m.id === cm.sponsorshipMenuId)?.name ??
-          "(不明なメニュー)",
-        quantity: cm.quantity,
-        unitPrice: cm.unitPrice,
-      })),
+      // Goods sponsorship lines are not printed (spec/frontend.md#Invoice and
+      // Receipt Documents → Invoice line items).
+      items: contractMenus
+        .filter((cm) => !cm.isGoodsSponsorship)
+        .map((cm) => ({
+          name:
+            menus.find((m) => m.id === cm.sponsorshipMenuId)?.name ??
+            "(不明なメニュー)",
+          quantity: cm.quantity,
+          unitPrice: cm.unitPrice,
+        })),
       totalAmount: contract.totalAmount,
     }
   }, [yearlyCompany, contract, contractMenus, menus])

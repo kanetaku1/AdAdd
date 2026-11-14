@@ -14,6 +14,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EditablePaymentStatusBadge } from "@/components/editable-payment-status-badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { businessToday } from "@/lib/business-date"
@@ -56,6 +65,12 @@ export default function FinancePage() {
   const [payments, setPayments] = useState<PaymentAcrossYear[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A chosen status waits here until the user confirms it
+  // (spec/frontend.md#Payment List → Confirmation step, Issue #168).
+  const [pendingChange, setPendingChange] = useState<{
+    payment: PaymentAcrossYear
+    status: PaymentStatus
+  } | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -85,6 +100,12 @@ export default function FinancePage() {
       cancelled = true
     }
   }, [activeYearId])
+
+  async function confirmPendingChange() {
+    if (!pendingChange) return
+    await handleStatusChange(pendingChange.payment.id, pendingChange.status)
+    setPendingChange(null)
+  }
 
   async function handleStatusChange(paymentId: string, status: PaymentStatus) {
     if (!activeYearId) return
@@ -163,9 +184,11 @@ export default function FinancePage() {
                   <TableCell>
                     <EditablePaymentStatusBadge
                       value={payment.status}
-                      onChange={(status) =>
-                        void handleStatusChange(payment.id, status)
-                      }
+                      onChange={(status) => {
+                        if (status !== payment.status) {
+                          setPendingChange({ payment, status })
+                        }
+                      }}
                       disabled={savingId === payment.id || !canConfirm}
                     />
                   </TableCell>
@@ -188,6 +211,52 @@ export default function FinancePage() {
           </TableBody>
         </Table>
       </div>
+
+      {pendingChange && (
+        <Dialog
+          open
+          onOpenChange={(next) => {
+            if (!next && savingId === null) setPendingChange(null)
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {pendingChange.status === "CONFIRMED"
+                  ? "入金を確認済みにしますか？"
+                  : "入金待ちに戻しますか？"}
+              </DialogTitle>
+              <DialogDescription>
+                {pendingChange.payment.companyName}の入金（
+                {currencyFormatter.format(pendingChange.payment.amount)}）を
+                {pendingChange.status === "CONFIRMED"
+                  ? "確認済みにします。"
+                  : "入金待ちに戻します。"}
+                よろしいですか？
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setPendingChange(null)}
+                disabled={savingId !== null}
+              >
+                キャンセル
+              </Button>
+              <Button
+                onClick={() => void confirmPendingChange()}
+                disabled={savingId !== null}
+              >
+                {savingId !== null
+                  ? "保存中..."
+                  : pendingChange.status === "CONFIRMED"
+                    ? "確認済みにする"
+                    : "入金待ちに戻す"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

@@ -85,6 +85,7 @@ The web app:
 
 * `NEXT_PUBLIC_API_BASE_URL` must be set when building it for production. Without it, the build runs in mock mode with fictitious data. After every deployment, sign in and check that the mock-mode banner is not shown.
 * The session cookie is `Secure` in a production build, so the web app must be served over HTTPS (`spec/frontend.md#Login`).
+* `APP_ORIGIN` should be set to the public HTTPS origin members use (e.g. `https://adadd.example`). Google sign-in builds its redirect URI from it, and `<APP_ORIGIN>/api/auth/google/callback` must be registered as an authorized redirect URI on the OAuth client. Without it, the origin of the request that reaches Next.js is used, which may be an internal host behind a reverse proxy (`spec/development.md#Environment variables`).
 
 ## Never run against the production database
 

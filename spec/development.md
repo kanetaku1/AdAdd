@@ -680,10 +680,10 @@ CI (`.github/workflows/e2e.yml`) runs them against a MySQL 8.4 service container
 | Company → Yearly Company | Register a company, register it in the active Year (New) |
 | Assignment | An Administrator assigns a member; it persists after reload |
 | Contract | A Sponsorship Member creates a contract with menus; total and Payment (waiting) persist |
-| Payment confirmation | A Sponsorship Member cannot open the status for editing; Finance confirms; status and confirmer persist |
+| Payment confirmation | A Sponsorship Member cannot open the status for editing; Finance chooses a status, a confirmation dialog appears (cancelling keeps the status, also when moving back to 入金待ち), and after confirming, the status and confirmer persist (Issue #168) |
 | Invoice / Receipt | After a Contract Menu is added on the Yearly Company Detail (no reload), the Invoice total and the Receipt amount show the new total (Issue #158) |
 | Master data deletion | An Administrator deletes a company and a menu after confirming; a Sponsorship Member sees no delete control; a company registered in a Year is rejected |
-| Session | No session or a rejected session leads to `/login`; a deactivated User is sent to `/login`; Company list and Company edit load with a session (Issue #152) |
+| Session | No session or a rejected session leads to `/login` when opening a screen; a deactivated User is sent to `/login`; Company list and Company edit load with a session (Issue #152); a save rejected by an invalid session keeps the screen and the entered values, shows the sign-in-again dialog, and saves after signing in again (Issue #168) |
 | Activity Log by Role | After an Administrator assigns a member, an Advisor and a Sponsorship Member open Yearly Company Detail and see the 活動記録 entry naming the member; Finance opens the screen but sees no 活動記録 (Issue #167) |
 | Business date | At 00:30 JST (still the previous day in UTC), the contract date, invoice issued date, and payment deadline are JST days; the contract date persists (Issue #160) |
 | Receipt timing | A WAITING Payment's receipt has the billed amount and no payment date, and cannot be downloaded until one is entered; after Finance confirms, the payment date defaults to the confirmation date (Issue #159) |
@@ -827,6 +827,7 @@ In MySQL mode, a developer's Google account must be registered both as a test us
 | -------- | --------- | ---------- | ------- |
 | `NEXT_PUBLIC_API_BASE_URL` | Empty (`dev:mock` sets it) | `http://127.0.0.1:8080` | Empty means mock mode |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | — | Required | Google sign-in |
+| `APP_ORIGIN` | — | Optional | The web app's public origin, e.g. `https://adadd.example`. The Google sign-in redirect URI and the redirects after sign-in are built from it. When empty, the origin of the incoming request is used, which is enough when the browser reaches Next.js directly (local development). Set it when a reverse proxy or a hosting service sits in front, so the redirect URI matches the one registered on the OAuth client (Issue #168). |
 | `GOOGLE_API_KEY` / `GOOGLE_DRIVE_ROOT_FOLDER_ID` | — | When using Drive | Drive Picker (exposed to the browser by `next.config.ts`) |
 
 `apps/api` — the repository-root `.env` for Docker Compose (see `.env.example`), or `apps/api/.env` for `go run` (see `apps/api/.env.example`):
