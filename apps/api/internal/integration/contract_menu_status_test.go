@@ -13,12 +13,12 @@ func TestUpdateContractMenuStatusRequiresAdvertisementManagerOrAdministrator(t *
 
 	companyID := createCompany(t, actors.administrator, "ステータス権限株式会社")
 	yearID := createYear(t, actors.administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2027, 3, 31))
-	menuID := createSponsorshipMenu(t, actors.administrator, yearID, "ステータス権限メニュー", 80000)
+	menuID := createSponsorshipMenuWithoutSubmission(t, actors.administrator, yearID, "ステータス権限メニュー", 80000)
 	yearlyCompany := loadYearlyCompany(t, yearID, companyID)
 	contract := createContract(t, actors.sponsorshipMember, yearlyCompany.ID, map[string]any{
 		"sponsorshipMenuId": menuID,
 		"quantity":          1,
-		"productionType":    "COMPANY",
+		"productionType":    nil,
 	})
 	contractMenusResponse := actors.sponsorshipMember.do(http.MethodGet, "/contracts/"+contract.ID+"/menus", nil)
 	expectStatus(t, contractMenusResponse, http.StatusOK)
