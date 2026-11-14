@@ -191,7 +191,7 @@ Global enumeration, applied per Contract Menu.
 
 ### Maintained By
 
-Sponsorship Menu Management Team.
+Advertisement Management Department (Contract Menu status and production-department updates); Sponsorship Member or Advertisement Manager (production-type updates).
 
 ### Referenced By
 
