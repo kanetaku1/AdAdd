@@ -379,6 +379,12 @@ function ContractMenusList() {
                   onToggle={() => toggleColumnFilter("menu")}
                   onClose={() => setOpenColumnFilter(null)}
                 >
+                  <ColumnFilterOption
+                    selected={menuFilter === ALL}
+                    onSelect={() => setMenuFilter(ALL)}
+                  >
+                    すべて
+                  </ColumnFilterOption>
                   {menus.map((m) => (
                     <ColumnFilterOption
                       key={m.id}
@@ -409,6 +415,19 @@ function ContractMenusList() {
                     setShowProductionDepartments(false)
                   }}
                 >
+                  <ColumnFilterOption
+                    selected={
+                      productionTypeFilter === ALL &&
+                      productionDepartmentFilter === null
+                    }
+                    onSelect={() => {
+                      setProductionTypeFilter(ALL)
+                      setProductionDepartmentFilter(null)
+                      setShowProductionDepartments(false)
+                    }}
+                  >
+                    すべて
+                  </ColumnFilterOption>
                   {(["COMPANY", "INTERNAL", "CONTINUED"] as const).map(
                     (value) => (
                       <div
@@ -474,6 +493,12 @@ function ContractMenusList() {
                   onToggle={() => toggleColumnFilter("status")}
                   onClose={() => setOpenColumnFilter(null)}
                 >
+                  <ColumnFilterOption
+                    selected={statusFilter === ALL}
+                    onSelect={() => setStatusFilter(ALL)}
+                  >
+                    すべて
+                  </ColumnFilterOption>
                   {Object.entries(CONTRACT_MENU_STATUS_LABEL).map(
                     ([value, label]) => (
                       <ColumnFilterOption
