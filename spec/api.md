@@ -1437,7 +1437,7 @@ The request may also carry `receivedAmount` and `remarks` (each optional; omitte
 * Moving `status` back to `WAITING` keeps `receivedAmount`.
 * Every change of `receivedAmount` or `remarks` is recorded in 活動記録 as `PAYMENT_DETAILS_UPDATED` (event type defined with Issue #172).
 
-Errors: `404 Not Found` when the Payment does not exist; `400 Bad Request` for a `status` other than `WAITING` / `CONFIRMED`.
+Errors: `404 Not Found` when the Payment does not exist; `400 Bad Request` for a `status` other than `WAITING` / `CONFIRMED`, a negative or malformed `receivedAmount`, an empty update, or confirming while `receivedAmount` is `null`.
 
 ---
 

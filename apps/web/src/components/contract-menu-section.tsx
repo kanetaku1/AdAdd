@@ -41,6 +41,7 @@ import {
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
+import { CONTRACT_MENU_PRODUCTION_TYPE_LABEL } from "@/lib/contract-menu-labels"
 import { DriveUploadDialog } from "@/components/drive-upload-dialog"
 import { ContractMenuFilesSummary } from "@/components/contract-menu-files-summary"
 import type {
@@ -87,6 +88,7 @@ export function ContractMenuSection({
   menus,
   onChanged,
   contractedQuantityByMenu,
+  readOnly = false,
 }: {
   contractId: string
   initialContractMenus: ContractMenu[]
@@ -101,10 +103,11 @@ export function ContractMenuSection({
   onChanged?: (contractMenus: ContractMenu[]) => void
   /** The Year's contracted quantity per Sponsorship Menu, for the capacity warning. */
   contractedQuantityByMenu?: Record<string, number>
+  readOnly?: boolean
 }) {
   const { currentUser } = useCurrentUser()
-  const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
-  const canDelete = canAccess(currentUser?.roles, DELETE_ROLES)
+  const canManage = !readOnly && canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const canDelete = !readOnly && canAccess(currentUser?.roles, DELETE_ROLES)
   const [contractMenus, setContractMenus] = useState(initialContractMenus)
   const [open, setOpen] = useState(false)
   const [newItem, setNewItem] = useState<ContractMenuItemValue>(
@@ -277,13 +280,17 @@ export function ContractMenuSection({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <EditableQuantityCell
-                      value={cm.quantity}
-                      disabled={!canManage || rowBusy}
-                      onChange={(quantity) =>
-                        void handlePatch(cm.id, { quantity })
-                      }
-                    />
+                    {readOnly ? (
+                      cm.quantity
+                    ) : (
+                      <EditableQuantityCell
+                        value={cm.quantity}
+                        disabled={!canManage || rowBusy}
+                        onChange={(quantity) =>
+                          void handlePatch(cm.id, { quantity })
+                        }
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     {currencyFormatter.format(cm.unitPrice)}
@@ -292,23 +299,29 @@ export function ContractMenuSection({
                     {currencyFormatter.format(cm.quantity * cm.unitPrice)}
                   </TableCell>
                   <TableCell>
-                    <EditableProductionTypeCell
-                      value={cm.productionType}
-                      requiresSubmission={menu?.requiresSubmission ?? false}
-                      disabled={!canManage || rowBusy}
-                      onChange={(productionType) =>
-                        void handlePatch(cm.id, { productionType })
-                      }
-                    />
+                    {readOnly ? (
+                      cm.productionType
+                        ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[cm.productionType]
+                        : "-"
+                    ) : (
+                      <EditableProductionTypeCell
+                        value={cm.productionType}
+                        requiresSubmission={menu?.requiresSubmission ?? false}
+                        disabled={!canManage || rowBusy}
+                        onChange={(productionType) =>
+                          void handlePatch(cm.id, { productionType })
+                        }
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <ContractMenuFilesSummary
                         menu={cm}
                         deletingFileId={deletingFileId}
-                        onDelete={cm.allowDelete ? (fileId) => void handleDeleteFile(cm.id, fileId) : undefined}
+                        onDelete={!readOnly && cm.allowDelete ? (fileId) => void handleDeleteFile(cm.id, fileId) : undefined}
                       />
-                      {cm.allowUpload && (
+                      {!readOnly && cm.allowUpload && (
                         <IconActionButton
                           label={cm.fileCount > 0 ? "資料を追加" : "アップロード"}
                           variant="outline"

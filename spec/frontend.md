@@ -730,6 +730,7 @@ Actions:
 * Edit remarks — e.g. the reason for a bank fee deduction or overpayment
 * Confirm payment — the received amount is required; its input is pre-filled with the billed amount. Confirming is allowed even when the received amount differs from the billed amount; the difference stays visible
 * Update status — moving back to 入金待ち keeps the received amount
+* The 金額・備考 action edits the received amount and remarks without changing status. The Payment List shows both values and the received-versus-billed difference.
 * Confirmation step — choosing a new payment status does not save it at once. A dialog names the company, the amount, and the change (e.g. `〇〇株式会社の入金（¥95,000）を確認済みにします。よろしいですか？`, or `…を入金待ちに戻します。…` when reverting), and the change is saved only after the user confirms. Both directions are confirmed, because both move the company's progress (below) and decide what a receipt shows. Cancelling leaves the status as it was (Issue #168).
 
 The received amount and remarks stay editable after confirmation (no need to move back to 入金待ち). Each change is recorded in 活動記録.
@@ -875,7 +876,7 @@ Actions:
 
 * Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before. The issuer information and bank transfer account are copied from the previous Year.
 * Correct the active Year's name, start date, and end date (Administrator — `PATCH /years/{yearId}`, `spec/domain.md#Correcting a Year`). Past Years are not editable (see Viewing a Past Year).
-* Click a row to open that Year's Yearly Company List (`/yearly-companies?yearId=`, current or past), scoped to that Year regardless of which Year is active.
+* Click a Year name to open that Year's Yearly Company List (`/yearly-companies?yearId=`, current or past), scoped to that Year regardless of which Year is active. The selected Year is carried only between year-scoped pages. Navigating to a page that is not filtered by Year clears the selection and returns to the active Year context.
 * Edit the Year's document issuer information (Administrator) — issuer name, postal code, address lines, contact email, and the bank transfer account printed on invoices and receipts (`PATCH /years/{yearId}/document-issuer`, `spec/model.md#Year`). Fields required for document generation are marked, so a missing value is visible before anyone tries to generate a document.
 
 Where this edit action sits on the screen (inline on the row, or a separate Year detail view) is TBD. There is no seal-image action; the seal stays a static file in the repository (Issue #176).
@@ -886,9 +887,10 @@ Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` 
 
 A past Year is read-only except payment confirmation (`spec/domain.md#Active Year and Past Years`, `spec/api.md#Past Years Are Read-Only`).
 
-* Yearly Company List, Yearly Company Detail, Sponsorship Menu, Contract Menu List, and Payment List can show any Year. They default to the active Year. A Year selector (or the `yearId` query from Year List) switches to a past Year.
-* While a past Year is shown, the page shows a fixed notice: 過去の年度（{name}）を表示しています。入金確認のほかは変更できません。
-* Every edit control is hidden, including inline-editable cells and Administrator-only delete actions. The only exception is the payment status on Payment List and on Yearly Company Detail, for Finance Department / Administrator as in the active Year.
+* Dashboard, Yearly Company List, Yearly Company Detail, Sponsorship Menu, Contract Menu List, Advertisement Progress, and Payment List can show any Year. They default to the active Year. Clicking a Year name in Year List switches to that Year; the `yearId` query is preserved between these pages. Navigating to Company List, Year List, or Settings clears the past-Year filter; choosing a Year again from Year List re-enters it.
+* On a year-scoped page showing a past Year, a fixed notice says: 過去の年度（{name}）を表示しています。入金確認のほかは変更できません。
+* The sidebar shows the selected Year while a past-Year filter is active, and uses a blue accent for year-scoped navigation items only while a past-Year notice is displayed. Outside a year-scoped page the filter is cleared; Company List, Year List, and Settings use the normal active-Year context. Year List marks its active Year in the table.
+* Every edit control is hidden, including inline-editable cells and Administrator-only delete actions. The only exception is payment confirmation and correction on the Finance Payment List, for Finance Department / Administrator as in the active Year. The Yearly Company Detail keeps payment status read-only.
 * Invoice / receipt PDF and CSV export stay available.
 * The backend rejects past-Year changes on its own. Hiding the controls is for clarity, not the enforcement.
 
@@ -979,6 +981,8 @@ Sidebar labels are Japanese (right column above is the internal/route name only,
 `広告進捗` sits with `広告管理` because both are daily production work (UC-07/UC-08), not master-data management. Users and Advisor Assignments are Settings tabs, not top-level sidebar items — one Administrator-only entry keeps the sidebar short.
 
 Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, 広告管理 is shown to Sponsorship Member and Advertisement Manager, Settings (and its Users / Advisor Assignments tabs) unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is implemented (`apps/web/src/components/app-sidebar.tsx` `allowedRoles` + `canAccess`, matching backend `RequireRoles`).
+
+When a past Year is selected on a year-scoped page, the sidebar displays its name and gives year-scoped items (Dashboard, Yearly Companies, Sponsorship Menus, Contract Menus, Advertisement Progress, and Finance) a blue accent. The `yearId` is carried only between these scoped pages. Navigating to Company List, Year List, or Settings clears the past-Year filter and returns to the active Year context. The Years table marks the active Year, and clicking a Year name explicitly selects that Year again.
 
 ---
 

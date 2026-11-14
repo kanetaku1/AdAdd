@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { FileCheck, FileX, Users, Download } from "lucide-react"
 
@@ -22,7 +22,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useActiveYear } from "@/components/active-year-provider"
 import {
   ColumnFilterOption,
   ColumnFilterPopover,
@@ -31,6 +30,7 @@ import { useCurrentUser } from "@/components/current-user-provider"
 import { EditableCompanyStatusBadge } from "@/components/editable-company-status-badge"
 import { useUsers } from "@/components/users-provider"
 import { useYearCatalog } from "@/components/year-catalog-provider"
+import { PastYearNotice } from "@/components/past-year-notice"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { EditableSponsorshipPhaseBadge } from "@/components/editable-sponsorship-phase-badge"
 import { IconActionButton } from "@/components/icon-action-button"
@@ -47,6 +47,7 @@ import {
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { downloadYearlyCompanyCsv } from "@/lib/yearly-company-csv"
+import { useSelectedYear } from "@/hooks/use-selected-year"
 import {
   COMPANY_STATUS_LABEL,
   SPONSORSHIP_PHASE_LABEL,
@@ -113,12 +114,22 @@ type ColumnFilterKey = "status" | "phase" | "member" | "progress"
  * details (spec/frontend.md#CSV Import / Export, Issue #133).
  */
 export default function YearlyCompaniesPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-muted-foreground">読み込み中...</div>}>
+      <YearlyCompaniesPageContent />
+    </Suspense>
+  )
+}
+
+function YearlyCompaniesPageContent() {
   const {
-    activeYear,
-    loading: yearLoading,
-    error: yearError,
-  } = useActiveYear()
-  const activeYearId = activeYear?.id ?? null
+    selectedYear,
+    selectedYearId: activeYearId,
+    isPastYear,
+    invalidYearSelection,
+    yearLoading,
+    yearError,
+  } = useSelectedYear()
   const { currentUser } = useCurrentUser()
   const canEditStatusPhaseProgress = canAccess(currentUser?.roles, [
     "SPONSORSHIP_MEMBER",
@@ -373,12 +384,12 @@ export default function YearlyCompaniesPage() {
   }
 
   async function handleExportCsv() {
-    if (exporting || loading || yearLoading || !activeYear) return
+    if (exporting || loading || yearLoading || !selectedYear) return
     setActionError(null)
     setExporting(true)
     try {
       const companies = await listCompanies()
-      downloadYearlyCompanyCsv(activeYear.name, visibleRows, companies)
+      downloadYearlyCompanyCsv(selectedYear.name, visibleRows, companies)
     } catch (e) {
       setActionError(
         getErrorMessage(e, { fallback: "CSVの出力に失敗しました" })
@@ -393,9 +404,10 @@ export default function YearlyCompaniesPage() {
       <div>
         <h1 className="text-2xl font-semibold">協賛企業(年度別)</h1>
         <p className="text-muted-foreground">
-          {activeYear?.name ?? ""}年度 協賛企業の管理
+          {selectedYear?.name ?? ""}年度 協賛企業の管理
         </p>
       </div>
+      <PastYearNotice year={selectedYear} />
 
       {!isApiEnabled() && (
         <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
@@ -405,6 +417,7 @@ export default function YearlyCompaniesPage() {
 
       <ErrorBanner
         message={
+          (invalidYearSelection ? "指定された年度が見つかりません。" : null) ||
           yearError ||
           error ||
           (activeYearId ? advisorAssignmentsError(activeYearId) : null)
@@ -505,7 +518,7 @@ export default function YearlyCompaniesPage() {
           <IconActionButton
             label={exporting ? "出力中…" : "CSVを出力"}
             variant="outline"
-            disabled={exporting || loading || yearLoading || !activeYear}
+            disabled={exporting || loading || yearLoading || !selectedYear}
             onClick={() => void handleExportCsv()}
           >
             <Download />
@@ -678,6 +691,8 @@ export default function YearlyCompaniesPage() {
           <TableBody>
             {yearLoading || loading || catalogLoading ? (
               <LoadingRow colSpan={5} />
+            ) : invalidYearSelection ? (
+              <EmptyRow colSpan={5} message="指定された年度が見つかりません。" />
             ) : !activeYearId ? (
               <EmptyRow
                 colSpan={5}
@@ -692,7 +707,7 @@ export default function YearlyCompaniesPage() {
                   <TableRow key={yc.id}>
                     <TableCell className="font-medium">
                       <Link
-                        href={`/yearly-companies/${yc.id}`}
+                        href={`/yearly-companies/${yc.id}?yearId=${encodeURIComponent(yc.yearId)}`}
                         className="hover:underline"
                       >
                         {yc.companyName}
@@ -700,25 +715,35 @@ export default function YearlyCompaniesPage() {
                     </TableCell>
 
                     <TableCell className="rounded">
-                      <EditableCompanyStatusBadge
-                        value={yc.companyStatus}
-                        onChange={(value) =>
-                          void setCompanyStatus(yc.id, value)
-                        }
-                        disabled={rowSaving || !canEditStatusPhaseProgress}
-                      />
+                      {isPastYear ? (
+                        COMPANY_STATUS_LABEL[yc.companyStatus]
+                      ) : (
+                        <EditableCompanyStatusBadge
+                          value={yc.companyStatus}
+                          onChange={(value) =>
+                            void setCompanyStatus(yc.id, value)
+                          }
+                          disabled={rowSaving || !canEditStatusPhaseProgress}
+                        />
+                      )}
                     </TableCell>
 
                     <TableCell className="rounded">
-                      <EditableSponsorshipPhaseBadge
-                        value={yc.phase}
-                        onChange={(value) => void setPhase(yc.id, value)}
-                        disabled={rowSaving || !canEditStatusPhaseProgress}
-                      />
+                      {isPastYear ? (
+                        SPONSORSHIP_PHASE_LABEL[yc.phase]
+                      ) : (
+                        <EditableSponsorshipPhaseBadge
+                          value={yc.phase}
+                          onChange={(value) => void setPhase(yc.id, value)}
+                          disabled={rowSaving || !canEditStatusPhaseProgress}
+                        />
+                      )}
                     </TableCell>
 
                     <TableCell className="rounded">
-                      {editingCell?.id === yc.id &&
+                      {isPastYear ? (
+                        yc.assignedMemberName ?? "未割当"
+                      ) : editingCell?.id === yc.id &&
                       editingCell.column === "assignedMember" ? (
                         <Select
                           value={yc.assignedMemberId ?? UNASSIGNED}
@@ -772,11 +797,15 @@ export default function YearlyCompaniesPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <EditableProgressBadge
-                        value={yc.progress}
-                        onChange={(value) => void setProgress(yc.id, value)}
-                        disabled={rowSaving || !canEditStatusPhaseProgress}
-                      />
+                      {isPastYear ? (
+                        SPONSORSHIP_PROGRESS_LABEL[yc.progress]
+                      ) : (
+                        <EditableProgressBadge
+                          value={yc.progress}
+                          onChange={(value) => void setProgress(yc.id, value)}
+                          disabled={rowSaving || !canEditStatusPhaseProgress}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 )

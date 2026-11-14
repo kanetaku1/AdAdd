@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -53,21 +55,50 @@ func listPaymentsAcrossYear(c echo.Context) error {
 func updatePayment(c echo.Context) error {
 	pid := c.Param("paymentId")
 	var req struct {
-		Status string `json:"status"`
+		Status         *string         `json:"status"`
+		ReceivedAmount json.RawMessage `json:"receivedAmount"`
+		Remarks        *string         `json:"remarks"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	if err := ValidatePaymentStatus(req.Status); err != nil {
-		return respondBadRequest(c, err.Error())
+
+	if req.Status != nil {
+		if err := ValidatePaymentStatus(*req.Status); err != nil {
+			return respondBadRequest(c, err.Error())
+		}
+	}
+	if req.Status == nil && len(req.ReceivedAmount) == 0 && req.Remarks == nil {
+		return respondBadRequest(c, "at least one payment field is required")
+	}
+
+	var receivedAmount *decimal.Decimal
+	receivedAmountGiven := len(req.ReceivedAmount) > 0
+	if receivedAmountGiven && string(req.ReceivedAmount) != "null" {
+		var amount decimal.Decimal
+		if err := json.Unmarshal(req.ReceivedAmount, &amount); err != nil {
+			return respondBadRequest(c, "receivedAmount must be a number or null")
+		}
+		if amount.IsNegative() {
+			return respondBadRequest(c, "receivedAmount must not be negative")
+		}
+		receivedAmount = &amount
 	}
 
 	updateModel := model.Payment{
-		ID:     pid,
-		Status: req.Status,
+		ID:                  pid,
+		ReceivedAmount:      receivedAmount,
+		ReceivedAmountGiven: receivedAmountGiven,
 	}
-	if uid := c.Get("userId"); uid != nil && uid != "" {
-		updateModel.ConfirmedByID = uid.(string)
+	if req.Status != nil {
+		updateModel.Status = *req.Status
+	}
+	if req.Remarks != nil {
+		updateModel.Remarks = *req.Remarks
+		updateModel.RemarksGiven = true
+	}
+	if uid, ok := c.Get("userId").(string); ok {
+		updateModel.ConfirmedByID = uid
 	}
 
 	svc := service.NewPaymentService()
@@ -75,14 +106,15 @@ func updatePayment(c echo.Context) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return respondNotFound(c, "入金が見つかりません")
 		}
+		if errors.Is(err, service.ErrReceivedAmountRequired) {
+			return respondBadRequest(c, err.Error())
+		}
 		return respondInternalServerError(c, err)
 	}
 
-	// reload payment to return correct timestamps and stored values
 	updated, err := svc.GetByID(updateModel.ID)
 	if err != nil {
-		// if reload fails, still return success but include request payload
-		return c.JSON(http.StatusOK, map[string]interface{}{"data": updateModel, "message": "updated"})
+		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": updated, "message": "updated"})
 }

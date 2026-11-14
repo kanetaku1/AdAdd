@@ -215,15 +215,19 @@ type ContractMenuResponse struct {
 
 // Payment
 type Payment struct {
-	ID            string          `gorm:"type:char(36);primaryKey" json:"id"`
-	ContractID    string          `gorm:"type:char(36);not null;uniqueIndex" json:"contractId"`
-	Amount        decimal.Decimal `json:"amount"`
-	Status        string          `gorm:"size:32" json:"status"`
-	ConfirmedAt   *time.Time      `json:"confirmedAt"`
-	ConfirmedByID string          `gorm:"type:char(36)" json:"confirmedById"`
-	CreatedAt     time.Time       `json:"createdAt"`
-	UpdatedAt     time.Time       `json:"updatedAt"`
-	DeletedAt     gorm.DeletedAt  `gorm:"index" json:"-"`
+	ID                  string           `gorm:"type:char(36);primaryKey" json:"id"`
+	ContractID          string           `gorm:"type:char(36);not null;uniqueIndex" json:"contractId"`
+	Amount              decimal.Decimal  `json:"amount"`
+	ReceivedAmount      *decimal.Decimal `gorm:"type:decimal(15,2)" json:"receivedAmount"`
+	Remarks             string           `gorm:"type:text" json:"remarks"`
+	Status              string           `gorm:"size:32" json:"status"`
+	ConfirmedAt         *time.Time       `json:"confirmedAt"`
+	ConfirmedByID       string           `gorm:"type:char(36)" json:"confirmedById"`
+	CreatedAt           time.Time        `json:"createdAt"`
+	UpdatedAt           time.Time        `json:"updatedAt"`
+	DeletedAt           gorm.DeletedAt   `gorm:"index" json:"-"`
+	ReceivedAmountGiven bool             `gorm:"-" json:"-"`
+	RemarksGiven        bool             `gorm:"-" json:"-"`
 }
 
 func (p *Payment) BeforeCreate(tx *gorm.DB) (err error) {

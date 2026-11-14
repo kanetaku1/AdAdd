@@ -708,6 +708,8 @@ export async function getPaymentByContract(
         id: string
         contractId: string
         amount: number | string
+        receivedAmount?: number | string | null
+        remarks?: string | null
         status: string
         confirmedAt?: string | null
         confirmedById?: string | null
@@ -716,6 +718,9 @@ export async function getPaymentByContract(
         id: raw.id,
         contractId: raw.contractId,
         amount: Number(raw.amount),
+        receivedAmount:
+          raw.receivedAmount == null ? null : Number(raw.receivedAmount),
+        remarks: raw.remarks ?? "",
         status: raw.status as Payment["status"],
         confirmedAt: toConfirmationDate(raw.confirmedAt),
         confirmedById: raw.confirmedById ?? null,
@@ -751,6 +756,8 @@ export async function listPaymentsByYear(
         id: string
         contractId: string
         amount: number | string
+        receivedAmount?: number | string | null
+        remarks?: string | null
         status: string
         confirmedAt?: string | null
         confirmedById?: string | null
@@ -765,6 +772,9 @@ export async function listPaymentsByYear(
       id: p.id,
       contractId: p.contractId,
       amount: Number(p.amount),
+      receivedAmount:
+        p.receivedAmount == null ? null : Number(p.receivedAmount),
+      remarks: p.remarks ?? "",
       status: p.status as PaymentStatus,
       confirmedAt: toConfirmationDate(p.confirmedAt),
       confirmedById: p.confirmedById ?? null,
@@ -805,36 +815,46 @@ export async function listPaymentsByYear(
  * confirmedById are set/cleared server-side from the authenticated user —
  * never sent in the request body.
  */
-export async function updatePaymentStatus(
+export async function updatePayment(
   id: string,
-  status: PaymentStatus
+  changes: {
+    status?: PaymentStatus
+    receivedAmount?: number | null
+    remarks?: string
+  }
 ): Promise<Payment> {
   if (isApiEnabled()) {
     const updated = await apiFetch<{
       id: string
       contractId: string
       amount: number | string
+      receivedAmount?: number | string | null
+      remarks?: string | null
       status: string
       confirmedAt?: string | null
       confirmedById?: string | null
     }>(`/payments/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(changes),
     })
     return {
       id: updated.id,
       contractId: updated.contractId,
       amount: Number(updated.amount),
+      receivedAmount:
+        updated.receivedAmount == null ? null : Number(updated.receivedAmount),
+      remarks: updated.remarks ?? "",
       status: updated.status as PaymentStatus,
       confirmedAt: toConfirmationDate(updated.confirmedAt),
       confirmedById: updated.confirmedById ?? null,
       confirmedByName: null,
     }
   }
-  const currentUser = status === "CONFIRMED" ? getMockSignedInUser() : null
+  const currentUser =
+    changes.status === "CONFIRMED" ? getMockSignedInUser() : null
   const currentUserId = currentUser?.id ?? null
   const currentUserName = currentUser?.name ?? null
-  return updateMockPayment(id, status, currentUserId, currentUserName)
+  return updateMockPayment(id, changes, currentUserId, currentUserName)
 }
 
 export { listSponsorshipMenus } from "@/lib/data/sponsorship-menus"
@@ -1133,6 +1153,8 @@ export async function createPayment(contractId: string): Promise<Payment> {
       id: raw.id,
       contractId: raw.contractId,
       amount: Number(raw.amount),
+      receivedAmount: null,
+      remarks: "",
       status: raw.status as Payment["status"],
       confirmedAt: null,
       confirmedById: null,
@@ -1157,6 +1179,8 @@ export async function createPayment(contractId: string): Promise<Payment> {
     id: crypto.randomUUID(),
     contractId,
     amount: contract.totalAmount,
+    receivedAmount: null,
+    remarks: "",
     status: "WAITING",
     confirmedAt: null,
     confirmedById: null,
