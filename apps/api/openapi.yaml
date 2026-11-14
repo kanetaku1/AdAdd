@@ -156,6 +156,7 @@ paths:
   /contract-menus/{id}/status:
     patch:
       summary: 契約メニューのステータス更新
+      description: 広告管理部門またはAdministratorのみ実行可能。他のRoleは403 Forbidden。
       parameters:
         - name: id
           in: path
@@ -174,6 +175,8 @@ paths:
       responses:
         '200':
           description: Updated
+        '403':
+          description: Forbidden
   /contracts/{contractId}/payment:
     post:
       summary: 支払い作成（totalAmount > 0 の契約に対して明示的に作成）

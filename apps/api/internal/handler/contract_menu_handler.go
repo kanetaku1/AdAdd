@@ -44,7 +44,10 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
 	rStaff.POST("/contracts/:contractId/menus", addContractMenu)
 	rStaff.PATCH("/contract-menus/:id", updateContractMenuDetails)
-	rStaff.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
+
+	rAdvertisementManager := e.Group("")
+	rAdvertisementManager.Use(RequireRoles("ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
+	rAdvertisementManager.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 
 	rFiles := e.Group("")
 	rFiles.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))

@@ -108,8 +108,9 @@
 - DELETE /contract-menus/:id (admin)
   - 説明: 契約メニュー削除。削除後に totalAmount を再計算
   - 削除は全システムで Administrator 限定 (spec/api.md#Authorization Matrix)
-- PATCH /contract-menus/:id/status (staff, admin)
+- PATCH /contract-menus/:id/status (ADVERTISEMENT_MANAGER, admin)
   - 説明: ステータス更新
+  - 権限: 広告管理部門または Administrator。他の Role は 403 Forbidden
   - ボディ: { "status": "SUBMITTED" }
 - PATCH /contract-menus/:id/production (staff, admin)
   - 説明: 制作情報（Drive URL 等）をアップロードしてステータスを SUBMITTED にする
