@@ -440,7 +440,7 @@ function ContractMenusList() {
                           {CONTRACT_MENU_PRODUCTION_TYPE_LABEL[value]}
                         </ColumnFilterOption>
                         {value === "INTERNAL" && showProductionDepartments && (
-                          <div className="ml-3 border-l pl-1">
+                          <div className="ml-3 flex flex-col gap-0.5 border-l pl-1">
                             {Object.entries(
                               CONTRACT_MENU_PRODUCTION_DEPARTMENT_LABEL
                             ).map(([department, departmentLabel]) => (
