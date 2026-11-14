@@ -15,9 +15,12 @@ import (
 )
 
 var (
-	ErrPastYearReadOnly       = errors.New("contract menu files cannot be changed for a past year")
-	ErrSubmittedStateConflict = errors.New("SUBMITTED is derived from active files")
-	ErrInvalidDriveFile       = errors.New("invalid contract menu drive file")
+	ErrPastYearReadOnly                     = errors.New("contract menu cannot be changed for a past year")
+	ErrSubmittedStateConflict               = errors.New("SUBMITTED is derived from active files")
+	ErrInvalidDriveFile                     = errors.New("invalid contract menu drive file")
+	ErrInvalidContractMenuStatus            = errors.New("status is not allowed for this production type")
+	ErrProductionDepartmentRequiresInternal = errors.New("production department requires INTERNAL production")
+	ErrInvalidProductionDepartment          = errors.New("invalid production department")
 
 	// ErrInvalidContractMenu is a Contract Menu input that is malformed by
 	// itself (missing sponsorshipMenuId, quantity < 1, negative unitPrice).
@@ -43,18 +46,29 @@ type ContractMenuInput struct {
 	// submission.
 	ProductionType *string
 	Remarks        string
-	// Status defaults to COMPLETED for CONTINUED and WAITING otherwise
-	// (development seed sets others).
+	// Status defaults to WAITING (development seed sets others).
 	Status string
 }
 
-// ProductionTypeContinued is a Contract Menu that uses an advertisement from
-// an earlier Year again; its production is already complete.
+// ProductionTypeContinued is a Contract Menu that reuses an advertisement
+// from an earlier Year.
 const ProductionTypeContinued = "CONTINUED"
 
 // ProductionTypes are the ContractMenuProductionType codes
 // (spec/model.md#ContractMenuProductionType).
 var ProductionTypes = []string{"COMPANY", "INTERNAL", ProductionTypeContinued}
+
+// ProductionDepartments are the ContractMenuProductionDepartment codes
+// (spec/model.md#ContractMenuProductionDepartment).
+var ProductionDepartments = []string{
+	"DOCUMENT_CREATION_DEPARTMENT",
+	"PRODUCTION_BUREAU",
+	"SOCIAL_MEDIA_DEPARTMENT",
+}
+
+func IsProductionDepartment(value string) bool {
+	return contains(ProductionDepartments, value)
+}
 
 // InvalidProductionTypeError is a productionType that breaks the rule. Its
 // message is a Japanese sentence for the user; it also matches
@@ -135,10 +149,6 @@ func buildContractMenu(tx *gorm.DB, contractID, contractYearID string, input Con
 	}
 	if contractMenu.Status == "" {
 		contractMenu.Status = "WAITING"
-		// A Continued advertisement was produced in an earlier Year.
-		if input.ProductionType != nil && *input.ProductionType == ProductionTypeContinued {
-			contractMenu.Status = "COMPLETED"
-		}
 	}
 	switch {
 	case input.IsGoodsSponsorship:
@@ -228,12 +238,34 @@ func contractMenuStatusLogMessage(menuName, from, to string) string {
 	return menuName + "のステータスを「" + label.ContractMenuStatus(from) + "」から「" + label.ContractMenuStatus(to) + "」に更新"
 }
 
+func validateManualContractMenuStatus(productionType, productionDepartment *string, status string, activeFileCount int64) error {
+	if status == "SUBMITTED" || activeFileCount > 0 {
+		return ErrSubmittedStateConflict
+	}
+	if productionType == nil {
+		return nil
+	}
+	switch *productionType {
+	case "COMPANY", ProductionTypeContinued:
+		if status == "WAITING" {
+			return nil
+		}
+	case "INTERNAL":
+		if productionDepartment != nil && (status == "WAITING" || status == "REQUESTED") {
+			return nil
+		}
+	}
+	return ErrInvalidContractMenuStatus
+}
+
 // UpdateWithUser updates the contract menu and, if status changed, writes one
 // ActivityLog (spec/domain.md#Activity Log — every Contract Menu status
 // transition, not only SUBMITTED). Same-status PATCHes write nothing.
 func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID string) error {
-	csvc := NewContractService()
 	return db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, m.ID); err != nil {
+			return err
+		}
 		var existing model.ContractMenu
 		if err := tx.First(&existing, "id = ?", m.ID).Error; err != nil {
 			return err
@@ -244,24 +276,17 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 			Where("contract_menu_id = ?", m.ID).Count(&fileCount).Error; err != nil {
 			return err
 		}
-		if (fileCount > 0 && m.Status != "SUBMITTED") || (fileCount == 0 && m.Status == "SUBMITTED") {
-			return ErrSubmittedStateConflict
-		}
-		m.CreatedAt = existing.CreatedAt
-		if m.IsGoodsSponsorship {
-			m.UnitPrice = decimal.Zero
-		}
-		if err := tx.Omit("Files").Save(m).Error; err != nil {
+		if err := validateManualContractMenuStatus(existing.ProductionType, existing.ProductionDepartment, m.Status, fileCount); err != nil {
 			return err
 		}
-		if _, err := csvc.RecalculateTotalAmount(tx, m.ContractID, userID); err != nil {
+		if err := tx.Model(&existing).Update("status", m.Status).Error; err != nil {
 			return err
 		}
 		if !statusChanged {
 			return nil
 		}
 		var contract model.SponsorshipContract
-		if err := tx.First(&contract, "id = ?", m.ContractID).Error; err != nil {
+		if err := tx.First(&contract, "id = ?", existing.ContractID).Error; err != nil {
 			return err
 		}
 		menuName := "協賛メニュー"
@@ -329,12 +354,16 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 	var m model.ContractMenu
 
 	err := db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, id); err != nil {
+			return err
+		}
 		if err := tx.First(&m, "id = ?", id).Error; err != nil {
 			return err
 		}
 
 		previousQuantity := m.Quantity
 		previousUnitPrice := m.UnitPrice
+		previousStatus := m.Status
 
 		if quantity != nil {
 			m.Quantity = *quantity
@@ -347,7 +376,26 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 			if err := checkProductionType(&sponsorshipMenu, productionType.Value); err != nil {
 				return err
 			}
+			previousProductionType := m.ProductionType
 			m.ProductionType = productionType.Value
+			if !sameOptionalString(previousProductionType, m.ProductionType) {
+				var fileCount int64
+				if err := tx.Model(&model.ContractMenuDriveFile{}).
+					Where("contract_menu_id = ?", m.ID).Count(&fileCount).Error; err != nil {
+					return err
+				}
+				m.ProductionDepartment = nil
+				if sponsorshipMenu.RequiresSubmission {
+					if fileCount > 0 {
+						m.Status = "SUBMITTED"
+					} else {
+						m.Status = "WAITING"
+						m.SubmittedAt = nil
+					}
+				}
+			} else if m.ProductionType == nil || *m.ProductionType != "INTERNAL" {
+				m.ProductionDepartment = nil
+			}
 		}
 
 		wasGoods := m.IsGoodsSponsorship
@@ -387,21 +435,74 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		if !m.UnitPrice.Equal(previousUnitPrice) {
 			changes = append(changes, fmt.Sprintf("単価を「%s」から「%s」に", label.Yen(previousUnitPrice), label.Yen(m.UnitPrice)))
 		}
-		if len(changes) == 0 {
+		if len(changes) == 0 && m.Status == previousStatus {
 			return nil
 		}
 		logContext, err := loadContractMenuFileLogContext(tx, m.ID)
 		if err != nil {
 			return err
 		}
-		return writeActivityLog(tx, logContext.YearlyCompanyID, userID, model.EventContractMenuUpdated,
-			fmt.Sprintf("「%s」の%s更新", logContext.MenuName, strings.Join(changes, "、")))
+		if m.Status != previousStatus {
+			statusLog := &model.ActivityLog{
+				YearlyCompanyID: logContext.YearlyCompanyID,
+				UserID:          userID,
+				Action:          model.EventContractMenuStatusUpdated,
+				Description:     contractMenuStatusLogMessage(logContext.MenuName, previousStatus, m.Status),
+				CreatedAt:       time.Now(),
+			}
+			if err := tx.Create(statusLog).Error; err != nil {
+				return err
+			}
+		}
+		if len(changes) > 0 {
+			return writeActivityLog(tx, logContext.YearlyCompanyID, userID, model.EventContractMenuUpdated,
+				fmt.Sprintf("「%s」の%s更新", logContext.MenuName, strings.Join(changes, "、")))
+		}
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
 	return &m, nil
+}
+
+func sameOptionalString(left, right *string) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
+func (s *ContractMenuService) PatchProductionDepartment(id string, department *string) (*model.ContractMenu, error) {
+	if department != nil && !IsProductionDepartment(*department) {
+		return nil, ErrInvalidProductionDepartment
+	}
+	if err := db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, id); err != nil {
+			return err
+		}
+		var menu model.ContractMenu
+		if err := tx.First(&menu, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if menu.ProductionType == nil || *menu.ProductionType != "INTERNAL" {
+			return ErrProductionDepartmentRequiresInternal
+		}
+		return tx.Model(&menu).Update("production_department", department).Error
+	}); err != nil {
+		return nil, err
+	}
+	return s.GetByID(id)
+}
+
+func contains(values []string, value string) bool {
+	for _, candidate := range values {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *ContractMenuService) ListFiles(contractMenuID string) ([]model.ContractMenuDriveFile, error) {

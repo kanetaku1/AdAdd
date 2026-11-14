@@ -59,6 +59,9 @@ func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[strin
 	if prodType, ok := filters["productionType"]; ok && prodType != "" {
 		query = query.Where("contract_menus.production_type = ?", prodType)
 	}
+	if productionDepartment, ok := filters["productionDepartment"]; ok && productionDepartment != "" {
+		query = query.Where("contract_menus.production_department = ?", productionDepartment)
+	}
 
 	if err := query.Find(&list).Error; err != nil {
 		return nil, err

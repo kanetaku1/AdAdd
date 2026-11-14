@@ -48,6 +48,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rAdvertisementManager := e.Group("")
 	rAdvertisementManager.Use(RequireRoles("ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
 	rAdvertisementManager.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
+	rAdvertisementManager.PATCH("/contract-menus/:id/production-department", updateContractMenuProductionDepartment)
 
 	rFiles := e.Group("")
 	rFiles.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
@@ -83,6 +84,12 @@ func listContractMenusAcrossYear(c echo.Context) error {
 	}
 	if q := c.QueryParam("productionType"); q != "" {
 		filters["productionType"] = q
+	}
+	if q := c.QueryParam("productionDepartment"); q != "" {
+		if !service.IsProductionDepartment(q) {
+			return respondBadRequest(c, "invalid productionDepartment")
+		}
+		filters["productionDepartment"] = q
 	}
 
 	svc := service.NewContractMenuService()
@@ -160,10 +167,13 @@ func updateContractMenuStatus(c echo.Context) error {
 		userId, _ = uid.(string)
 	}
 	if err := svc.UpdateWithUser(cm, userId); err != nil {
-		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
+		if errors.Is(err, service.ErrPastYearReadOnly) {
 			return respondConflict(c, err.Error())
 		}
 		if errors.Is(err, service.ErrSubmittedStateConflict) {
+			return respondConflict(c, err.Error())
+		}
+		if errors.Is(err, service.ErrInvalidContractMenuStatus) {
 			return respondConflict(c, err.Error())
 		}
 		return respondInternalServerError(c, err)
@@ -174,6 +184,40 @@ func updateContractMenuStatus(c echo.Context) error {
 	}
 	applyContractMenuCapabilities(c, cm)
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": cm, "message": "updated"})
+}
+
+func updateContractMenuProductionDepartment(c echo.Context) error {
+	var body struct {
+		ProductionDepartment optionalString `json:"productionDepartment"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return respondBadRequest(c, err.Error())
+	}
+	if !body.ProductionDepartment.Sent {
+		return respondBadRequest(c, "productionDepartment is required")
+	}
+	if body.ProductionDepartment.Value != nil &&
+		!service.IsProductionDepartment(*body.ProductionDepartment.Value) {
+		return respondBadRequest(c, "invalid productionDepartment")
+	}
+
+	svc := service.NewContractMenuService()
+	menu, err := svc.PatchProductionDepartment(c.Param("id"), body.ProductionDepartment.Value)
+	if err != nil {
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return respondNotFound(c, "contract menu not found")
+		case errors.Is(err, service.ErrPastYearReadOnly):
+			return respondConflict(c, err.Error())
+		case errors.Is(err, service.ErrProductionDepartmentRequiresInternal),
+			errors.Is(err, service.ErrInvalidProductionDepartment):
+			return respondBadRequest(c, err.Error())
+		default:
+			return respondInternalServerError(c, err)
+		}
+	}
+	applyContractMenuCapabilities(c, menu)
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": menu, "message": "updated"})
 }
 
 func uploadContractMenuProduction(c echo.Context) error {

@@ -156,7 +156,7 @@ paths:
   /contract-menus/{id}/status:
     patch:
       summary: 契約メニューのステータス更新
-      description: 広告管理部門またはAdministratorのみ実行可能。他のRoleは403 Forbidden。
+      description: 広告管理部門またはAdministratorのみ実行可能。他のRoleは403 Forbidden。提出必須メニューは productionType / productionDepartment の組合せに応じて選択可能。SUBMITTED は Drive ファイルから導出。
       parameters:
         - name: id
           in: path
@@ -172,11 +172,45 @@ paths:
               properties:
                 status:
                   type: string
+                  enum: [WAITING, REQUESTED, PRODUCING, COMPLETED]
       responses:
         '200':
           description: Updated
         '403':
           description: Forbidden
+        '409':
+          description: production type、department、または Drive ファイル状態により更新できない
+  /contract-menus/{id}/production-department:
+    patch:
+      summary: 委員 Contract Menu の制作部門を割当・変更・解除
+      description: 広告管理部門またはAdministratorのみ実行可能。他のRoleは403 Forbidden。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productionDepartment]
+              properties:
+                productionDepartment:
+                  type: string
+                  nullable: true
+                  enum: [DOCUMENT_CREATION_DEPARTMENT, PRODUCTION_BUREAU, SOCIAL_MEDIA_DEPARTMENT, null]
+      responses:
+        '200':
+          description: Updated
+        '400':
+          description: INTERNAL 以外、または不正な productionDepartment
+        '403':
+          description: Forbidden
+        '409':
+          description: 過年度の Contract Menu
   /contracts/{contractId}/payment:
     post:
       summary: 支払い作成（totalAmount > 0 の契約に対して明示的に作成）
@@ -323,7 +357,7 @@ components:
           type: string
           nullable: true
           enum: [COMPANY, INTERNAL, CONTINUED, null]
-          description: 協賛メニューが提出要（requiresSubmission=true）なら必須、提出不要なら null。CONTINUED は status=COMPLETED で作成される
+          description: 協賛メニューが提出要（requiresSubmission=true）なら必須、提出不要なら null。新規 Contract Menu の status は常に WAITING
       required: [sponsorshipMenuId, quantity]
     Payment:
       type: object

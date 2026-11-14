@@ -81,7 +81,7 @@
         { "sponsorshipMenuId": "menu_id", "quantity": 1, "unitPrice": 80000, "isGoodsSponsorship": false, "productionType": "COMPANY" }
       ]
     }
-  - productionType: 協賛メニューが提出要なら COMPANY / INTERNAL / CONTINUED のいずれか必須、提出不要なら null。CONTINUED（継続）は status=COMPLETED で作成。maxQuantity を超えても拒否しない（画面で警告）
+  - productionType: 協賛メニューが提出要なら COMPANY / INTERNAL / CONTINUED のいずれか必須、提出不要なら null。新規 Contract Menu の status は常に WAITING。maxQuantity を超えても拒否しない（画面で警告）
   - エラー: YearlyCompany がない 404 / contractMenus が空・入力不正（productionType 含む）400 / 既に契約がある・無効な協賛メニュー 409
 - PATCH /contracts/:contractId
   - 説明: 契約更新（staff, admin）。totalAmount / assigneeId はサーバ管理
@@ -98,20 +98,27 @@
 ### Contract Menus
 - GET /contracts/:contractId/menus
   - 説明: 契約に紐づくメニュー一覧
+- GET /years/:yearId/contract-menus
+  - 説明: 年度横断の契約メニュー一覧。`productionType=INTERNAL` は部門未割当を含む委員全体、`productionDepartment` は指定部門のみで絞り込む
 - POST /contracts/:contractId/menus (staff, admin)
   - 説明: 契約メニュー追加。追加後に親契約の totalAmount を再計算
   - unitPrice 省略時は defaultPrice。明示 0 は保持。isGoodsSponsorship=true なら unitPrice=0
   - バリデーション: sponsorshipMenuId 必須, quantity > 0, unitPrice 非負, productionType は契約作成と同じ規則
 - PATCH /contract-menus/:id (staff, admin)
   - 説明: quantity / unitPrice / isGoodsSponsorship / productionType を更新
-  - productionType は送ったときだけ、協賛メニューの現在の提出要否に対して検証（null 明示でクリア、省略で据え置き）。変更しても status は変わらない
+  - productionType は送ったときだけ、協賛メニューの現在の提出要否に対して検証（null 明示でクリア、省略で据え置き）。提出必須メニューで値が変わると、ファイルなしは status=WAITING、ファイルありは SUBMITTED にする。INTERNAL 以外に変わる場合は productionDepartment をクリア。status が変わった場合はステータス変更も活動記録に残す
+- PATCH /contract-menus/:id/production-department (ADVERTISEMENT_MANAGER, admin)
+  - 説明: INTERNAL の制作部門を割当・変更・解除。productionType は変更しない
+  - productionDepartment: DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT / null
+  - INTERNAL 以外への設定は 400、過年度は 409、他 Role は 403
 - DELETE /contract-menus/:id (admin)
   - 説明: 契約メニュー削除。削除後に totalAmount を再計算
   - 削除は全システムで Administrator 限定 (spec/api.md#Authorization Matrix)
 - PATCH /contract-menus/:id/status (ADVERTISEMENT_MANAGER, admin)
-  - 説明: ステータス更新
+  - 説明: ステータス更新。提出必須メニューは COMPANY / CONTINUED が WAITING のみ、部門割当済み INTERNAL が WAITING / REQUESTED のみ。部門未割当 INTERNAL は変更不可。SUBMITTED は Drive ファイル登録から導出し、直接指定不可。提出不要メニューは従来どおり
   - 権限: 広告管理部門または Administrator。他の Role は 403 Forbidden
-  - ボディ: { "status": "SUBMITTED" }
+  - 過去年度の Contract Menu は 409 Conflict
+  - ボディ例: { "status": "REQUESTED" }
 - PATCH /contract-menus/:id/production (staff, admin)
   - 説明: 制作情報（Drive URL 等）をアップロードしてステータスを SUBMITTED にする
   - ボディ: { "driveFolderUrl": "...", "remarks": "..." }
