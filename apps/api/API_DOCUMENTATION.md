@@ -71,15 +71,17 @@
 - GET /yearly-companies/:id/contract
   - 説明: YearlyCompany に紐づく契約取得
 - POST /yearly-companies/:id/contract
-  - 説明: 契約作成（staff, admin）。作成時に YearlyCompany.progress を CONFIRMED に更新。以前が CONFIRMED でなければ担当メンバーを Slack メンション（UC-16）
+  - 説明: 契約を契約メニューとまとめて作成（staff, admin）。1トランザクションで、1件でも不正なら何も作られない。totalAmount はサーバーが計算（リクエストでは受け付けない）。作成時に YearlyCompany.progress を CONFIRMED に更新。以前が CONFIRMED でなければ担当メンバーを Slack メンション（UC-16）
   - assigneeId はリクエスト不可（CompanyAssignment からサーバ設定）
-  - バリデーション: totalAmount は非負
   - ボディ例:
     {
-      "totalAmount": "15000",
-      "remarks": "Initial contract"
+      "contractDate": "2026-06-01",
+      "remarks": "",
+      "contractMenus": [
+        { "sponsorshipMenuId": "menu_id", "quantity": 1, "unitPrice": 80000, "isGoodsSponsorship": false, "productionType": "COMPANY" }
+      ]
     }
-  - エラー: 既に契約が存在する場合は 409 Conflict を返します
+  - エラー: YearlyCompany がない 404 / contractMenus が空・入力不正 400 / 既に契約がある・無効な協賛メニュー 409
 - PATCH /contracts/:contractId
   - 説明: 契約更新（staff, admin）。totalAmount / assigneeId はサーバ管理
 
@@ -125,6 +127,7 @@
   - バリデーション: status は WAITING|CONFIRMED
   - CONFIRMED にするとサーバ側で confirmedAt/confirmedById がセットされます
   - WAITING に戻すと confirmedAt/confirmedById をクリア
+  - 存在しない paymentId は 404
 
 ### Assignments（CompanyAssignment 0..1）
 - POST /yearly-companies/:id/assignments (admin)

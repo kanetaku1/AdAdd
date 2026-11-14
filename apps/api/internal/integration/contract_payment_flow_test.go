@@ -30,11 +30,13 @@ func TestContractToPaymentConfirmationFlow(t *testing.T) {
 		t.Fatalf("contract activity logs = %d, want 1", got)
 	}
 	// A Yearly Company has at most one contract.
-	expectStatus(t, member.do(http.MethodPost, "/yearly-companies/"+yearlyCompanyID+"/contract", map[string]any{}), http.StatusConflict)
+	expectStatus(t, member.do(http.MethodPost, "/yearly-companies/"+yearlyCompanyID+"/contract", map[string]any{
+		"contractMenus": []map[string]any{{"sponsorshipMenuId": pamphletMenuID, "quantity": 1}},
+	}), http.StatusConflict)
 
 	// No Payment while the total is 0.
 	paymentPath := "/contracts/" + contract.ID + "/payment"
-	expectStatus(t, member.do(http.MethodPost, paymentPath, nil), http.StatusBadRequest)
+	expectStatus(t, member.do(http.MethodPost, paymentPath, nil), http.StatusConflict)
 
 	// Contract Menus: total = Σ quantity × unitPrice.
 	menusPath := "/contracts/" + contract.ID + "/menus"
@@ -119,7 +121,7 @@ func TestGoodsSponsorshipOnlyContractHasNoPayment(t *testing.T) {
 	}), http.StatusCreated)
 	expectAmount(t, "totalAmount", loadContract(t, contract.ID).TotalAmount, 0)
 
-	expectStatus(t, member.do(http.MethodPost, "/contracts/"+contract.ID+"/payment", nil), http.StatusBadRequest)
+	expectStatus(t, member.do(http.MethodPost, "/contracts/"+contract.ID+"/payment", nil), http.StatusConflict)
 }
 
 // A Sponsorship Menu belongs to one Year (Rule 10), so a contract cannot use

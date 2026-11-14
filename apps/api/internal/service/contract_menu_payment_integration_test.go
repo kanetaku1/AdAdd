@@ -113,15 +113,14 @@ func TestContractMenuChangesSyncWaitingPaymentAmount(t *testing.T) {
 	contractID, menuID, paymentID := seedPaymentSyncContract(t, "WAITING", decimal.Zero)
 	svc := NewContractMenuService()
 
-	menu := &model.ContractMenu{
-		ContractID:        contractID,
+	unitPrice := decimal.NewFromInt(100)
+	menu, err := svc.Add(contractID, ContractMenuInput{
 		SponsorshipMenuID: menuID,
 		Quantity:          2,
-		UnitPrice:         decimal.NewFromInt(100),
+		UnitPrice:         &unitPrice,
 		ProductionType:    "COMPANY",
-		Status:            "WAITING",
-	}
-	if err := svc.Create(menu, true); err != nil {
+	}, "user-test")
+	if err != nil {
 		t.Fatalf("create contract menu: %v", err)
 	}
 	assertContractAndPaymentAmounts(t, contractID, paymentID, decimal.NewFromInt(200))
@@ -132,10 +131,35 @@ func TestContractMenuChangesSyncWaitingPaymentAmount(t *testing.T) {
 	}
 	assertContractAndPaymentAmounts(t, contractID, paymentID, decimal.NewFromInt(300))
 
-	if err := svc.Delete(menu.ID); err != nil {
+	// The last Contract Menu is deleted: the total becomes 0, and a contract
+	// with total 0 has no Payment (spec/model.md#Payment).
+	if err := svc.Delete(menu.ID, "user-test"); err != nil {
 		t.Fatalf("delete contract menu: %v", err)
 	}
-	assertContractAndPaymentAmounts(t, contractID, paymentID, decimal.Zero)
+	assertContractTotal(t, contractID, decimal.Zero)
+	assertPaymentRemoved(t, paymentID)
+}
+
+func assertContractTotal(t *testing.T, contractID string, want decimal.Decimal) {
+	t.Helper()
+	var contract model.SponsorshipContract
+	if err := db.DB.First(&contract, "id = ?", contractID).Error; err != nil {
+		t.Fatalf("load contract: %v", err)
+	}
+	if !contract.TotalAmount.Equal(want) {
+		t.Fatalf("contract total = %s, want %s", contract.TotalAmount.String(), want.String())
+	}
+}
+
+func assertPaymentRemoved(t *testing.T, paymentID string) {
+	t.Helper()
+	var count int64
+	if err := db.DB.Unscoped().Model(&model.Payment{}).Where("id = ?", paymentID).Count(&count).Error; err != nil {
+		t.Fatalf("count payments: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("payment rows = %d, want 0 (removed)", count)
+	}
 }
 
 func TestContractMenuChangeRejectsConfirmedPaymentAmountMismatch(t *testing.T) {
@@ -144,14 +168,13 @@ func TestContractMenuChangeRejectsConfirmedPaymentAmountMismatch(t *testing.T) {
 	contractID, menuID, paymentID := seedPaymentSyncContract(t, "CONFIRMED", decimal.NewFromInt(100))
 	svc := NewContractMenuService()
 
-	err := svc.Create(&model.ContractMenu{
-		ContractID:        contractID,
+	unitPrice := decimal.NewFromInt(100)
+	_, err := svc.Add(contractID, ContractMenuInput{
 		SponsorshipMenuID: menuID,
 		Quantity:          2,
-		UnitPrice:         decimal.NewFromInt(100),
+		UnitPrice:         &unitPrice,
 		ProductionType:    "COMPANY",
-		Status:            "WAITING",
-	}, true)
+	}, "user-test")
 	if !errors.Is(err, ErrConfirmedPaymentAmountMismatch) {
 		t.Fatalf("create contract menu error = %v, want ErrConfirmedPaymentAmountMismatch", err)
 	}

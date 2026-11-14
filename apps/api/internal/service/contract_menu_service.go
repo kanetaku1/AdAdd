@@ -18,7 +18,88 @@ var (
 	ErrPastYearReadOnly       = errors.New("contract menu files cannot be changed for a past year")
 	ErrSubmittedStateConflict = errors.New("SUBMITTED is derived from active files")
 	ErrInvalidDriveFile       = errors.New("invalid contract menu drive file")
+
+	// ErrInvalidContractMenu is a Contract Menu input that is malformed by
+	// itself (missing sponsorshipMenuId, quantity < 1, negative unitPrice).
+	ErrInvalidContractMenu = errors.New("invalid contract menu")
+	// ErrSponsorshipMenuNotFound is a sponsorshipMenuId that does not exist.
+	ErrSponsorshipMenuNotFound = errors.New("sponsorship menu not found")
+	// ErrSponsorshipMenuYearMismatch is a Sponsorship Menu of another Year.
+	ErrSponsorshipMenuYearMismatch = errors.New("sponsorship menu year does not match contract year")
+	// ErrSponsorshipMenuInactive is a Sponsorship Menu with isActive = false
+	// (spec/api.md#Add Contract Menu).
+	ErrSponsorshipMenuInactive = errors.New("sponsorship menu is not active")
 )
+
+// ContractMenuInput is one Contract Menu line of Create Contract or
+// Add Contract Menu (spec/api.md#Add Contract Menu).
+type ContractMenuInput struct {
+	SponsorshipMenuID string
+	Quantity          int
+	// UnitPrice nil means "use SponsorshipMenu.defaultPrice".
+	UnitPrice          *decimal.Decimal
+	IsGoodsSponsorship bool
+	ProductionType     string
+	Remarks            string
+	// Status defaults to WAITING (development seed sets others).
+	Status string
+}
+
+func (input ContractMenuInput) validate() error {
+	if strings.TrimSpace(input.SponsorshipMenuID) == "" {
+		return fmt.Errorf("%w: sponsorshipMenuId is required", ErrInvalidContractMenu)
+	}
+	if input.Quantity < 1 {
+		return fmt.Errorf("%w: quantity must be >= 1", ErrInvalidContractMenu)
+	}
+	if input.UnitPrice != nil && input.UnitPrice.IsNegative() {
+		return fmt.Errorf("%w: unitPrice must be non-negative", ErrInvalidContractMenu)
+	}
+	return nil
+}
+
+// buildContractMenu checks one input against its Sponsorship Menu and applies
+// the unitPrice defaults. It does not save anything.
+func buildContractMenu(tx *gorm.DB, contractID, contractYearID string, input ContractMenuInput) (*model.ContractMenu, *model.SponsorshipMenu, error) {
+	if err := input.validate(); err != nil {
+		return nil, nil, err
+	}
+	var sponsorshipMenu model.SponsorshipMenu
+	if err := tx.First(&sponsorshipMenu, "id = ?", input.SponsorshipMenuID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, ErrSponsorshipMenuNotFound
+		}
+		return nil, nil, err
+	}
+	if sponsorshipMenu.YearID != contractYearID {
+		return nil, nil, ErrSponsorshipMenuYearMismatch
+	}
+	if !sponsorshipMenu.IsActive {
+		return nil, nil, ErrSponsorshipMenuInactive
+	}
+
+	contractMenu := &model.ContractMenu{
+		ContractID:         contractID,
+		SponsorshipMenuID:  input.SponsorshipMenuID,
+		Quantity:           input.Quantity,
+		IsGoodsSponsorship: input.IsGoodsSponsorship,
+		ProductionType:     input.ProductionType,
+		Remarks:            input.Remarks,
+		Status:             input.Status,
+	}
+	if contractMenu.Status == "" {
+		contractMenu.Status = "WAITING"
+	}
+	switch {
+	case input.IsGoodsSponsorship:
+		contractMenu.UnitPrice = decimal.Zero
+	case input.UnitPrice != nil:
+		contractMenu.UnitPrice = *input.UnitPrice
+	default:
+		contractMenu.UnitPrice = sponsorshipMenu.DefaultPrice
+	}
+	return contractMenu, &sponsorshipMenu, nil
+}
 
 type ContractMenuDriveFileInput struct {
 	DriveFileID   *string
@@ -42,41 +123,48 @@ func (s *ContractMenuService) ListAcrossYear(yearID string, filters map[string]i
 	return s.repo.ListAcrossYear(yearID, filters)
 }
 
-func (s *ContractMenuService) Create(m *model.ContractMenu, unitPriceProvided bool) error {
+// Add adds one Contract Menu to an existing contract, recalculates the total
+// (with Payment synchronization), and writes CONTRACT_MENU_ADDED.
+func (s *ContractMenuService) Add(contractID string, input ContractMenuInput, userID string) (*model.ContractMenu, error) {
 	csvc := NewContractService()
-	contract, err := csvc.GetByID(m.ContractID)
-	if err != nil {
-		return err
-	}
-
-	ycsvc := NewYearlyCompanyService()
-	yc, err := ycsvc.GetByID(contract.YearlyCompanyID)
-	if err != nil {
-		return err
-	}
-
-	smsvc := NewSponsorshipMenuService()
-	smenu, err := smsvc.GetByID(m.SponsorshipMenuID)
-	if err != nil {
-		return err
-	}
-
-	if smenu.YearID != yc.YearID {
-		return errors.New("sponsorship menu year does not match contract year")
-	}
-
-	if m.IsGoodsSponsorship {
-		m.UnitPrice = decimal.Zero
-	} else if !unitPriceProvided {
-		m.UnitPrice = smenu.DefaultPrice
-	}
-
-	return db.WithTx(func(tx *gorm.DB) error {
-		if err := tx.Create(m).Error; err != nil {
+	var created *model.ContractMenu
+	err := db.WithTx(func(tx *gorm.DB) error {
+		var contract model.SponsorshipContract
+		if err := tx.First(&contract, "id = ?", contractID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrContractNotFound
+			}
 			return err
 		}
-		return csvc.RecalculateTotalAmount(tx, m.ContractID)
+		var yearlyCompany model.YearlyCompany
+		if err := tx.First(&yearlyCompany, "id = ?", contract.YearlyCompanyID).Error; err != nil {
+			return err
+		}
+		contractMenu, sponsorshipMenu, err := buildContractMenu(tx, contractID, yearlyCompany.YearID, input)
+		if err != nil {
+			return err
+		}
+		if err := tx.Omit("Files").Create(contractMenu).Error; err != nil {
+			return err
+		}
+		if _, err := csvc.RecalculateTotalAmount(tx, contractID, userID); err != nil {
+			return err
+		}
+		created = contractMenu
+		return writeActivityLog(tx, contract.YearlyCompanyID, userID, model.EventContractMenuAdded,
+			contractMenuAddedMessage(sponsorshipMenu.Name, contractMenu))
 	})
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+func contractMenuAddedMessage(menuName string, contractMenu *model.ContractMenu) string {
+	if contractMenu.IsGoodsSponsorship {
+		return fmt.Sprintf("「%s」を物品協賛として追加（数量 %d）", menuName, contractMenu.Quantity)
+	}
+	return fmt.Sprintf("「%s」を追加（数量 %d、単価 %s）", menuName, contractMenu.Quantity, label.Yen(contractMenu.UnitPrice))
 }
 
 func (s *ContractMenuService) Update(m *model.ContractMenu) error {
@@ -116,7 +204,7 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 		if err := tx.Omit("Files").Save(m).Error; err != nil {
 			return err
 		}
-		if err := csvc.RecalculateTotalAmount(tx, m.ContractID); err != nil {
+		if _, err := csvc.RecalculateTotalAmount(tx, m.ContractID, userID); err != nil {
 			return err
 		}
 		if !statusChanged {
@@ -142,17 +230,28 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 	})
 }
 
-func (s *ContractMenuService) Delete(id string) error {
+// Delete removes a Contract Menu, recalculates the total (which may remove a
+// WAITING Payment), and writes CONTRACT_MENU_REMOVED.
+func (s *ContractMenuService) Delete(id, userID string) error {
 	csvc := NewContractService()
 	return db.WithTx(func(tx *gorm.DB) error {
 		var existing model.ContractMenu
 		if err := tx.First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
+		logContext, err := loadContractMenuFileLogContext(tx, id)
+		if err != nil {
+			return err
+		}
 		if err := tx.Unscoped().Delete(&existing).Error; err != nil {
 			return err
 		}
-		return csvc.RecalculateTotalAmount(tx, existing.ContractID)
+		if err := writeActivityLog(tx, logContext.YearlyCompanyID, userID, model.EventContractMenuRemoved,
+			fmt.Sprintf("「%s」を削除", logContext.MenuName)); err != nil {
+			return err
+		}
+		_, err = csvc.RecalculateTotalAmount(tx, existing.ContractID, userID)
+		return err
 	})
 }
 
@@ -160,7 +259,10 @@ func (s *ContractMenuService) GetByID(id string) (*model.ContractMenu, error) {
 	return s.repo.GetByID(id)
 }
 
-func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *decimal.Decimal, isGoodsSponsorship *bool, productionType *string) (*model.ContractMenu, error) {
+// PatchDetails edits quantity, unitPrice, isGoodsSponsorship, and
+// productionType. It writes one CONTRACT_MENU_UPDATED when quantity or
+// unitPrice actually changes (productionType is not recorded).
+func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *decimal.Decimal, isGoodsSponsorship *bool, productionType *string, userID string) (*model.ContractMenu, error) {
 	csvc := NewContractService()
 	var m model.ContractMenu
 
@@ -168,6 +270,9 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		if err := tx.First(&m, "id = ?", id).Error; err != nil {
 			return err
 		}
+
+		previousQuantity := m.Quantity
+		previousUnitPrice := m.UnitPrice
 
 		if quantity != nil {
 			m.Quantity = *quantity
@@ -202,7 +307,26 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		if err := tx.Omit("Files").Save(&m).Error; err != nil {
 			return err
 		}
-		return csvc.RecalculateTotalAmount(tx, m.ContractID)
+		if _, err := csvc.RecalculateTotalAmount(tx, m.ContractID, userID); err != nil {
+			return err
+		}
+
+		changes := []string{}
+		if m.Quantity != previousQuantity {
+			changes = append(changes, fmt.Sprintf("数量を「%d」から「%d」に", previousQuantity, m.Quantity))
+		}
+		if !m.UnitPrice.Equal(previousUnitPrice) {
+			changes = append(changes, fmt.Sprintf("単価を「%s」から「%s」に", label.Yen(previousUnitPrice), label.Yen(m.UnitPrice)))
+		}
+		if len(changes) == 0 {
+			return nil
+		}
+		logContext, err := loadContractMenuFileLogContext(tx, m.ID)
+		if err != nil {
+			return err
+		}
+		return writeActivityLog(tx, logContext.YearlyCompanyID, userID, model.EventContractMenuUpdated,
+			fmt.Sprintf("「%s」の%s更新", logContext.MenuName, strings.Join(changes, "、")))
 	})
 
 	if err != nil {

@@ -194,7 +194,7 @@ YearlyCompany
 
 Represents one sponsorship agreement.
 
-A Yearly Company has at most one contract (zero before it is created). A single company/organization is invoiced and receipted once per Year, even though the contract may bundle multiple Sponsorship Menus (via multiple Contract Menus).
+A Yearly Company has at most one contract (zero before it is created). A single company/organization is invoiced and receipted once per Year, even though the contract may bundle multiple Sponsorship Menus (via multiple Contract Menus). A contract is created together with at least one Contract Menu — an agreement always covers at least one Sponsorship Menu.
 
 ### Responsibilities
 
@@ -319,6 +319,7 @@ An entry is written only when a value actually changes. Saving the same value ag
 * Contract Menu status changed (ad status)
 * Ad material registered/uploaded, and its Drive file moved to trash
 * Payment confirmed, and payment confirmation reverted
+* Payment removed because the contract total became ¥0 (all remaining Contract Menus are goods sponsorship, or none remain)
 * Payment actual received amount or remarks changed (the fields are defined by Issue #170 / #171)
 * Company contact information changed on the Yearly Company
 

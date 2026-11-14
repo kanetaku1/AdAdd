@@ -106,48 +106,18 @@ func listContractMenus(c echo.Context) error {
 }
 
 func addContractMenu(c echo.Context) error {
-	contractId := c.Param("contractId")
-	var body struct {
-		SponsorshipMenuID  string           `json:"sponsorshipMenuId"`
-		Quantity           int              `json:"quantity"`
-		UnitPrice          *decimal.Decimal `json:"unitPrice"`
-		IsGoodsSponsorship bool             `json:"isGoodsSponsorship"`
-		ProductionType     string           `json:"productionType"`
-		Remarks            string           `json:"remarks"`
-	}
+	var body contractMenuRequest
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	if body.SponsorshipMenuID == "" {
-		return respondBadRequest(c, "sponsorshipMenuId is required")
-	}
-	if body.Quantity <= 0 {
-		return respondBadRequest(c, "quantity must be > 0")
-	}
-	if body.UnitPrice != nil && !validateNonNegativeAmount(*body.UnitPrice) {
-		return respondBadRequest(c, "unitPrice must be non-negative")
-	}
 
-	req := &model.ContractMenu{
-		ContractID:         contractId,
-		SponsorshipMenuID:  body.SponsorshipMenuID,
-		Quantity:           body.Quantity,
-		IsGoodsSponsorship: body.IsGoodsSponsorship,
-		ProductionType:     body.ProductionType,
-		Remarks:            body.Remarks,
-	}
-	if body.UnitPrice != nil {
-		req.UnitPrice = *body.UnitPrice
-	}
-
+	userID, _ := c.Get("userId").(string)
 	svc := service.NewContractMenuService()
-	if err := svc.Create(req, body.UnitPrice != nil); err != nil {
-		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
-			return respondConflict(c, err.Error())
-		}
-		return respondInternalServerError(c, err)
+	created, err := svc.Add(c.Param("contractId"), body.toInput(), userID)
+	if err != nil {
+		return respondContractWriteError(c, err)
 	}
-	created, err := svc.GetByID(req.ID)
+	created, err = svc.GetByID(created.ID)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
@@ -156,13 +126,9 @@ func addContractMenu(c echo.Context) error {
 }
 
 func deleteContractMenu(c echo.Context) error {
-	id := c.Param("id")
-	svc := service.NewContractMenuService()
-	if err := svc.Delete(id); err != nil {
-		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
-			return respondConflict(c, err.Error())
-		}
-		return respondInternalServerError(c, err)
+	userID, _ := c.Get("userId").(string)
+	if err := service.NewContractMenuService().Delete(c.Param("id"), userID); err != nil {
+		return respondContractWriteError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"message": "deleted"})
 }
@@ -379,16 +345,11 @@ func updateContractMenuDetails(c echo.Context) error {
 		return respondBadRequest(c, "unitPrice must be non-negative")
 	}
 
+	userID, _ := c.Get("userId").(string)
 	svc := service.NewContractMenuService()
-	updated, err := svc.PatchDetails(id, body.Quantity, body.UnitPrice, body.IsGoodsSponsorship, body.ProductionType)
+	updated, err := svc.PatchDetails(id, body.Quantity, body.UnitPrice, body.IsGoodsSponsorship, body.ProductionType, userID)
 	if err != nil {
-		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
-			return respondConflict(c, err.Error())
-		}
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return respondNotFound(c, "contract menu not found")
-		}
-		return respondInternalServerError(c, err)
+		return respondContractWriteError(c, err)
 	}
 
 	updated, err = svc.GetByID(id)
