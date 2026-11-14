@@ -21,6 +21,8 @@ export type Payment = {
   id: string
   contractId: string
   amount: number
+  receivedAmount: number | null
+  remarks: string
   status: PaymentStatus
   confirmedAt: string | null
   confirmedById: string | null

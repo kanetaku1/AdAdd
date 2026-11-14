@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 
-import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { PastYearNotice } from "@/components/past-year-notice"
 import { useYearCatalog } from "@/components/year-catalog-provider"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -22,6 +22,7 @@ import {
   listYearlyCompaniesByYear,
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
+import { useSelectedYear } from "@/hooks/use-selected-year"
 import { PAYMENT_STATUS_BADGE_VARIANT, PAYMENT_STATUS_LABEL } from "@/lib/payment-labels"
 import {
   SPONSORSHIP_PROGRESS_BADGE_VARIANT,
@@ -92,8 +93,21 @@ function StatTile({ label, value }: { label: string; value: string }) {
  * Material Progress for the all-companies view).
  */
 export default function DashboardPage() {
-  const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
-  const activeYearId = activeYear?.id ?? null
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <DashboardPageContent />
+    </Suspense>
+  )
+}
+
+function DashboardPageContent() {
+  const {
+    selectedYear,
+    selectedYearId: activeYearId,
+    invalidYearSelection,
+    yearLoading,
+    yearError,
+  } = useSelectedYear()
   const { currentUser } = useCurrentUser()
   const currentUserId = currentUser?.id ?? null
   const {
@@ -199,14 +213,24 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold">ダッシュボード</h1>
         <p className="text-muted-foreground">
-          {activeYear?.name ?? ""}年度 協賛活動サマリ
+          {selectedYear?.name ?? ""}年度 協賛活動サマリ
         </p>
       </div>
+      <PastYearNotice year={selectedYear} />
 
-      <ErrorBanner message={yearError || error || catalogError} />
+      <ErrorBanner
+        message={
+          (invalidYearSelection ? "指定された年度が見つかりません。" : null) ||
+          yearError ||
+          error ||
+          catalogError
+        }
+      />
 
       {yearLoading || loading || catalogLoading ? (
         <LoadingBlock />
+      ) : invalidYearSelection ? (
+        <EmptyBlock message="指定された年度が見つかりません。" />
       ) : !activeYearId ? (
         <EmptyBlock message="年度が未作成です。年度画面から作成してください。" />
       ) : (
@@ -276,7 +300,7 @@ export default function DashboardPage() {
                       <TableRow key={yc.id}>
                         <TableCell className="font-medium">
                           <Link
-                            href={`/yearly-companies/${yc.id}`}
+                            href={`/yearly-companies/${yc.id}?yearId=${encodeURIComponent(activeYearId ?? "")}`}
                             className="hover:underline"
                           >
                             {yc.companyName}

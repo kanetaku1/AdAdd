@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 
-import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
+import { PastYearNotice } from "@/components/past-year-notice"
 import { useYearCatalog } from "@/components/year-catalog-provider"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table"
 import { EmptyBlock, EmptyRow, ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { useMyAssignmentScope } from "@/hooks/use-my-assignment-scope"
+import { useSelectedYear } from "@/hooks/use-selected-year"
 import { listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { CONTRACT_MENU_STATUS_LABEL } from "@/lib/contract-menu-labels"
@@ -127,8 +128,21 @@ const UNASSIGNED_KEY = "UNASSIGNED"
  * (spec/frontend.md#Dashboard) since the two serve different departments.
  */
 export default function AdMaterialProgressPage() {
-  const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
-  const activeYearId = activeYear?.id ?? null
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <AdMaterialProgressPageContent />
+    </Suspense>
+  )
+}
+
+function AdMaterialProgressPageContent() {
+  const {
+    selectedYear,
+    selectedYearId: activeYearId,
+    invalidYearSelection,
+    yearLoading,
+    yearError,
+  } = useSelectedYear()
 
   const [yearlyCompanies, setYearlyCompanies] = useState<YearlyCompany[]>([])
   const [loading, setLoading] = useState(true)
@@ -288,12 +302,14 @@ export default function AdMaterialProgressPage() {
       <div>
         <h1 className="text-2xl font-semibold">広告進捗</h1>
         <p className="text-muted-foreground">
-          {activeYear?.name ?? ""}年度・全{menus.length}協賛メニューの広告データ提出状況
+          {selectedYear?.name ?? ""}年度・全{menus.length}協賛メニューの広告データ提出状況
         </p>
       </div>
+      <PastYearNotice year={selectedYear} />
 
       <ErrorBanner
         message={
+          (invalidYearSelection ? "指定された年度が見つかりません。" : null) ||
           yearError ||
           error ||
           (activeYearId
@@ -306,6 +322,8 @@ export default function AdMaterialProgressPage() {
 
       {yearLoading || loading || catalogLoading ? (
         <LoadingBlock />
+      ) : invalidYearSelection ? (
+        <EmptyBlock message="指定された年度が見つかりません。" />
       ) : !activeYearId ? (
         <EmptyBlock message="年度が未作成です。年度画面から作成してください。" />
       ) : (
@@ -360,7 +378,7 @@ export default function AdMaterialProgressPage() {
                         <TableCell key={status} className="text-center">
                           {counts[status] > 0 ? (
                             <Link
-                              href={`/contract-menus?menuId=${menu.id}&status=${status}`}
+                              href={`/contract-menus?menuId=${menu.id}&status=${status}&yearId=${encodeURIComponent(activeYearId)}`}
                               className={`font-semibold tabular-nums hover:underline ${STATUS_TEXT_CLASS[status]}`}
                             >
                               {counts[status]}
@@ -454,7 +472,7 @@ export default function AdMaterialProgressPage() {
                           <TableRow key={c.yearlyCompanyId}>
                             <TableCell className="w-56 font-medium">
                               <Link
-                                href={`/contract-menus?companyName=${encodeURIComponent(c.companyName)}`}
+                                href={`/contract-menus?companyName=${encodeURIComponent(c.companyName)}&yearId=${encodeURIComponent(activeYearId)}`}
                                 className="hover:underline"
                               >
                                 {c.companyName}

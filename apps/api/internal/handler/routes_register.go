@@ -8,7 +8,7 @@ func RegisterRoutes(e *echo.Echo) {
 	// AuthMiddleware skips them by path (isPublicPath), as it does /health.
 	RegisterAuthRoutes(e)
 
-	e.Use(AuthMiddleware)
+	e.Use(AuthMiddleware, PastYearWriteGuard)
 
 	RegisterCompanyRoutes(e)
 	RegisterYearRoutes(e)

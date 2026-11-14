@@ -36,6 +36,9 @@ func createAdvisorAssignment(c echo.Context) error {
 	if body.AdvisorUserID == body.MemberUserID {
 		return respondBadRequest(c, "advisor and member must be different users")
 	}
+	if allowed, err := RejectPastYearWrite(c, body.YearID); err != nil || !allowed {
+		return err
+	}
 
 	req := &model.AdvisorAssignment{
 		YearID:     body.YearID,

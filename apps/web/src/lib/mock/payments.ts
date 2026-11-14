@@ -11,6 +11,8 @@ export const mockPayments: Payment[] = [
     id: "payment_001",
     contractId: "contract_001", // 株式会社長岡テクノ
     amount: 95000,
+    receivedAmount: null,
+    remarks: "",
     status: "WAITING",
     confirmedAt: null,
     confirmedById: null,
@@ -20,6 +22,8 @@ export const mockPayments: Payment[] = [
     id: "payment_002",
     contractId: "contract_002", // 越後電機株式会社
     amount: 50000,
+    receivedAmount: null,
+    remarks: "",
     status: "WAITING",
     confirmedAt: null,
     confirmedById: null,
@@ -29,6 +33,8 @@ export const mockPayments: Payment[] = [
     id: "payment_003",
     contractId: "contract_003", // 北越フーズ株式会社 — yc_004.progress is already PAYMENT_RECEIVED
     amount: 130000,
+    receivedAmount: 130000,
+    remarks: "",
     status: "CONFIRMED",
     confirmedAt: "2026-07-01",
     confirmedById: "user_kobayashi",
@@ -54,28 +60,37 @@ export function addPayment(payment: Payment): void {
  */
 export function updatePayment(
   id: string,
-  status: PaymentStatus,
+  changes: { status?: PaymentStatus; receivedAmount?: number | null; remarks?: string },
   confirmedById: string | null,
   confirmedByName: string | null
 ): Payment {
   const index = mockPayments.findIndex((p) => p.id === id)
   if (index === -1) throw new Error("payment not found")
-  const updated: Payment =
-    status === "CONFIRMED"
-      ? {
-          ...mockPayments[index],
-          status,
-          confirmedAt: new Date().toISOString().slice(0, 10),
-          confirmedById,
-          confirmedByName,
-        }
-      : {
-          ...mockPayments[index],
-          status,
-          confirmedAt: null,
-          confirmedById: null,
-          confirmedByName: null,
-        }
+  const previous = mockPayments[index]
+  const status = changes.status ?? previous.status
+  const updated: Payment = {
+    ...previous,
+    ...changes,
+    status,
+    confirmedAt:
+      changes.status === "CONFIRMED" && previous.status !== "CONFIRMED"
+        ? new Date().toISOString().slice(0, 10)
+        : changes.status === "WAITING" && previous.status !== "WAITING"
+          ? null
+          : previous.confirmedAt,
+    confirmedById:
+      changes.status === "CONFIRMED" && previous.status !== "CONFIRMED"
+        ? confirmedById
+        : changes.status === "WAITING" && previous.status !== "WAITING"
+          ? null
+          : previous.confirmedById,
+    confirmedByName:
+      changes.status === "CONFIRMED" && previous.status !== "CONFIRMED"
+        ? confirmedByName
+        : changes.status === "WAITING" && previous.status !== "WAITING"
+          ? null
+          : previous.confirmedByName,
+  }
   mockPayments[index] = updated
   return updated
 }

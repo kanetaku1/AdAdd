@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 
 import { Plus, Trash2 } from "lucide-react"
 
-import { useActiveYear } from "@/components/active-year-provider"
+import { PastYearNotice } from "@/components/past-year-notice"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { useYearCatalog } from "@/components/year-catalog-provider"
@@ -27,6 +27,7 @@ import {
 } from "@/lib/data/sponsorship-menus"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
+import { useSelectedYear } from "@/hooks/use-selected-year"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
@@ -59,15 +60,25 @@ function parseMaxQuantity(raw: string): number | null {
  * first; a menu already used by a Contract Menu is rejected (409).
  */
 export default function SponsorshipMenusPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-muted-foreground">読み込み中...</div>}>
+      <SponsorshipMenusPageContent />
+    </Suspense>
+  )
+}
+
+function SponsorshipMenusPageContent() {
   const {
-    activeYear,
-    loading: yearLoading,
-    error: yearError,
-  } = useActiveYear()
-  const activeYearId = activeYear?.id ?? null
+    selectedYear,
+    selectedYearId: activeYearId,
+    isPastYear,
+    invalidYearSelection,
+    yearLoading,
+    yearError,
+  } = useSelectedYear()
   const { currentUser } = useCurrentUser()
-  const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
-  const canDelete = canAccess(currentUser?.roles, DELETE_ROLES)
+  const canManage = !isPastYear && canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const canDelete = !isPastYear && canAccess(currentUser?.roles, DELETE_ROLES)
   const columnCount = canDelete ? 6 : 5
   const {
     sponsorshipMenus,
@@ -186,7 +197,7 @@ export default function SponsorshipMenusPage() {
         <div>
           <h1 className="text-2xl font-semibold">協賛メニュー</h1>
           <p className="text-muted-foreground">
-            {activeYear?.name ?? ""}年度 協賛メニューマスタ
+            {selectedYear?.name ?? ""}年度 協賛メニューマスタ
           </p>
         </div>
         {canManage && (
@@ -200,9 +211,11 @@ export default function SponsorshipMenusPage() {
           </IconActionButton>
         )}
       </div>
+      <PastYearNotice year={selectedYear} />
 
       <ErrorBanner
         message={
+          (invalidYearSelection ? "指定された年度が見つかりません。" : null) ||
           yearError ||
           error ||
           (activeYearId ? sponsorshipMenusError(activeYearId) : null)
@@ -224,6 +237,8 @@ export default function SponsorshipMenusPage() {
           <TableBody>
             {yearLoading || loading ? (
               <LoadingRow colSpan={columnCount} />
+            ) : invalidYearSelection ? (
+              <EmptyRow colSpan={columnCount} message="指定された年度が見つかりません。" />
             ) : !activeYearId ? (
               <EmptyRow
                 colSpan={columnCount}
@@ -240,6 +255,9 @@ export default function SponsorshipMenusPage() {
                 return (
                   <TableRow key={menu.id}>
                     <TableCell>
+                      {isPastYear ? (
+                        menu.name
+                      ) : (
                       <Input
                         value={menu.name}
                         placeholder="メニュー名"
@@ -254,8 +272,15 @@ export default function SponsorshipMenusPage() {
                           if (e.key === "Enter") e.currentTarget.blur()
                         }}
                       />
+                      )}
                     </TableCell>
                     <TableCell>
+                      {isPastYear ? (
+                        new Intl.NumberFormat("ja-JP", {
+                          style: "currency",
+                          currency: "JPY",
+                        }).format(menu.defaultPrice)
+                      ) : (
                       <Input
                         type="number"
                         inputMode="numeric"
@@ -277,8 +302,12 @@ export default function SponsorshipMenusPage() {
                           if (e.key === "Enter") e.currentTarget.blur()
                         }}
                       />
+                      )}
                     </TableCell>
                     <TableCell>
+                      {isPastYear ? (
+                        menu.maxQuantity ?? "制限なし"
+                      ) : (
                       <Input
                         type="number"
                         inputMode="numeric"
@@ -301,26 +330,35 @@ export default function SponsorshipMenusPage() {
                           if (e.key === "Enter") e.currentTarget.blur()
                         }}
                       />
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Switch
-                        checked={menu.requiresSubmission}
-                        disabled={rowSaving || !canManage}
-                        onCheckedChange={(checked) =>
-                          handleImmediateChange(menu.id, {
-                            requiresSubmission: checked,
-                          })
-                        }
-                      />
+                      {isPastYear ? (
+                        menu.requiresSubmission ? "必要" : "不要"
+                      ) : (
+                        <Switch
+                          checked={menu.requiresSubmission}
+                          disabled={rowSaving || !canManage}
+                          onCheckedChange={(checked) =>
+                            handleImmediateChange(menu.id, {
+                              requiresSubmission: checked,
+                            })
+                          }
+                        />
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Switch
-                        checked={menu.isActive}
-                        disabled={rowSaving || !canManage}
-                        onCheckedChange={(checked) =>
-                          handleImmediateChange(menu.id, { isActive: checked })
-                        }
-                      />
+                      {isPastYear ? (
+                        menu.isActive ? "募集中" : "停止"
+                      ) : (
+                        <Switch
+                          checked={menu.isActive}
+                          disabled={rowSaving || !canManage}
+                          onCheckedChange={(checked) =>
+                            handleImmediateChange(menu.id, { isActive: checked })
+                          }
+                        />
+                      )}
                     </TableCell>
                     {canDelete && (
                       <TableCell>
