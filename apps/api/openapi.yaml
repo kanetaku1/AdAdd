@@ -316,6 +316,11 @@ components:
           type: number
         isGoodsSponsorship:
           type: boolean
+        productionType:
+          type: string
+          nullable: true
+          enum: [COMPANY, INTERNAL, CONTINUED, null]
+          description: 協賛メニューが提出要（requiresSubmission=true）なら必須、提出不要なら null。CONTINUED は status=COMPLETED で作成される
       required: [sponsorshipMenuId, quantity]
     Payment:
       type: object

@@ -134,28 +134,30 @@ func (m *SponsorshipMenu) BeforeCreate(tx *gorm.DB) (err error) {
 
 // ContractMenu
 type ContractMenu struct {
-	ID                 string                  `gorm:"type:char(36);primaryKey" json:"id"`
-	ContractID         string                  `gorm:"type:char(36);not null;index" json:"contractId"`
-	SponsorshipMenuID  string                  `gorm:"type:char(36);not null;index" json:"sponsorshipMenuId"`
-	Quantity           int                     `gorm:"not null;default:1" json:"quantity"`
-	UnitPrice          decimal.Decimal         `json:"unitPrice"`
-	IsGoodsSponsorship bool                    `gorm:"not null;default:false" json:"isGoodsSponsorship"`
-	ProductionType     string                  `gorm:"size:32" json:"productionType"`
-	Status             string                  `gorm:"size:32" json:"status"`
-	DriveFolderID      string                  `gorm:"size:512" json:"driveFolderId"`
-	SubmittedAt        *time.Time              `json:"submittedAt"`
-	Remarks            string                  `gorm:"type:text" json:"remarks"`
-	CreatedAt          time.Time               `json:"createdAt"`
-	UpdatedAt          time.Time               `json:"updatedAt"`
-	DeletedAt          gorm.DeletedAt          `gorm:"index" json:"-"`
-	Files              []ContractMenuDriveFile `gorm:"foreignKey:ContractMenuID" json:"files"`
-	FileCount          int                     `gorm:"-" json:"fileCount"`
-	IsSubmitted        bool                    `gorm:"-" json:"isSubmitted"`
-	DriveURL           *string                 `gorm:"-" json:"driveUrl"`
-	DriveFileName      *string                 `gorm:"-" json:"driveFileName"`
-	AllowUpload        bool                    `gorm:"-" json:"allowUpload"`
-	AllowDelete        bool                    `gorm:"-" json:"allowDelete"`
-	ActiveYear         bool                    `gorm:"-" json:"-"`
+	ID                 string          `gorm:"type:char(36);primaryKey" json:"id"`
+	ContractID         string          `gorm:"type:char(36);not null;index" json:"contractId"`
+	SponsorshipMenuID  string          `gorm:"type:char(36);not null;index" json:"sponsorshipMenuId"`
+	Quantity           int             `gorm:"not null;default:1" json:"quantity"`
+	UnitPrice          decimal.Decimal `json:"unitPrice"`
+	IsGoodsSponsorship bool            `gorm:"not null;default:false" json:"isGoodsSponsorship"`
+	// ProductionType is nil when the Sponsorship Menu does not require
+	// submission (spec/model.md#ContractMenuProductionType).
+	ProductionType *string                 `gorm:"size:32" json:"productionType"`
+	Status         string                  `gorm:"size:32" json:"status"`
+	DriveFolderID  string                  `gorm:"size:512" json:"driveFolderId"`
+	SubmittedAt    *time.Time              `json:"submittedAt"`
+	Remarks        string                  `gorm:"type:text" json:"remarks"`
+	CreatedAt      time.Time               `json:"createdAt"`
+	UpdatedAt      time.Time               `json:"updatedAt"`
+	DeletedAt      gorm.DeletedAt          `gorm:"index" json:"-"`
+	Files          []ContractMenuDriveFile `gorm:"foreignKey:ContractMenuID" json:"files"`
+	FileCount      int                     `gorm:"-" json:"fileCount"`
+	IsSubmitted    bool                    `gorm:"-" json:"isSubmitted"`
+	DriveURL       *string                 `gorm:"-" json:"driveUrl"`
+	DriveFileName  *string                 `gorm:"-" json:"driveFileName"`
+	AllowUpload    bool                    `gorm:"-" json:"allowUpload"`
+	AllowDelete    bool                    `gorm:"-" json:"allowDelete"`
+	ActiveYear     bool                    `gorm:"-" json:"-"`
 }
 
 func (cm *ContractMenu) BeforeCreate(tx *gorm.DB) (err error) {

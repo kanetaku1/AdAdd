@@ -86,6 +86,7 @@ export function ContractMenuSection({
   totalAmount,
   menus,
   onChanged,
+  contractedQuantityByMenu,
 }: {
   contractId: string
   initialContractMenus: ContractMenu[]
@@ -98,6 +99,8 @@ export function ContractMenuSection({
    * Payment amount, or removed the Payment.
    */
   onChanged?: (contractMenus: ContractMenu[]) => void
+  /** The Year's contracted quantity per Sponsorship Menu, for the capacity warning. */
+  contractedQuantityByMenu?: Record<string, number>
 }) {
   const { currentUser } = useCurrentUser()
   const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
@@ -221,6 +224,11 @@ export function ContractMenuSection({
               <ContractMenuItemFields
                 value={newItem}
                 menus={menus}
+                contractedQuantity={
+                  contractedQuantityByMenu
+                    ? (contractedQuantityByMenu[newItem.sponsorshipMenuId] ?? 0)
+                    : undefined
+                }
                 onChange={(patch) =>
                   setNewItem((prev) => ({ ...prev, ...patch }))
                 }
@@ -286,6 +294,7 @@ export function ContractMenuSection({
                   <TableCell>
                     <EditableProductionTypeCell
                       value={cm.productionType}
+                      requiresSubmission={menu?.requiresSubmission ?? false}
                       disabled={!canManage || rowBusy}
                       onChange={(productionType) =>
                         void handlePatch(cm.id, { productionType })

@@ -455,6 +455,10 @@ function ContractMenusList() {
                     <TableCell>
                       <EditableProductionTypeCell
                         value={cm.productionType}
+                        requiresSubmission={
+                          menus.find((menu) => menu.id === cm.sponsorshipMenuId)
+                            ?.requiresSubmission ?? false
+                        }
                         disabled={savingId === cm.id || !canManage}
                         onChange={(productionType) =>
                           void handleDetailsChange(cm.id, { productionType })

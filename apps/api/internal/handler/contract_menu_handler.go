@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/label"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
@@ -237,19 +238,7 @@ func driveUploadContractMenu(c echo.Context) error {
 		}
 	}
 
-	// Suffix mapping logic
-	suffix := ""
-	switch cm.ProductionType {
-	case "COMPANY":
-		suffix = "企業"
-	case "INTERNAL", "COMMITTEE":
-		suffix = "委員"
-	case "CONTINUATION":
-		suffix = "継続"
-	default:
-		suffix = "不明"
-	}
-	suffix = fmt.Sprintf("%s_%s", suffix, companyName)
+	suffix := contractMenuFileSuffix(cm.ProductionType, companyName)
 
 	rootFolderId := os.Getenv("GOOGLE_DRIVE_ROOT_FOLDER_ID")
 	driveSvc := newContractMenuDriveOperator()
@@ -333,7 +322,7 @@ func updateContractMenuDetails(c echo.Context) error {
 		Quantity           *int             `json:"quantity"`
 		UnitPrice          *decimal.Decimal `json:"unitPrice"`
 		IsGoodsSponsorship *bool            `json:"isGoodsSponsorship"`
-		ProductionType     *string          `json:"productionType"`
+		ProductionType     optionalString   `json:"productionType"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -347,7 +336,10 @@ func updateContractMenuDetails(c echo.Context) error {
 
 	userID, _ := c.Get("userId").(string)
 	svc := service.NewContractMenuService()
-	updated, err := svc.PatchDetails(id, body.Quantity, body.UnitPrice, body.IsGoodsSponsorship, body.ProductionType, userID)
+	updated, err := svc.PatchDetails(id, body.Quantity, body.UnitPrice, body.IsGoodsSponsorship, service.ProductionTypeChange{
+		Sent:  body.ProductionType.Sent,
+		Value: body.ProductionType.Value,
+	}, userID)
 	if err != nil {
 		return respondContractWriteError(c, err)
 	}
@@ -482,4 +474,14 @@ func hasAnyRole(actual []string, allowed ...string) bool {
 		}
 	}
 	return false
+}
+
+// contractMenuFileSuffix is the part of an uploaded Drive file's name after
+// the folder hierarchy: "<制作区分>_<企業名>", or "<企業名>" for a Contract Menu
+// with no production type (spec/api.md#Add Contract Menu Files).
+func contractMenuFileSuffix(productionType *string, companyName string) string {
+	if productionType == nil {
+		return companyName
+	}
+	return label.ProductionType(*productionType) + "_" + companyName
 }

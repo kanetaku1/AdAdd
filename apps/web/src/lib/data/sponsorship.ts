@@ -186,8 +186,9 @@ function mapApiContractMenu(cm: {
     quantity: cm.quantity,
     unitPrice: Number(cm.unitPrice),
     isGoodsSponsorship: cm.isGoodsSponsorship,
+    // An empty string (stored before Issue #162) also means "none".
     productionType:
-      (cm.productionType as ContractMenu["productionType"]) ?? null,
+      (cm.productionType as ContractMenu["productionType"]) || null,
     status: (isSubmitted
       ? "SUBMITTED"
       : cm.status === "SUBMITTED"
@@ -1040,7 +1041,9 @@ function newMockContractMenu(
     unitPrice: item.isGoodsSponsorship ? 0 : item.unitPrice,
     isGoodsSponsorship: item.isGoodsSponsorship,
     productionType: item.productionType,
-    status: "WAITING",
+    // A Continued advertisement was produced in an earlier Year
+    // (spec/model.md#ContractMenu).
+    status: item.productionType === "CONTINUED" ? "COMPLETED" : "WAITING",
     driveFolderId: null,
     files: [],
     fileCount: 0,

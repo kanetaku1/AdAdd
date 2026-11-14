@@ -39,10 +39,53 @@ type ContractMenuInput struct {
 	// UnitPrice nil means "use SponsorshipMenu.defaultPrice".
 	UnitPrice          *decimal.Decimal
 	IsGoodsSponsorship bool
-	ProductionType     string
-	Remarks            string
-	// Status defaults to WAITING (development seed sets others).
+	// ProductionType is nil for a Sponsorship Menu that does not require
+	// submission.
+	ProductionType *string
+	Remarks        string
+	// Status defaults to COMPLETED for CONTINUED and WAITING otherwise
+	// (development seed sets others).
 	Status string
+}
+
+// ProductionTypeContinued is a Contract Menu that uses an advertisement from
+// an earlier Year again; its production is already complete.
+const ProductionTypeContinued = "CONTINUED"
+
+// ProductionTypes are the ContractMenuProductionType codes
+// (spec/model.md#ContractMenuProductionType).
+var ProductionTypes = []string{"COMPANY", "INTERNAL", ProductionTypeContinued}
+
+// InvalidProductionTypeError is a productionType that breaks the rule. Its
+// message is a Japanese sentence for the user; it also matches
+// ErrInvalidContractMenu with errors.Is.
+type InvalidProductionTypeError struct {
+	Message string
+}
+
+func (e *InvalidProductionTypeError) Error() string { return e.Message }
+
+func (e *InvalidProductionTypeError) Is(target error) bool { return target == ErrInvalidContractMenu }
+
+// checkProductionType applies the rule: one of ProductionTypes when the
+// Sponsorship Menu requires submission, nil when it does not
+// (spec/model.md#ContractMenuProductionType).
+func checkProductionType(sponsorshipMenu *model.SponsorshipMenu, productionType *string) error {
+	if !sponsorshipMenu.RequiresSubmission {
+		if productionType != nil {
+			return &InvalidProductionTypeError{fmt.Sprintf("提出不要の協賛メニュー「%s」には制作区分を指定できません", sponsorshipMenu.Name)}
+		}
+		return nil
+	}
+	if productionType == nil {
+		return &InvalidProductionTypeError{fmt.Sprintf("協賛メニュー「%s」の制作区分（企業・委員・継続）を指定してください", sponsorshipMenu.Name)}
+	}
+	for _, code := range ProductionTypes {
+		if *productionType == code {
+			return nil
+		}
+	}
+	return &InvalidProductionTypeError{fmt.Sprintf("制作区分「%s」は指定できません。企業・委員・継続のいずれかを指定してください", *productionType)}
 }
 
 func (input ContractMenuInput) validate() error {
@@ -77,6 +120,9 @@ func buildContractMenu(tx *gorm.DB, contractID, contractYearID string, input Con
 	if !sponsorshipMenu.IsActive {
 		return nil, nil, ErrSponsorshipMenuInactive
 	}
+	if err := checkProductionType(&sponsorshipMenu, input.ProductionType); err != nil {
+		return nil, nil, err
+	}
 
 	contractMenu := &model.ContractMenu{
 		ContractID:         contractID,
@@ -89,6 +135,10 @@ func buildContractMenu(tx *gorm.DB, contractID, contractYearID string, input Con
 	}
 	if contractMenu.Status == "" {
 		contractMenu.Status = "WAITING"
+		// A Continued advertisement was produced in an earlier Year.
+		if input.ProductionType != nil && *input.ProductionType == ProductionTypeContinued {
+			contractMenu.Status = "COMPLETED"
+		}
 	}
 	switch {
 	case input.IsGoodsSponsorship:
@@ -259,10 +309,22 @@ func (s *ContractMenuService) GetByID(id string) (*model.ContractMenu, error) {
 	return s.repo.GetByID(id)
 }
 
+// ProductionTypeChange is the productionType of an Update Contract Menu
+// request. Sent is false when the field was omitted (keep the stored value);
+// Sent with a nil Value is an explicit null (clear it).
+type ProductionTypeChange struct {
+	Sent  bool
+	Value *string
+}
+
 // PatchDetails edits quantity, unitPrice, isGoodsSponsorship, and
-// productionType. It writes one CONTRACT_MENU_UPDATED when quantity or
-// unitPrice actually changes (productionType is not recorded).
-func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *decimal.Decimal, isGoodsSponsorship *bool, productionType *string, userID string) (*model.ContractMenu, error) {
+// productionType. A sent productionType must satisfy the rule against the
+// Sponsorship Menu's current requiresSubmission; an update without it is
+// accepted even when the stored value no longer matches
+// (spec/model.md#ContractMenuProductionType). It writes one
+// CONTRACT_MENU_UPDATED when quantity or unitPrice actually changes
+// (productionType is not recorded).
+func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *decimal.Decimal, isGoodsSponsorship *bool, productionType ProductionTypeChange, userID string) (*model.ContractMenu, error) {
 	csvc := NewContractService()
 	var m model.ContractMenu
 
@@ -277,8 +339,15 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		if quantity != nil {
 			m.Quantity = *quantity
 		}
-		if productionType != nil {
-			m.ProductionType = *productionType
+		if productionType.Sent {
+			var sponsorshipMenu model.SponsorshipMenu
+			if err := tx.First(&sponsorshipMenu, "id = ?", m.SponsorshipMenuID).Error; err != nil {
+				return err
+			}
+			if err := checkProductionType(&sponsorshipMenu, productionType.Value); err != nil {
+				return err
+			}
+			m.ProductionType = productionType.Value
 		}
 
 		wasGoods := m.IsGoodsSponsorship

@@ -42,16 +42,12 @@ type contractMenuRequest struct {
 }
 
 func (r contractMenuRequest) toInput() service.ContractMenuInput {
-	productionType := ""
-	if r.ProductionType != nil {
-		productionType = *r.ProductionType
-	}
 	return service.ContractMenuInput{
 		SponsorshipMenuID:  r.SponsorshipMenuID,
 		Quantity:           r.Quantity,
 		UnitPrice:          r.UnitPrice,
 		IsGoodsSponsorship: r.IsGoodsSponsorship,
-		ProductionType:     productionType,
+		ProductionType:     r.ProductionType,
 		Remarks:            r.Remarks,
 	}
 }
@@ -115,6 +111,7 @@ func updateContract(c echo.Context) error {
 // respondContractWriteError maps the business errors of contract and
 // Contract Menu writes to 404 / 400 / 409 (Issue #165); anything else is 500.
 func respondContractWriteError(c echo.Context, err error) error {
+	var invalidProductionType *service.InvalidProductionTypeError
 	switch {
 	case errors.Is(err, service.ErrYearlyCompanyNotFound):
 		return respondNotFound(c, "年度別企業が見つかりません")
@@ -124,6 +121,8 @@ func respondContractWriteError(c echo.Context, err error) error {
 		return respondNotFound(c, "契約メニューが見つかりません")
 	case errors.Is(err, service.ErrContractMenusRequired):
 		return respondBadRequest(c, "協賛メニューを1件以上指定してください")
+	case errors.As(err, &invalidProductionType):
+		return respondBadRequest(c, invalidProductionType.Message)
 	case errors.Is(err, service.ErrInvalidContractMenu):
 		return respondBadRequest(c, "契約メニューの入力が不正です: "+err.Error())
 	case errors.Is(err, service.ErrSponsorshipMenuNotFound):

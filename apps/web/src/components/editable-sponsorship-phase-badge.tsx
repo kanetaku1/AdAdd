@@ -11,9 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  SPONSORSHIP_PHASE_BADGE_CLASS_NAME,
   SPONSORSHIP_PHASE_BADGE_VARIANT,
   SPONSORSHIP_PHASE_LABEL,
 } from "@/lib/yearly-company-labels"
+import { cn } from "@/lib/utils"
 import type { SponsorshipPhase } from "@/types/yearly-company"
 
 /**
@@ -61,7 +63,10 @@ export function EditableSponsorshipPhaseBadge({
   return (
     <Badge
       variant={SPONSORSHIP_PHASE_BADGE_VARIANT[value]}
-      className={disabled ? "opacity-50" : "cursor-pointer"}
+      className={cn(
+        SPONSORSHIP_PHASE_BADGE_CLASS_NAME[value],
+        disabled ? "opacity-50" : "cursor-pointer"
+      )}
       onClick={() => {
         if (!disabled) setEditing(true)
       }}

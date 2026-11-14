@@ -20,7 +20,7 @@ func TestNotFoundAndBusinessRuleErrorsAreNotServerErrors(t *testing.T) {
 	yearID := createYear(t, actor.administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2026, 11, 30))
 	pamphletMenuID := createSponsorshipMenu(t, actor.administrator, yearID, "パンフレット広告", 80000)
 	contract := createContract(t, member, loadYearlyCompany(t, yearID, companyID).ID,
-		map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1})
+		map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"})
 
 	cases := []struct {
 		name    string
@@ -34,19 +34,19 @@ func TestNotFoundAndBusinessRuleErrorsAreNotServerErrors(t *testing.T) {
 		{
 			"add Contract Menu to an unknown contract", member,
 			http.MethodPost, "/contracts/" + unknownID + "/menus",
-			map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1},
+			map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"},
 			http.StatusNotFound, "契約が見つかりません",
 		},
 		{
 			"add an unknown Sponsorship Menu", member,
 			http.MethodPost, "/contracts/" + contract.ID + "/menus",
-			map[string]any{"sponsorshipMenuId": unknownID, "quantity": 1},
+			map[string]any{"sponsorshipMenuId": unknownID, "quantity": 1, "productionType": "COMPANY"},
 			http.StatusBadRequest, "協賛メニューが見つかりません: sponsorship menu not found",
 		},
 		{
 			"add another Year's Sponsorship Menu", member,
 			http.MethodPost, "/contracts/" + contract.ID + "/menus",
-			map[string]any{"sponsorshipMenuId": previousMenuID, "quantity": 1},
+			map[string]any{"sponsorshipMenuId": previousMenuID, "quantity": 1, "productionType": "COMPANY"},
 			http.StatusBadRequest, "契約と異なる年度の協賛メニューは追加できません: sponsorship menu year does not match contract year",
 		},
 		{
@@ -58,7 +58,7 @@ func TestNotFoundAndBusinessRuleErrorsAreNotServerErrors(t *testing.T) {
 		{
 			"create a contract for an unknown Yearly Company", member,
 			http.MethodPost, "/yearly-companies/" + unknownID + "/contract",
-			map[string]any{"contractMenus": []map[string]any{{"sponsorshipMenuId": pamphletMenuID, "quantity": 1}}},
+			map[string]any{"contractMenus": []map[string]any{{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"}}},
 			http.StatusNotFound, "年度別企業が見つかりません",
 		},
 	}
