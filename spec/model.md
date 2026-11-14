@@ -235,15 +235,19 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 
 ContractMenu does not have its own assignee. Like its contract, it is handled by the Yearly Company's `CompanyAssignment`.
 
-`status` may be changed among the in-progress `ContractMenuStatus` values in any order. `SUBMITTED` is the material-submission state and is derived from the active Drive-file references: one or more undeleted `ContractMenuDriveFile` rows means `SUBMITTED`; zero means not submitted. Adding the first file sets the stored status to `SUBMITTED`, and deleting the last active file resets it to `WAITING`, so persisted data and API responses remain consistent.
+For a Sponsorship Menu that requires submission, the allowed manual statuses depend on `productionType` and `productionDepartment`: `COMPANY` and `CONTINUED` remain `WAITING` until a file is registered; `INTERNAL` starts at `WAITING`, and once a production department is assigned its status may be changed between `WAITING` and `REQUESTED`. An `INTERNAL` menu without a department is read-only for status changes. `SUBMITTED` is derived from active Drive-file references: one or more undeleted `ContractMenuDriveFile` rows means `SUBMITTED`; zero means not submitted. Adding the first file sets the stored status to `SUBMITTED`, and deleting the last active file resets it to `WAITING`. Menus that do not require submission (`productionType = null`) retain the existing non-submission status workflow.
 
 `unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus. `quantity`, `unitPrice`, `isGoodsSponsorship`, and `productionType` remain editable after creation (not just at creation), each recalculating `totalAmount` per the rule above — see `spec/api.md#Update Contract Menu`.
 
-`productionDepartment` (`ContractMenuProductionDepartment`) is the committee department that produces an `INTERNAL` Contract Menu (`spec/domain.md#Contract Menu Production Department`, Issue #127). It is `null` until assigned, and always `null` when `productionType` is not `INTERNAL`. `productionType` stays `INTERNAL` when a department is assigned. Only the Advertisement Manager Role and Administrator set it, through its own endpoint (`spec/api.md#Assign Contract Menu Production Department`); it does not change `totalAmount`. When `productionType` changes from `INTERNAL` to anything else, the server clears `productionDepartment` in the same update.
+`productionDepartment` (`ContractMenuProductionDepartment`) is the committee department that produces an `INTERNAL` Contract Menu (`spec/domain.md#Contract Menu Production Department`, Issue #127). It is `null` until assigned, and always `null` when `productionType` is not `INTERNAL`. `productionType` stays `INTERNAL` when a department is assigned. Only the Advertisement Manager Role and Administrator set it, through its own endpoint (`spec/api.md#Assign Contract Menu Production Department`); it does not change `totalAmount`. When `productionType` changes away from `INTERNAL`, the server clears `productionDepartment` in the same update.
 
 `status` is changed only by the Advertisement Manager Role and Administrator (`spec/api.md#Update Contract Menu Status`, Issue #126).
 
-A Contract Menu created with `productionType = CONTINUED` starts with `status = COMPLETED`, because its advertisement was produced in an earlier Year. Every other Contract Menu starts with `WAITING`. A Continued Contract Menu is still submitted the usual way: the earlier Year's file is registered in Google Drive, which makes it `SUBMITTED`. Whether it is submitted is decided only by its Drive files, like any other Contract Menu: if every file is deleted, it returns to `WAITING`, not `COMPLETED`.
+A new Contract Menu starts with `status = WAITING`, including `productionType = CONTINUED`. A Continued Contract Menu is still submitted by registering the earlier Year's file in Google Drive, which makes it `SUBMITTED`. Whether it is submitted is decided only by its Drive files: if every file is deleted, it returns to `WAITING`.
+
+For submission-required menus, changing `productionType` with no active files resets `status` to `WAITING`; with active files, `status` remains `SUBMITTED`. This keeps the status valid for the new production type. Menus that do not require submission retain their existing status when `productionType` is cleared.
+
+Existing data is normalized once: active files take precedence and set `SUBMITTED`; fileless `COMPANY` / `CONTINUED` menus become `WAITING`; fileless `INTERNAL` menus keep `WAITING`, while `REQUESTED`, `PRODUCING`, or `COMPLETED` become `REQUESTED`. Other menus are unchanged.
 
 `isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
 
@@ -518,6 +522,8 @@ This is a fixed enumeration, not a reference to the organizational Department (`
 * Producing
 * Completed
 * Submitted
+
+For submission-required `COMPANY`, `CONTINUED`, and `INTERNAL` menus, only `WAITING` and `REQUESTED` are valid manual states, with `REQUESTED` available only for `INTERNAL`. `PRODUCING` and `COMPLETED` remain valid for menus that do not require submission and for historical data before normalization. `SUBMITTED` is always derived from active Drive files.
 
 ---
 

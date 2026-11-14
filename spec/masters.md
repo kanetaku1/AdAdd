@@ -183,7 +183,7 @@ See `spec/model.md` → `SponsorshipProgress`, `spec/business.md` → Sponsorshi
 
 ### Definition
 
-The progress states (`Waiting`, `Requested`, `Producing`, `Completed`, `Submitted`) and production methods (`Company`, `Internal`) a Contract Menu moves through, and the production department of an `Internal` Contract Menu (`DOCUMENT_CREATION_DEPARTMENT` 資料作成部門 / `PRODUCTION_BUREAU` 制作局 / `SOCIAL_MEDIA_DEPARTMENT` SNS部門).
+The progress states (`Waiting`, `Requested`, `Producing`, `Completed`, `Submitted`) and production methods (`Company`, `Internal`, `Continued`) of a Contract Menu, and the production department of an `Internal` Contract Menu (`DOCUMENT_CREATION_DEPARTMENT` 資料作成部門 / `PRODUCTION_BUREAU` 制作局 / `SOCIAL_MEDIA_DEPARTMENT` SNS部門).
 
 ### Scope
 
@@ -191,7 +191,7 @@ Global enumeration, applied per Contract Menu.
 
 ### Maintained By
 
-Advertisement Management Department (Contract Menu status and production-department updates); Sponsorship Member or Advertisement Manager (production-type updates).
+Advertisement Management Department (Contract Menu status and production-department updates); Sponsorship Member (production-type selection).
 
 ### Referenced By
 
@@ -199,7 +199,9 @@ Advertisement Management Department (Contract Menu status and production-departm
 
 ### Notes
 
-The values themselves are fixed. Per Contract Menu, `status` and `productionDepartment` are set by the Advertisement Manager Role (and Administrator); `productionType` by Sponsorship Member or Advertisement Manager (`spec/api.md#Authorization Matrix`).
+The values themselves are fixed. Per Contract Menu, `status` and `productionDepartment` are set by the Advertisement Manager Role (and Administrator); `productionType` is selected by the Sponsorship Member. On the 広告管理 list, `productionType` is read-only and the Advertisement Manager may assign or change a department only for `INTERNAL` (`spec/api.md#Authorization Matrix`, `spec/frontend.md#Contract Menu List`).
+
+For submission-required menus, `COMPANY` and `CONTINUED` use `WAITING` until a Drive file is registered; an `INTERNAL` menu with a department may use `WAITING` or `REQUESTED`. `SUBMITTED` is derived from active Drive files. Menus that do not require submission retain the existing status workflow.
 
 ### Source
 

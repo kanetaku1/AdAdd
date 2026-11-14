@@ -478,7 +478,7 @@ Applies only when the referenced Sponsorship Menu requires submission. The compa
 
 * Company Production — the company submits a finished, ready-to-use product (完成品).
 * Internal Production — the company submits raw material (素材, e.g. logo, text/copy), and the committee produces the finished product from it.
-* Continued — the advertisement from a previous Year is used again as it is (UI label 継続). Its production is already complete: the Contract Menu starts at Completed, has no producing department, and is submitted by registering the earlier Year's file in Google Drive. As for any Contract Menu, submission follows the Drive files: when every file is deleted, it goes back to Waiting.
+* Continued — the advertisement from a previous Year is used again as it is (UI label 継続). The Contract Menu starts at Waiting, has no producing department, and becomes Submitted by registering the earlier Year's file in Google Drive. As for any Contract Menu, submission follows the Drive files: when every file is deleted, it goes back to Waiting.
 
 Internal Production is what the business calls 委員会 (UI label 委員). A Sponsorship Member sets the production type, including Internal Production.
 
@@ -500,7 +500,8 @@ Rules:
 * At most one department per Contract Menu. Empty means not assigned yet — the normal state right after a Sponsorship Member sets Internal Production.
 * Only the Advertisement Manager Role (and Administrator, as superuser) assigns, changes, or clears it. A Sponsorship Member cannot.
 * When the production type changes away from Internal Production, the department is cleared in the same change. A department cannot stay on a Contract Menu that is no longer Internal Production.
-* Filtering by Internal Production matches every Internal Production Contract Menu, whatever its department.
+* Filtering by Internal Production matches every Internal Production Contract Menu, whatever its department. A separate department filter matches only that department.
+* The department does not change the Drive upload filename prefix: an Internal Production file keeps the `委員_<企業名>` naming form.
 
 This is the production destination of the advertisement. It is unrelated to the Yearly Company's assigned Sponsorship Member (`CompanyAssignment`), which the 広告管理 list shows as 担当者 (Issue #128).
 
@@ -650,6 +651,9 @@ Not decided yet (Issue #172):
 
 ## Contract Menu
 
+The following is the usual lifecycle for menus that do not require submission;
+it is not a required path, and a Drive file still makes the status `Submitted`:
+
 ```
 Waiting
 
@@ -670,9 +674,18 @@ Completed
 Submitted
 ```
 
-This is the usual order, not an enforced one. A Contract Menu's status may be changed to any status, forward or back, because material is often sent back to the company or redone. For menus that do not require submission (e.g. company booth), the lifecycle may skip directly from Waiting to Completed.
+For menus that do not require submission (e.g. company booth), the existing lifecycle remains unchanged and may skip directly from Waiting to Completed. For submission-required menus, the allowed status is determined by the production type:
 
-Status is changed only by the Advertisement Manager Role (and Administrator, as superuser) — see `spec/api.md#Update Contract Menu Status`. Other Roles see it read-only. Registering production information or uploading to Drive does not change the status — the status becomes Submitted only through this status change (Issue #166).
+| Production type | No active Drive files | Active Drive files |
+| --- | --- | --- |
+| Company (`COMPANY`) | `WAITING` only | `SUBMITTED` |
+| Continued (`CONTINUED`) | `WAITING` only | `SUBMITTED` |
+| Internal (`INTERNAL`), no department | Status changes are read-only | `SUBMITTED` |
+| Internal (`INTERNAL`), department assigned | `WAITING` or `REQUESTED` | `SUBMITTED` |
+
+`SUBMITTED` is derived from active Drive files, never selected manually. Adding the first file sets it; deleting the last active file resets the status to `WAITING`. A new Contract Menu starts at `WAITING`, including Continued Production. A production type change on a submission-required menu with no active files resets its status to `WAITING`; with active files it remains `SUBMITTED`.
+
+Manual status changes are limited to the Advertisement Manager Role and Administrator (as superuser) — see `spec/api.md#Update Contract Menu Status`. Other Roles see it read-only. Registering a production remark does not change status; adding or deleting Drive files updates the derived `SUBMITTED` state.
 
 A homepage banner requires submission (`requiresSubmission = true`) — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 
