@@ -22,12 +22,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EditableContractMenuStatusBadge } from "@/components/editable-contract-menu-status-badge"
-import { EditableProductionTypeCell } from "@/components/editable-production-type-cell"
+import { EditableProductionDepartmentCell } from "@/components/editable-production-department-cell"
 import { EditableQuantityCell } from "@/components/editable-quantity-cell"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import {
   updateContractMenu,
+  updateContractMenuProductionDepartment,
   updateContractMenuStatus,
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
@@ -38,13 +39,24 @@ import { ContractMenuFilesSummary } from "@/components/contract-menu-files-summa
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 const STATUS_ALLOWED_ROLES = ["ADVERTISEMENT_MANAGER", "ADMINISTRATOR"]
 import {
+  CONTRACT_MENU_PRODUCTION_DEPARTMENT_LABEL,
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
 } from "@/lib/contract-menu-labels"
-import type { ContractMenuProductionType, ContractMenuStatus } from "@/types/contract-menu"
+import type {
+  ContractMenuProductionDepartment,
+  ContractMenuProductionType,
+  ContractMenuStatus,
+} from "@/types/contract-menu"
 
 const ALL = "ALL" as const
 type ColumnFilterKey = "menu" | "productionType" | "status"
+const NON_SUBMISSION_STATUSES: ContractMenuStatus[] = [
+  "WAITING",
+  "REQUESTED",
+  "PRODUCING",
+  "COMPLETED",
+]
 
 function isContractMenuStatus(
   value: string | null
@@ -56,15 +68,14 @@ function isContractMenuStatus(
  * Contract Menu List (spec/frontend.md#Contract Menu Management).
  * Cross-contract view of every Contract Menu in the active Year
  * (spec/api.md#List Contract Menus Across a Year), for the Sponsorship Menu
- * Management Team to track production/submission status across all
+ * Advertisement Management to track production/submission status across all
  * companies at once (UC-07, UC-08) — not scoped to one Contract like the
  * table embedded in yearly-companies/[id]/page.tsx.
  *
- * In-progress status is editable via `PATCH /contract-menus/{id}/status`;
- * `SUBMITTED` is derived from active file references. Quantity and
- * production type are editable inline via `PATCH /contract-menus/{id}`
- * (spec/api.md#Update Contract Menu). Materials use a count-first compact
- * display, shared with Yearly Company Detail and CSV export.
+ * Status and production department controls follow the per-production-type
+ * rules in spec/frontend.md#Contract Menu List. Production type is read-only
+ * here. Materials use a count-first compact display, shared with Yearly
+ * Company Detail and CSV export.
  *
  * Accepts `?menuId=&status=&companyName=` query params as initial filter
  * values, so the per-menu status breakdown and the follow-up list in
@@ -120,12 +131,15 @@ function ContractMenusList() {
   const [productionTypeFilter, setProductionTypeFilter] = useState<
     ContractMenuProductionType | typeof ALL
   >(ALL)
+  const [productionDepartmentFilter, setProductionDepartmentFilter] =
+    useState<ContractMenuProductionDepartment | null>(null)
+  const [showProductionDepartments, setShowProductionDepartments] =
+    useState(false)
   const [openColumnFilter, setOpenColumnFilter] =
     useState<ColumnFilterKey | null>(null)
 
 
   const [savingId, setSavingId] = useState<string | null>(null)
-
   useEffect(() => {
     if (!activeYearId) return
     void Promise.all([
@@ -149,6 +163,8 @@ function ContractMenusList() {
       (statusFilter === ALL || cm.status === statusFilter) &&
       (productionTypeFilter === ALL ||
         cm.productionType === productionTypeFilter) &&
+      (!productionDepartmentFilter ||
+        cm.productionDepartment === productionDepartmentFilter) &&
       (companyNameQuery.trim()
         ? cm.companyName
           .toLowerCase()
@@ -161,9 +177,11 @@ function ContractMenusList() {
     companyNameQuery.trim().length > 0 ||
     menuFilter !== ALL ||
     statusFilter !== ALL ||
-    productionTypeFilter !== ALL
+    productionTypeFilter !== ALL ||
+    productionDepartmentFilter !== null
 
   function toggleColumnFilter(key: ColumnFilterKey) {
+    setShowProductionDepartments(false)
     setOpenColumnFilter((current) => (current === key ? null : key))
   }
 
@@ -188,10 +206,7 @@ function ContractMenusList() {
 
   async function handleDetailsChange(
     id: string,
-    patch: {
-      quantity?: number
-      productionType?: ContractMenuProductionType
-    }
+    patch: { quantity?: number }
   ) {
     setError(null)
     setSavingId(id)
@@ -210,6 +225,33 @@ function ContractMenusList() {
             CONFLICT:
               "入金確定済みのため、金額が変わる変更はできません。",
           },
+        })
+      )
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  async function handleProductionDepartmentChange(
+    id: string,
+    productionDepartment: ContractMenuProductionDepartment | null
+  ) {
+    if (!activeYearId) return
+    setError(null)
+    setSavingId(id)
+    try {
+      const updated = await updateContractMenuProductionDepartment(
+        id,
+        productionDepartment
+      )
+      setContractMenusAcrossYear(
+        activeYearId,
+        contractMenus.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
+      )
+    } catch (e) {
+      setError(
+        getErrorMessage(e, {
+          fallback: "制作部門の更新に失敗しました",
         })
       )
     } finally {
@@ -309,7 +351,9 @@ function ContractMenusList() {
             {productionTypeFilter !== ALL && (
               <Badge variant="secondary">
                 制作者:{" "}
-                {CONTRACT_MENU_PRODUCTION_TYPE_LABEL[productionTypeFilter]}
+                {productionDepartmentFilter
+                  ? `委員（${CONTRACT_MENU_PRODUCTION_DEPARTMENT_LABEL[productionDepartmentFilter]}）`
+                  : CONTRACT_MENU_PRODUCTION_TYPE_LABEL[productionTypeFilter]}
               </Badge>
             )}
             {statusFilter !== ALL && (
@@ -354,26 +398,70 @@ function ContractMenusList() {
               <TableHead>
                 <ColumnFilterPopover
                   label="制作者"
-                  active={productionTypeFilter !== ALL}
+                  active={
+                    productionTypeFilter !== ALL ||
+                    productionDepartmentFilter !== null
+                  }
                   open={openColumnFilter === "productionType"}
                   onToggle={() => toggleColumnFilter("productionType")}
-                  onClose={() => setOpenColumnFilter(null)}
+                  onClose={() => {
+                    setOpenColumnFilter(null)
+                    setShowProductionDepartments(false)
+                  }}
                 >
-                  {Object.entries(CONTRACT_MENU_PRODUCTION_TYPE_LABEL).map(
-                    ([value, label]) => (
-                      <ColumnFilterOption
+                  {(["COMPANY", "INTERNAL", "CONTINUED"] as const).map(
+                    (value) => (
+                      <div
                         key={value}
-                        selected={productionTypeFilter === value}
-                        onSelect={() =>
-                          setProductionTypeFilter((current) =>
-                            current === value
-                              ? ALL
-                              : (value as ContractMenuProductionType)
-                          )
+                        onMouseEnter={() =>
+                          setShowProductionDepartments(value === "INTERNAL")
+                        }
+                        onMouseLeave={() => setShowProductionDepartments(false)}
+                        onFocusCapture={() =>
+                          setShowProductionDepartments(value === "INTERNAL")
                         }
                       >
-                        {label}
-                      </ColumnFilterOption>
+                        <ColumnFilterOption
+                          selected={
+                            productionTypeFilter === value &&
+                            (value !== "INTERNAL" ||
+                              productionDepartmentFilter === null)
+                          }
+                          onSelect={() => {
+                            setProductionTypeFilter((current) =>
+                              current === value &&
+                              productionDepartmentFilter === null
+                                ? ALL
+                                : value
+                            )
+                            setProductionDepartmentFilter(null)
+                          }}
+                        >
+                          {CONTRACT_MENU_PRODUCTION_TYPE_LABEL[value]}
+                        </ColumnFilterOption>
+                        {value === "INTERNAL" && showProductionDepartments && (
+                          <div className="ml-3 border-l pl-1">
+                            {Object.entries(
+                              CONTRACT_MENU_PRODUCTION_DEPARTMENT_LABEL
+                            ).map(([department, departmentLabel]) => (
+                              <ColumnFilterOption
+                                key={department}
+                                selected={
+                                  productionDepartmentFilter === department
+                                }
+                                onSelect={() => {
+                                  setProductionTypeFilter("INTERNAL")
+                                  setProductionDepartmentFilter(
+                                    department as ContractMenuProductionDepartment
+                                  )
+                                }}
+                              >
+                                {departmentLabel}
+                              </ColumnFilterOption>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )
                   )}
                 </ColumnFilterPopover>
@@ -422,6 +510,18 @@ function ContractMenusList() {
               <EmptyRow colSpan={7} message="該当する契約メニューがありません。" />
             ) : (
               visibleContractMenus.map((cm) => {
+                const statusEditable =
+                  canManageStatus &&
+                  (cm.productionType === null ||
+                    (cm.productionType === "INTERNAL" &&
+                      cm.productionDepartment !== null))
+                const availableStatuses =
+                  cm.productionType === "INTERNAL"
+                    ? (["WAITING", "REQUESTED"] as ContractMenuStatus[])
+                    : cm.productionType === "COMPANY" ||
+                        cm.productionType === "CONTINUED"
+                      ? (["WAITING"] as ContractMenuStatus[])
+                      : NON_SUBMISSION_STATUSES
                 return (
                   <TableRow key={cm.id}>
                     <TableCell className="font-medium">
@@ -455,15 +555,15 @@ function ContractMenusList() {
                       />
                     </TableCell>
                     <TableCell>
-                      <EditableProductionTypeCell
-                        value={cm.productionType}
-                        requiresSubmission={
-                          menus.find((menu) => menu.id === cm.sponsorshipMenuId)
-                            ?.requiresSubmission ?? false
-                        }
-                        disabled={savingId === cm.id || !canManage}
-                        onChange={(productionType) =>
-                          void handleDetailsChange(cm.id, { productionType })
+                      <EditableProductionDepartmentCell
+                        productionType={cm.productionType}
+                        value={cm.productionDepartment}
+                        disabled={savingId === cm.id || !canManageStatus}
+                        onChange={(productionDepartment) =>
+                          void handleProductionDepartmentChange(
+                            cm.id,
+                            productionDepartment
+                          )
                         }
                       />
                     </TableCell>
@@ -473,7 +573,8 @@ function ContractMenusList() {
                         onChange={(status) =>
                           void handleStatusChange(cm.id, status)
                         }
-                        disabled={savingId === cm.id || !canManageStatus}
+                        disabled={savingId === cm.id || !statusEditable}
+                        availableStatuses={availableStatuses}
                       />
                     </TableCell>
                     <TableCell>
