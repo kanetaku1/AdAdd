@@ -271,7 +271,9 @@ function ContractMenusList() {
         cm.productionType
           ? CONTRACT_MENU_PRODUCTION_TYPE_LABEL[cm.productionType]
           : "-",
-        CONTRACT_MENU_STATUS_LABEL[cm.status],
+        cm.productionType === null
+          ? "-"
+          : CONTRACT_MENU_STATUS_LABEL[cm.status],
         cm.fileCount > 0 ? `資料${cm.fileCount}件` : "未提出",
       ])
     )
@@ -537,9 +539,8 @@ function ContractMenusList() {
               visibleContractMenus.map((cm) => {
                 const statusEditable =
                   canManageStatus &&
-                  (cm.productionType === null ||
-                    (cm.productionType === "INTERNAL" &&
-                      cm.productionDepartment !== null))
+                  cm.productionType === "INTERNAL" &&
+                  cm.productionDepartment !== null
                 const availableStatuses =
                   cm.productionType === "INTERNAL"
                     ? (["WAITING", "REQUESTED"] as ContractMenuStatus[])
@@ -593,14 +594,18 @@ function ContractMenusList() {
                       />
                     </TableCell>
                     <TableCell>
-                      <EditableContractMenuStatusBadge
-                        value={cm.status}
-                        onChange={(status) =>
-                          void handleStatusChange(cm.id, status)
-                        }
-                        disabled={savingId === cm.id || !statusEditable}
-                        availableStatuses={availableStatuses}
-                      />
+                      {cm.productionType === null ? (
+                        <span className="text-muted-foreground">-</span>
+                      ) : (
+                        <EditableContractMenuStatusBadge
+                          value={cm.status}
+                          onChange={(status) =>
+                            void handleStatusChange(cm.id, status)
+                          }
+                          disabled={savingId === cm.id || !statusEditable}
+                          availableStatuses={availableStatuses}
+                        />
+                      )}
                     </TableCell>
                     <TableCell>
                       <ContractMenuFilesSummary menu={cm} />
