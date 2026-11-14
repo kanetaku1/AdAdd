@@ -57,6 +57,11 @@ const NON_SUBMISSION_STATUSES: ContractMenuStatus[] = [
   "PRODUCING",
   "COMPLETED",
 ]
+const AD_MANAGEMENT_STATUS_FILTERS: ContractMenuStatus[] = [
+  "WAITING",
+  "REQUESTED",
+  "SUBMITTED",
+]
 
 function isContractMenuStatus(
   value: string | null
@@ -501,23 +506,19 @@ function ContractMenusList() {
                   >
                     すべて
                   </ColumnFilterOption>
-                  {Object.entries(CONTRACT_MENU_STATUS_LABEL).map(
-                    ([value, label]) => (
-                      <ColumnFilterOption
-                        key={value}
-                        selected={statusFilter === value}
-                        onSelect={() =>
-                          setStatusFilter((current) =>
-                            current === value
-                              ? ALL
-                              : (value as ContractMenuStatus)
-                          )
-                        }
-                      >
-                        {label}
-                      </ColumnFilterOption>
-                    )
-                  )}
+                  {AD_MANAGEMENT_STATUS_FILTERS.map((value) => (
+                    <ColumnFilterOption
+                      key={value}
+                      selected={statusFilter === value}
+                      onSelect={() =>
+                        setStatusFilter((current) =>
+                          current === value ? ALL : value
+                        )
+                      }
+                    >
+                      {CONTRACT_MENU_STATUS_LABEL[value]}
+                    </ColumnFilterOption>
+                  ))}
                 </ColumnFilterPopover>
               </TableHead>
               <TableHead>

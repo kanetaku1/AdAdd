@@ -585,7 +585,9 @@ Filters:
 
 * Company name (search, substring match)
 * Sponsorship Menu
-* Status
+* Status — the choices are `すべて`, `広告データ提出待ち` (`WAITING`),
+  `制作依頼済み` (`REQUESTED`), and `提出済み` (`SUBMITTED`). `PRODUCING`
+  and `COMPLETED` are not offered in this filter.
 * Production type
 
 The production type filter keeps `委員` as the aggregate filter for all `INTERNAL` rows. Hovering or focusing `委員` opens department-specific filters for 資料作成部門 / 制作局 / SNS部門. The aggregate includes unassigned `INTERNAL` rows; department filters include only rows assigned to that department.
