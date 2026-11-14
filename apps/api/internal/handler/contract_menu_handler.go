@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/label"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
@@ -106,48 +107,18 @@ func listContractMenus(c echo.Context) error {
 }
 
 func addContractMenu(c echo.Context) error {
-	contractId := c.Param("contractId")
-	var body struct {
-		SponsorshipMenuID  string           `json:"sponsorshipMenuId"`
-		Quantity           int              `json:"quantity"`
-		UnitPrice          *decimal.Decimal `json:"unitPrice"`
-		IsGoodsSponsorship bool             `json:"isGoodsSponsorship"`
-		ProductionType     string           `json:"productionType"`
-		Remarks            string           `json:"remarks"`
-	}
+	var body contractMenuRequest
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	if body.SponsorshipMenuID == "" {
-		return respondBadRequest(c, "sponsorshipMenuId is required")
-	}
-	if body.Quantity <= 0 {
-		return respondBadRequest(c, "quantity must be > 0")
-	}
-	if body.UnitPrice != nil && !validateNonNegativeAmount(*body.UnitPrice) {
-		return respondBadRequest(c, "unitPrice must be non-negative")
-	}
 
-	req := &model.ContractMenu{
-		ContractID:         contractId,
-		SponsorshipMenuID:  body.SponsorshipMenuID,
-		Quantity:           body.Quantity,
-		IsGoodsSponsorship: body.IsGoodsSponsorship,
-		ProductionType:     body.ProductionType,
-		Remarks:            body.Remarks,
-	}
-	if body.UnitPrice != nil {
-		req.UnitPrice = *body.UnitPrice
-	}
-
+	userID, _ := c.Get("userId").(string)
 	svc := service.NewContractMenuService()
-	if err := svc.Create(req, body.UnitPrice != nil); err != nil {
-		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
-			return respondConflict(c, err.Error())
-		}
-		return respondInternalServerError(c, err)
+	created, err := svc.Add(c.Param("contractId"), body.toInput(), userID)
+	if err != nil {
+		return respondContractWriteError(c, err)
 	}
-	created, err := svc.GetByID(req.ID)
+	created, err = svc.GetByID(created.ID)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
@@ -156,13 +127,9 @@ func addContractMenu(c echo.Context) error {
 }
 
 func deleteContractMenu(c echo.Context) error {
-	id := c.Param("id")
-	svc := service.NewContractMenuService()
-	if err := svc.Delete(id); err != nil {
-		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
-			return respondConflict(c, err.Error())
-		}
-		return respondInternalServerError(c, err)
+	userID, _ := c.Get("userId").(string)
+	if err := service.NewContractMenuService().Delete(c.Param("id"), userID); err != nil {
+		return respondContractWriteError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"message": "deleted"})
 }
@@ -271,19 +238,7 @@ func driveUploadContractMenu(c echo.Context) error {
 		}
 	}
 
-	// Suffix mapping logic
-	suffix := ""
-	switch cm.ProductionType {
-	case "COMPANY":
-		suffix = "企業"
-	case "INTERNAL", "COMMITTEE":
-		suffix = "委員"
-	case "CONTINUATION":
-		suffix = "継続"
-	default:
-		suffix = "不明"
-	}
-	suffix = fmt.Sprintf("%s_%s", suffix, companyName)
+	suffix := contractMenuFileSuffix(cm.ProductionType, companyName)
 
 	rootFolderId := os.Getenv("GOOGLE_DRIVE_ROOT_FOLDER_ID")
 	driveSvc := newContractMenuDriveOperator()
@@ -367,7 +322,7 @@ func updateContractMenuDetails(c echo.Context) error {
 		Quantity           *int             `json:"quantity"`
 		UnitPrice          *decimal.Decimal `json:"unitPrice"`
 		IsGoodsSponsorship *bool            `json:"isGoodsSponsorship"`
-		ProductionType     *string          `json:"productionType"`
+		ProductionType     optionalString   `json:"productionType"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -379,16 +334,14 @@ func updateContractMenuDetails(c echo.Context) error {
 		return respondBadRequest(c, "unitPrice must be non-negative")
 	}
 
+	userID, _ := c.Get("userId").(string)
 	svc := service.NewContractMenuService()
-	updated, err := svc.PatchDetails(id, body.Quantity, body.UnitPrice, body.IsGoodsSponsorship, body.ProductionType)
+	updated, err := svc.PatchDetails(id, body.Quantity, body.UnitPrice, body.IsGoodsSponsorship, service.ProductionTypeChange{
+		Sent:  body.ProductionType.Sent,
+		Value: body.ProductionType.Value,
+	}, userID)
 	if err != nil {
-		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
-			return respondConflict(c, err.Error())
-		}
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return respondNotFound(c, "contract menu not found")
-		}
-		return respondInternalServerError(c, err)
+		return respondContractWriteError(c, err)
 	}
 
 	updated, err = svc.GetByID(id)
@@ -521,4 +474,14 @@ func hasAnyRole(actual []string, allowed ...string) bool {
 		}
 	}
 	return false
+}
+
+// contractMenuFileSuffix is the part of an uploaded Drive file's name after
+// the folder hierarchy: "<制作区分>_<企業名>", or "<企業名>" for a Contract Menu
+// with no production type (spec/api.md#Add Contract Menu Files).
+func contractMenuFileSuffix(productionType *string, companyName string) string {
+	if productionType == nil {
+		return companyName
+	}
+	return label.ProductionType(*productionType) + "_" + companyName
 }

@@ -144,7 +144,7 @@ A Yearly Company contains:
 
 * Assigned member (at most one)
 * Company status (Continuing / New / Dormant — relationship history)
-* Sponsorship phase (Phase1 / Phase2 / Phase3 — outreach priority ranking for this Year)
+* Sponsorship phase (Phase1 – Phase4 — outreach priority ranking for this Year)
 * Sponsorship progress
 * Activity history
 * Sponsorship contracts
@@ -308,7 +308,7 @@ Examples:
 * Homepage banner advertisement → Submission management (banner artwork/logo)
 * Company booth → Booth information management
 
-For menus that require submission (e.g. advertisements, including web-based formats such as a homepage banner), there are two production methods. The company chooses between them when submitting the Google Forms application, and the choice determines what the company is expected to submit.
+For menus that require submission (e.g. advertisements, including web-based formats such as a homepage banner), there are three production methods. For a new advertisement, the company chooses between Company Production and Internal Production when submitting the Google Forms application, and the choice determines what the company is expected to submit. A company may instead use an advertisement from a previous Year again (Continued Production).
 
 ## Company Production
 
@@ -337,6 +337,14 @@ The request status is managed within AdAdd.
 Only the request status is tracked.
 
 Production progress is managed externally.
+
+---
+
+## Continued Production
+
+The company uses an advertisement from a previous Year (or earlier) again, as it is. The UI label is 継続.
+
+Its production is already complete, so no department produces it and none is assigned. The Contract Menu starts as Completed. The earlier Year's file still has to be registered in Google Drive, which marks the Contract Menu as submitted.
 
 ---
 

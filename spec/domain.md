@@ -194,7 +194,7 @@ YearlyCompany
 
 Represents one sponsorship agreement.
 
-A Yearly Company has at most one contract (zero before it is created). A single company/organization is invoiced and receipted once per Year, even though the contract may bundle multiple Sponsorship Menus (via multiple Contract Menus).
+A Yearly Company has at most one contract (zero before it is created). A single company/organization is invoiced and receipted once per Year, even though the contract may bundle multiple Sponsorship Menus (via multiple Contract Menus). A contract is created together with at least one Contract Menu — an agreement always covers at least one Sponsorship Menu.
 
 ### Responsibilities
 
@@ -319,6 +319,7 @@ An entry is written only when a value actually changes. Saving the same value ag
 * Contract Menu status changed (ad status)
 * Ad material registered/uploaded, and its Drive file moved to trash
 * Payment confirmed, and payment confirmation reverted
+* Payment removed because the contract total became ¥0 (all remaining Contract Menus are goods sponsorship, or none remain)
 * Payment actual received amount or remarks changed (the fields are defined by Issue #170 / #171)
 * Company contact information changed on the Yearly Company
 
@@ -447,6 +448,9 @@ Examples:
 * Phase 1 (highest priority)
 * Phase 2
 * Phase 3
+* Phase 4 (lowest priority)
+
+The business has always used four levels. What each level means is decided for each Year; only their order is fixed.
 
 ---
 
@@ -474,8 +478,11 @@ Applies only when the referenced Sponsorship Menu requires submission. The compa
 
 * Company Production — the company submits a finished, ready-to-use product (完成品).
 * Internal Production — the company submits raw material (素材, e.g. logo, text/copy), and the committee produces the finished product from it.
+* Continued — the advertisement from a previous Year is used again as it is (UI label 継続). Its production is already complete: the Contract Menu starts at Completed, has no producing department, and is submitted by registering the earlier Year's file in Google Drive. As for any Contract Menu, submission follows the Drive files: when every file is deleted, it goes back to Waiting.
 
 Internal Production is what the business calls 委員会 (UI label 委員). A Sponsorship Member sets the production type, including Internal Production.
+
+A Contract Menu whose Sponsorship Menu does not require submission has no production type.
 
 ---
 
@@ -489,7 +496,7 @@ Which committee department produces an Internal Production Contract Menu. It is 
 
 Rules:
 
-* Only Internal Production Contract Menus have a production department. For any other production type (Company Production, Continued — present in code, its place in spec is Issue #162 — or none when the menu does not require submission) it is always empty.
+* Only Internal Production Contract Menus have a production department. For any other production type (Company Production, Continued, or none when the menu does not require submission) it is always empty.
 * At most one department per Contract Menu. Empty means not assigned yet — the normal state right after a Sponsorship Member sets Internal Production.
 * Only the Advertisement Manager Role (and Administrator, as superuser) assigns, changes, or clears it. A Sponsorship Member cannot.
 * When the production type changes away from Internal Production, the department is cleared in the same change. A department cannot stay on a Contract Menu that is no longer Internal Production.

@@ -31,15 +31,28 @@ export const SPONSORSHIP_PROGRESS_LABEL: Record<SponsorshipProgress, string> = {
   PENDING: "保留",
 }
 
-/** shadcn Badge variant per Sponsorship Phase — Phase1 is the highest outreach priority. */
+/**
+ * shadcn Badge variant per Sponsorship Phase. Phase1 is the highest outreach
+ * priority and Phase4 the lowest (spec/model.md#SponsorshipPhase), so the
+ * badges fade from solid to faint. No phase uses the error color: a low
+ * priority is not a problem.
+ */
 export const SPONSORSHIP_PHASE_BADGE_VARIANT: Record<
   SponsorshipPhase,
-  "default" | "secondary" | "outline" | "destructive"
+  "default" | "secondary" | "outline"
 > = {
   PHASE_1: "default",
   PHASE_2: "secondary",
   PHASE_3: "outline",
-  PHASE_4: "destructive",
+  PHASE_4: "outline",
+}
+
+/** Extra badge classes per Sponsorship Phase — Phase4 is the faintest. */
+export const SPONSORSHIP_PHASE_BADGE_CLASS_NAME: Record<SponsorshipPhase, string> = {
+  PHASE_1: "",
+  PHASE_2: "",
+  PHASE_3: "",
+  PHASE_4: "border-dashed text-muted-foreground",
 }
 
 /**

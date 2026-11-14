@@ -48,10 +48,13 @@ export function ContractCreationForm({
   menus,
   busy,
   onCreate,
+  contractedQuantityByMenu,
 }: {
   menus: SponsorshipMenu[]
   busy: boolean
   onCreate: (input: ContractCreationInput) => Promise<boolean>
+  /** The Year's contracted quantity per Sponsorship Menu, for the capacity warning. */
+  contractedQuantityByMenu?: Record<string, number>
 }) {
   const [creating, setCreating] = useState(false)
   const [contractDate, setContractDate] = useState(businessToday)
@@ -161,6 +164,19 @@ export function ContractCreationForm({
             value={item}
             menus={menus}
             invalid={!!itemsError && !item.sponsorshipMenuId}
+            contractedQuantity={
+              contractedQuantityByMenu
+                ? (contractedQuantityByMenu[item.sponsorshipMenuId] ?? 0) +
+                  items.reduce(
+                    (sum, other, otherIndex) =>
+                      otherIndex !== index &&
+                      other.sponsorshipMenuId === item.sponsorshipMenuId
+                        ? sum + other.quantity
+                        : sum,
+                    0
+                  )
+                : undefined
+            }
             onChange={(patch) => {
               setItems((prev) =>
                 prev.map((row, i) => (i === index ? { ...row, ...patch } : row))

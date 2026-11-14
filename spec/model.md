@@ -150,7 +150,7 @@ YearlyCompany does not reference an Advisor. Advisors are assigned to Sponsorshi
 
 `companyStatus` (Continuing / New / Dormant) reflects the company's sponsorship history, independent of `phase`.
 
-`phase` (Phase1 / Phase2 / Phase3) is the outreach priority ranking set by a Sponsorship Member during the Year preparation period (see `spec/usecase.md` UC-02). It must never be confused with `companyStatus` — a company's history does not determine its phase.
+`phase` (Phase1 – Phase4, `spec/model.md#SponsorshipPhase`) is the outreach priority ranking set by a Sponsorship Member during the Year preparation period (see `spec/usecase.md` UC-02). It must never be confused with `companyStatus` — a company's history does not determine its phase.
 
 `postalCode`, `address`, `phoneNumber`, `website`, `contactPersonName`, `contactEmailOrForm`, and `memo` are a **per-Year working copy** of the corresponding `Company` fields, taken when the Yearly Company is created (`POST /years` bulk generation and `POST /years/{yearId}/companies`). They are what Yearly Company Detail displays and edits for that Year.
 
@@ -180,7 +180,7 @@ A `SponsorshipContract` record is only created once an agreement is actually rea
 
 Creating a `SponsorshipContract` sets `YearlyCompany.progress` to `Confirmed` automatically. A `Payment` is created separately when registered for a contract whose `totalAmount > 0`; a goods-sponsorship-only contract (`totalAmount = 0`) gets no `Payment` (`spec/domain.md#Sponsorship Contract`).
 
-`totalAmount` is accepted at creation as an initial value but is server-maintained thereafter: it is recalculated as the sum of `quantity * unitPrice` across the contract's Contract Menus every time a Contract Menu is added, updated, or removed (see `ContractMenu` below). Clients should treat it as read-only once Contract Menus exist.
+A contract is always created together with at least one Contract Menu, in one transaction (`spec/api.md#Create Contract`). `totalAmount` is maintained only by the server: it is the sum of `quantity * unitPrice` across the contract's Contract Menus, calculated at creation and recalculated every time a Contract Menu is added, updated, or removed (see `ContractMenu` below). It is never accepted from a client.
 
 ---
 
@@ -208,7 +208,7 @@ This is master data, managed independently of any company or contract.
 
 A Year's menus can be copied from the immediately preceding Year on demand (`spec/api.md#Copy Sponsorship Menus from the Previous Year`). A copy is a new row with the target `yearId`; it keeps no link to the source menu.
 
-`maxQuantity` is an optional sponsorship cap for menus with limited availability (e.g. a fixed number of booth slots). `null` means unlimited. It bounds the sum of `quantity` across that menu's Contract Menus for the Year — see `spec/frontend.md#Ad Material Progress` for how fill-against-cap is surfaced.
+`maxQuantity` is an optional sponsorship cap for menus with limited availability (e.g. a fixed number of booth slots). `null` means unlimited. It is compared with the sum of `quantity` across that menu's Contract Menus for the Year. It is a guide, not a hard limit: the API never rejects a Contract Menu for exceeding it. The screens warn when a quantity being entered would exceed it (`spec/frontend.md#Yearly Company Detail`), and show fill-against-cap, including any excess (`spec/frontend.md#Ad Material Progress`).
 
 ---
 
@@ -242,6 +242,8 @@ ContractMenu does not have its own assignee. Like its contract, it is handled by
 `productionDepartment` (`ContractMenuProductionDepartment`) is the committee department that produces an `INTERNAL` Contract Menu (`spec/domain.md#Contract Menu Production Department`, Issue #127). It is `null` until assigned, and always `null` when `productionType` is not `INTERNAL`. `productionType` stays `INTERNAL` when a department is assigned. Only the Advertisement Manager Role and Administrator set it, through its own endpoint (`spec/api.md#Assign Contract Menu Production Department`); it does not change `totalAmount`. When `productionType` changes from `INTERNAL` to anything else, the server clears `productionDepartment` in the same update.
 
 `status` is changed only by the Advertisement Manager Role and Administrator (`spec/api.md#Update Contract Menu Status`, Issue #126).
+
+A Contract Menu created with `productionType = CONTINUED` starts with `status = COMPLETED`, because its advertisement was produced in an earlier Year. Every other Contract Menu starts with `WAITING`. A Continued Contract Menu is still submitted the usual way: the earlier Year's file is registered in Google Drive, which makes it `SUBMITTED`. Whether it is submitted is decided only by its Drive files, like any other Contract Menu: if every file is deleted, it returns to `WAITING`, not `COMPLETED`.
 
 `isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
 
@@ -314,7 +316,7 @@ The Yearly Company's `progress` always matches `status`, and the server keeps it
 * `status` moves back from `Confirmed` to `Waiting` → if `progress` is `PaymentReceived` or `ReceiptSent`, it becomes `Confirmed`; other values are kept.
  How the actual received amount decides when the Payment becomes `Confirmed` is defined by Issue #171; the progress rule applies whenever `status` changes, however that change is triggered.
 
-While a Payment is `Waiting`, its `amount` is not independently edited: it is kept in sync with the parent `SponsorshipContract.totalAmount`. Any Contract Menu add/update/delete recalculates the Contract total and, in the same transaction, updates the Waiting Payment amount to the same value.
+While a Payment is `Waiting`, its `amount` is not independently edited: it is kept in sync with the parent `SponsorshipContract.totalAmount`. Any Contract Menu add/update/delete recalculates the Contract total and, in the same transaction, updates the Waiting Payment amount to the same value. When the new total is `0`, the Waiting Payment is deleted instead (a goods-sponsorship-only contract has no Payment), with a `PAYMENT_REMOVED` ActivityLog entry — unless `receivedAmount` is already set, in which case the Contract Menu change is rejected, because money has arrived and its record must not disappear.
 
 Once a Payment is `Confirmed`, its `amount` (billed amount) is fixed as the amount the Finance Department confirmed against; what actually arrived is `receivedAmount`. A Contract Menu add/update/delete that would change the parent Contract total must be rejected while the Payment remains Confirmed, rather than silently creating a mismatch. To change the contract amount after confirmation, the Payment must first be moved back to `Waiting`, which clears `confirmedAt`/`confirmedById`; the Contract Menu change can then resynchronize the Waiting Payment amount.
 
@@ -454,9 +456,12 @@ The company's relationship history with the festival. Applies to `YearlyCompany.
 
 The outreach priority ranking for a Yearly Company within the current Year, set by a Sponsorship Member during the preparation period. Applies to `YearlyCompany.phase`. Independent of `CompanyStatus`.
 
-* Phase1
+* Phase1 (highest priority)
 * Phase2
 * Phase3
+* Phase4 (lowest priority)
+
+API / storage codes: `PHASE_1` – `PHASE_4`. The business has always used four levels. Only the order is fixed: what each level means (e.g. which companies go in Phase4) is decided for each Year, so AdAdd stores the level only.
 
 ---
 
@@ -484,6 +489,13 @@ Applies only when the referenced Sponsorship Menu has `requiresSubmission = true
 
 * Company — company submits a finished product (完成品)
 * Internal — company submits raw material (素材) for the committee to produce from. The business calls this 委員会; the UI label is 委員. The producing department is held separately in `ContractMenu.productionDepartment` (`ContractMenuProductionDepartment` below).
+* Continued — the advertisement from a previous Year is used again as it is. Its production is already complete, so it has no producing department. The UI label is 継続.
+
+API / storage codes: `COMPANY` (企業), `INTERNAL` (委員), `CONTINUED` (継続).
+
+Rule: `productionType` is one of the three codes when the referenced Sponsorship Menu has `requiresSubmission = true`, and `null` when it has `requiresSubmission = false`. The API rejects any other combination with `400 Bad Request` when a Contract Menu is created (Create Contract, Add Contract Menu) and whenever `productionType` is sent to Update Contract Menu (`spec/api.md`). The screens offer only values that satisfy this rule, so the API check is a safeguard.
+
+Changing a Sponsorship Menu's `requiresSubmission` does not rewrite existing Contract Menus (`spec/api.md#Update Sponsorship Menu`), so a stored Contract Menu may no longer match the rule. Such a row is kept as it is: an update that does not send `productionType` still succeeds, and the screens show the stored value. When the menu no longer requires submission, the stored value is shown read-only; when the menu now requires submission and the row has none, the screens let a value be chosen. A value sent to correct the row must satisfy the rule.
 
 ---
 
@@ -702,6 +714,7 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 * Every payment belongs to one contract.
 * A Sponsorship Contract has at most one Payment — `contractId` is unique on `Payment`. A split/installment payment is still one Payment; each transfer overwrites `receivedAmount` with the cumulative total.
 * A Waiting Payment's `amount` must equal its Contract's `totalAmount`.
+* A Contract with `totalAmount = 0` has no Payment. A Payment cannot be created for a Contract with no Contract Menu or with `totalAmount = 0`.
 * `receivedAmount` is never synchronized from the Contract; only the Finance Department (or Administrator) sets it. It may differ from `amount`, including on a `Confirmed` Payment.
 * A Confirmed Payment's `amount` must not be silently changed by Contract Menu edits; any Contract Menu change that would alter the Contract total while the Payment is Confirmed is rejected.
 

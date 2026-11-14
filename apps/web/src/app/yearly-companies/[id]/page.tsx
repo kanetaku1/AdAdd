@@ -100,6 +100,8 @@ export default function YearlyCompanyDetailPage() {
     advisorAssignments: advisorAssignmentsForYear,
     ensureSponsorshipMenus,
     ensureAdvisorAssignments,
+    contractMenusAcrossYear,
+    ensureContractMenusAcrossYear,
     invalidateContractMenusAcrossYear,
   } = useYearCatalog()
 
@@ -115,6 +117,27 @@ export default function YearlyCompanyDetailPage() {
   const yearId = yearlyCompany?.yearId ?? null
   const menus = sponsorshipMenus(yearId)
   const advisorAssignments = advisorAssignmentsForYear(yearId)
+
+  /*
+   * The Year's contracted quantity per Sponsorship Menu, for the capacity
+   * warning on the contract creation form and "メニューを追加"
+   * (spec/frontend.md#Yearly Company Detail). The list is fetched again after
+   * it is invalidated by a Contract Menu change. A failure only hides the
+   * warning, so it is ignored here.
+   */
+  const yearContractMenus = contractMenusAcrossYear(yearId)
+  useEffect(() => {
+    if (!yearId) return
+    ensureContractMenusAcrossYear(yearId).catch(() => {})
+  }, [yearId, yearContractMenus, ensureContractMenusAcrossYear])
+  const contractedQuantityByMenu = useMemo(() => {
+    const quantities: Record<string, number> = {}
+    for (const contractMenu of yearContractMenus) {
+      quantities[contractMenu.sponsorshipMenuId] =
+        (quantities[contractMenu.sponsorshipMenuId] ?? 0) + contractMenu.quantity
+    }
+    return quantities
+  }, [yearContractMenus])
 
   const applyCompanyScope = useCallback(async (yc: YearlyCompany) => {
     setYearlyCompany(yc)
@@ -186,6 +209,19 @@ export default function YearlyCompanyDetailPage() {
       setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
     } finally {
       setLoading(false)
+    }
+  }, [id, applyCompanyScope])
+
+  // After a Contract Menu change, read the contract total and the Payment
+  // (which the server may have resynchronized or removed) again — without the
+  // full-page loading state. The Yearly Company is fetched again too, so the
+  // new object also refetches 活動記録 (the effect below).
+  const refreshContractScope = useCallback(async () => {
+    try {
+      const yc = await getYearlyCompany(id)
+      if (yc) await applyCompanyScope(yc)
+    } catch (e) {
+      setError(getErrorMessage(e, { fallback: "契約情報の再読み込みに失敗しました" }))
     }
   }, [id, applyCompanyScope])
 
@@ -369,7 +405,10 @@ export default function YearlyCompanyDetailPage() {
       setError(
         getErrorMessage(e, {
           fallback: "契約の作成に失敗しました",
-          overrides: { CONFLICT: "この企業には既に契約が存在します。" },
+          overrides: {
+            CONFLICT:
+              "この企業には既に契約が存在するか、無効になった協賛メニューが含まれています。画面を再読み込みしてください。",
+          },
         })
       )
       return false
@@ -470,17 +509,13 @@ export default function YearlyCompanyDetailPage() {
             key={contract.id}
             contractId={contract.id}
             initialContractMenus={contractMenus}
-            initialTotalAmount={contract.totalAmount}
+            totalAmount={contract.totalAmount}
             menus={menus}
-            onChanged={({ contractMenus: nextMenus, totalAmount }) => {
+            contractedQuantityByMenu={contractedQuantityByMenu}
+            onChanged={(nextMenus) => {
               setContractMenus(nextMenus)
-              setContract((prev) => (prev ? { ...prev, totalAmount } : prev))
-              setPayment((prev) =>
-                prev && prev.status === "WAITING"
-                  ? { ...prev, amount: totalAmount }
-                  : prev
-              )
               invalidateContractMenusAcrossYear(yc.yearId)
+              void refreshContractScope()
             }}
           />
         ) : (
@@ -491,6 +526,7 @@ export default function YearlyCompanyDetailPage() {
                 menus={menus}
                 busy={busy}
                 onCreate={handleCreateContract}
+                contractedQuantityByMenu={contractedQuantityByMenu}
               />
             ) : (
               <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">

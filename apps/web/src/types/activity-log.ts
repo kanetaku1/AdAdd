@@ -15,9 +15,18 @@ export type ActivityEventType =
   | "COMPANY_STATUS_UPDATED"
   | "PHASE_UPDATED"
   | "ASSIGNMENT_UPDATED"
+  | "COMPANY_CONTACT_UPDATED"
   | "CONTRACT_CREATED"
+  | "CONTRACT_UPDATED"
+  | "CONTRACT_MENU_ADDED"
+  | "CONTRACT_MENU_UPDATED"
+  | "CONTRACT_MENU_REMOVED"
   | "CONTRACT_MENU_STATUS_UPDATED"
+  | "AD_MATERIAL_UPLOADED"
+  | "AD_MATERIAL_TRASHED"
   | "PAYMENT_STATUS_UPDATED"
+  | "PAYMENT_REMOVED"
+  | "PAYMENT_DETAILS_UPDATED"
 
 export type ActivityLog = {
   id: string
@@ -35,9 +44,18 @@ export const ACTIVITY_EVENT_LABEL: Record<ActivityEventType, string> = {
   COMPANY_STATUS_UPDATED: "企業ステータス",
   PHASE_UPDATED: "フェーズ",
   ASSIGNMENT_UPDATED: "担当変更",
+  COMPANY_CONTACT_UPDATED: "連絡先",
   CONTRACT_CREATED: "契約作成",
+  CONTRACT_UPDATED: "契約更新",
+  CONTRACT_MENU_ADDED: "メニュー追加",
+  CONTRACT_MENU_UPDATED: "メニュー変更",
+  CONTRACT_MENU_REMOVED: "メニュー削除",
   CONTRACT_MENU_STATUS_UPDATED: "協賛メニュー",
+  AD_MATERIAL_UPLOADED: "広告資料",
+  AD_MATERIAL_TRASHED: "広告資料",
   PAYMENT_STATUS_UPDATED: "入金",
+  PAYMENT_REMOVED: "入金削除",
+  PAYMENT_DETAILS_UPDATED: "入金",
 }
 
 export function activityEventLabel(eventType: string): string {

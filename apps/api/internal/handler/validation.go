@@ -10,7 +10,6 @@ var (
 	ValidCompanyStatuses      = []string{"CONTINUING", "NEW", "DORMANT"}
 	ValidPhases               = []string{"PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4"}
 	ValidProgresses           = []string{"NOT_CONTACTED", "MATERIALS_SENT", "CONFIRMED", "INVOICE_SENT", "PAYMENT_RECEIVED", "RECEIPT_SENT", "DECLINED", "PENDING"}
-	ValidProductionTypes      = []string{"COMPANY", "INTERNAL", "CONTINUED"}
 	ValidContractMenuStatuses = []string{"WAITING", "REQUESTED", "PRODUCING", "COMPLETED", "SUBMITTED"}
 	ValidPaymentStatuses      = []string{"WAITING", "CONFIRMED"}
 )
@@ -66,13 +65,6 @@ func ValidatePhase(phase string) error {
 func ValidateProgress(progress string) error {
 	if !validateStatus(progress, ValidProgresses) {
 		return errors.New("invalid progress")
-	}
-	return nil
-}
-
-func ValidateProductionType(pt string) error {
-	if !validateStatus(pt, ValidProductionTypes) {
-		return errors.New("invalid productionType")
 	}
 	return nil
 }

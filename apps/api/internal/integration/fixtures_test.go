@@ -85,9 +85,23 @@ func createSponsorshipMenu(t *testing.T, client *apiClient, yearID, name string,
 	return decodeData[model.SponsorshipMenu](t, response).ID
 }
 
-func createContract(t *testing.T, client *apiClient, yearlyCompanyID string) model.SponsorshipContract {
+// createContract creates a contract with the given Contract Menu lines. A
+// contract needs at least one line (spec/api.md#Create Contract); when none is
+// given, one goods-sponsorship line (¥0) of a fixture menu is used, so the
+// total stays 0 and tests can add the lines they care about afterwards.
+func createContract(t *testing.T, client *apiClient, yearlyCompanyID string, contractMenus ...map[string]any) model.SponsorshipContract {
 	t.Helper()
-	response := client.do(http.MethodPost, "/yearly-companies/"+yearlyCompanyID+"/contract", map[string]any{})
+	if len(contractMenus) == 0 {
+		var yearlyCompany model.YearlyCompany
+		if err := db.DB.First(&yearlyCompany, "id = ?", yearlyCompanyID).Error; err != nil {
+			t.Fatalf("load yearly company: %v", err)
+		}
+		menuID := createSponsorshipMenu(t, client, yearlyCompany.YearID, "契約作成用メニュー "+yearlyCompanyID, 1000)
+		contractMenus = []map[string]any{{"sponsorshipMenuId": menuID, "quantity": 1, "isGoodsSponsorship": true, "productionType": "COMPANY"}}
+	}
+	response := client.do(http.MethodPost, "/yearly-companies/"+yearlyCompanyID+"/contract", map[string]any{
+		"contractMenus": contractMenus,
+	})
 	expectStatus(t, response, http.StatusCreated)
 	return decodeData[model.SponsorshipContract](t, response)
 }

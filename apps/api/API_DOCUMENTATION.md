@@ -71,15 +71,18 @@
 - GET /yearly-companies/:id/contract
   - 説明: YearlyCompany に紐づく契約取得
 - POST /yearly-companies/:id/contract
-  - 説明: 契約作成（staff, admin）。作成時に YearlyCompany.progress を CONFIRMED に更新。以前が CONFIRMED でなければ担当メンバーを Slack メンション（UC-16）
+  - 説明: 契約を契約メニューとまとめて作成（staff, admin）。1トランザクションで、1件でも不正なら何も作られない。totalAmount はサーバーが計算（リクエストでは受け付けない）。作成時に YearlyCompany.progress を CONFIRMED に更新。以前が CONFIRMED でなければ担当メンバーを Slack メンション（UC-16）
   - assigneeId はリクエスト不可（CompanyAssignment からサーバ設定）
-  - バリデーション: totalAmount は非負
   - ボディ例:
     {
-      "totalAmount": "15000",
-      "remarks": "Initial contract"
+      "contractDate": "2026-06-01",
+      "remarks": "",
+      "contractMenus": [
+        { "sponsorshipMenuId": "menu_id", "quantity": 1, "unitPrice": 80000, "isGoodsSponsorship": false, "productionType": "COMPANY" }
+      ]
     }
-  - エラー: 既に契約が存在する場合は 409 Conflict を返します
+  - productionType: 協賛メニューが提出要なら COMPANY / INTERNAL / CONTINUED のいずれか必須、提出不要なら null。CONTINUED（継続）は status=COMPLETED で作成。maxQuantity を超えても拒否しない（画面で警告）
+  - エラー: YearlyCompany がない 404 / contractMenus が空・入力不正（productionType 含む）400 / 既に契約がある・無効な協賛メニュー 409
 - PATCH /contracts/:contractId
   - 説明: 契約更新（staff, admin）。totalAmount / assigneeId はサーバ管理
 
@@ -98,7 +101,10 @@
 - POST /contracts/:contractId/menus (staff, admin)
   - 説明: 契約メニュー追加。追加後に親契約の totalAmount を再計算
   - unitPrice 省略時は defaultPrice。明示 0 は保持。isGoodsSponsorship=true なら unitPrice=0
-  - バリデーション: sponsorshipMenuId 必須, quantity > 0, unitPrice 非負
+  - バリデーション: sponsorshipMenuId 必須, quantity > 0, unitPrice 非負, productionType は契約作成と同じ規則
+- PATCH /contract-menus/:id (staff, admin)
+  - 説明: quantity / unitPrice / isGoodsSponsorship / productionType を更新
+  - productionType は送ったときだけ、協賛メニューの現在の提出要否に対して検証（null 明示でクリア、省略で据え置き）。変更しても status は変わらない
 - DELETE /contract-menus/:id (admin)
   - 説明: 契約メニュー削除。削除後に totalAmount を再計算
   - 削除は全システムで Administrator 限定 (spec/api.md#Authorization Matrix)
@@ -125,6 +131,7 @@
   - バリデーション: status は WAITING|CONFIRMED
   - CONFIRMED にするとサーバ側で confirmedAt/confirmedById がセットされます
   - WAITING に戻すと confirmedAt/confirmedById をクリア
+  - 存在しない paymentId は 404
 
 ### Assignments（CompanyAssignment 0..1）
 - POST /yearly-companies/:id/assignments (admin)

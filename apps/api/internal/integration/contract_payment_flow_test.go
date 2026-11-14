@@ -30,11 +30,13 @@ func TestContractToPaymentConfirmationFlow(t *testing.T) {
 		t.Fatalf("contract activity logs = %d, want 1", got)
 	}
 	// A Yearly Company has at most one contract.
-	expectStatus(t, member.do(http.MethodPost, "/yearly-companies/"+yearlyCompanyID+"/contract", map[string]any{}), http.StatusConflict)
+	expectStatus(t, member.do(http.MethodPost, "/yearly-companies/"+yearlyCompanyID+"/contract", map[string]any{
+		"contractMenus": []map[string]any{{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"}},
+	}), http.StatusConflict)
 
 	// No Payment while the total is 0.
 	paymentPath := "/contracts/" + contract.ID + "/payment"
-	expectStatus(t, member.do(http.MethodPost, paymentPath, nil), http.StatusBadRequest)
+	expectStatus(t, member.do(http.MethodPost, paymentPath, nil), http.StatusConflict)
 
 	// Contract Menus: total = Σ quantity × unitPrice.
 	menusPath := "/contracts/" + contract.ID + "/menus"
@@ -45,7 +47,7 @@ func TestContractToPaymentConfirmationFlow(t *testing.T) {
 	expectStatus(t, homepage, http.StatusCreated)
 	homepageID := decodeData[model.ContractMenu](t, homepage).ID
 	// Goods sponsorship lines are always unitPrice 0, whatever is sent.
-	booth := member.do(http.MethodPost, menusPath, map[string]any{"sponsorshipMenuId": boothMenuID, "quantity": 1, "unitPrice": "50000", "isGoodsSponsorship": true})
+	booth := member.do(http.MethodPost, menusPath, map[string]any{"sponsorshipMenuId": boothMenuID, "quantity": 1, "unitPrice": "50000", "isGoodsSponsorship": true, "productionType": "COMPANY"})
 	expectStatus(t, booth, http.StatusCreated)
 	expectAmount(t, "goods sponsorship unitPrice", decodeData[model.ContractMenu](t, booth).UnitPrice, 0)
 	// 2 × 80,000 (default price) + 10,000 (given price) + 0
@@ -115,11 +117,11 @@ func TestGoodsSponsorshipOnlyContractHasNoPayment(t *testing.T) {
 	contract := createContract(t, member, loadYearlyCompany(t, yearID, companyID).ID)
 
 	expectStatus(t, member.do(http.MethodPost, "/contracts/"+contract.ID+"/menus", map[string]any{
-		"sponsorshipMenuId": boothMenuID, "quantity": 1, "isGoodsSponsorship": true,
+		"sponsorshipMenuId": boothMenuID, "quantity": 1, "isGoodsSponsorship": true, "productionType": "COMPANY",
 	}), http.StatusCreated)
 	expectAmount(t, "totalAmount", loadContract(t, contract.ID).TotalAmount, 0)
 
-	expectStatus(t, member.do(http.MethodPost, "/contracts/"+contract.ID+"/payment", nil), http.StatusBadRequest)
+	expectStatus(t, member.do(http.MethodPost, "/contracts/"+contract.ID+"/payment", nil), http.StatusConflict)
 }
 
 // A Sponsorship Menu belongs to one Year (Rule 10), so a contract cannot use
@@ -135,7 +137,7 @@ func TestContractMenuRejectsOtherYearsSponsorshipMenu(t *testing.T) {
 	contract := createContract(t, member, loadYearlyCompany(t, currentYearID, companyID).ID)
 
 	response := member.do(http.MethodPost, "/contracts/"+contract.ID+"/menus", map[string]any{
-		"sponsorshipMenuId": previousMenuID, "quantity": 1,
+		"sponsorshipMenuId": previousMenuID, "quantity": 1, "productionType": "COMPANY",
 	})
 	if response.Code < 400 {
 		t.Fatalf("status = %d, want an error", response.Code)

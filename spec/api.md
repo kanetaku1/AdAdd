@@ -860,7 +860,7 @@ The contract has no assignee field. The assignee is the Yearly Company's current
 
 ## Create Contract
 
-Creates a sponsorship contract. A Yearly Company has at most one contract — a second `POST` for the same Yearly Company returns `409 Conflict`.
+Creates a sponsorship contract together with its Contract Menus. A Yearly Company has at most one contract — a second `POST` for the same Yearly Company returns `409 Conflict`.
 
 ```
 POST /yearly-companies/{id}/contract
@@ -871,16 +871,40 @@ Request:
 ```json
 {
   "contractDate": "2026-06-01",
-  "totalAmount": 95000,
-  "remarks": ""
+  "remarks": "",
+  "contractMenus": [
+    {
+      "sponsorshipMenuId": "menu_id",
+      "quantity": 1,
+      "unitPrice": 80000,
+      "isGoodsSponsorship": false,
+      "productionType": "COMPANY"
+    },
+    {
+      "sponsorshipMenuId": "menu_id_2",
+      "quantity": 1,
+      "isGoodsSponsorship": true,
+      "productionType": null
+    }
+  ]
 }
 ```
 
+`contractMenus` is required and must contain at least one item — an agreement always covers at least one Sponsorship Menu. Each item has the same fields, defaults, and rules as Add Contract Menu below (`unitPrice` defaulting, goods sponsorship forcing `0`, same Year, `isActive`). The contract and all of its Contract Menus are created in one transaction: if any item is rejected, nothing is created, and the request can be sent again as it is.
+
+`totalAmount` is not part of the request. The server calculates it as the sum of `quantity * unitPrice` across the created Contract Menus (`spec/model.md#SponsorshipContract`); a `totalAmount` sent by a client is ignored. Response: the created contract, including the calculated `totalAmount`.
+
 The request has no assignee. A contract never introduces an assignment of its own; the assignee is always the Yearly Company's current `CompanyAssignment` (`spec/model.md#SponsorshipContract`). A contract can be created while the Yearly Company has no assignee.
 
-Writes a `CONTRACT_CREATED` Activity Log whose actor is the authenticated user who created the contract.
+Errors:
 
-Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`). If previous progress was not already `CONFIRMED`, also sends a Slack mention to the assigned Sponsorship Member (UC-16, FR-014). Slack failure does not fail this request.
+* `404 Not Found` — the Yearly Company does not exist.
+* `400 Bad Request` — `contractMenus` is missing or empty; an item has no `sponsorshipMenuId`, `quantity < 1`, a negative `unitPrice`, or a `productionType` that does not match its Sponsorship Menu's `requiresSubmission`; an item's Sponsorship Menu does not exist or belongs to a different Year.
+* `409 Conflict` — the Yearly Company already has a contract; an item's Sponsorship Menu has `isActive = false`.
+
+Writes one `CONTRACT_CREATED` Activity Log whose actor is the authenticated user who created the contract. Its message lists the Contract Menus and the total, e.g. `契約を作成（パンフレット広告1P ×1、ホームページバナー広告 ×1（物品協賛）、合計 ¥80,000）`. The Contract Menus created by this request do not write separate `CONTRACT_MENU_ADDED` entries.
+
+Side effect: sets `YearlyCompany.progress` to `CONFIRMED` (the contract's existence *is* what "confirmed" means — `spec/domain.md#Sponsorship Contract`), and writes a `PROGRESS_UPDATED` Activity Log when this actually changes the value. If previous progress was not already `CONFIRMED`, also sends a Slack mention to the assigned Sponsorship Member (UC-16, FR-014). Slack failure does not fail this request.
 
 Trigger (why the member creates the contract — not an automated import):
 
@@ -897,11 +921,19 @@ Updates contract information.
 PATCH /contracts/{contractId}
 ```
 
-Writes a `CONTRACT_UPDATED` Activity Log when `contractDate` or `remarks` actually changes.
+Request: `contractDate` and/or `remarks`. Only the fields sent are changed. `totalAmount` is not accepted.
 
-`totalAmount` is maintained by the server as the sum of `quantity * unitPrice` across the contract's Contract Menus (`spec/model.md#ContractMenu`) — it is accepted at creation as an initial value, but recalculated automatically whenever Contract Menus are added, updated, or removed (see Add Contract Menu below). Clients should treat it as read-only after creation.
+Writes one `CONTRACT_UPDATED` Activity Log when `contractDate` or `remarks` actually changes. The message names what changed: `契約日を「2026-06-01」から「2026-06-10」に更新`, `契約の備考を更新` (the remarks text itself is not copied into the log), or both joined with `、`.
 
-If the contract already has a `WAITING` Payment, that Payment's `amount` is synchronized to the recalculated `totalAmount` in the same transaction as the Contract Menu change. If the contract has a `CONFIRMED` Payment and the recalculated total would differ from the confirmed Payment amount, the Contract Menu change is rejected with `409 Conflict`; AdAdd must not silently leave a confirmed payment inconsistent with the contract.
+`totalAmount` is maintained only by the server, as the sum of `quantity * unitPrice` across the contract's Contract Menus (`spec/model.md#ContractMenu`). It is calculated when the contract is created and recalculated whenever Contract Menus are added, updated, or removed (see Add Contract Menu below). Clients never send it; after a Contract Menu change they read the contract and Payment again instead of calculating the total themselves.
+
+Payment synchronization, applied in the same transaction as every Contract Menu change:
+
+* `WAITING` Payment, new total `> 0` — the Payment's `amount` is set to the new total.
+* `WAITING` Payment, new total `= 0` (every remaining Contract Menu is goods sponsorship, or none remain) — a goods-sponsorship-only contract has no Payment (`spec/model.md#Payment`), so:
+  * `receivedAmount` is `null` — the Payment is deleted and a `PAYMENT_REMOVED` Activity Log is written (`契約金額が0円になったため入金を削除（請求額 ¥80,000）`).
+  * `receivedAmount` is set — money has already arrived, so the Contract Menu change is rejected with `409 Conflict`. The Finance Department sorts out the received money first.
+* `CONFIRMED` Payment and the new total differs from the confirmed `amount` — the Contract Menu change is rejected with `409 Conflict`; AdAdd must not silently leave a confirmed payment inconsistent with the contract.
 
 ---
 
@@ -969,7 +1001,7 @@ PATCH /sponsorship-menus/{menuId}
 
 Accepts the same fields as Create, including `maxQuantity` (`null` clears the cap).
 
-Changing `requiresSubmission` does not rewrite existing Contract Menus that reference this menu; their `productionType` and `status` stay as stored. Setting `isActive` to `false` stops the menu from being added to contracts (see Add Contract Menu) without touching existing Contract Menus.
+Changing `requiresSubmission` does not rewrite existing Contract Menus that reference this menu; their `productionType` and `status` stay as stored. Such a Contract Menu may then no longer match the `productionType` rule; it is kept, and is corrected only when `productionType` is sent again (`spec/model.md#ContractMenuProductionType`). Setting `isActive` to `false` stops the menu from being added to contracts (see Add Contract Menu) without touching existing Contract Menus.
 
 ---
 
@@ -1044,7 +1076,7 @@ Example response:
 
 `files` contains every undeleted `ContractMenuDriveFile`, ordered by creation time and ID. `fileCount` is `files.length`; `isSubmitted` and `status == SUBMITTED` are true exactly when `fileCount > 0`. `driveUrl` and `driveFileName` are deprecated read-only compatibility fields containing the first active file (or `null`). `allowUpload` / `allowDelete` combine the active-Year rule and the signed-in User's Role; the server still enforces the same checks on write endpoints.
 
-`status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL` or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#Enumerations`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
+`status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL / CONTINUED`, or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#ContractMenuProductionType`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
 
 ---
 
@@ -1093,9 +1125,11 @@ Request:
 }
 ```
 
-`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. `productionDepartment` is not part of this request — a new Contract Menu always starts with `productionDepartment = null`, and the department is assigned afterwards (Assign Contract Menu Production Department below). Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. `productionType` is required (`COMPANY` / `INTERNAL` / `CONTINUED`) when the Sponsorship Menu has `requiresSubmission = true`, and must be omitted or `null` when it is `false` (`spec/model.md#ContractMenuProductionType`). A new Contract Menu starts with `status = COMPLETED` when `productionType` is `CONTINUED`, otherwise `WAITING` (`spec/model.md#ContractMenu`). `productionDepartment` is not part of this request — a new Contract Menu always starts with `productionDepartment = null`, and the department is assigned afterwards (Assign Contract Menu Production Department below). The quantity is not checked against `SponsorshipMenu.maxQuantity`: the cap is a guide shown on the screens (`spec/model.md#SponsorshipMenu`). Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
 
-Writes a `CONTRACT_MENU_ADDED` Activity Log.
+Errors: `404 Not Found` when the contract does not exist; `400 Bad Request` when `sponsorshipMenuId` is missing, the Sponsorship Menu does not exist or belongs to a different Year, `quantity < 1`, `unitPrice` is negative, or `productionType` breaks the rule above; `409 Conflict` for an inactive Sponsorship Menu or a Payment conflict (Update Contract above).
+
+Writes a `CONTRACT_MENU_ADDED` Activity Log: `「パンフレット広告1P」を追加（数量 1、単価 ¥80,000）`, or `「パンフレット広告1P」を物品協賛として追加（数量 1）` for goods sponsorship.
 
 ---
 
@@ -1120,9 +1154,11 @@ Request (all fields optional):
 
 Same `unitPrice`/`isGoodsSponsorship` defaulting rule as Add Contract Menu. Recalculates the parent Contract's `totalAmount` and applies the Payment synchronization / confirmed-payment conflict rule described in Update Contract above.
 
+When `productionType` is sent, it must satisfy the rule in Add Contract Menu against the Sponsorship Menu's current `requiresSubmission`, or the request returns `400 Bad Request`. Sending `null` explicitly clears it (allowed only when the menu does not require submission); omitting it leaves the stored value. An update that does not send `productionType` is accepted even when the stored value no longer matches the menu (`spec/model.md#ContractMenuProductionType`). Changing `productionType` does not change `status`.
+
 `productionDepartment` and `status` are not part of this request; they have their own endpoints below, with narrower permissions. When this request changes `productionType` from `INTERNAL` to another value, the server sets `productionDepartment` to `null` in the same update (`spec/model.md#ContractMenu`).
 
-Writes a `CONTRACT_MENU_UPDATED` Activity Log when `quantity` or `unitPrice` actually changes (including a `unitPrice` forced to `0` by `isGoodsSponsorship`).
+Writes one `CONTRACT_MENU_UPDATED` Activity Log when `quantity` or `unitPrice` actually changes (including a `unitPrice` forced to `0` by `isGoodsSponsorship`): `「パンフレット広告1P」の数量を「1」から「2」に更新`, `「パンフレット広告1P」の単価を「¥80,000」から「¥0」に更新`, or both joined with `、`.
 
 Permission:
 
@@ -1139,7 +1175,7 @@ Removes a Contract Menu and recalculates the parent Contract's `totalAmount`, ap
 DELETE /contract-menus/{id}
 ```
 
-Writes a `CONTRACT_MENU_REMOVED` Activity Log.
+Writes a `CONTRACT_MENU_REMOVED` Activity Log: `「パンフレット広告1P」を削除`. When the deletion brings the total to `0`, the Payment rule in Update Contract above applies (the Payment may be removed, with its own `PAYMENT_REMOVED` entry).
 
 Permission:
 
@@ -1193,7 +1229,7 @@ Request:
 
 Validation:
 
-* The Contract Menu's `productionType` must be `INTERNAL`. Otherwise (`COMPANY`, `CONTINUED` — present in code, its place in spec is Issue #162 — or `null` because the menu does not require submission) the request returns `400 Bad Request` — a department cannot be assigned. Clearing with `null` follows the same rule.
+* The Contract Menu's `productionType` must be `INTERNAL`. Otherwise (`COMPANY`, `CONTINUED`, or `null` because the menu does not require submission) the request returns `400 Bad Request` — a department cannot be assigned. Clearing with `null` follows the same rule.
 * An unknown value returns `400 Bad Request`.
 
 Does not change `totalAmount` and does not create an Activity Log entry (production changes are outside the recorded scope; whether to record them is undecided — Issue #172). Rejected for a past Year like every other Contract Menu write (Past Years Are Read-Only above).
@@ -1263,6 +1299,13 @@ One request appends one or more references:
 
 The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. The request contains `folderId` and file bodies; it does not contain a Google access token. The API uploads as the configured dedicated Google account and persists each returned `driveFileId`. Every successfully uploaded Drive file is appended as a separate reference in one database transaction. If the dedicated integration is unavailable, the endpoint returns `503 Service Unavailable` without adding a reference.
 
+Each uploaded file is renamed in Drive as `<folders>_<production type>_<company name><extension>`:
+
+* `<folders>` — the names of the folders from the one directly below the configured root folder down to the upload folder, joined with `_`.
+* `<production type>` — the Contract Menu's production type label: `企業` (`COMPANY`), `委員` (`INTERNAL`), `継続` (`CONTINUED`). A Contract Menu with no production type (its Sponsorship Menu does not require submission) has no such part: `<folders>_<company name><extension>`.
+* `<company name>` — the Yearly Company's company name.
+* When one request uploads several files, each name also gets `_<two-digit sequence>_<original file name without extension>` before the extension, e.g. `2026_パンフレット_企業_長岡テクノ_01_表面.pdf`.
+
 Every body is created as a new Drive file even when another file in the folder has the same display name. If a later upload or the database transaction fails, the API makes a best-effort attempt to move the files created by that request to trash; no incomplete reference is committed.
 
 ## Update Contract Menu File
@@ -1279,7 +1322,7 @@ Updates `driveUrl` and/or `driveFileName` on the named active reference. At leas
 DELETE /contract-menus/{id}/production/files/{fileId}
 ```
 
-Moves the Google Drive body to trash (`trashed = true`) as the dedicated Google account, then soft-deletes the reference. If Drive rejects the operation, AdAdd leaves the reference active and returns an error. If it was the final active file, the Contract Menu leaves the submitted state and returns to `WAITING`. Permanent Drive deletion is never used. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only. This exception does not weaken Administrator-only deletion of Company, Sponsorship Menu, or Contract Menu records.
+Moves the Google Drive body to trash (`trashed = true`) as the dedicated Google account, then soft-deletes the reference. If Drive rejects the operation, AdAdd leaves the reference active and returns an error. If it was the final active file, the Contract Menu leaves the submitted state and returns to `WAITING` — also for a `CONTINUED` Contract Menu: its design is complete, but whether it is submitted is decided only by its Drive files. Permanent Drive deletion is never used. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only. This exception does not weaken Administrator-only deletion of Company, Sponsorship Menu, or Contract Menu records.
 
 ---
 
@@ -1335,7 +1378,7 @@ A Payment whose Contract's Yearly Company has since been deleted is excluded fro
 
 ## Create Payment
 
-Creates the Payment record for a contract, once its Contract Menus are in place and `totalAmount > 0` (`spec/domain.md#Sponsorship Contract`). `amount` defaults to the contract's current `totalAmount`. A contract has at most one Payment — a second `POST` returns `409 Conflict`; contracts with `totalAmount = 0` (goods-sponsorship-only) should not call this endpoint.
+Creates the Payment record for a contract, once its Contract Menus are in place and `totalAmount > 0` (`spec/domain.md#Sponsorship Contract`). `amount` defaults to the contract's current `totalAmount`. A contract has at most one Payment — a second `POST` returns `409 Conflict`; a contract with no Contract Menu, or with `totalAmount = 0` (goods-sponsorship-only), is rejected with `409 Conflict`. An unknown `contractId` returns `404`.
 
 While the Payment remains `WAITING`, later Contract Menu changes keep `Payment.amount` synchronized with the contract total. After the Payment is `CONFIRMED`, Contract Menu changes that would alter the total return `409 Conflict` until Finance moves the Payment back to `WAITING`.
 
@@ -1393,6 +1436,8 @@ The request may also carry `receivedAmount` and `remarks` (each optional; omitte
 * `receivedAmount` and `remarks` can be changed while the Payment stays `CONFIRMED` — send them without `status`. The Payment does not need to go back to `WAITING`.
 * Moving `status` back to `WAITING` keeps `receivedAmount`.
 * Every change of `receivedAmount` or `remarks` is recorded in 活動記録 as `PAYMENT_DETAILS_UPDATED` (event type defined with Issue #172).
+
+Errors: `404 Not Found` when the Payment does not exist; `400 Bad Request` for a `status` other than `WAITING` / `CONFIRMED`.
 
 ---
 
@@ -1503,6 +1548,7 @@ Entries are exclusively system-generated. There is no manual/user-authored entry
 | `AD_MATERIAL_UPLOADED` | an ad-material Drive reference is registered or uploaded |
 | `AD_MATERIAL_TRASHED` | its Drive file is moved to trash and the reference is soft-deleted |
 | `PAYMENT_STATUS_UPDATED` | a Payment is confirmed, or moved back from `CONFIRMED` to `WAITING` |
+| `PAYMENT_REMOVED` | a `WAITING` Payment is deleted because its contract's total became `0` (Update Contract → Payment synchronization) |
 | `PAYMENT_DETAILS_UPDATED` | a Payment's actual received amount or remarks change (the fields are defined by Issue #170 / #171) |
 
 An entry is written only when the value actually changes; saving the same value writes nothing. The `message` names what changed in business language (e.g. `「パンフレット広告1P」の数量を「1」から「2」に更新`, `入金確認を取り消し`). An `ASSIGNMENT_UPDATED` message names the members: `担当メンバーを「鈴木」に設定`, `担当メンバーを「鈴木」から「田中」に更新`, `担当メンバー「田中」を解除`.

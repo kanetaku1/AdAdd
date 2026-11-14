@@ -107,6 +107,21 @@ func Phase(code string) string {
 	}
 }
 
+// ProductionType is the UI label of a ContractMenuProductionType
+// (spec/model.md#ContractMenuProductionType).
+func ProductionType(code string) string {
+	switch code {
+	case "COMPANY":
+		return "企業"
+	case "INTERNAL":
+		return "委員"
+	case "CONTINUED":
+		return "継続"
+	default:
+		return code
+	}
+}
+
 func ContractMenuStatus(code string) string {
 	switch code {
 	case "WAITING":

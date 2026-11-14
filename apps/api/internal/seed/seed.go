@@ -210,8 +210,9 @@ type contractMenuInput struct {
 	sponsorshipMenuID  string
 	unitPrice          int64
 	isGoodsSponsorship bool
-	productionType     string
-	status             string
+	// productionType is empty for a menu that does not require submission.
+	productionType string
+	status         string
 }
 
 type contractInput struct {
@@ -240,29 +241,26 @@ func ensureContract(input contractInput) error {
 	}
 
 	contractDate := model.Date(input.contractDate)
-	contract := &model.SponsorshipContract{
-		ID:              input.id,
+	menus := make([]service.ContractMenuInput, 0, len(input.menus))
+	for _, menu := range input.menus {
+		unitPrice := decimal.NewFromInt(menu.unitPrice)
+		menus = append(menus, service.ContractMenuInput{
+			SponsorshipMenuID:  menu.sponsorshipMenuID,
+			Quantity:           1,
+			UnitPrice:          &unitPrice,
+			IsGoodsSponsorship: menu.isGoodsSponsorship,
+			ProductionType:     optionalProductionType(menu.productionType),
+			Status:             menu.status,
+		})
+	}
+	if _, err := service.NewContractService().CreateWithMenus(service.ContractCreationInput{
+		ContractID:      input.id,
 		YearlyCompanyID: yearlyCompany,
 		ContractDate:    &contractDate,
 		AssigneeID:      input.assigneeID,
-	}
-	if err := service.NewContractService().CreateWithUser(contract, AdministratorUserID); err != nil {
+		ContractMenus:   menus,
+	}, AdministratorUserID); err != nil {
 		return err
-	}
-
-	contractMenuService := service.NewContractMenuService()
-	for _, menu := range input.menus {
-		if err := contractMenuService.Create(&model.ContractMenu{
-			ContractID:         input.id,
-			SponsorshipMenuID:  menu.sponsorshipMenuID,
-			Quantity:           1,
-			UnitPrice:          decimal.NewFromInt(menu.unitPrice),
-			IsGoodsSponsorship: menu.isGoodsSponsorship,
-			ProductionType:     menu.productionType,
-			Status:             menu.status,
-		}, true); err != nil {
-			return err
-		}
 	}
 
 	if input.paymentStatus != "" {
@@ -394,4 +392,11 @@ func ensureCurrentYearContracts() error {
 	return db.DB.Model(&model.YearlyCompany{}).
 		Where("id = ? AND progress = ?", yearlyCompany, "NOT_CONTACTED").
 		Updates(map[string]any{"progress": "MATERIALS_SENT", "phase": "PHASE_1"}).Error
+}
+
+func optionalProductionType(productionType string) *string {
+	if productionType == "" {
+		return nil
+	}
+	return &productionType
 }
