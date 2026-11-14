@@ -36,6 +36,7 @@ import { downloadCsv } from "@/lib/csv"
 import { ContractMenuFilesSummary } from "@/components/contract-menu-files-summary"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
+const STATUS_ALLOWED_ROLES = ["ADVERTISEMENT_MANAGER", "ADMINISTRATOR"]
 import {
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
@@ -88,6 +89,7 @@ function ContractMenusList() {
   const activeYearId = activeYear?.id ?? null
   const { currentUser } = useCurrentUser()
   const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const canManageStatus = canAccess(currentUser?.roles, STATUS_ALLOWED_ROLES)
   const {
     sponsorshipMenus,
     contractMenusAcrossYear,
@@ -471,7 +473,7 @@ function ContractMenusList() {
                         onChange={(status) =>
                           void handleStatusChange(cm.id, status)
                         }
-                        disabled={savingId === cm.id || !canManage}
+                        disabled={savingId === cm.id || !canManageStatus}
                       />
                     </TableCell>
                     <TableCell>
