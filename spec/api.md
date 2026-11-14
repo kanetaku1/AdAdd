@@ -1099,8 +1099,9 @@ Query:
 | productionDepartment | Filter by `INTERNAL` production department |
 
 `productionType=INTERNAL` matches every `INTERNAL` Contract Menu, whether or not `productionDepartment` is assigned and whichever department it is. `productionDepartment` matches only `INTERNAL` Contract Menus assigned to that department.
+An unsupported `productionDepartment` code returns `400 Bad Request`.
 
-Each item additionally includes `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row.
+Each item additionally includes `productionDepartment`, `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row.
 
 A Contract Menu whose Sponsorship Menu has since been deleted is excluded from this list — it never shows a stale or missing `sponsorshipMenuName`.
 
@@ -1160,6 +1161,7 @@ When `productionType` is sent, it must satisfy the rule in Add Contract Menu aga
 `productionDepartment` and `status` are not part of this request; they have their own endpoints below, with narrower permissions. When this request changes `productionType` from `INTERNAL` to another value, the server sets `productionDepartment` to `null` in the same update (`spec/model.md#ContractMenu`).
 
 Writes one `CONTRACT_MENU_UPDATED` Activity Log when `quantity` or `unitPrice` actually changes (including a `unitPrice` forced to `0` by `isGoodsSponsorship`): `「パンフレット広告1P」の数量を「1」から「2」に更新`, `「パンフレット広告1P」の単価を「¥80,000」から「¥0」に更新`, or both joined with `、`.
+If changing `productionType` also changes `status`, it additionally writes the usual `CONTRACT_MENU_STATUS_UPDATED` Activity Log for that transition.
 
 Permission:
 

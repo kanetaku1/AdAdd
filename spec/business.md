@@ -62,11 +62,13 @@ An Advisor may also be a Sponsorship Member.
 Responsible for:
 
 * Managing the Sponsorship Menu master (menus offered each festival year)
-* Managing Contract Menu progress for each contracted menu
-* Requesting production from other departments when a menu requires submission
+* Coordinating production requests when a menu requires submission
 * Collecting completed submission files
 * Delivering completed submissions to relevant external parties (e.g. the printing company)
 
+This team's operational coordination does not grant permission to change
+Contract Menu status or assign production departments; those actions belong
+only to the Advertisement Management Department and Administrator.
 Sponsorship Menu Managers may also be Sponsorship Members.
 
 ---
@@ -81,8 +83,6 @@ Responsible for:
 Only this department changes Contract Menu status and assigns the production department (Issue #126, #127). It is a system Role, `ADVERTISEMENT_MANAGER` (see `# Roles` below). In the 広告管理 list, the production type is read-only; for an `INTERNAL` Contract Menu this department manages the production-department selector. It also handles production remarks and Drive registration/upload.
 
 Its members usually also hold `SPONSORSHIP_MEMBER`. Because it cooperates with other bureaus (e.g. the SNS部門), a person may hold `ADVERTISEMENT_MANAGER` alone.
-
-How its responsibilities divide with the Sponsorship Menu Management Team above (which also manages Contract Menu progress and requests production) is 未決.
 
 ---
 
@@ -110,8 +110,11 @@ Responsible for:
 
 # Roles
 
-The canonical Role set is defined in `spec/domain.md#Role` (5 Roles: Sponsorship Member, Advisor, Finance Department, Advertisement Manager, Administrator; holding none is the view-only baseline). Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) is the one department above that is its own Role, because Contract Menu status and production department assignment belong to it alone (Issue #126, #127). Administrator, as superuser, can do everything it can. Company Management Team and Sponsorship Menu Management Team (above) are not separate Roles — their responsibilities are covered by Sponsorship Member (company/menu master data, day-to-day ad-material management) and Administrator (Year creation, assignment, deletion — see `spec/api.md#Authorization Matrix`).
+The canonical Role set is defined in `spec/domain.md#Role` (5 Roles: Sponsorship Member, Advisor, Finance Department, Advertisement Manager, Administrator; holding none is the view-only baseline). Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) is the one department above that is its own Role, because Contract Menu status and production department assignment belong to it alone (Issue #126, #127). Administrator, as superuser, can do everything it can. Company Management Team and Sponsorship Menu Management Team (above) are not separate Roles — their responsibilities are covered by Sponsorship Member (company/menu master data and coordination of ad-material work) and Administrator (Year creation, assignment, deletion — see `spec/api.md#Authorization Matrix`).
 
+The Sponsorship Menu Management Team's coordination work is carried out by
+Sponsorship Members, but Contract Menu status and production department
+permissions remain exclusive to Advertisement Manager and Administrator.
 Permissions are defined in `spec/api.md#Authorization Matrix`.
 
 ---
