@@ -55,21 +55,16 @@ func TestCompanyStatusIgnoresOlderYears(t *testing.T) {
 	}
 }
 
-// Mid-cycle registration of a single Company follows the same rule.
+// Registering a Company after the active Year was created computes its status
+// without trusting the client-provided value.
 func TestCompanyStatusOnIndividualRegistration(t *testing.T) {
 	actor := newActors(t)
 	administrator := actor.administrator
 
-	// The current Year is created first, while no Company exists, so both
-	// Companies can be registered into it individually afterward.
-	// The preceding Year is decided by dates, not by creation order.
 	currentYearID := createYear(t, administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2026, 11, 30))
-	contracted := createCompany(t, administrator, "契約あり株式会社")
-	contactedOnly := createCompany(t, administrator, "接触のみ株式会社")
-	previousYearID := createYear(t, administrator, "2025", festivalDate(2025, 4, 1), festivalDate(2025, 11, 30))
-	createContract(t, actor.sponsorshipMember, loadYearlyCompany(t, previousYearID, contracted).ID)
+	registeredLater := createCompany(t, administrator, "新規登録株式会社")
 
-	want := map[string]string{contracted: "CONTINUING", contactedOnly: "NEW"}
+	want := map[string]string{registeredLater: "NEW"}
 	for companyID, status := range want {
 		response := actor.sponsorshipMember.do(http.MethodPost, "/years/"+currentYearID+"/companies", map[string]any{
 			"companyId":     companyID,

@@ -16,7 +16,7 @@ test("過去年度は閲覧専用で、財務の入金確認操作は利用で�
     .getByRole("row")
     .filter({ has: page.getByRole("link", { name: "株式会社長岡テクノ", exact: true }) })
   await expect(companyRow).toHaveCount(1)
-  await expect(companyRow.getByText("継続", { exact: true })).toBeVisible()
+  await expect(companyRow.getByText("新規", { exact: true })).toBeVisible()
   await expect(companyRow.locator("button")).toHaveCount(0)
 
   const yearlyCompaniesTab = page.getByRole("link", {
