@@ -2,15 +2,15 @@ import { expect, test } from "@playwright/test"
 
 import { actAs, seedUsers } from "./support"
 
-test("過去年度は閲覧専用で、財務の入金確認操作は利用できる", async ({ page }) => {
+test("過去年度は財務情報も含めて閲覧専用", async ({ page }) => {
   await actAs(page, seedUsers.finance)
   await page.goto("/years")
 
   await page.getByRole("link", { name: "2025", exact: true }).click()
   await expect(page).toHaveURL(/\/yearly-companies\?yearId=/)
-  await expect(
-    page.getByRole("status").filter({ hasText: "過去の年度（2025）" })
-  ).toBeVisible()
+  await expect(page.getByRole("status")).toHaveText(
+    "過去の年度（2025）を表示しています。変更できません。"
+  )
 
   const companyRow = page
     .getByRole("row")
@@ -56,15 +56,9 @@ test("過去年度は閲覧専用で、財務の入金確認操作は利用で�
     page.getByRole("status").filter({ hasText: "過去の年度（2025）" })
   ).toBeVisible()
 
-  await page.getByRole("button", { name: "金額・備考" }).first().click()
-  const paymentDetailsDialog = page.getByRole("dialog")
-  await expect(paymentDetailsDialog.getByLabel("実入金額")).toHaveValue(/.+/)
-  await expect(paymentDetailsDialog.getByLabel("備考")).toBeVisible()
-  await paymentDetailsDialog.getByRole("button", { name: "キャンセル" }).click()
-
   const confirmedPayment = page.getByText("入金確認済み", { exact: true }).first()
   await expect(confirmedPayment).toBeVisible()
+  await expect(page.getByRole("button", { name: "金額・備考" })).toHaveCount(0)
   await confirmedPayment.click()
-  await expect(page.getByRole("option", { name: "入金待ち" })).toBeVisible()
-  await page.keyboard.press("Escape")
+  await expect(page.getByRole("option", { name: "入金待ち" })).toHaveCount(0)
 })

@@ -885,12 +885,12 @@ Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` 
 
 ### Viewing a Past Year
 
-A past Year is read-only except payment confirmation (`spec/domain.md#Active Year and Past Years`, `spec/api.md#Past Years Are Read-Only`).
+A past Year is read-only, including its Payments (`spec/domain.md#Active Year and Past Years`, `spec/api.md#Past Years Are Read-Only`).
 
 * Dashboard, Yearly Company List, Yearly Company Detail, Sponsorship Menu, Contract Menu List, Advertisement Progress, and Payment List can show any Year. They default to the active Year. Clicking a Year name in Year List switches to that Year; the `yearId` query is preserved between these pages. Navigating to Company List, Year List, or Settings clears the past-Year filter; choosing a Year again from Year List re-enters it.
-* On a year-scoped page showing a past Year, a fixed notice says: 過去の年度（{name}）を表示しています。入金確認のほかは変更できません。
+* On a year-scoped page showing a past Year, a fixed notice says: 過去の年度（{name}）を表示しています。変更できません。
 * The sidebar shows the selected Year while a past-Year filter is active, and uses a blue accent for year-scoped navigation items only while a past-Year notice is displayed. Outside a year-scoped page the filter is cleared; Company List, Year List, and Settings use the normal active-Year context. Year List marks its active Year in the table.
-* Every edit control is hidden, including inline-editable cells and Administrator-only delete actions. The only exception is payment confirmation and correction on the Finance Payment List, for Finance Department / Administrator as in the active Year. The Yearly Company Detail keeps payment status read-only.
+* Every edit control is hidden, including inline-editable cells, Payment status and details controls, and Administrator-only delete actions. The Finance Payment List shows past-Year Payment data read-only. The Yearly Company Detail keeps payment status read-only.
 * Invoice / receipt PDF and CSV export stay available.
 * The backend rejects past-Year changes on its own. Hiding the controls is for clarity, not the enforcement.
 

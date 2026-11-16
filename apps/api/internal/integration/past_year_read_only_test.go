@@ -5,10 +5,9 @@ import (
 	"testing"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
-	"github.com/shopspring/decimal"
 )
 
-func TestPastYearWritesAreRejectedExceptPaymentConfirmation(t *testing.T) {
+func TestPastYearWritesAreRejectedIncludingPaymentUpdates(t *testing.T) {
 	actor := newActors(t)
 	companyID := createCompany(t, actor.administrator, "過去年度読み取り専用株式会社")
 	uncontractedCompanyID := createCompany(t, actor.administrator, "過去年度契約未作成株式会社")
@@ -73,6 +72,10 @@ func TestPastYearWritesAreRejectedExceptPaymentConfirmation(t *testing.T) {
 		{"create sponsorship menu", actor.administrator, http.MethodPost, "/years/" + pastYearID + "/sponsorship-menus", map[string]any{"name": "追加不可", "defaultPrice": 1}},
 		{"advisor assignment creation", actor.administrator, http.MethodPost, "/advisor-assignments", map[string]any{"yearId": pastYearID, "advisorUserId": advisor2ID, "memberUserId": sponsorshipMemberID}},
 		{"advisor assignment deletion", actor.administrator, http.MethodDelete, "/advisor-assignments/" + advisorAssignment.ID, nil},
+		{"payment confirmation", actor.finance, http.MethodPatch, "/payments/" + payment.ID, map[string]any{"status": "CONFIRMED", "receivedAmount": 50000}},
+		{"payment revert", actor.finance, http.MethodPatch, "/payments/" + payment.ID, map[string]any{"status": "WAITING"}},
+		{"payment details", actor.finance, http.MethodPatch, "/payments/" + payment.ID, map[string]any{"receivedAmount": 49500, "remarks": "修正不可"}},
+		{"payment update by administrator", actor.administrator, http.MethodPatch, "/payments/" + payment.ID, map[string]any{"status": "CONFIRMED", "receivedAmount": 50000}},
 	}
 	for _, request := range requests {
 		t.Run(request.name, func(t *testing.T) {
@@ -81,37 +84,13 @@ func TestPastYearWritesAreRejectedExceptPaymentConfirmation(t *testing.T) {
 		})
 	}
 
-	// Payment confirmation and reverting it are the sole past-Year write
-	// exception, including when requested by Finance rather than Administrator.
-	expectStatus(t, actor.finance.do(http.MethodPatch, "/payments/"+payment.ID, map[string]any{
-		"status": "CONFIRMED",
-	}), http.StatusBadRequest)
-	expectStatus(t, actor.finance.do(http.MethodPatch, "/payments/"+payment.ID, map[string]any{
-		"status": "CONFIRMED", "receivedAmount": 50000, "remarks": "振込手数料を差し引き",
-	}), http.StatusOK)
-	expectStatus(t, actor.finance.do(http.MethodPatch, "/payments/"+payment.ID, map[string]any{
-		"receivedAmount": 49500, "remarks": "手数料修正",
-	}), http.StatusOK)
-	updatedPayment := loadPayment(t, contract.ID)
-	if updatedPayment.Status != "CONFIRMED" || updatedPayment.ReceivedAmount == nil ||
-		!updatedPayment.ReceivedAmount.Equal(decimal.NewFromInt(49500)) || updatedPayment.Remarks != "手数料修正" {
-		t.Fatalf("updated payment = %#v; want confirmed with received amount 49500 and revised remarks", updatedPayment)
+	pastPayment := loadPayment(t, contract.ID)
+	if pastPayment.Status != "WAITING" || pastPayment.ReceivedAmount != nil || pastPayment.Remarks != "" {
+		t.Fatalf("past-Year payment = %#v; want unchanged waiting payment", pastPayment)
 	}
-	expectStatus(t, actor.finance.do(http.MethodPatch, "/payments/"+payment.ID, map[string]any{"status": "WAITING"}), http.StatusOK)
-	revertedPayment := loadPayment(t, contract.ID)
-	if revertedPayment.Status != "WAITING" || revertedPayment.ReceivedAmount == nil ||
-		!revertedPayment.ReceivedAmount.Equal(decimal.NewFromInt(49500)) {
-		t.Fatalf("reverted payment = %#v; want waiting with received amount preserved", revertedPayment)
+	if got := countActivityLogs(t, pastYearlyCompanyID, model.EventPaymentDetailsUpdated); got != 0 {
+		t.Fatalf("past-Year payment detail activity logs = %d, want 0", got)
 	}
-	if got := countActivityLogs(t, pastYearlyCompanyID, model.EventPaymentDetailsUpdated); got != 2 {
-		t.Fatalf("payment detail activity logs = %d, want 2", got)
-	}
-	expectStatus(t, actor.administrator.do(http.MethodPatch, "/payments/"+payment.ID, map[string]any{
-		"status": "CONFIRMED", "receivedAmount": 49500,
-	}), http.StatusOK)
-	expectStatus(t, actor.administrator.do(http.MethodPatch, "/payments/"+payment.ID, map[string]any{
-		"status": "WAITING",
-	}), http.StatusOK)
 
 	expectStatus(t, actor.sponsorshipMember.do(http.MethodPatch, "/yearly-companies/"+activeYearlyCompanyID+"/phase", map[string]any{"phase": "PHASE_1"}), http.StatusOK)
 }

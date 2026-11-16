@@ -48,9 +48,10 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
  * the active Year via `GET /years/{yearId}/payments` (spec/api.md#List
  * Payments Across a Year).
  *
- * The inline status badge handles confirmation and correction; the details
- * dialog records the actual received amount and remarks. This intentionally
- * never touches YearlyCompany.progress — see EditablePaymentStatusBadge.
+ * The inline status badge handles confirmation and correction in the active
+ * Year; the details dialog records the actual received amount and remarks.
+ * Past-Year payments are read-only. This intentionally never touches
+ * YearlyCompany.progress — see EditablePaymentStatusBadge.
  *
  * confirmedAt/confirmedById are set/cleared server-side from the
  * authenticated user (PATCH /payments/{id}) — no placeholder confirmer.
@@ -71,11 +72,12 @@ function FinancePageContent() {
     selectedYear,
     selectedYearId: activeYearId,
     invalidYearSelection,
+    isPastYear,
     yearLoading,
     yearError,
   } = useSelectedYear()
   const { currentUser } = useCurrentUser()
-  const canConfirm = canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const canUpdatePayments = canAccess(currentUser?.roles, ALLOWED_ROLES) && !isPastYear
 
   const [payments, setPayments] = useState<PaymentAcrossYear[]>([])
   const [loading, setLoading] = useState(true)
@@ -268,14 +270,14 @@ function FinancePageContent() {
                     <EditablePaymentStatusBadge
                       value={payment.status}
                       onChange={(status) => openStatusChange(payment, status)}
-                      disabled={savingId === payment.id || !canConfirm}
+                      disabled={savingId === payment.id || !canUpdatePayments}
                     />
                   </TableCell>
                   <TableCell>{payment.confirmedAt ?? "-"}</TableCell>
                   <TableCell>{payment.confirmedByName ?? "-"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {canConfirm && (
+                      {canUpdatePayments && (
                         <Button
                           variant="outline"
                           size="sm"

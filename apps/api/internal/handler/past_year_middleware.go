@@ -9,14 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-const pastYearReadOnlyMessage = "過去の年度は閲覧のみです（入金確認を除く）"
+const pastYearReadOnlyMessage = "過去の年度は閲覧のみです"
 
 func PastYearWriteGuard(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if c.Request().Method == http.MethodPatch && c.Path() == "/payments/:paymentId" {
-			return next(c)
-		}
-
 		yearID, scoped, err := pastYearIDForRequest(c)
 		if err != nil {
 			return respondInternalServerError(c, err)
@@ -78,6 +74,9 @@ func pastYearIDForRequest(c echo.Context) (string, bool, error) {
 		"/contracts/:contractId/payment":
 		yearID, err := contractYearID(c.Param("contractId"))
 		return yearID, true, err
+	case "/payments/:paymentId":
+		yearID, err := paymentYearID(c.Param("paymentId"))
+		return yearID, true, err
 	case "/contract-menus/:id",
 		"/contract-menus/:id/status",
 		"/contract-menus/:id/production",
@@ -129,6 +128,17 @@ func contractYearID(contractID string) (string, error) {
 		Select("yearly_companies.year_id").
 		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id AND yearly_companies.deleted_at IS NULL").
 		Where("sponsorship_contracts.id = ? AND sponsorship_contracts.deleted_at IS NULL", contractID).
+		Scan(&yearID).Error
+	return yearID, err
+}
+
+func paymentYearID(paymentID string) (string, error) {
+	var yearID string
+	err := db.DB.Table("payments").
+		Select("yearly_companies.year_id").
+		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = payments.contract_id AND sponsorship_contracts.deleted_at IS NULL").
+		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id AND yearly_companies.deleted_at IS NULL").
+		Where("payments.id = ? AND payments.deleted_at IS NULL", paymentID).
 		Scan(&yearID).Error
 	return yearID, err
 }

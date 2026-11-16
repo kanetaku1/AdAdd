@@ -10,7 +10,7 @@ export function PastYearNotice({ year }: { year: Year | null }) {
       role="status"
       className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
     >
-      過去の年度（{year.name}）を表示しています。入金確認のほかは変更できません。
+      過去の年度（{year.name}）を表示しています。変更できません。
     </p>
   )
 }

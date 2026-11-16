@@ -26,7 +26,7 @@ The system shall allow administrators to:
 * Correct the active year's name and period (a year is never deleted — `spec/domain.md#Correcting a Year`)
 * Archive completed years — automatic: creating a new Year makes every earlier Year a past Year (`spec/domain.md#Active Year and Past Years`)
 * Keep exactly one active year — the most recently created one; a past Year never becomes active again
-* View past years, read-only, except payment confirmation
+* View past years as read-only, including Payments and related sponsorship progress
 * Copy company data from previous years
 
 ### Related Use Cases
@@ -168,6 +168,7 @@ The system shall allow Finance Department users to:
 * Record the reason for a difference between the two in the payment's remarks (`Payment.remarks`, 備考)
 * View payment history
 * Track payment status
+* Update payment information only while its Year is active; past-Year Payments are read-only
 
 Progress always matches the payment status. Confirming a payment moves the Yearly Company's progress to 協賛金入金 automatically (領収書送付 is kept); reverting it moves 協賛金入金 / 領収書送付 back to 協賛確定. 協賛金入金 and 領収書送付 cannot be set by hand before the payment is confirmed. A goods-only contract, which has no payment, uses 物品受領 instead (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 

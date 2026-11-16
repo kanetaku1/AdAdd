@@ -328,9 +328,9 @@ Each Year includes its document issuer information (`spec/model.md#Year`): `issu
 
 ## Past Years Are Read-Only
 
-Only the active Year accepts changes. A past Year accepts exactly one kind of change: `PATCH /payments/{paymentId}` (payment confirmation, both `CONFIRMED` and back to `WAITING`, together with `receivedAmount` and `remarks`) — see `spec/domain.md#Active Year and Past Years`.
+Only the active Year accepts changes. Every write to a record that belongs to a past Year, including `PATCH /payments/{paymentId}`, is rejected — see `spec/domain.md#Active Year and Past Years`.
 
-Every other write to a record that belongs to a past Year is rejected with HTTP 409 `CONFLICT` and the message 過去の年度は閲覧のみです（入金確認を除く）. The Year of a record is resolved through its owner:
+Writes to a past Year are rejected with HTTP 409 `CONFLICT` and the message 過去の年度は閲覧のみです. The Year of a record is resolved through its owner:
 
 | Endpoint | Year comes from |
 | -------- | --------------- |
@@ -344,7 +344,7 @@ Every other write to a record that belongs to a past Year is rejected with HTTP 
 
 The check is enforced in the backend, regardless of Role (Administrator included). Reads (`GET`) are not restricted. Year-independent data — Companies, Users, Roles — is not affected.
 
-Confirming a past Year's Payment, or moving it back to `WAITING`, also changes that Yearly Company's `progress` (see Update Payment Status). That change is part of the allowed payment confirmation, not a separate write, so it is not rejected.
+Updating a Payment in the active Year may also change that Yearly Company's `progress` (see Update Payment Status). Past-Year Payments cannot be updated, so their related progress remains unchanged.
 
 ---
 
