@@ -77,7 +77,7 @@ func TestContractToPaymentConfirmationFlow(t *testing.T) {
 
 	// Confirmation is performed by Finance only.
 	paymentStatusPath := "/payments/" + payment.ID
-	confirm := map[string]any{"status": "CONFIRMED"}
+	confirm := map[string]any{"status": "CONFIRMED", "receivedAmount": 160000}
 	expectStatus(t, member.do(http.MethodPatch, paymentStatusPath, confirm), http.StatusForbidden)
 	expectStatus(t, actor.advisor.do(http.MethodPatch, paymentStatusPath, confirm), http.StatusForbidden)
 	expectStatus(t, actor.finance.do(http.MethodPatch, paymentStatusPath, confirm), http.StatusOK)

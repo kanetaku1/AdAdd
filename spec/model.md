@@ -294,6 +294,8 @@ Represents payment information for a contract's sponsorship amount.
 * **Bank fee deducted / overpayment** — `receivedAmount` is the amount as it arrived; the Payment may be `Confirmed` although it differs from `amount`; the reason goes in `remarks`.
 * **Split payment** — `receivedAmount` is overwritten with the cumulative total each time a transfer arrives. The Payment is `Confirmed` once the full amount has arrived. There is no partial-payment status.
 
+These payment updates are allowed only while the Payment belongs to the active Year. A past-Year Payment is read-only, including status confirmation/revert, `receivedAmount`, and `remarks` (`spec/domain.md#Active Year and Past Years`).
+
 Rules:
 
 * **Required to confirm.** A Payment cannot move to `Confirmed` while `receivedAmount` is `null`. The confirmation input defaults to `amount` (the billed amount).

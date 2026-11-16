@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import { usePathname } from "next/navigation"
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -28,7 +29,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <AppSidebar />
+        <Suspense fallback={null}>
+          <AppSidebar />
+        </Suspense>
         <main className="flex min-h-svh flex-1 flex-col">
           <MockModeBanner />
           <div className="flex h-12 items-center border-b px-4">

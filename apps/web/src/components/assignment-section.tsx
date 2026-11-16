@@ -5,6 +5,11 @@ import { AssignedMemberCell } from "@/components/assigned-member-cell"
 import { EditableCompanyStatusBadge } from "@/components/editable-company-status-badge"
 import { EditableProgressBadge } from "@/components/editable-progress-badge"
 import { EditableSponsorshipPhaseBadge } from "@/components/editable-sponsorship-phase-badge"
+import {
+  COMPANY_STATUS_LABEL,
+  SPONSORSHIP_PHASE_LABEL,
+  SPONSORSHIP_PROGRESS_LABEL,
+} from "@/lib/yearly-company-labels"
 import type { User } from "@/types/user"
 import type {
   CompanyStatus,
@@ -35,6 +40,7 @@ export function AssignmentSection({
   progress,
   onProgressChange,
   statusPhaseProgressDisabled,
+  readOnly,
 }: {
   assignedMemberId: string | null
   assignedMemberName: string | null
@@ -49,6 +55,7 @@ export function AssignmentSection({
   progress: SponsorshipProgress
   onProgressChange: (progress: SponsorshipProgress) => void
   statusPhaseProgressDisabled?: boolean
+  readOnly?: boolean
 }) {
   return (
     <section
@@ -57,13 +64,17 @@ export function AssignmentSection({
     >
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">担当</span>
-        <AssignedMemberCell
-          assignedMemberId={assignedMemberId}
-          assignedMemberName={assignedMemberName}
-          users={users}
-          onChange={onAssign}
-          disabled={assignDisabled}
-        />
+        {readOnly ? (
+          <span>{assignedMemberName ?? "未割当"}</span>
+        ) : (
+          <AssignedMemberCell
+            assignedMemberId={assignedMemberId}
+            assignedMemberName={assignedMemberName}
+            users={users}
+            onChange={onAssign}
+            disabled={assignDisabled}
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -90,29 +101,41 @@ export function AssignmentSection({
 
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">企業ステータス</span>
-        <EditableCompanyStatusBadge
-          value={companyStatus}
-          onChange={onCompanyStatusChange}
-          disabled={statusPhaseProgressDisabled}
-        />
+        {readOnly ? (
+          <span>{COMPANY_STATUS_LABEL[companyStatus]}</span>
+        ) : (
+          <EditableCompanyStatusBadge
+            value={companyStatus}
+            onChange={onCompanyStatusChange}
+            disabled={statusPhaseProgressDisabled}
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">フェーズ</span>
-        <EditableSponsorshipPhaseBadge
-          value={phase}
-          onChange={onPhaseChange}
-          disabled={statusPhaseProgressDisabled}
-        />
+        {readOnly ? (
+          <span>{SPONSORSHIP_PHASE_LABEL[phase]}</span>
+        ) : (
+          <EditableSponsorshipPhaseBadge
+            value={phase}
+            onChange={onPhaseChange}
+            disabled={statusPhaseProgressDisabled}
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">進捗</span>
-        <EditableProgressBadge
-          value={progress}
-          onChange={onProgressChange}
-          disabled={statusPhaseProgressDisabled}
-        />
+        {readOnly ? (
+          <span>{SPONSORSHIP_PROGRESS_LABEL[progress]}</span>
+        ) : (
+          <EditableProgressBadge
+            value={progress}
+            onChange={onProgressChange}
+            disabled={statusPhaseProgressDisabled}
+          />
+        )}
       </div>
     </section>
   )

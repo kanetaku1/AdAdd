@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
+import Link from "next/link"
 
 import { CalendarPlus } from "lucide-react"
 
@@ -31,6 +32,7 @@ import { isApiEnabled } from "@/lib/api/client"
 import { createYear } from "@/lib/data/years"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
+import { useSelectedYear } from "@/hooks/use-selected-year"
 
 const ALLOWED_ROLES = ["ADMINISTRATOR"]
 
@@ -48,7 +50,16 @@ function emptyForm() {
  * reads the active Year re-scopes immediately.
  */
 export default function YearsPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-muted-foreground">読み込み中...</div>}>
+      <YearsPageContent />
+    </Suspense>
+  )
+}
+
+function YearsPageContent() {
   const { years, loading, error, refresh } = useActiveYear()
+  const { selectedYearId } = useSelectedYear()
   const { currentUser } = useCurrentUser()
   const canCreateYear = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const [open, setOpen] = useState(false)
@@ -181,8 +192,22 @@ export default function YearsPage() {
               />
             ) : (
               years.map((year) => (
-                <TableRow key={year.id}>
-                  <TableCell className="font-medium">{year.name}</TableCell>
+                <TableRow
+                  key={year.id}
+                  className={
+                    selectedYearId === year.id
+                      ? "bg-sky-50 dark:bg-sky-950/30"
+                      : undefined
+                  }
+                >
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/yearly-companies?yearId=${encodeURIComponent(year.id)}`}
+                      className="hover:underline"
+                    >
+                      {year.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{year.startDate}</TableCell>
                   <TableCell>{year.endDate}</TableCell>
                   <TableCell>

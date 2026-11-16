@@ -14,6 +14,7 @@ const (
 	EventContractMenuRemoved       = "CONTRACT_MENU_REMOVED"
 	EventContractMenuStatusUpdated = "CONTRACT_MENU_STATUS_UPDATED"
 	EventPaymentStatusUpdated      = "PAYMENT_STATUS_UPDATED"
+	EventPaymentDetailsUpdated     = "PAYMENT_DETAILS_UPDATED"
 	EventPaymentRemoved            = "PAYMENT_REMOVED"
 	EventAdMaterialUploaded        = "AD_MATERIAL_UPLOADED"
 	EventAdMaterialTrashed         = "AD_MATERIAL_TRASHED"

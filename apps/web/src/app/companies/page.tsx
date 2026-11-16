@@ -1,3 +1,5 @@
+import { Suspense } from "react"
+
 import { CompaniesWorkspace } from "@/components/companies-workspace"
 
 /**
@@ -9,5 +11,9 @@ import { CompaniesWorkspace } from "@/components/companies-workspace"
  * Data is loaded in the browser by CompaniesWorkspace (Issue #152).
  */
 export default function CompaniesPage() {
-  return <CompaniesWorkspace />
+  return (
+    <Suspense fallback={<div className="text-sm text-muted-foreground">読み込み中...</div>}>
+      <CompaniesWorkspace />
+    </Suspense>
+  )
 }
