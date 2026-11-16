@@ -62,7 +62,7 @@ test("過去年度は閲覧専用で、財務の入金確認操作は利用で�
   await expect(paymentDetailsDialog.getByLabel("備考")).toBeVisible()
   await paymentDetailsDialog.getByRole("button", { name: "キャンセル" }).click()
 
-  const confirmedPayment = page.getByText("確認済み", { exact: true }).first()
+  const confirmedPayment = page.getByText("入金確認済み", { exact: true }).first()
   await expect(confirmedPayment).toBeVisible()
   await confirmedPayment.click()
   await expect(page.getByRole("option", { name: "入金待ち" })).toBeVisible()
