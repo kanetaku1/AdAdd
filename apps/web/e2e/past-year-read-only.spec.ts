@@ -56,6 +56,9 @@ test("過去年度は財務情報も含めて閲覧専用", async ({ page }) => 
     page.getByRole("status").filter({ hasText: "過去の年度（2025）" })
   ).toBeVisible()
 
+  for (const column of ["実入金額", "差額", "備考"]) {
+    await expect(page.getByRole("columnheader", { name: column })).toHaveCount(0)
+  }
   const confirmedPayment = page.getByText("入金確認済み", { exact: true }).first()
   await expect(confirmedPayment).toBeVisible()
   await expect(page.getByRole("button", { name: "金額・備考" })).toHaveCount(0)

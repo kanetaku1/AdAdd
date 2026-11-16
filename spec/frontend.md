@@ -716,24 +716,20 @@ Display:
 | Company (+ companyNameKana, カタカナ表記 — for matching against bank passbook records) |
 | Assigned Sponsorship Member |
 | Contract amount (billed amount, `Payment.amount`) |
-| Received amount (実入金額, `Payment.receivedAmount`) |
-| Difference (received − billed; shown only when they differ) |
-| Remarks (備考, `Payment.remarks`) |
 | Payment status          |
-| Payment date            |
+| Payment confirmation date |
+| Confirmed by             |
+| Receipt PDF action       |
 
 Data source: `GET /years/{yearId}/payments` (`spec/api.md`), which already joins `companyNameKana` and `assignedMemberName`.
 
 Actions:
 
-* Record the received amount — for a split payment, overwrite it with the cumulative total each time money arrives
-* Edit remarks — e.g. the reason for a bank fee deduction or overpayment
-* Confirm payment — the received amount is required; its input is pre-filled with the billed amount. Confirming is allowed even when the received amount differs from the billed amount; the difference stays visible
-* Update status — moving back to 入金待ち keeps the received amount
-* The 金額・備考 action edits the received amount and remarks without changing status. The Payment List shows both values and the received-versus-billed difference.
+* Confirm payment — Finance Department / Administrator can change the status. When confirming a Payment that has no recorded received amount, the frontend submits the billed amount as the default. The finance list does not display or edit the received amount, difference, or remarks.
+* Update status — moving back to 入金待ち keeps any existing received amount.
 * Confirmation step — choosing a new payment status does not save it at once. A dialog names the company, the amount, and the change (e.g. `〇〇株式会社の入金（¥95,000）を確認済みにします。よろしいですか？`, or `…を入金待ちに戻します。…` when reverting), and the change is saved only after the user confirms. Both directions are confirmed, because both move the company's progress (below) and decide what a receipt shows. Cancelling leaves the status as it was (Issue #168).
 
-The received amount and remarks stay editable after confirmation (no need to move back to 入金待ち). Each change is recorded in 活動記録.
+The Finance Payment List does not provide a separate payment-details update dialog or action button.
 
 There is no partial-payment status. A split payment stays 入金待ち until the full amount has arrived (`spec/domain.md#Payment`).
 
