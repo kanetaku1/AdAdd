@@ -511,7 +511,7 @@ Rules for the generation actions next to the Contract summary (FR-015 → Docume
 * **Invoice line items** — the Contract Menus with `isGoodsSponsorship = false`. Goods sponsorship lines are not printed.
 * **No document number, no consumption-tax breakdown, no revenue stamp field.** The documents print amounts only.
 * **Issuer block and bank transfer account** — read from the Contract's Year (`GET /years`, `spec/model.md#Year`), not from constants in the frontend source.
-* **Missing issuer information** — if a field the document requires is empty (`spec/model.md#Year` → Required fields for document generation), generation is blocked and the dialog lists the missing fields by their Japanese labels, so the user can ask an Administrator to fill them in on Year List.
+* **Missing issuer information** — if a field the document requires is empty (`spec/model.md#Year` → Required fields for document generation), generation is blocked and the dialog lists the missing fields by their Japanese labels, so the user can ask an Administrator to fill them in under Settings → Document Issuer Information.
 * **Seal image** — the receipt keeps using the static file `apps/web/public/images/43rd_Stamp.png`, as today (Issue #176, the user's decision).
 
 When a `WAITING` Payment already has a `receivedAmount` (part of a split payment), whether the receipt amount should default to it instead of the billed amount is TBD (FR-015).
@@ -873,9 +873,9 @@ Actions:
 * Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before. The issuer information and bank transfer account are copied from the previous Year.
 * Correct the active Year's name, start date, and end date (Administrator — `PATCH /years/{yearId}`, `spec/domain.md#Correcting a Year`). Past Years are not editable (see Viewing a Past Year).
 * Click a Year name to open that Year's Yearly Company List (`/yearly-companies?yearId=`, current or past), scoped to that Year regardless of which Year is active. The selected Year is carried only between year-scoped pages. Navigating to a page that is not filtered by Year clears the selection and returns to the active Year context.
-* Edit the Year's document issuer information (Administrator) — issuer name, postal code, address lines, contact email, and the bank transfer account printed on invoices and receipts (`PATCH /years/{yearId}/document-issuer`, `spec/model.md#Year`). Fields required for document generation are marked, so a missing value is visible before anyone tries to generate a document.
+* The Year List does not show document issuer status or a Settings action. Administrators manage year-scoped settings from Settings after selecting a Year.
 
-Where this edit action sits on the screen (inline on the row, or a separate Year detail view) is TBD. There is no seal-image action; the seal stays a static file in the repository (Issue #176).
+There is no seal-image action; the seal stays a static file in the repository (Issue #176).
 
 Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year (or the clicked-through Year, per above).
 
@@ -883,16 +883,28 @@ Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` 
 
 A past Year is read-only, including its Payments (`spec/domain.md#Active Year and Past Years`, `spec/api.md#Past Years Are Read-Only`).
 
-* Dashboard, Yearly Company List, Yearly Company Detail, Sponsorship Menu, Contract Menu List, Advertisement Progress, and Payment List can show any Year. They default to the active Year. Clicking a Year name in Year List switches to that Year; the `yearId` query is preserved between these pages. Navigating to Company List, Year List, or Settings clears the past-Year filter; choosing a Year again from Year List re-enters it.
+* Dashboard, Yearly Company List, Yearly Company Detail, Sponsorship Menu, Contract Menu List, Advertisement Progress, Payment List, and year-scoped Settings can show any Year. They default to the active Year. Clicking a Year name in Year List switches to that Year; the `yearId` query is preserved between these pages, including Advisor and Document Issuer Settings. Navigating to Company List or Year List clears the past-Year filter.
 * On a year-scoped page showing a past Year, a fixed notice says: 過去の年度（{name}）を表示しています。変更できません。
-* The sidebar shows the selected Year while a past-Year filter is active, and uses a blue accent for year-scoped navigation items only while a past-Year notice is displayed. Outside a year-scoped page the filter is cleared; Company List, Year List, and Settings use the normal active-Year context. Year List marks its active Year in the table.
-* Every edit control is hidden, including inline-editable cells, Payment status and details controls, and Administrator-only delete actions. The Finance Payment List shows past-Year Payment data read-only. The Yearly Company Detail keeps payment status read-only.
+* The sidebar shows the selected Year while a past-Year filter is active, and uses a blue accent for year-scoped navigation items only while a past-Year notice is displayed. Outside a year-scoped page the filter is cleared; Company List and Year List use the normal active-Year context. Year List marks its active Year in the table.
+* Every edit control is hidden, including inline-editable cells, Payment status and details controls, Administrator-only delete actions, and all Year-scoped Settings actions. Year-scoped Settings can display past-Year Advisor Assignments and document issuer information read-only. The Finance Payment List shows past-Year Payment data read-only. The Yearly Company Detail keeps payment status read-only.
 * Invoice / receipt PDF and CSV export stay available.
 * The backend rejects past-Year changes on its own. Hiding the controls is for clarity, not the enforcement.
 
 ---
 
 # System Administration
+
+## Settings
+
+Settings is Administrator-only and has three top-level tabs:
+
+* **Users** — global user and Role management; this tab is not Year-scoped.
+* **Advisors** — Advisor Assignments for the Year in the shared `yearId` context. It defaults to the active Year and writes only to that Year.
+* **Document Issuer Information** — issuer and bank information for the Year in the shared `yearId` context. It defaults to the active Year and writes only to that Year.
+
+The year-scoped Settings tabs use the same selected-Year context as other year-scoped pages; they do not have a separate Year selector. The `yearId` query is carried between year-scoped navigation links. Past Years show recorded settings read-only, with no add, remove, edit, or save controls. Changing the selected Year changes the view only and does not change which Year is active. Advertisement Management settings are not included until their requirements are defined.
+
+Only Administrators can edit settings. The Administrator Role is the responsible operator for user administration, Advisor Assignments, and document issuer information.
 
 ## User List
 
@@ -936,13 +948,17 @@ Display, one row per User. Holding the Advisor Role (`spec/domain.md#Role`) is w
 
 Actions:
 
-* The Advisors cell shows one chip per current `AdvisorAssignment`, scoped to the active Year (`AdvisorAssignment.yearId`).
-* A "+" control on the cell opens a dropdown to add another Advisor (Principle 4) — a User cannot be selected as their own Advisor, and an Advisor already present as a chip is excluded from the dropdown.
-* Clicking a chip's "×" removes that single advisor assignment (`DELETE /advisor-assignments/{id}`) without affecting the Member's other Advisors.
+* The Advisors cell shows one chip per `AdvisorAssignment` in the selected Year (`AdvisorAssignment.yearId`).
+* For the active Year, a "+" control on the cell opens a dropdown to add another Advisor (Principle 4) — a User cannot be selected as their own Advisor, and an Advisor already present as a chip is excluded from the dropdown.
+* For the active Year, clicking a chip's "×" removes that single advisor assignment (`DELETE /advisor-assignments/{id}`) without affecting the Member's other Advisors. Past-Year assignments are displayed without mutation controls.
 
 Below the table, a read-only summary groups members by their current Advisor(s) — a member with multiple Advisors appears under each — covering FR-013's "view the members supervised by a given Advisor." Viewing the companies an Advisor's members handle (FR-013's 4th bullet) is not built here — that belongs to a future Advisor Dashboard, out of scope for now (see Dashboard → Department view decision).
 
-Assignments do not carry over when a new Year is created — reassignment is a fresh per-Year action, same as the Yearly Company assigned-member picker.
+Assignments do not carry over when a new Year is created — reassignment is a fresh per-Year action, same as the Yearly Company assigned-member picker. The Administrator is the responsible operator for these assignments.
+
+## Document Issuer Information
+
+The document issuer and bank transfer information are edited on the Document Issuer Information Settings tab, not in an action or modal on the Year List. All fields required by the relevant document are visible and marked. A past Year displays its saved values read-only.
 
 ---
 
@@ -969,16 +985,17 @@ Assignments do not carry over when a new Year is created — reassignment is a f
 │
 └── 設定                   Settings
       ├── ユーザー           Users
-      └── アドバイザー割当   Advisor Assignments
+      ├── アドバイザー       Advisors
+      └── 書類発行情報       Document Issuer Information
 ```
 
 Sidebar labels are Japanese (right column above is the internal/route name only, not shown to users). Items are ordered by expected frequency of use for the broadest role (Sponsorship Member) first, admin-only items last.
 
-`広告進捗` sits with `広告管理` because both are daily production work (UC-07/UC-08), not master-data management. Users and Advisor Assignments are Settings tabs, not top-level sidebar items — one Administrator-only entry keeps the sidebar short.
+`広告進捗` sits with `広告管理` because both are daily production work (UC-07/UC-08), not master-data management. Users, Advisors, and Document Issuer Information are Settings tabs, not top-level sidebar items — one Administrator-only entry keeps the sidebar short. Users is global; year-scoped Settings tabs preserve the selected Year context.
 
-Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, 広告管理 is shown to Sponsorship Member and Advertisement Manager, Settings (and its Users / Advisor Assignments tabs) unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is implemented (`apps/web/src/components/app-sidebar.tsx` `allowedRoles` + `canAccess`, matching backend `RequireRoles`).
+Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, 広告管理 is shown to Sponsorship Member and Advertisement Manager, Settings (and its Users / Advisors / Document Issuer Information tabs) unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is implemented (`apps/web/src/components/app-sidebar.tsx` `allowedRoles` + `canAccess`, matching backend `RequireRoles`).
 
-When a past Year is selected on a year-scoped page, the sidebar displays its name and gives year-scoped items (Dashboard, Yearly Companies, Sponsorship Menus, Contract Menus, Advertisement Progress, and Finance) a blue accent. The `yearId` is carried only between these scoped pages. Navigating to Company List, Year List, or Settings clears the past-Year filter and returns to the active Year context. The Years table marks the active Year, and clicking a Year name explicitly selects that Year again.
+When a past Year is selected on a year-scoped page, the sidebar displays its name and gives year-scoped items (Dashboard, Yearly Companies, Sponsorship Menus, Contract Menus, Advertisement Progress, Finance, and Advisor / Document Issuer Settings) a blue accent. The `yearId` is carried only between these scoped pages. Navigating to Company List or Year List clears the past-Year filter and returns to the active Year context. The Years table marks the active Year, and clicking a Year name explicitly selects that Year again.
 
 ---
 

@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { getMissingDocumentIssuerFields } from "@/lib/pdf/document-issuer"
 import { InvoiceDocument, type InvoiceData } from "@/lib/pdf/invoice-document"
 
 /**
@@ -37,6 +38,7 @@ export function InvoiceGeneratorModal({
   const [open, setOpen] = useState(false)
   const [data, setData] = useState<InvoiceData>(initialData)
   const [busy, setBusy] = useState(false)
+  const missingIssuerFields = getMissingDocumentIssuerFields(data.issuer, "invoice")
 
   function set<K extends keyof InvoiceData>(key: K, value: InvoiceData[K]) {
     setData((prev) => ({ ...prev, [key]: value }))
@@ -164,8 +166,17 @@ export function InvoiceGeneratorModal({
           </div>
         </div>
 
+        {missingIssuerFields.length > 0 && (
+          <p role="alert" className="text-sm text-destructive">
+            年度の発行者情報が不足しています。管理者に設定を依頼してください：
+            {missingIssuerFields.join("、")}
+          </p>
+        )}
         <DialogFooter>
-          <Button onClick={handleDownload} disabled={busy}>
+          <Button
+            onClick={handleDownload}
+            disabled={busy || missingIssuerFields.length > 0}
+          >
             ダウンロード
           </Button>
         </DialogFooter>

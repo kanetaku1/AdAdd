@@ -11,14 +11,24 @@ import (
 
 // Year
 type Year struct {
-	ID        string         `gorm:"type:char(36);primaryKey" json:"id"`
-	Name      string         `gorm:"size:32;not null" json:"name"`
-	StartDate Date           `gorm:"type:date" json:"startDate"`
-	EndDate   Date           `gorm:"type:date" json:"endDate"`
-	IsActive  bool           `gorm:"not null;default:false" json:"isActive"`
-	CreatedAt time.Time      `json:"createdAt"`
-	UpdatedAt time.Time      `json:"updatedAt"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                    string         `gorm:"type:char(36);primaryKey" json:"id"`
+	Name                  string         `gorm:"size:32;not null" json:"name"`
+	StartDate             Date           `gorm:"type:date" json:"startDate"`
+	EndDate               Date           `gorm:"type:date" json:"endDate"`
+	IsActive              bool           `gorm:"not null;default:false" json:"isActive"`
+	IssuerName            *string        `gorm:"size:255" json:"issuerName"`
+	IssuerPostalCode      *string        `gorm:"size:20" json:"issuerPostalCode"`
+	IssuerAddressLine1    *string        `gorm:"size:512" json:"issuerAddressLine1"`
+	IssuerAddressLine2    *string        `gorm:"size:512" json:"issuerAddressLine2"`
+	IssuerEmail           *string        `gorm:"size:255" json:"issuerEmail"`
+	BankName              *string        `gorm:"size:255" json:"bankName"`
+	BankBranchName        *string        `gorm:"size:255" json:"bankBranchName"`
+	BankAccountType       *string        `gorm:"size:64" json:"bankAccountType"`
+	BankAccountNumber     *string        `gorm:"size:64" json:"bankAccountNumber"`
+	BankAccountHolderName *string        `gorm:"size:255" json:"bankAccountHolderName"`
+	CreatedAt             time.Time      `json:"createdAt"`
+	UpdatedAt             time.Time      `json:"updatedAt"`
+	DeletedAt             gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (y *Year) BeforeCreate(tx *gorm.DB) (err error) {

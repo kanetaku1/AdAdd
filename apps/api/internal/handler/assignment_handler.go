@@ -19,7 +19,7 @@ func createAssignment(c echo.Context) error {
 		UserID *string `json:"userId"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 
 	userID := ""

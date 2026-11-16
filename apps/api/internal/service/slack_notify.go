@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -48,7 +49,13 @@ func ConfirmedMentionText(slackUserID, companyName string) string {
 	if name == "" {
 		name = "企業"
 	}
-	return "<@" + slackUserID + "> " + name + " の協賛が確定しました。"
+	return "<@" + escapeSlackMrkdwn(slackUserID) + "> " + escapeSlackMrkdwn(name) + " の協賛が確定しました。"
+}
+
+func escapeSlackMrkdwn(value string) string {
+	value = strings.ReplaceAll(value, "&", "&amp;")
+	value = strings.ReplaceAll(value, "<", "&lt;")
+	return strings.ReplaceAll(value, ">", "&gt;")
 }
 
 // NotifyAssigneeOnConfirmedAsync mentions the assigned Sponsorship Member

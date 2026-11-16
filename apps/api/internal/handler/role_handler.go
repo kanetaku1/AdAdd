@@ -32,7 +32,7 @@ func grantRole(c echo.Context) error {
 		RoleID string `json:"roleId"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if body.RoleID == "" {
 		return respondBadRequest(c, "roleId is required")

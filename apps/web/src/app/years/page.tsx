@@ -32,7 +32,6 @@ import { isApiEnabled } from "@/lib/api/client"
 import { createYear } from "@/lib/data/years"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
-import { useSelectedYear } from "@/hooks/use-selected-year"
 
 const ALLOWED_ROLES = ["ADMINISTRATOR"]
 
@@ -59,9 +58,8 @@ export default function YearsPage() {
 
 function YearsPageContent() {
   const { years, loading, error, refresh } = useActiveYear()
-  const { selectedYearId } = useSelectedYear()
   const { currentUser } = useCurrentUser()
-  const canCreateYear = canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const isAdministrator = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyForm())
   const [creating, setCreating] = useState(false)
@@ -92,8 +90,8 @@ function YearsPageContent() {
           <h1 className="text-2xl font-semibold">年度</h1>
           <p className="text-muted-foreground">技大祭の年度管理</p>
         </div>
-        {canCreateYear && (
-        <Dialog
+        {isAdministrator && (
+          <Dialog
           open={open}
           onOpenChange={(next) => {
             setOpen(next)
@@ -160,7 +158,7 @@ function YearsPageContent() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
         )}
       </div>
 
@@ -192,14 +190,7 @@ function YearsPageContent() {
               />
             ) : (
               years.map((year) => (
-                <TableRow
-                  key={year.id}
-                  className={
-                    selectedYearId === year.id
-                      ? "bg-sky-50 dark:bg-sky-950/30"
-                      : undefined
-                  }
-                >
+                <TableRow key={year.id}>
                   <TableCell className="font-medium">
                     <Link
                       href={`/yearly-companies?yearId=${encodeURIComponent(year.id)}`}
@@ -219,6 +210,7 @@ function YearsPageContent() {
           </TableBody>
         </Table>
       </div>
+
     </div>
   )
 }
