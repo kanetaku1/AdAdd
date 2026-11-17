@@ -20,7 +20,7 @@ test("メニューを変更した後に開いた請求書・領収書は、最�
   await expect(page).toHaveURL(/\/yearly-companies\?yearId=year_2026/)
   await page.getByRole("link", { name: "設定" }).click()
   await expect(page).toHaveURL(/\/settings\/advisors\?yearId=year_2026/)
-  await page.getByRole("button", { name: "書類発行情報" }).click()
+  await page.getByRole("link", { name: "書類発行情報" }).click()
   await expect(page).toHaveURL(/\/settings\/document-issuer\?yearId=year_2026/)
   await expect(
     page.getByRole("heading", { name: "書類発行情報", level: 2 })
@@ -91,9 +91,11 @@ test("メニューを変更した後に開いた請求書・領収書は、最�
   await expect(page).toHaveURL(/\/yearly-companies\?yearId=year_2025/)
   await page.getByRole("link", { name: "設定" }).click()
   await expect(page).toHaveURL(/\/settings\/advisors\?yearId=year_2025/)
-  await expect(page.getByText("過去年度の設定を表示しています。")).toBeVisible()
+  await expect(
+    page.getByText("過去の年度（2025）を表示しています。変更できません。")
+  ).toBeVisible()
   await expect(page.getByRole("button", { name: "アドバイザーを追加" })).toHaveCount(0)
-  await page.getByRole("button", { name: "書類発行情報" }).click()
+  await page.getByRole("link", { name: "書類発行情報" }).click()
   await expect(page).toHaveURL(/\/settings\/document-issuer\?yearId=year_2025/)
   await expect(page.getByRole("textbox")).toHaveCount(0)
   await expect(
