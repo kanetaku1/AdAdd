@@ -284,8 +284,8 @@ Represents payment information for a contract's sponsorship amount.
 | receivedAmount | decimal, nullable  |
 | remarks        | text               |
 | status         | enum               |
-| confirmedAt    | datetime           |
-| confirmedById  | UUID               |
+| confirmedAt    | datetime, nullable |
+| confirmedById  | UUID, nullable     |
 
 `amount` is the **billed amount** (請求額): the contract total that was invoiced. `receivedAmount` is the **received amount** (実入金額): what the Finance Department has actually seen arrive in the bank account. `null` means nothing has been recorded yet. The difference (`receivedAmount − amount`) is computed for display and is not stored. `remarks` (備考) is free text for the Finance Department, typically the reason for a difference (Issue #171).
 
@@ -306,7 +306,7 @@ Rules:
 
 AdAdd does not block confirmation on a difference between `receivedAmount` and `amount`.
 
-`confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with the `xId`-suffixed foreign-key naming used elsewhere, e.g. `yearlyCompanyId`).
+`confirmedById` references the `User` who performed the confirmation (renamed from `confirmedBy` for consistency with the `xId`-suffixed foreign-key naming used elsewhere, e.g. `yearlyCompanyId`). Both are `null` while the Payment is `Waiting` — never an empty string, which would reference no User (`spec/database.md#Referential Integrity`).
 
 `confirmedAt` is the **payment confirmation date** — the date the Finance Department confirmed the bank transfer in AdAdd (`spec/domain.md` → Payment), not necessarily the date the bank transfer itself occurred. It is set automatically to the day the status is changed to Confirmed; there is no separate "actual transfer date" field. This date is the default payment date when generating the receipt for a `Confirmed` Payment (`spec/usecase.md` UC-10 Send Receipt). A receipt generated while the Payment is `Waiting` has no default payment date; it is entered manually.
 

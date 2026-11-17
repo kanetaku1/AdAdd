@@ -248,6 +248,30 @@ go run ./cmd/server   # sign in and try the main screens
 
 `up` refuses to run if `-database` and `DB_NAME` differ, so a forgotten `DB_NAME` stops here instead of changing production. Remove the temporary container afterwards (Restore check, last step) — it holds real data.
 
+#### Before the foreign key migrations (Issue #175)
+
+The release that adds the foreign keys (`spec/database.md#Referential Integrity`) fails on a row whose reference points to nothing. The migrations do not delete such rows: whether a row is wrong data or a missing parent is a decision for people. Run this on the rehearsal database before `up`. Every count must be 0.
+
+```sql
+SELECT 'yearly_companies.year_id', COUNT(*) FROM yearly_companies c LEFT JOIN years p ON p.id = c.year_id WHERE p.id IS NULL
+UNION ALL SELECT 'yearly_companies.company_id', COUNT(*) FROM yearly_companies c LEFT JOIN companies p ON p.id = c.company_id WHERE p.id IS NULL
+UNION ALL SELECT 'sponsorship_contracts.yearly_company_id', COUNT(*) FROM sponsorship_contracts c LEFT JOIN yearly_companies p ON p.id = c.yearly_company_id WHERE p.id IS NULL
+UNION ALL SELECT 'sponsorship_menus.year_id', COUNT(*) FROM sponsorship_menus c LEFT JOIN years p ON p.id = c.year_id WHERE p.id IS NULL
+UNION ALL SELECT 'contract_menus.contract_id', COUNT(*) FROM contract_menus c LEFT JOIN sponsorship_contracts p ON p.id = c.contract_id WHERE p.id IS NULL
+UNION ALL SELECT 'contract_menus.sponsorship_menu_id', COUNT(*) FROM contract_menus c LEFT JOIN sponsorship_menus p ON p.id = c.sponsorship_menu_id WHERE p.id IS NULL
+UNION ALL SELECT 'payments.contract_id', COUNT(*) FROM payments c LEFT JOIN sponsorship_contracts p ON p.id = c.contract_id WHERE p.id IS NULL
+UNION ALL SELECT 'payments.confirmed_by_id', COUNT(*) FROM payments c LEFT JOIN users p ON p.id = c.confirmed_by_id WHERE c.confirmed_by_id IS NOT NULL AND c.confirmed_by_id <> '' AND p.id IS NULL
+UNION ALL SELECT 'assignments.yearly_company_id', COUNT(*) FROM assignments c LEFT JOIN yearly_companies p ON p.id = c.yearly_company_id WHERE p.id IS NULL
+UNION ALL SELECT 'assignments.user_id', COUNT(*) FROM assignments c LEFT JOIN users p ON p.id = c.user_id WHERE p.id IS NULL
+UNION ALL SELECT 'advisor_assignments.year_id', COUNT(*) FROM advisor_assignments c LEFT JOIN years p ON p.id = c.year_id WHERE p.id IS NULL
+UNION ALL SELECT 'advisor_assignments.advisor_id', COUNT(*) FROM advisor_assignments c LEFT JOIN users p ON p.id = c.advisor_id WHERE p.id IS NULL
+UNION ALL SELECT 'advisor_assignments.member_id', COUNT(*) FROM advisor_assignments c LEFT JOIN users p ON p.id = c.member_id WHERE p.id IS NULL
+UNION ALL SELECT 'activity_logs.yearly_company_id', COUNT(*) FROM activity_logs c LEFT JOIN yearly_companies p ON p.id = c.yearly_company_id WHERE p.id IS NULL
+UNION ALL SELECT 'activity_logs.user_id', COUNT(*) FROM activity_logs c LEFT JOIN users p ON p.id = c.user_id WHERE p.id IS NULL;
+```
+
+If a count is not 0, list the rows (the same query with `SELECT c.*`), and agree with the members whether to restore the missing parent or remove the row. Fix it with a new migration (`spec/development.md#Writing a migration`), not by manual SQL on production, then rehearse again. An empty `payments.confirmed_by_id` is not an orphan: the release turns it into NULL first.
+
 ### 3. Stop the API
 
 No one writes while the schema changes. A short stop is acceptable at AdAdd's scale; tell the members beforehand.

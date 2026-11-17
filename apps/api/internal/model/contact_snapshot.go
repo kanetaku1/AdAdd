@@ -24,28 +24,59 @@ func CopyContactFromCompany(yc *YearlyCompany, c *Company) {
 	yc.Memo = c.Memo
 }
 
-func ApplyContactToYearlyCompany(yc *YearlyCompany, in CompanyContactInput) {
-	if yc == nil {
-		return
+// ContactOfYearlyCompany returns the Yearly Company's contact snapshot.
+func ContactOfYearlyCompany(yc *YearlyCompany) CompanyContactInput {
+	return CompanyContactInput{
+		PostalCode:         yc.PostalCode,
+		Address:            yc.Address,
+		PhoneNumber:        yc.PhoneNumber,
+		Website:            yc.Website,
+		ContactPersonName:  yc.ContactPersonName,
+		ContactEmailOrForm: yc.ContactEmailOrForm,
+		Memo:               yc.Memo,
 	}
-	yc.PostalCode = in.PostalCode
-	yc.Address = in.Address
-	yc.PhoneNumber = in.PhoneNumber
-	yc.Website = in.Website
-	yc.ContactPersonName = in.ContactPersonName
-	yc.ContactEmailOrForm = in.ContactEmailOrForm
-	yc.Memo = in.Memo
 }
 
-func ApplyContactToCompany(c *Company, in CompanyContactInput) {
-	if c == nil {
-		return
+// ContactOfCompany returns the Company's contact fields.
+func ContactOfCompany(c *Company) CompanyContactInput {
+	return CompanyContactInput{
+		PostalCode:         c.PostalCode,
+		Address:            c.Address,
+		PhoneNumber:        c.PhoneNumber,
+		Website:            c.Website,
+		ContactPersonName:  c.ContactPersonName,
+		ContactEmailOrForm: c.ContactEmailOrForm,
+		Memo:               c.Memo,
 	}
-	c.PostalCode = in.PostalCode
-	c.Address = in.Address
-	c.PhoneNumber = in.PhoneNumber
-	c.Website = in.Website
-	c.ContactPersonName = in.ContactPersonName
-	c.ContactEmailOrForm = in.ContactEmailOrForm
-	c.Memo = in.Memo
+}
+
+// ContactColumnChanges returns the contact columns whose value differs
+// between current and requested, keyed by column name. Both yearly_companies
+// and companies use these column names. An update writes only these columns,
+// so a concurrent change to another column is not overwritten
+// (spec/database.md#Concurrent Updates). The company name is never included.
+func ContactColumnChanges(current, requested CompanyContactInput) map[string]interface{} {
+	changes := map[string]interface{}{}
+	if current.PostalCode != requested.PostalCode {
+		changes["postal_code"] = requested.PostalCode
+	}
+	if current.Address != requested.Address {
+		changes["address"] = requested.Address
+	}
+	if current.PhoneNumber != requested.PhoneNumber {
+		changes["phone_number"] = requested.PhoneNumber
+	}
+	if current.Website != requested.Website {
+		changes["website"] = requested.Website
+	}
+	if current.ContactPersonName != requested.ContactPersonName {
+		changes["contact_person_name"] = requested.ContactPersonName
+	}
+	if current.ContactEmailOrForm != requested.ContactEmailOrForm {
+		changes["contact_email_or_form"] = requested.ContactEmailOrForm
+	}
+	if current.Memo != requested.Memo {
+		changes["memo"] = requested.Memo
+	}
+	return changes
 }

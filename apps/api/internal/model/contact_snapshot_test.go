@@ -20,16 +20,17 @@ func TestCopyContactFromCompany(t *testing.T) {
 	}
 }
 
-func TestApplyContactDoesNotTouchCompanyName(t *testing.T) {
-	c := &Company{CompanyName: "株式会社サンプル", CompanyNameKana: "サンプル", FirstSponsorshipYear: "2015"}
-	ApplyContactToCompany(c, CompanyContactInput{
-		PhoneNumber: "111",
-		Memo:        "updated",
-	})
-	if c.CompanyName != "株式会社サンプル" || c.CompanyNameKana != "サンプル" || c.FirstSponsorshipYear != "2015" {
-		t.Fatalf("identity fields changed: %+v", c)
+func TestContactColumnChangesContainsOnlyChangedColumns(t *testing.T) {
+	c := &Company{CompanyName: "株式会社サンプル", PhoneNumber: "000", Address: "新潟県長岡市", Memo: "old"}
+	requested := ContactOfCompany(c)
+	requested.PhoneNumber = "111"
+	requested.Memo = "updated"
+
+	changes := ContactColumnChanges(ContactOfCompany(c), requested)
+	if len(changes) != 2 || changes["phone_number"] != "111" || changes["memo"] != "updated" {
+		t.Fatalf("changes = %+v, want only phone_number and memo", changes)
 	}
-	if c.PhoneNumber != "111" || c.Memo != "updated" {
-		t.Fatalf("contact fields not applied: %+v", c)
+	if _, ok := changes["company_name"]; ok {
+		t.Fatalf("company_name must never be written by a contact update: %+v", changes)
 	}
 }

@@ -244,7 +244,7 @@ type Payment struct {
 	Remarks             string           `gorm:"type:text" json:"remarks"`
 	Status              string           `gorm:"size:32" json:"status"`
 	ConfirmedAt         *time.Time       `json:"confirmedAt"`
-	ConfirmedByID       string           `gorm:"type:char(36)" json:"confirmedById"`
+	ConfirmedByID       *string          `gorm:"type:char(36)" json:"confirmedById"`
 	CreatedAt           time.Time        `json:"createdAt"`
 	UpdatedAt           time.Time        `json:"updatedAt"`
 	DeletedAt           gorm.DeletedAt   `gorm:"index" json:"-"`
