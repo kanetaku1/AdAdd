@@ -83,7 +83,7 @@ func updateProgress(c echo.Context) error {
 		Description:     label.StatusChange("進捗", label.Progress(oldVal), label.Progress(yc.Progress)),
 	}
 
-	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
+	if err := svc.UpdateColumnWithLog(yc.ID, "progress", yc.Progress, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	service.NotifyAssigneeOnConfirmedAsync(id, oldVal, body.Progress)
@@ -152,7 +152,7 @@ func updateCompanyStatus(c echo.Context) error {
 		Description:     label.StatusChange("企業ステータス", label.CompanyStatus(oldVal), label.CompanyStatus(yc.CompanyStatus)),
 	}
 
-	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
+	if err := svc.UpdateColumnWithLog(yc.ID, "company_status", yc.CompanyStatus, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
@@ -192,7 +192,7 @@ func updatePhase(c echo.Context) error {
 		Description:     label.StatusChange("フェーズ", label.Phase(oldVal), label.Phase(yc.Phase)),
 	}
 
-	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
+	if err := svc.UpdateColumnWithLog(yc.ID, "phase", yc.Phase, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})

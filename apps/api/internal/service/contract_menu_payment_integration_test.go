@@ -20,6 +20,7 @@ const (
 	testContractID      = "test-contract"
 	testMenuID          = "test-sponsorship-menu"
 	testPaymentID       = "test-payment"
+	testActorUserID     = "user-test"
 )
 
 func seedPaymentSyncContract(t *testing.T, paymentStatus string, paymentAmount decimal.Decimal) (string, string, string) {
@@ -33,6 +34,11 @@ func seedPaymentSyncContract(t *testing.T, paymentStatus string, paymentAmount d
 	paymentID := testPaymentID
 	now := time.Now()
 
+	// The acting user of the Activity Logs these tests write; activity_logs
+	// references users (spec/database.md#Referential Integrity).
+	if err := db.DB.Create(&model.User{ID: testActorUserID, Name: "Test Actor", Email: "actor@example.com", IsActive: true}).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
 	if err := db.DB.Create(&model.Year{
 		ID:        yearID,
 		Name:      "2026",
@@ -125,8 +131,8 @@ func TestContractMenuChangesSyncWaitingPaymentAmount(t *testing.T) {
 	}
 	assertContractAndPaymentAmounts(t, contractID, paymentID, decimal.NewFromInt(200))
 
-	menu.Quantity = 3
-	if err := svc.Update(menu); err != nil {
+	quantity := 3
+	if _, err := svc.PatchDetails(menu.ID, &quantity, nil, nil, ProductionTypeChange{}, "user-test"); err != nil {
 		t.Fatalf("update contract menu: %v", err)
 	}
 	assertContractAndPaymentAmounts(t, contractID, paymentID, decimal.NewFromInt(300))

@@ -97,8 +97,8 @@ func updatePayment(c echo.Context) error {
 		updateModel.Remarks = *req.Remarks
 		updateModel.RemarksGiven = true
 	}
-	if uid, ok := c.Get("userId").(string); ok {
-		updateModel.ConfirmedByID = uid
+	if uid, ok := c.Get("userId").(string); ok && uid != "" {
+		updateModel.ConfirmedByID = &uid
 	}
 
 	svc := service.NewPaymentService()

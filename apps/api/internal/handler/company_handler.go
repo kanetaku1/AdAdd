@@ -81,26 +81,25 @@ func updateCompany(c echo.Context) error {
 	}
 
 	svc := service.NewCompanyService()
-	existing, err := svc.GetByID(id)
+	updated, err := svc.Update(id, model.Company{
+		CompanyName:          req.CompanyName,
+		CompanyNameKana:      req.CompanyNameKana,
+		PostalCode:           req.PostalCode,
+		Address:              req.Address,
+		PhoneNumber:          req.PhoneNumber,
+		Website:              req.Website,
+		ContactPersonName:    req.ContactPersonName,
+		ContactEmailOrForm:   req.ContactEmailOrForm,
+		FirstSponsorshipYear: req.FirstSponsorshipYear,
+		Memo:                 req.Memo,
+	})
 	if err != nil {
-		return respondNotFound(c, "company not found")
-	}
-
-	existing.CompanyName = req.CompanyName
-	existing.CompanyNameKana = req.CompanyNameKana
-	existing.PostalCode = req.PostalCode
-	existing.Address = req.Address
-	existing.PhoneNumber = req.PhoneNumber
-	existing.Website = req.Website
-	existing.ContactPersonName = req.ContactPersonName
-	existing.ContactEmailOrForm = req.ContactEmailOrForm
-	existing.FirstSponsorshipYear = req.FirstSponsorshipYear
-	existing.Memo = req.Memo
-
-	if err := svc.Update(existing); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return respondNotFound(c, "company not found")
+		}
 		return respondInternalServerError(c, err)
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": existing, "message": "updated"})
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": updated, "message": "updated"})
 }
 
 func bulkImportCompanies(c echo.Context) error {

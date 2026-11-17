@@ -52,31 +52,35 @@ func (s *UserService) Update(id string, opts UserUpdateOpts) (*model.User, error
 		return nil, err
 	}
 
+	// Only the given fields are written (spec/database.md#Concurrent Updates).
+	changes := map[string]interface{}{}
 	if opts.Email != nil && *opts.Email != user.Email {
 		existing, _ := s.repo.FindByEmail(*opts.Email)
 		if existing != nil {
 			return nil, ErrEmailAlreadyExists
 		}
-		user.Email = *opts.Email
+		changes["email"] = *opts.Email
 	}
-
 	if opts.StudentID != nil {
-		user.StudentID = *opts.StudentID
+		changes["student_id"] = *opts.StudentID
 	}
 	if opts.Name != nil {
-		user.Name = *opts.Name
+		changes["name"] = *opts.Name
 	}
 	if opts.SlackID != nil {
-		user.SlackID = *opts.SlackID
+		changes["slack_id"] = *opts.SlackID
 	}
 	if opts.IsActive != nil {
-		user.IsActive = *opts.IsActive
+		changes["is_active"] = *opts.IsActive
+	}
+	if len(changes) == 0 {
+		return user, nil
 	}
 
-	if err := s.repo.Update(user); err != nil {
+	if err := s.repo.UpdateColumns(id, changes); err != nil {
 		return nil, err
 	}
-	return user, nil
+	return s.repo.GetByID(id)
 }
 
 type UserCsvRow struct {

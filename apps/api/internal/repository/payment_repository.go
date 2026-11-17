@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"time"
-
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 )
@@ -54,18 +52,3 @@ func (r *PaymentRepository) ListAcrossYear(yearID string, filters map[string]int
 }
 
 func (r *PaymentRepository) Create(p *model.Payment) error { return db.DB.Create(p).Error }
-
-// Update does a targeted update to avoid overwriting timestamp fields with zero values
-func (r *PaymentRepository) Update(p *model.Payment) error {
-	updates := map[string]interface{}{
-		"status":          p.Status,
-		"confirmed_at":    p.ConfirmedAt,
-		"confirmed_by_id": p.ConfirmedByID,
-		"updated_at":      time.Now(),
-	}
-	// only update amount if provided (non-zero)
-	if !p.Amount.IsZero() {
-		updates["amount"] = p.Amount
-	}
-	return db.DB.Model(&model.Payment{}).Where("id = ?", p.ID).Updates(updates).Error
-}
