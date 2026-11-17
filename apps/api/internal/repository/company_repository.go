@@ -11,9 +11,13 @@ func NewCompanyRepository() *CompanyRepository {
 	return &CompanyRepository{}
 }
 
-func (r *CompanyRepository) ListAll() ([]model.Company, error) {
+func (r *CompanyRepository) ListAll(keyword string) ([]model.Company, error) {
 	var companies []model.Company
-	if err := db.DB.Find(&companies).Error; err != nil {
+	query := db.DB.Model(&model.Company{})
+	if keyword != "" {
+		query = query.Where("company_name LIKE ? OR company_name_kana LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	}
+	if err := query.Find(&companies).Error; err != nil {
 		return nil, err
 	}
 	return companies, nil
