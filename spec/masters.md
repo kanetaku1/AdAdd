@@ -191,7 +191,7 @@ Global enumeration, applied per Contract Menu.
 
 ### Maintained By
 
-Sponsorship Menu Management Team.
+The enumeration values are fixed and are not maintained as editable master data. Per Contract Menu, Sponsorship Members / Advertisement Managers / Administrators set the production method as allowed by the API; Advertisement Managers / Administrators set the status and production department (`spec/api.md#Authorization Matrix`).
 
 ### Referenced By
 
@@ -199,7 +199,7 @@ Sponsorship Menu Management Team.
 
 ### Notes
 
-The values themselves are fixed. Per Contract Menu, `status` and `productionDepartment` are set by the Advertisement Manager Role (and Administrator); `productionType` by Sponsorship Member or Advertisement Manager (`spec/api.md#Authorization Matrix`).
+The values themselves are fixed. Per Contract Menu, `status` and `productionDepartment` are set by the Advertisement Manager Role or Administrator (as superuser); `productionType` is set by Sponsorship Member or Advertisement Manager, with Administrator also allowed as superuser (`spec/api.md#Authorization Matrix`).
 
 ### Source
 
