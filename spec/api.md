@@ -667,16 +667,6 @@ Request:
 
 ## Get Yearly Company
 
-```
-GET /yearly-companies/{id}
-```
-
-Same item shape as List Yearly Companies (including the contact snapshot and joined `companyName` / `companyNameKana`).
-
----
-
-## Get Yearly Company
-
 Returns a single Yearly Company (used by Yearly Company Detail — `spec/frontend.md#Yearly Company Detail`).
 
 ```
@@ -1103,9 +1093,7 @@ Query:
 
 `productionType=INTERNAL` matches every `INTERNAL` Contract Menu, whether or not `productionDepartment` is assigned and whichever department it is. A filter by `productionDepartment` is not designed (未決).
 
-Each item additionally includes `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row.
-
-A Contract Menu whose Sponsorship Menu has since been deleted is excluded from this list — it never shows a stale or missing `sponsorshipMenuName`.
+Each item additionally includes `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row. A Sponsorship Menu referenced by a Contract Menu cannot be deleted; a delete attempt returns `409 Conflict` (see Delete Sponsorship Menu).
 
 ---
 
@@ -1374,9 +1362,7 @@ Query:
 | --------- | ----------------------- |
 | status    | Filter by Payment status |
 
-Each item additionally includes `companyName`, `companyNameKana` (for bank-transfer-record matching, see `spec/frontend.md#Payment List`) and `yearlyCompanyId` (joined from the owning Contract's Yearly Company), `assignedMemberName` (joined from the Yearly Company's `CompanyAssignment`), and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row. `receivedAmount` and `remarks` are included as on Get Payment Status.
-
-A Payment whose Contract's Yearly Company has since been deleted is excluded from this list.
+Each item additionally includes `companyName`, `companyNameKana` (for bank-transfer-record matching, see `spec/frontend.md#Payment List`) and `yearlyCompanyId` (joined from the owning Contract's Yearly Company), `assignedMemberName` (joined from the Yearly Company's `CompanyAssignment`), and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row. `receivedAmount` and `remarks` are included as on Get Payment Status. Yearly Companies cannot be deleted through the API, so their Payments are not omitted on that basis.
 
 ---
 
@@ -1657,9 +1643,10 @@ All domain changes must update:
 
 * domain.md
 * model.md
-* er.md
 * database.md
 * api.md
+
+Update `frontend.md` as well when the change affects user-facing behavior. `database.md` documents both entity relationships and database implementation.
 
 ---
 

@@ -281,10 +281,6 @@ model.md
 
 ↓
 
-er.md
-
-↓
-
 database.md
 
 ↓
@@ -311,7 +307,6 @@ Required documents:
 ```text
 domain.md
 model.md
-er.md
 database.md
 api.md
 ```
