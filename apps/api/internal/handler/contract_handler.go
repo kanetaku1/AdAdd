@@ -54,8 +54,8 @@ func (r contractMenuRequest) toInput() service.ContractMenuInput {
 
 func createContract(c echo.Context) error {
 	yearlyCompanyID := c.Param("id")
-	// A request-only struct: totalAmount, assigneeId, and id are never
-	// accepted from the client (spec/api.md#Create Contract).
+	// A request-only struct: totalAmount and id are never accepted from
+	// the client (spec/api.md#Create Contract).
 	var body struct {
 		ContractDate  *model.Date           `json:"contractDate"`
 		Remarks       string                `json:"remarks"`
@@ -74,11 +74,6 @@ func createContract(c echo.Context) error {
 	for _, menu := range body.ContractMenus {
 		input.ContractMenus = append(input.ContractMenus, menu.toInput())
 	}
-	// The assignee is always the Yearly Company's current CompanyAssignment.
-	if assignment, err := service.NewAssignmentService().GetByYearlyCompany(yearlyCompanyID); err == nil && assignment != nil {
-		input.AssigneeID = assignment.UserID
-	}
-
 	actorID, _ := c.Get("userId").(string)
 	created, err := service.NewContractService().CreateWithMenus(input, actorID)
 	if err != nil {
@@ -95,7 +90,7 @@ func updateContract(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	// totalAmount and assigneeId remain server-owned
+	// totalAmount remains server-owned
 
 	actorID, _ := c.Get("userId").(string)
 	updated, err := service.NewContractService().Update(c.Param("contractId"), service.ContractUpdateInput{
