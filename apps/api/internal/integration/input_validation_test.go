@@ -95,8 +95,11 @@ func TestCreateYearlyCompany_CompanyNotFound(t *testing.T) {
 
 func TestCreateYearlyCompany_ServerFieldsIgnored(t *testing.T) {
 	actor := newActors(t)
-	companyID := createCompany(t, actor.administrator, "サーバ管理テスト企業")
+	// Create year first (no companies yet), then create a company, then
+	// register it manually so the auto-generation side effect does not
+	// create a duplicate.
 	yearID := createYear(t, actor.administrator, "2027", festivalDate(2027, 4, 1), festivalDate(2027, 11, 30))
+	companyID := createCompany(t, actor.administrator, "サーバ管理テスト企業")
 
 	resp := actor.sponsorshipMember.do(http.MethodPost, "/years/"+yearID+"/companies", map[string]any{
 		"companyId": companyID, "progress": "CONFIRMED", "phase": "PHASE_1",
