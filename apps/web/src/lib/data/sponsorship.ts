@@ -713,6 +713,7 @@ export async function getPaymentByContract(
         status: string
         confirmedAt?: string | null
         confirmedById?: string | null
+        confirmedByName?: string | null
       }>(`/contracts/${contractId}/payment`)
       return {
         id: raw.id,
@@ -724,7 +725,7 @@ export async function getPaymentByContract(
         status: raw.status as Payment["status"],
         confirmedAt: toConfirmationDate(raw.confirmedAt),
         confirmedById: raw.confirmedById ?? null,
-        confirmedByName: null,
+        confirmedByName: raw.confirmedByName ?? null,
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) return null

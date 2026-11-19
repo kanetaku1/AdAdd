@@ -92,8 +92,25 @@ func updateProgress(c echo.Context) error {
 
 func listYearlyCompanies(c echo.Context) error {
 	yearId := c.Param("yearId")
+	filters := model.YearlyCompanyFilters{
+		Keyword:        c.QueryParam("keyword"),
+		CompanyStatus:  c.QueryParam("companyStatus"),
+		Phase:          c.QueryParam("phase"),
+		AssigneeUserID: c.QueryParam("assigneeUserId"),
+		AdvisorUserID:  c.QueryParam("advisorUserId"),
+		Progress:       c.QueryParam("progress"),
+	}
+	if hasContractStr := c.QueryParam("hasContract"); hasContractStr != "" {
+		if hasContractStr == "true" {
+			v := true
+			filters.HasContract = &v
+		} else if hasContractStr == "false" {
+			v := false
+			filters.HasContract = &v
+		}
+	}
 	svc := service.NewYearlyCompanyService()
-	list, err := svc.ListByYear(yearId)
+	list, err := svc.ListByYear(yearId, filters)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
