@@ -17,10 +17,6 @@ import {
 } from "@/components/ui/table"
 import { EmptyBlock, ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { getMyScopeMemberIds } from "@/lib/assignment-scope"
-import {
-  listPaymentsByYear,
-  listYearlyCompaniesByYear,
-} from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { useSelectedYear } from "@/hooks/use-selected-year"
 import { PAYMENT_STATUS_BADGE_VARIANT, PAYMENT_STATUS_LABEL } from "@/lib/payment-labels"
@@ -111,36 +107,34 @@ function DashboardPageContent() {
   const { currentUser } = useCurrentUser()
   const currentUserId = currentUser?.id ?? null
   const {
-    advisorAssignments: advisorAssignmentsForYear,
-    contractMenusAcrossYear,
-    isAdvisorAssignmentsLoading,
-    isContractMenusAcrossYearLoading,
-    advisorAssignmentsError,
-    contractMenusAcrossYearError,
-    ensureAdvisorAssignments,
-    ensureContractMenusAcrossYear,
+    advisorAssignments: advisorAssignmentsCache,
+    contractMenusAcrossYear: contractMenusCache,
+    yearlyCompanies: yearlyCompaniesCache,
+    payments: paymentsCache,
   } = useYearCatalog()
 
-  const [yearlyCompanies, setYearlyCompanies] = useState<YearlyCompany[]>([])
-  const [payments, setPayments] = useState<PaymentAcrossYear[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
-  const contractMenus = contractMenusAcrossYear(activeYearId)
+  const yearlyCompanies = yearlyCompaniesCache.data(activeYearId)
+  const payments = paymentsCache.data(activeYearId)
+  const advisorAssignments = advisorAssignmentsCache.data(activeYearId)
+  const contractMenus = contractMenusCache.data(activeYearId)
   const catalogLoading =
-    Boolean(activeYearId && isAdvisorAssignmentsLoading(activeYearId)) ||
-    Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId))
+    Boolean(activeYearId && advisorAssignmentsCache.isLoading(activeYearId)) ||
+    Boolean(activeYearId && contractMenusCache.isLoading(activeYearId)) ||
+    Boolean(activeYearId && yearlyCompaniesCache.isLoading(activeYearId)) ||
+    Boolean(activeYearId && paymentsCache.isLoading(activeYearId))
   const catalogError = activeYearId
-    ? advisorAssignmentsError(activeYearId) ||
-      contractMenusAcrossYearError(activeYearId)
+    ? advisorAssignmentsCache.error(activeYearId) ||
+      contractMenusCache.error(activeYearId) ||
+      yearlyCompaniesCache.error(activeYearId) ||
+      paymentsCache.error(activeYearId)
     : null
 
   useEffect(() => {
     let cancelled = false
     async function load(yearId: string | null) {
       if (!yearId) {
-        setYearlyCompanies([])
-        setPayments([])
         setLoading(false)
         setError(null)
         return
@@ -148,15 +142,13 @@ function DashboardPageContent() {
       setLoading(true)
       setError(null)
       try {
-        const [ycList, paymentList] = await Promise.all([
-          listYearlyCompaniesByYear(yearId),
-          listPaymentsByYear(yearId),
-          ensureContractMenusAcrossYear(yearId),
-          ensureAdvisorAssignments(yearId),
+        await Promise.all([
+          yearlyCompaniesCache.ensure(yearId),
+          paymentsCache.ensure(yearId),
+          contractMenusCache.ensure(yearId),
+          advisorAssignmentsCache.ensure(yearId),
         ])
         if (cancelled) return
-        setYearlyCompanies(ycList)
-        setPayments(paymentList)
       } catch (e) {
         if (!cancelled) {
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
@@ -169,7 +161,7 @@ function DashboardPageContent() {
     return () => {
       cancelled = true
     }
-  }, [activeYearId, ensureAdvisorAssignments, ensureContractMenusAcrossYear])
+  }, [activeYearId, yearlyCompaniesCache, paymentsCache, contractMenusCache, advisorAssignmentsCache])
 
   const totalCompanies = yearlyCompanies.length
   const totalContractAmount = yearlyCompanies.reduce(

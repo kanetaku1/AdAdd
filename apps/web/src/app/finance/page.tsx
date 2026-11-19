@@ -26,7 +26,8 @@ import { ReceiptGeneratorModal } from "@/components/receipt-generator-modal"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
 import { businessToday } from "@/lib/business-date"
 import { receiptPaymentDate } from "@/lib/payment-labels"
-import { listPaymentsByYear, updatePayment } from "@/lib/data/sponsorship"
+import { useYearCatalog } from "@/components/year-catalog-provider"
+import { updatePayment } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
 import { useSelectedYear } from "@/hooks/use-selected-year"
@@ -75,7 +76,8 @@ function FinancePageContent() {
   const { currentUser } = useCurrentUser()
   const canUpdatePayments = canAccess(currentUser?.roles, ALLOWED_ROLES) && !isPastYear
 
-  const [payments, setPayments] = useState<PaymentAcrossYear[]>([])
+  const { payments: paymentsCache } = useYearCatalog()
+  const payments = paymentsCache.data(activeYearId)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pendingChange, setPendingChange] = useState<{
@@ -88,7 +90,6 @@ function FinancePageContent() {
     let cancelled = false
     async function load(yearId: string | null) {
       if (!yearId) {
-        setPayments([])
         setLoading(false)
         setError(null)
         return
@@ -96,8 +97,8 @@ function FinancePageContent() {
       setLoading(true)
       setError(null)
       try {
-        const list = await listPaymentsByYear(yearId)
-        if (!cancelled) setPayments(list)
+        await paymentsCache.ensure(yearId)
+        if (cancelled) return
       } catch (e) {
         if (!cancelled) {
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
@@ -110,7 +111,7 @@ function FinancePageContent() {
     return () => {
       cancelled = true
     }
-  }, [activeYearId])
+  }, [activeYearId, paymentsCache])
 
   async function confirmPendingChange() {
     if (!pendingChange) return
@@ -129,8 +130,8 @@ function FinancePageContent() {
             }
           : {}),
       })
-      const refreshed = await listPaymentsByYear(activeYearId)
-      setPayments(refreshed)
+      paymentsCache.invalidate(activeYearId)
+      await paymentsCache.ensure(activeYearId)
       setPendingChange(null)
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "更新に失敗しました" }))

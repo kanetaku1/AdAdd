@@ -45,18 +45,12 @@ export default function AdvisorAssignmentsPage() {
   const { currentUser } = useCurrentUser()
   const canManageAssignments = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const { users, loading: usersLoading, ensureUsers } = useUsers()
-  const {
-    advisorAssignments,
-    isAdvisorAssignmentsLoading,
-    advisorAssignmentsError,
-    ensureAdvisorAssignments,
-    setAdvisorAssignments,
-  } = useYearCatalog()
+  const { advisorAssignments: advisorAssignmentsCache } = useYearCatalog()
   const [error, setError] = useState<string | null>(null)
   const [busyMemberId, setBusyMemberId] = useState<string | null>(null)
-  const assignments = advisorAssignments(activeYearId)
+  const assignments = advisorAssignmentsCache.data(activeYearId)
   const catalogLoading = Boolean(
-    activeYearId && isAdvisorAssignmentsLoading(activeYearId)
+    activeYearId && advisorAssignmentsCache.isLoading(activeYearId)
   )
   const loading = usersLoading || catalogLoading
 
@@ -66,8 +60,8 @@ export default function AdvisorAssignmentsPage() {
 
   useEffect(() => {
     if (!activeYearId) return
-    void ensureAdvisorAssignments(activeYearId)
-  }, [activeYearId, ensureAdvisorAssignments])
+    void advisorAssignmentsCache.ensure(activeYearId)
+  }, [activeYearId, advisorAssignmentsCache])
 
   async function handleAdd(memberId: string, advisorId: string) {
     if (!activeYearId) return
@@ -79,7 +73,7 @@ export default function AdvisorAssignmentsPage() {
         memberId,
         advisorId
       )
-      setAdvisorAssignments(activeYearId, [...assignments, created])
+      advisorAssignmentsCache.set(activeYearId, [...assignments, created])
     } catch (e) {
       setError(
         getErrorMessage(e, {
@@ -98,7 +92,7 @@ export default function AdvisorAssignmentsPage() {
     setBusyMemberId(memberId)
     try {
       await removeAdvisorAssignment(assignmentId)
-      setAdvisorAssignments(
+      advisorAssignmentsCache.set(
         activeYearId,
         assignments.filter((a) => a.id !== assignmentId)
       )
@@ -137,7 +131,7 @@ export default function AdvisorAssignmentsPage() {
         message={
           yearError ||
           error ||
-          (activeYearId ? advisorAssignmentsError(activeYearId) : null)
+          (activeYearId ? advisorAssignmentsCache.error(activeYearId) : null)
         }
       />
 

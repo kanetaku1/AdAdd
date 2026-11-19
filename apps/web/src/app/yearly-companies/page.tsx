@@ -40,7 +40,6 @@ import { canAccess } from "@/lib/auth/roles"
 import { listCompanies } from "@/lib/data/companies"
 import {
   assignMember,
-  listYearlyCompaniesByYear,
   updateYearlyCompanyPhase,
   updateYearlyCompanyProgress,
   updateYearlyCompanyStatus,
@@ -138,12 +137,10 @@ function YearlyCompaniesPageContent() {
   const canEditAssignee = canAccess(currentUser?.roles, ["ADMINISTRATOR"])
   const { users, ensureUsers } = useUsers()
   const {
-    advisorAssignments: advisorAssignmentsForYear,
-    isAdvisorAssignmentsLoading,
-    advisorAssignmentsError,
-    ensureAdvisorAssignments,
+    advisorAssignments: advisorAssignmentsCache,
+    yearlyCompanies: yearlyCompaniesCache,
   } = useYearCatalog()
-  const [rows, setRows] = useState<YearlyCompany[]>([])
+  const rows = yearlyCompaniesCache.data(activeYearId)
   const [companyKeyword, setCompanyKeyword] = useState("")
   const [memberFilter, setMemberFilter] = useState<string | typeof ALL>(ALL)
   const [advisorFilter, setAdvisorFilter] = useState<string | typeof ALL>(ALL)
@@ -169,16 +166,15 @@ function YearlyCompaniesPageContent() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
-  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
+  const advisorAssignments = advisorAssignmentsCache.data(activeYearId)
   const catalogLoading = Boolean(
-    activeYearId && isAdvisorAssignmentsLoading(activeYearId)
-  )
+    activeYearId && advisorAssignmentsCache.isLoading(activeYearId)
+  ) || Boolean(activeYearId && yearlyCompaniesCache.isLoading(activeYearId))
 
   useEffect(() => {
     let cancelled = false
     async function load(yearId: string | null) {
       if (!yearId) {
-        setRows([])
         setLoading(false)
         setError(null)
         return
@@ -186,16 +182,14 @@ function YearlyCompaniesPageContent() {
       setLoading(true)
       setError(null)
       try {
-        const [list] = await Promise.all([
-          listYearlyCompaniesByYear(yearId),
+        await Promise.all([
+          yearlyCompaniesCache.ensure(yearId),
           ensureUsers(),
-          ensureAdvisorAssignments(yearId),
+          advisorAssignmentsCache.ensure(yearId),
         ])
         if (cancelled) return
-        setRows(list)
       } catch (e) {
         if (!cancelled) {
-          setRows([])
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
         }
       } finally {
@@ -206,7 +200,7 @@ function YearlyCompaniesPageContent() {
     return () => {
       cancelled = true
     }
-  }, [activeYearId, ensureUsers, ensureAdvisorAssignments])
+  }, [activeYearId, ensureUsers, yearlyCompaniesCache, advisorAssignmentsCache])
 
   const visibleRows = useMemo(
     () =>
@@ -308,14 +302,20 @@ function YearlyCompaniesPageContent() {
     setOpenColumnFilter((current) => (current === key ? null : key))
   }
 
+  function updateRow(id: string, patch: Partial<YearlyCompany>) {
+    if (!activeYearId) return
+    yearlyCompaniesCache.set(
+      activeYearId,
+      rows.map((yc) => (yc.id === id ? { ...yc, ...patch } : yc))
+    )
+  }
+
   async function setCompanyStatus(id: string, value: CompanyStatus) {
     setActionError(null)
     setSavingId(id)
     try {
       await updateYearlyCompanyStatus(id, value)
-      setRows((prev) =>
-        prev.map((yc) => (yc.id === id ? { ...yc, companyStatus: value } : yc))
-      )
+      updateRow(id, { companyStatus: value })
     } catch (e) {
       setActionError(
         getErrorMessage(e, { fallback: "ステータスの更新に失敗しました" })
@@ -330,9 +330,7 @@ function YearlyCompaniesPageContent() {
     setSavingId(id)
     try {
       await updateYearlyCompanyPhase(id, value)
-      setRows((prev) =>
-        prev.map((yc) => (yc.id === id ? { ...yc, phase: value } : yc))
-      )
+      updateRow(id, { phase: value })
     } catch (e) {
       setActionError(
         getErrorMessage(e, { fallback: "フェーズの更新に失敗しました" })
@@ -347,9 +345,7 @@ function YearlyCompaniesPageContent() {
     setSavingId(id)
     try {
       await updateYearlyCompanyProgress(id, value)
-      setRows((prev) =>
-        prev.map((yc) => (yc.id === id ? { ...yc, progress: value } : yc))
-      )
+      updateRow(id, { progress: value })
     } catch (e) {
       setActionError(getErrorMessage(e, { fallback: "進捗の更新に失敗しました" }))
     } finally {
@@ -362,18 +358,11 @@ function YearlyCompaniesPageContent() {
     setSavingId(id)
     try {
       await assignMember(id, userId)
-      setRows((prev) =>
-        prev.map((yc) =>
-          yc.id === id
-            ? {
-                ...yc,
-                assignedMemberId: userId,
-                assignedMemberName:
-                  users.find((u) => u.id === userId)?.name ?? null,
-              }
-            : yc
-        )
-      )
+      updateRow(id, {
+        assignedMemberId: userId,
+        assignedMemberName:
+          users.find((u) => u.id === userId)?.name ?? null,
+      })
     } catch (e) {
       setActionError(
         getErrorMessage(e, { fallback: "担当メンバーの更新に失敗しました" })
@@ -420,7 +409,7 @@ function YearlyCompaniesPageContent() {
           (invalidYearSelection ? "指定された年度が見つかりません。" : null) ||
           yearError ||
           error ||
-          (activeYearId ? advisorAssignmentsError(activeYearId) : null)
+          (activeYearId ? advisorAssignmentsCache.error(activeYearId) : null)
         }
       />
       <ErrorBanner message={actionError} />

@@ -99,13 +99,11 @@ export default function YearlyCompanyDetailPage() {
   ])
   const { users, ensureUsers } = useUsers()
   const {
-    sponsorshipMenus,
-    advisorAssignments: advisorAssignmentsForYear,
-    ensureSponsorshipMenus,
-    ensureAdvisorAssignments,
-    contractMenusAcrossYear,
-    ensureContractMenusAcrossYear,
-    invalidateContractMenusAcrossYear,
+    sponsorshipMenus: sponsorshipMenusCache,
+    advisorAssignments: advisorAssignmentsCache,
+    contractMenusAcrossYear: contractMenusCache,
+    yearlyCompanies: yearlyCompaniesCache,
+    payments: paymentsCache,
   } = useYearCatalog()
 
   const [loading, setLoading] = useState(true)
@@ -122,8 +120,8 @@ export default function YearlyCompanyDetailPage() {
   const isPastYear = Boolean(
     yearlyCompany && (yearsLoading || scopedYear?.isActive === false)
   )
-  const menus = sponsorshipMenus(yearId)
-  const advisorAssignments = advisorAssignmentsForYear(yearId)
+  const menus = sponsorshipMenusCache.data(yearId)
+  const advisorAssignments = advisorAssignmentsCache.data(yearId)
 
   /*
    * The Year's contracted quantity per Sponsorship Menu, for the capacity
@@ -132,11 +130,11 @@ export default function YearlyCompanyDetailPage() {
    * it is invalidated by a Contract Menu change. A failure only hides the
    * warning, so it is ignored here.
    */
-  const yearContractMenus = contractMenusAcrossYear(yearId)
+  const yearContractMenus = contractMenusCache.data(yearId)
   useEffect(() => {
     if (!yearId) return
-    ensureContractMenusAcrossYear(yearId).catch(() => {})
-  }, [yearId, yearContractMenus, ensureContractMenusAcrossYear])
+    contractMenusCache.ensure(yearId).catch(() => {})
+  }, [yearId, yearContractMenus, contractMenusCache])
   const contractedQuantityByMenu = useMemo(() => {
     const quantities: Record<string, number> = {}
     for (const contractMenu of yearContractMenus) {
@@ -179,8 +177,8 @@ export default function YearlyCompanyDetailPage() {
         await Promise.all([
           applyCompanyScope(yc),
           ensureUsers(),
-          ensureSponsorshipMenus(yc.yearId),
-          ensureAdvisorAssignments(yc.yearId),
+          sponsorshipMenusCache.ensure(yc.yearId),
+          advisorAssignmentsCache.ensure(yc.yearId),
         ])
       } catch (e) {
         if (!cancelled) {
@@ -195,7 +193,7 @@ export default function YearlyCompanyDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [id, applyCompanyScope, ensureUsers, ensureSponsorshipMenus, ensureAdvisorAssignments])
+  }, [id, applyCompanyScope, ensureUsers, sponsorshipMenusCache, advisorAssignmentsCache])
 
   const reloadCompanyScope = useCallback(async () => {
     setLoading(true)
@@ -335,6 +333,7 @@ export default function YearlyCompanyDetailPage() {
             }
           : prev
       )
+      yearlyCompaniesCache.invalidate(yc.yearId)
     } catch (e) {
       setError(
         getErrorMessage(e, { fallback: "担当メンバーの更新に失敗しました" })
@@ -350,6 +349,7 @@ export default function YearlyCompanyDetailPage() {
     try {
       await updateYearlyCompanyProgress(yc.id, progress)
       setYearlyCompany((prev) => (prev ? { ...prev, progress } : prev))
+      yearlyCompaniesCache.invalidate(yc.yearId)
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "進捗の更新に失敗しました" }))
     } finally {
@@ -363,6 +363,7 @@ export default function YearlyCompanyDetailPage() {
     try {
       await updateYearlyCompanyStatus(yc.id, companyStatus)
       setYearlyCompany((prev) => (prev ? { ...prev, companyStatus } : prev))
+      yearlyCompaniesCache.invalidate(yc.yearId)
     } catch (e) {
       setError(
         getErrorMessage(e, { fallback: "企業ステータスの更新に失敗しました" })
@@ -378,6 +379,7 @@ export default function YearlyCompanyDetailPage() {
     try {
       await updateYearlyCompanyPhase(yc.id, phase)
       setYearlyCompany((prev) => (prev ? { ...prev, phase } : prev))
+      yearlyCompaniesCache.invalidate(yc.yearId)
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "フェーズの更新に失敗しました" }))
     } finally {
@@ -392,6 +394,7 @@ export default function YearlyCompanyDetailPage() {
       const next = { ...yearlyCompanyContact(yc), ...patch }
       const updated = await updateYearlyCompanyContact(yc.id, next)
       setYearlyCompany(updated)
+      yearlyCompaniesCache.invalidate(yc.yearId)
     } catch (e) {
       setError(
         getErrorMessage(e, { fallback: "企業情報の更新に失敗しました" })
@@ -408,7 +411,9 @@ export default function YearlyCompanyDetailPage() {
     setBusy(true)
     try {
       await createContractWithMenus(yc.id, input)
-      invalidateContractMenusAcrossYear(yc.yearId)
+      contractMenusCache.invalidate(yc.yearId)
+      yearlyCompaniesCache.invalidate(yc.yearId)
+      paymentsCache.invalidate(yc.yearId)
       await reloadCompanyScope()
       return true
     } catch (e) {
@@ -434,6 +439,7 @@ export default function YearlyCompanyDetailPage() {
     try {
       const created = await createPayment(contract.id)
       setPayment(created)
+      paymentsCache.invalidate(yc.yearId)
     } catch (e) {
       setError(
         getErrorMessage(e, { fallback: "入金レコードの作成に失敗しました" })
@@ -530,7 +536,8 @@ export default function YearlyCompanyDetailPage() {
             readOnly={isPastYear}
             onChanged={(nextMenus) => {
               setContractMenus(nextMenus)
-              invalidateContractMenusAcrossYear(yc.yearId)
+              contractMenusCache.invalidate(yc.yearId)
+              yearlyCompaniesCache.invalidate(yc.yearId)
               void refreshContractScope()
             }}
           />
