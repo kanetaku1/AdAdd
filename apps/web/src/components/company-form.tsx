@@ -71,7 +71,13 @@ export function CompanyForm({
       if (mode === "create") {
         await createCompany(values)
       } else if (initialValue) {
-        await updateCompany(initialValue.id, values)
+        const diff: Partial<CompanyFormValues> = {}
+        for (const key of Object.keys(values) as (keyof CompanyFormValues)[]) {
+          if (values[key] !== initialValue[key]) {
+            diff[key] = values[key]
+          }
+        }
+        await updateCompany(initialValue.id, diff)
       }
       router.push("/companies")
       router.refresh()

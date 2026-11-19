@@ -6,6 +6,7 @@ import (
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/label"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -102,20 +103,35 @@ func listYearlyCompanies(c echo.Context) error {
 
 func createYearlyCompany(c echo.Context) error {
 	yearId := c.Param("yearId")
-	var req model.YearlyCompany
+	var req struct {
+		CompanyID string `json:"companyId"`
+	}
 	if err := c.Bind(&req); err != nil {
 		return respondBadRequest(c, err.Error())
 	}
-	// validation
 	if req.CompanyID == "" {
 		return respondBadRequest(c, "companyId is required")
 	}
-	req.YearID = yearId
+
+	yearRepo := repository.NewYearRepository()
+	if _, err := yearRepo.GetByID(yearId); err != nil {
+		return respondNotFound(c, "year not found")
+	}
+
+	companyRepo := repository.NewCompanyRepository()
+	if _, err := companyRepo.GetByID(req.CompanyID); err != nil {
+		return respondNotFound(c, "company not found")
+	}
+
+	yc := &model.YearlyCompany{
+		YearID:    yearId,
+		CompanyID: req.CompanyID,
+	}
 	svc := service.NewYearlyCompanyService()
-	if err := svc.Create(&req); err != nil {
+	if err := svc.Create(yc); err != nil {
 		return respondInternalServerError(c, err)
 	}
-	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
+	return c.JSON(http.StatusCreated, map[string]interface{}{"data": yc, "message": "created"})
 }
 
 func updateCompanyStatus(c echo.Context) error {

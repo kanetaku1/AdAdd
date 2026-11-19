@@ -19,6 +19,10 @@ func (s *YearService) List() ([]model.Year, error) {
 	return s.repo.List()
 }
 
+func (s *YearService) NameExists(name string) (bool, error) {
+	return s.repo.NameExists(name)
+}
+
 func (s *YearService) Create(y *model.Year) error {
 	return db.WithTx(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.Year{}).Where("1 = 1").Update("is_active", false).Error; err != nil {
