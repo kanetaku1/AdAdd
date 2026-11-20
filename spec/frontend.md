@@ -146,13 +146,16 @@ Purpose:
 
 Accessible features:
 
-* 広告管理 (Contract Menu List) and Yearly Company Detail's Contract Menu
-  table
+* 広告管理 (Contract Menu List)
 * Contract Menu status change (`spec/api.md#Update Contract Menu Status`)
 * Production department assignment for 委員 Contract Menus — 資料作成部門 /
   制作局 / SNS部門 (`spec/api.md#Assign Contract Menu Production Department`)
-* Every other edit of the 広告管理 screen: production type, production
-  information (remarks, Drive URL), Drive upload
+* Production information (remarks, Drive URL) and Drive upload on the 広告管理
+  screen
+
+Production type is set by Sponsorship Members and Administrators. It is
+read-only on the 広告管理 list; only the production department of an `INTERNAL`
+Contract Menu is editable there by Advertisement Manager / Administrator.
 
 Usually held together with Sponsorship Member, but may be held alone
 (cooperation with other bureaus such as the SNS部門). On its own it covers
@@ -565,7 +568,7 @@ Purpose:
 
 Manage each contracted sponsorship item — the primary working screen for Sponsorship Members handling ad-material production/collection (informally "広告管理") across every company at once. The Advertisement Manager Role (`spec/business.md#Roles`) works here too: it alone changes status and assigns the production department.
 
-Quantity and producer (production type) are edited inline on this list (`spec/api.md#Update Contract Menu`). The production type follows the same rule as Yearly Company Detail: `-` and not editable for a menu that does not require submission. Submission is derived from active Drive-file references: `fileCount > 0` is submitted. The list never renders long file names in the table cell; it shows `資料 N件` (or `未提出`) and exposes names/links in a compact detail/popover.
+Quantity is edited inline on this list (`spec/api.md#Update Contract Menu`). The production type is read-only. For an `INTERNAL` Contract Menu, Advertisement Manager / Administrator may assign, change, or clear the production department in the same cell; all other users see it read-only. `COMPANY` and `CONTINUED` are also read-only. Submission is derived from active Drive-file references: `fileCount > 0` is submitted. The list never renders long file names in the table cell; it shows `資料 N件` (or `未提出`) and exposes names/links in a compact detail/popover.
 
 Display:
 
@@ -586,31 +589,23 @@ Filters:
 
 * Company name (search, substring match)
 * Sponsorship Menu
-* Status
+* Status — the choices are `すべて`, `広告データ提出待ち` (`WAITING`),
+  `制作依頼済み` (`REQUESTED`), and `提出済み` (`SUBMITTED`). `PRODUCING`
+  and `COMPLETED` are not offered in this filter.
 * Production type
+
+The production type filter keeps `委員` as the aggregate filter for all `INTERNAL` rows. Hovering or focusing `委員` opens department-specific filters for 資料作成部門 / 制作局 / SNS部門. The aggregate includes unassigned `INTERNAL` rows; department filters include only rows assigned to that department.
 
 Sponsorship Menu and Status accept an initial value from the URL
 (`?menuId=&status=`), so the per-menu status breakdown on Ad Material
 Progress (see above) can link directly into this list pre-filtered to a
 given Sponsorship Menu + `ContractMenuStatus` cell.
 
-Non-submission status is directly editable via `PATCH /contract-menus/{id}/status`
-for Advertisement Manager / Administrator only (Issue #126). `SUBMITTED`
-is not manually selectable; it is derived from active files. Every other Role,
-Sponsorship Member included, sees the same status badge — same label and
-color — but it is not clickable and opens no editor. The API also returns
-`403` for them, so hiding the editor is not the enforcement.
+Status is editable via `PATCH /contract-menus/{id}/status` only by Advertisement Manager / Administrator (Issue #126), subject to the production-type rules in `spec/api.md#Update Contract Menu Status`. `COMPANY` / `CONTINUED` show a read-only `広告データ提出待ち` badge until Drive files make them `提出済み`. An `INTERNAL` row without a production department has a read-only status; when a department is assigned, its status can be changed between `広告データ提出待ち` and `制作依頼済み`. `SUBMITTED` is not manually selectable. Other Roles see the same status label and color without an editor. When the production type is `null` and the producer cell displays `-`, the status cell and CSV status value also display `-`; the stored status remains unchanged. The API enforces the same rules.
 
-The production type cell shows `委員` for an unassigned `INTERNAL` Contract
-Menu and `委員（制作局）` (or 資料作成部門 / SNS部門) once a production
-department is assigned (Issue #127). For Advertisement Manager /
-Administrator, an `INTERNAL` row's cell also offers the
-department choice — exactly one of 資料作成部門 / 制作局 / SNS部門, or
-unassigned (`PATCH /contract-menus/{id}/production-department`). The
-department choice is not shown on `COMPANY` rows, and never to Sponsorship
-Members. Changing the production type away from 委員 clears the department
-(`spec/api.md#Update Contract Menu`). The Production type filter's 委員
-matches every 委員 row, with or without a department.
+The producer cell shows `企業`, `継続`, or `委員` with its assigned department (Issue #127). Production type itself is not editable on the 広告管理 list. For Advertisement Manager / Administrator, an `INTERNAL` row's cell offers exactly one department choice — 資料作成部門 / 制作局 / SNS部門, or unassigned (`PATCH /contract-menus/{id}/production-department`). Other Roles see the value read-only. Changing `productionType` through its existing API clears `productionDepartment` when the type changes away from `INTERNAL` (`spec/api.md#Update Contract Menu`). The department does not change the Drive-upload filename, which continues to use the `委員` production-type prefix.
+
+These frontend changes apply only to the 広告管理 Contract Menu List. Other pages, including Yearly Company Detail and contract creation, keep their existing UI in this Issue.
 
 This production department is the production destination. It is separate
 from the Assignee column (the Yearly Company's assigned Sponsorship Member,

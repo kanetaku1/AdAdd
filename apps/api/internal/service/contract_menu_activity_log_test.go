@@ -26,6 +26,10 @@ func TestContractMenuStatusLogMessage(t *testing.T) {
 func seedStatusLogContractMenu(t *testing.T) *model.ContractMenu {
 	t.Helper()
 	contractID, menuMasterID, _ := seedPaymentSyncContract(t, "WAITING", decimal.Zero)
+	if err := db.DB.Model(&model.Year{}).Where("id = ?", testYearID).
+		Update("is_active", true).Error; err != nil {
+		t.Fatalf("activate year: %v", err)
+	}
 	cm := &model.ContractMenu{
 		ID:                "test-contract-menu",
 		ContractID:        contractID,

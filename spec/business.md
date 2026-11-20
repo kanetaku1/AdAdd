@@ -70,7 +70,6 @@ Responsible for:
 * Delivering completed submissions to relevant external parties (e.g. the printing company)
 
 Contract Menu status changes and production-department assignments are performed by the Advertisement Management Department Role, not by the Sponsorship Menu Management Team (`spec/api.md#Authorization Matrix`).
-
 Sponsorship Menu Managers may also be Sponsorship Members.
 
 ---
@@ -82,11 +81,9 @@ Responsible for:
 * Changing each Contract Menu's status (production / submission progress)
 * Assigning the production department of an Internal Production (委員) Contract Menu: 資料作成部門, 制作局, or SNS部門 (see Internal Production below)
 
-Only this department changes Contract Menu status and assigns the production department (Issue #126, #127). It is a system Role, `ADVERTISEMENT_MANAGER` (see `# Roles` below). It also handles the rest of the 広告管理 screen: production type, remarks, Drive registration and upload.
+Only this department changes Contract Menu status and assigns the production department (Issue #126, #127). It is a system Role, `ADVERTISEMENT_MANAGER` (see `# Roles` below). In the 広告管理 list, the production type is read-only; for an `INTERNAL` Contract Menu this department manages the production-department selector. It also handles production remarks and Drive registration/upload.
 
 Its members usually also hold `SPONSORSHIP_MEMBER`. Because it cooperates with other bureaus (e.g. the SNS部門), a person may hold `ADVERTISEMENT_MANAGER` alone.
-
-How its responsibilities divide with the Sponsorship Menu Management Team above (which also manages Contract Menu progress and requests production) is 未決.
 
 ---
 
@@ -114,8 +111,11 @@ Responsible for:
 
 # Roles
 
-The canonical Role set is defined in `spec/domain.md#Role` (5 Roles: Sponsorship Member, Advisor, Finance Department, Advertisement Manager, Administrator; holding none is the view-only baseline). Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) is the one department above that is its own Role, because Contract Menu status and production department assignment belong to it alone (Issue #126, #127). Administrator, as superuser, can do everything it can. Company Management Team and Sponsorship Menu Management Team (above) are not separate Roles — their responsibilities are covered by Sponsorship Member (company/menu master data, day-to-day ad-material management) and Administrator (Year creation, assignment, deletion — see `spec/api.md#Authorization Matrix`).
+The canonical Role set is defined in `spec/domain.md#Role` (5 Roles: Sponsorship Member, Advisor, Finance Department, Advertisement Manager, Administrator; holding none is the view-only baseline). Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) is the one department above that is its own Role, because Contract Menu status and production department assignment belong to it alone (Issue #126, #127). Administrator, as superuser, can do everything it can. Company Management Team and Sponsorship Menu Management Team (above) are not separate Roles — their responsibilities are covered by Sponsorship Member (company/menu master data and coordination of ad-material work) and Administrator (Year creation, assignment, deletion — see `spec/api.md#Authorization Matrix`).
 
+The Sponsorship Menu Management Team's coordination work is carried out by
+Sponsorship Members, but Contract Menu status and production department
+permissions remain exclusive to Advertisement Manager and Administrator.
 Permissions are defined in `spec/api.md#Authorization Matrix`.
 
 ---
@@ -312,7 +312,7 @@ Examples:
 * Homepage banner advertisement → Submission management (banner artwork/logo)
 * Company booth → Booth information management
 
-For menus that require submission (e.g. advertisements, including web-based formats such as a homepage banner), there are three production methods. For a new advertisement, the company chooses between Company Production and Internal Production when submitting the Google Forms application, and the choice determines what the company is expected to submit. A company may instead use an advertisement from a previous Year again (Continued Production).
+For menus that require submission (e.g. advertisements, including web-based formats such as a homepage banner), there are three production methods. For a new advertisement, the company chooses between Company Production and Internal Production when submitting the Google Forms application, and the choice determines what the company is expected to submit. The Sponsorship Member records the production type; the 広告管理 list does not change it. A company may instead use an advertisement from a previous Year again (Continued Production).
 
 ## Company Production
 

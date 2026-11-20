@@ -25,13 +25,18 @@ export function EditableContractMenuStatusBadge({
   value,
   onChange,
   disabled,
+  availableStatuses = (Object.keys(CONTRACT_MENU_STATUS_LABEL) as ContractMenuStatus[])
+    .filter((status) => status !== "SUBMITTED"),
 }: {
   value: ContractMenuStatus
   onChange: (value: ContractMenuStatus) => void
   disabled?: boolean
+  availableStatuses?: ContractMenuStatus[]
 }) {
   const [editing, setEditing] = useState(false)
-	const submissionDerived = value === "SUBMITTED"
+  const submissionDerived = value === "SUBMITTED"
+  const isEditable =
+    !disabled && !submissionDerived && availableStatuses.includes(value)
 
   if (editing) {
     return (
@@ -39,7 +44,9 @@ export function EditableContractMenuStatusBadge({
         value={value}
         defaultOpen
         onValueChange={(next) => {
-          onChange(next as ContractMenuStatus)
+          if (availableStatuses.includes(next as ContractMenuStatus)) {
+            onChange(next as ContractMenuStatus)
+          }
           setEditing(false)
         }}
         onOpenChange={(open) => {
@@ -50,9 +57,9 @@ export function EditableContractMenuStatusBadge({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(CONTRACT_MENU_STATUS_LABEL).filter(([v]) => v !== "SUBMITTED").map(([v, label]) => (
-            <SelectItem key={v} value={v}>
-              {label}
+          {availableStatuses.map((status) => (
+            <SelectItem key={status} value={status}>
+              {CONTRACT_MENU_STATUS_LABEL[status]}
             </SelectItem>
           ))}
         </SelectContent>
@@ -63,9 +70,9 @@ export function EditableContractMenuStatusBadge({
   return (
     <Badge
       variant={CONTRACT_MENU_STATUS_BADGE_VARIANT[value]}
-      className={disabled || submissionDerived ? "opacity-50" : "cursor-pointer"}
+      className={isEditable ? "cursor-pointer" : undefined}
       onClick={() => {
-        if (!disabled && !submissionDerived) setEditing(true)
+        if (isEditable) setEditing(true)
       }}
     >
       {CONTRACT_MENU_STATUS_LABEL[value]}

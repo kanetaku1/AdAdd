@@ -44,7 +44,7 @@ func seedPaymentSyncContract(t *testing.T, paymentStatus string, paymentAmount d
 		Name:      "2026",
 		StartDate: model.Date(now),
 		EndDate:   model.Date(now.AddDate(0, 1, 0)),
-		IsActive:  false,
+		IsActive:  true,
 	}).Error; err != nil {
 		t.Fatalf("seed year: %v", err)
 	}

@@ -16,9 +16,12 @@ import (
 )
 
 var (
-	ErrPastYearReadOnly       = errors.New("contract menu files cannot be changed for a past year")
-	ErrSubmittedStateConflict = errors.New("SUBMITTED is derived from active files")
-	ErrInvalidDriveFile       = errors.New("invalid contract menu drive file")
+	ErrPastYearReadOnly                     = errors.New("contract menu cannot be changed for a past year")
+	ErrSubmittedStateConflict               = errors.New("SUBMITTED is derived from active files")
+	ErrInvalidDriveFile                     = errors.New("invalid contract menu drive file")
+	ErrInvalidContractMenuStatus            = errors.New("status is not allowed for this production type")
+	ErrProductionDepartmentRequiresInternal = errors.New("production department requires INTERNAL production")
+	ErrInvalidProductionDepartment          = errors.New("invalid production department")
 
 	// ErrInvalidContractMenu is a Contract Menu input that is malformed by
 	// itself (missing sponsorshipMenuId, quantity < 1, negative unitPrice).
@@ -44,18 +47,29 @@ type ContractMenuInput struct {
 	// submission.
 	ProductionType *string
 	Remarks        string
-	// Status defaults to COMPLETED for CONTINUED and WAITING otherwise
-	// (development seed sets others).
+	// Status defaults to WAITING (development seed sets others).
 	Status string
 }
 
-// ProductionTypeContinued is a Contract Menu that uses an advertisement from
-// an earlier Year again; its production is already complete.
+// ProductionTypeContinued is a Contract Menu that reuses an advertisement
+// from an earlier Year.
 const ProductionTypeContinued = "CONTINUED"
 
 // ProductionTypes are the ContractMenuProductionType codes
 // (spec/model.md#ContractMenuProductionType).
 var ProductionTypes = []string{"COMPANY", "INTERNAL", ProductionTypeContinued}
+
+// ProductionDepartments are the ContractMenuProductionDepartment codes
+// (spec/model.md#ContractMenuProductionDepartment).
+var ProductionDepartments = []string{
+	"DOCUMENT_CREATION_DEPARTMENT",
+	"PRODUCTION_BUREAU",
+	"SOCIAL_MEDIA_DEPARTMENT",
+}
+
+func IsProductionDepartment(value string) bool {
+	return contains(ProductionDepartments, value)
+}
 
 // InvalidProductionTypeError is a productionType that breaks the rule. Its
 // message is a Japanese sentence for the user; it also matches
@@ -136,10 +150,6 @@ func buildContractMenu(tx *gorm.DB, contractID, contractYearID string, input Con
 	}
 	if contractMenu.Status == "" {
 		contractMenu.Status = "WAITING"
-		// A Continued advertisement was produced in an earlier Year.
-		if input.ProductionType != nil && *input.ProductionType == ProductionTypeContinued {
-			contractMenu.Status = "COMPLETED"
-		}
 	}
 	switch {
 	case input.IsGoodsSponsorship:
@@ -225,6 +235,26 @@ func contractMenuStatusLogMessage(menuName, from, to string) string {
 	return menuName + "のステータスを「" + label.ContractMenuStatus(from) + "」から「" + label.ContractMenuStatus(to) + "」に更新"
 }
 
+func validateManualContractMenuStatus(productionType, productionDepartment *string, status string, activeFileCount int64) error {
+	if status == "SUBMITTED" || activeFileCount > 0 {
+		return ErrSubmittedStateConflict
+	}
+	if productionType == nil {
+		return nil
+	}
+	switch *productionType {
+	case "COMPANY", ProductionTypeContinued:
+		if status == "WAITING" {
+			return nil
+		}
+	case "INTERNAL":
+		if productionDepartment != nil && (status == "WAITING" || status == "REQUESTED") {
+			return nil
+		}
+	}
+	return ErrInvalidContractMenuStatus
+}
+
 // UpdateStatus changes the Contract Menu's status and, when it actually
 // changes, writes one Activity Log (spec/domain.md#Activity Log — every
 // Contract Menu status transition, not only SUBMITTED). The same status writes
@@ -233,6 +263,9 @@ func contractMenuStatusLogMessage(menuName, from, to string) string {
 // (spec/database.md#Concurrent Updates).
 func (s *ContractMenuService) UpdateStatus(id, status, userID string) error {
 	return db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, id); err != nil {
+			return err
+		}
 		var existing model.ContractMenu
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", id).Error; err != nil {
@@ -243,8 +276,8 @@ func (s *ContractMenuService) UpdateStatus(id, status, userID string) error {
 			Where("contract_menu_id = ?", id).Count(&fileCount).Error; err != nil {
 			return err
 		}
-		if (fileCount > 0 && status != "SUBMITTED") || (fileCount == 0 && status == "SUBMITTED") {
-			return ErrSubmittedStateConflict
+		if err := validateManualContractMenuStatus(existing.ProductionType, existing.ProductionDepartment, status, fileCount); err != nil {
+			return err
 		}
 		if existing.Status == status {
 			return nil
@@ -315,6 +348,9 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 	var m model.ContractMenu
 
 	err := db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, id); err != nil {
+			return err
+		}
 		// The new unit price depends on the stored isGoodsSponsorship, so the
 		// row is locked while it is read and written.
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&m, "id = ?", id).Error; err != nil {
@@ -323,7 +359,10 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 
 		previousQuantity := m.Quantity
 		previousUnitPrice := m.UnitPrice
+		previousStatus := m.Status
 		previousProductionType := m.ProductionType
+		previousProductionDepartment := m.ProductionDepartment
+		previousSubmittedAt := m.SubmittedAt
 
 		if quantity != nil {
 			m.Quantity = *quantity
@@ -337,6 +376,24 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 				return err
 			}
 			m.ProductionType = productionType.Value
+			if !equalOptionalStrings(previousProductionType, m.ProductionType) {
+				var fileCount int64
+				if err := tx.Model(&model.ContractMenuDriveFile{}).
+					Where("contract_menu_id = ?", m.ID).Count(&fileCount).Error; err != nil {
+					return err
+				}
+				m.ProductionDepartment = nil
+				if sponsorshipMenu.RequiresSubmission {
+					if fileCount > 0 {
+						m.Status = "SUBMITTED"
+					} else {
+						m.Status = "WAITING"
+						m.SubmittedAt = nil
+					}
+				}
+			} else if m.ProductionType == nil || *m.ProductionType != "INTERNAL" {
+				m.ProductionDepartment = nil
+			}
 		}
 
 		wasGoods := m.IsGoodsSponsorship
@@ -362,8 +419,9 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 			m.UnitPrice = smenu.DefaultPrice
 		}
 
-		// Only the changed detail columns are written; status and the Drive
-		// references are never touched (spec/database.md#Concurrent Updates).
+		// Only changed columns are written. Production-type changes may also
+		// reset their dependent status/department fields, but Drive references
+		// are never touched (spec/database.md#Concurrent Updates).
 		columns := map[string]interface{}{}
 		if m.Quantity != previousQuantity {
 			columns["quantity"] = m.Quantity
@@ -376,6 +434,15 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		}
 		if !equalOptionalStrings(m.ProductionType, previousProductionType) {
 			columns["production_type"] = m.ProductionType
+		}
+		if !equalOptionalStrings(m.ProductionDepartment, previousProductionDepartment) {
+			columns["production_department"] = m.ProductionDepartment
+		}
+		if m.Status != previousStatus {
+			columns["status"] = m.Status
+		}
+		if previousSubmittedAt != nil && m.SubmittedAt == nil {
+			columns["submitted_at"] = nil
 		}
 		if len(columns) > 0 {
 			if err := tx.Model(&model.ContractMenu{}).Where("id = ?", m.ID).Updates(columns).Error; err != nil {
@@ -393,21 +460,67 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		if !m.UnitPrice.Equal(previousUnitPrice) {
 			changes = append(changes, fmt.Sprintf("単価を「%s」から「%s」に", label.Yen(previousUnitPrice), label.Yen(m.UnitPrice)))
 		}
-		if len(changes) == 0 {
+		if len(changes) == 0 && m.Status == previousStatus {
 			return nil
 		}
 		logContext, err := loadContractMenuFileLogContext(tx, m.ID)
 		if err != nil {
 			return err
 		}
-		return writeActivityLog(tx, logContext.YearlyCompanyID, userID, model.EventContractMenuUpdated,
-			fmt.Sprintf("「%s」の%s更新", logContext.MenuName, strings.Join(changes, "、")))
+		if m.Status != previousStatus {
+			statusLog := &model.ActivityLog{
+				YearlyCompanyID: logContext.YearlyCompanyID,
+				UserID:          userID,
+				Action:          model.EventContractMenuStatusUpdated,
+				Description:     contractMenuStatusLogMessage(logContext.MenuName, previousStatus, m.Status),
+				CreatedAt:       time.Now(),
+			}
+			if err := tx.Create(statusLog).Error; err != nil {
+				return err
+			}
+		}
+		if len(changes) > 0 {
+			return writeActivityLog(tx, logContext.YearlyCompanyID, userID, model.EventContractMenuUpdated,
+				fmt.Sprintf("「%s」の%s更新", logContext.MenuName, strings.Join(changes, "、")))
+		}
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
 	return &m, nil
+}
+
+func (s *ContractMenuService) PatchProductionDepartment(id string, department *string) (*model.ContractMenu, error) {
+	if department != nil && !IsProductionDepartment(*department) {
+		return nil, ErrInvalidProductionDepartment
+	}
+	if err := db.WithTx(func(tx *gorm.DB) error {
+		if err := ensureContractMenuActiveYear(tx, id); err != nil {
+			return err
+		}
+		var menu model.ContractMenu
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&menu, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if menu.ProductionType == nil || *menu.ProductionType != "INTERNAL" {
+			return ErrProductionDepartmentRequiresInternal
+		}
+		return tx.Model(&menu).Update("production_department", department).Error
+	}); err != nil {
+		return nil, err
+	}
+	return s.GetByID(id)
+}
+
+func contains(values []string, value string) bool {
+	for _, candidate := range values {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func equalOptionalStrings(a, b *string) bool {
