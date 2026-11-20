@@ -37,8 +37,10 @@ test("日本時間0時台に作成しても、契約日・請求日・振込締�
   await page.getByRole("option", { name: "パンフレット広告 1P", exact: true }).click()
   await page.getByRole("button", { name: "作成する" }).click()
 
-  // Read back from MySQL.
+  // Read back from MySQL. Wait for the page to fully settle after reload so the
+  // contract date (fetched server-side) is rendered before asserting.
   await page.reload()
+  await page.waitForLoadState("networkidle")
   await expect(page.getByText("契約日 2026-11-04")).toBeVisible()
 
   await page.getByRole("button", { name: "請求書を生成" }).click()

@@ -53,6 +53,7 @@ import type { ActivityLog } from "@/types/activity-log"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
+import { EMPTY_YEAR_DOCUMENT_ISSUER } from "@/types/year"
 import type {
   CompanyStatus,
   SponsorshipPhase,
@@ -284,8 +285,9 @@ export default function YearlyCompanyDetailPage() {
           unitPrice: cm.unitPrice,
         })),
       totalAmount: contract.totalAmount,
+      issuer: scopedYear ?? EMPTY_YEAR_DOCUMENT_ISSUER,
     }
-  }, [yearlyCompany, contract, contractMenus, menus])
+  }, [yearlyCompany, contract, contractMenus, menus, scopedYear])
 
   if (loading) {
     return <LoadingBlock />
@@ -584,6 +586,7 @@ export default function YearlyCompanyDetailPage() {
                         : payment.amount,
                     issuedDate: businessToday(),
                     paymentDate: receiptPaymentDate(payment),
+                    issuer: scopedYear ?? EMPTY_YEAR_DOCUMENT_ISSUER,
                   }}
                   fileName={`領収書_${yearlyCompany.companyName}.pdf`}
                 />

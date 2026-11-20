@@ -41,7 +41,7 @@ func createSponsorshipMenu(c echo.Context) error {
 	yearId := c.Param("yearId")
 	var req model.SponsorshipMenu
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	// validation
 	if req.Name == "" {
@@ -71,7 +71,7 @@ func updateSponsorshipMenu(c echo.Context) error {
 		MaxQuantity        *int            `json:"maxQuantity"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if err := validateMaxQuantity(req.MaxQuantity); err != nil {
 		return respondBadRequest(c, err.Error())
