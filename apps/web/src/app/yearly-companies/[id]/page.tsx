@@ -271,7 +271,7 @@ export default function YearlyCompanyDetailPage() {
       subject: "技大祭企業協賛",
       issuedDate: today,
       deadline: addBusinessDays(today, 14),
-      staffName: contract.assigneeName ?? yearlyCompany.assignedMemberName ?? "",
+      staffName: yearlyCompany.assignedMemberName ?? "",
       remark: contract.remarks,
       // Goods sponsorship lines are not printed (spec/frontend.md#Invoice and
       // Receipt Documents → Invoice line items).

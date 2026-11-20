@@ -18,8 +18,6 @@ export const mockSponsorshipContracts: SponsorshipContract[] = [
     yearlyCompanyId: "yc_001",
     contractDate: "2026-06-01",
     totalAmount: 95000,
-    assigneeId: "user_tanaka",
-    assigneeName: "田中",
     remarks: "",
   },
   {
@@ -27,8 +25,6 @@ export const mockSponsorshipContracts: SponsorshipContract[] = [
     yearlyCompanyId: "yc_002",
     contractDate: "2026-06-10",
     totalAmount: 50000,
-    assigneeId: "user_suzuki",
-    assigneeName: "鈴木",
     remarks: "企業側の最終確認待ち",
   },
   {
@@ -36,8 +32,6 @@ export const mockSponsorshipContracts: SponsorshipContract[] = [
     yearlyCompanyId: "yc_004",
     contractDate: "2026-05-20",
     totalAmount: 130000,
-    assigneeId: "user_tanaka",
-    assigneeName: "田中",
     remarks: "",
   },
   {
@@ -45,8 +39,6 @@ export const mockSponsorshipContracts: SponsorshipContract[] = [
     yearlyCompanyId: "yc_005",
     contractDate: "2026-06-20",
     totalAmount: 0,
-    assigneeId: "user_suzuki",
-    assigneeName: "鈴木",
     remarks:
       "物品協賛: お菓子・飲料の詰め合わせを提供いただいた(想定価値 約95,000円相当、2026年6月20日受領済み)。返礼としてパンフレット広告1P・ホームページ広告を無償提供(契約メニュー参照)。金銭のやり取りはなく入金確認は不要。",
   },

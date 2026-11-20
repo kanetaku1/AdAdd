@@ -102,7 +102,7 @@ paths:
           description: Conflict (契約が既に存在する、または協賛メニューが無効)
   /contracts/{contractId}:
     patch:
-      summary: 契約を更新（totalAmount / assigneeId はサーバ管理のため更新不可）
+      summary: 契約を更新（totalAmount はサーバ管理のため更新不可）
       parameters:
         - name: contractId
           in: path
@@ -298,8 +298,6 @@ components:
           type: string
         totalAmount:
           type: number
-        assigneeId:
-          type: string
         remarks:
           type: string
         createdAt:

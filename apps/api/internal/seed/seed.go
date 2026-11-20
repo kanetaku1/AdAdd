@@ -219,7 +219,6 @@ type contractInput struct {
 	id           string
 	yearID       string
 	companyID    string
-	assigneeID   string
 	contractDate time.Time
 	menus        []contractMenuInput
 	// paymentStatus is empty when no Payment should be registered.
@@ -257,7 +256,6 @@ func ensureContract(input contractInput) error {
 		ContractID:      input.id,
 		YearlyCompanyID: yearlyCompany,
 		ContractDate:    &contractDate,
-		AssigneeID:      input.assigneeID,
 		ContractMenus:   menus,
 	}, AdministratorUserID); err != nil {
 		return err
@@ -305,7 +303,7 @@ func ensurePreviousYearContracts() error {
 	contracts := []contractInput{
 		{
 			id: "contract_2025_c_001", yearID: PreviousYearID, companyID: "c_001",
-			assigneeID: SponsorshipMemberUserID, contractDate: date(2025, 6, 10),
+			contractDate: date(2025, 6, 10),
 			menus: []contractMenuInput{
 				{sponsorshipMenuID: previousPamphletMenuID, unitPrice: 80000, productionType: "COMPANY", status: "SUBMITTED"},
 			},
@@ -313,7 +311,7 @@ func ensurePreviousYearContracts() error {
 		},
 		{
 			id: "contract_2025_c_002", yearID: PreviousYearID, companyID: "c_002",
-			assigneeID: SecondSponsorshipMemberID, contractDate: date(2025, 7, 1),
+			contractDate: date(2025, 7, 1),
 			menus: []contractMenuInput{
 				{sponsorshipMenuID: previousHomepageMenuID, unitPrice: 15000, productionType: "COMPANY", status: "SUBMITTED"},
 			},
@@ -382,7 +380,7 @@ func ensureCurrentYearAdvisorAssignments() error {
 func ensureCurrentYearContracts() error {
 	if err := ensureContract(contractInput{
 		id: "contract_2026_c_001", yearID: CurrentYearID, companyID: "c_001",
-		assigneeID: SponsorshipMemberUserID, contractDate: date(2026, 6, 15),
+		contractDate: date(2026, 6, 15),
 		menus: []contractMenuInput{
 			{sponsorshipMenuID: currentPamphletMenuID, unitPrice: 80000, productionType: "COMPANY", status: "PRODUCING"},
 			{sponsorshipMenuID: currentHomepageMenuID, unitPrice: 15000, productionType: "COMPANY", status: "WAITING"},

@@ -10,7 +10,5 @@ export type SponsorshipContract = {
   yearlyCompanyId: string
   contractDate: string
   totalAmount: number
-  assigneeId: string | null
-  assigneeName: string | null
   remarks: string
 }

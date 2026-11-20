@@ -53,9 +53,6 @@ type ContractCreationInput struct {
 	YearlyCompanyID string
 	ContractDate    *model.Date
 	Remarks         string
-	// AssigneeID is the Yearly Company's current CompanyAssignment, never a
-	// client value.
-	AssigneeID    string
 	ContractMenus []ContractMenuInput
 	// ContractID fixes the new contract's ID (development seed only).
 	ContractID string
@@ -78,7 +75,6 @@ func (s *ContractService) CreateWithMenus(input ContractCreationInput, actorUser
 		ID:              input.ContractID,
 		YearlyCompanyID: input.YearlyCompanyID,
 		ContractDate:    input.ContractDate,
-		AssigneeID:      input.AssigneeID,
 		Remarks:         input.Remarks,
 	}
 	if contract.ContractDate == nil {
