@@ -56,7 +56,7 @@ func updateProgress(c echo.Context) error {
 		Progress string `json:"progress"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if err := ValidateProgress(body.Progress); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -93,8 +93,25 @@ func updateProgress(c echo.Context) error {
 
 func listYearlyCompanies(c echo.Context) error {
 	yearId := c.Param("yearId")
+	filters := model.YearlyCompanyFilters{
+		Keyword:        c.QueryParam("keyword"),
+		CompanyStatus:  c.QueryParam("companyStatus"),
+		Phase:          c.QueryParam("phase"),
+		AssigneeUserID: c.QueryParam("assigneeUserId"),
+		AdvisorUserID:  c.QueryParam("advisorUserId"),
+		Progress:       c.QueryParam("progress"),
+	}
+	if hasContractStr := c.QueryParam("hasContract"); hasContractStr != "" {
+		if hasContractStr == "true" {
+			v := true
+			filters.HasContract = &v
+		} else if hasContractStr == "false" {
+			v := false
+			filters.HasContract = &v
+		}
+	}
 	svc := service.NewYearlyCompanyService()
-	list, err := svc.ListByYear(yearId)
+	list, err := svc.ListByYear(yearId, filters)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
@@ -107,7 +124,7 @@ func createYearlyCompany(c echo.Context) error {
 		CompanyID string `json:"companyId"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if req.CompanyID == "" {
 		return respondBadRequest(c, "companyId is required")
@@ -140,7 +157,7 @@ func updateCompanyStatus(c echo.Context) error {
 		CompanyStatus string `json:"companyStatus"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if err := ValidateCompanyStatus(body.CompanyStatus); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -180,7 +197,7 @@ func updatePhase(c echo.Context) error {
 		Phase string `json:"phase"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if err := ValidatePhase(body.Phase); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -218,7 +235,7 @@ func updateCompanyContact(c echo.Context) error {
 	id := c.Param("id")
 	var body model.CompanyContactInput
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.UpdateContact(id, body)

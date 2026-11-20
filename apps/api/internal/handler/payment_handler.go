@@ -60,7 +60,7 @@ func updatePayment(c echo.Context) error {
 		Remarks        *string         `json:"remarks"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 
 	if req.Status != nil {

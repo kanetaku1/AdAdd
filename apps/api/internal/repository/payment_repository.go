@@ -9,9 +9,15 @@ type PaymentRepository struct{}
 
 func NewPaymentRepository() *PaymentRepository { return &PaymentRepository{} }
 
-func (r *PaymentRepository) GetByContractID(contractId string) (*model.Payment, error) {
-	var p model.Payment
-	if err := db.DB.First(&p, "contract_id = ?", contractId).Error; err != nil {
+func (r *PaymentRepository) GetByContractID(contractId string) (*model.PaymentDetailResponse, error) {
+	var p model.PaymentDetailResponse
+	err := db.DB.Table("payments").
+		Select("payments.*, users.name as confirmed_by_name").
+		Joins("LEFT JOIN users ON users.id = payments.confirmed_by_id").
+		Where("payments.deleted_at IS NULL").
+		Where("payments.contract_id = ?", contractId).
+		First(&p).Error
+	if err != nil {
 		return nil, err
 	}
 	return &p, nil

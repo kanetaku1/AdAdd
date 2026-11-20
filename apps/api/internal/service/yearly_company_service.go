@@ -15,8 +15,8 @@ func NewYearlyCompanyService() *YearlyCompanyService {
 	return &YearlyCompanyService{repo: repository.NewYearlyCompanyRepository()}
 }
 
-func (s *YearlyCompanyService) ListByYear(yearId string) ([]model.YearlyCompanyResponse, error) {
-	return s.repo.ListByYear(yearId)
+func (s *YearlyCompanyService) ListByYear(yearId string, filters model.YearlyCompanyFilters) ([]model.YearlyCompanyResponse, error) {
+	return s.repo.ListByYear(yearId, filters)
 }
 
 func (s *YearlyCompanyService) Create(yc *model.YearlyCompany) error {

@@ -21,7 +21,7 @@ func NewPaymentService() *PaymentService {
 	return &PaymentService{repo: repository.NewPaymentRepository()}
 }
 
-func (s *PaymentService) GetByContractID(contractId string) (*model.Payment, error) {
+func (s *PaymentService) GetByContractID(contractId string) (*model.PaymentDetailResponse, error) {
 	return s.repo.GetByContractID(contractId)
 }
 

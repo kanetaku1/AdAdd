@@ -32,8 +32,9 @@ func RegisterCompanyRoutes(e *echo.Echo) {
 }
 
 func listCompanies(c echo.Context) error {
+	keyword := c.QueryParam("keyword")
 	svc := service.NewCompanyService()
-	companies, err := svc.ListAll()
+	companies, err := svc.ListAll(keyword)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
@@ -66,7 +67,7 @@ type createCompanyRequest struct {
 func createCompany(c echo.Context) error {
 	var req createCompanyRequest
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if strings.TrimSpace(req.CompanyName) == "" {
 		return respondBadRequest(c, "companyName is required")
@@ -107,7 +108,7 @@ func updateCompany(c echo.Context) error {
 	id := c.Param("id")
 	var req updateCompanyRequest
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 
 	if req.CompanyName.Sent && (req.CompanyName.Value == nil || strings.TrimSpace(*req.CompanyName.Value) == "") {
@@ -158,6 +159,9 @@ func updateCompany(c echo.Context) error {
 }
 
 func bulkImportCompanies(c echo.Context) error {
+	if err := c.Request().ParseMultipartForm(1 << 20); err != nil {
+		return respondRequestBodyError(c, err, "invalid multipart form")
+	}
 	dryRun := c.FormValue("dryRun") == "true"
 
 	fileHeader, err := c.FormFile("file")
@@ -181,7 +185,7 @@ func bulkImportCompanies(c echo.Context) error {
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return respondBadRequest(c, "invalid csv formatting")
+		return respondRequestBodyError(c, err, "invalid csv formatting")
 	}
 	if len(records) < 2 {
 		return respondBadRequest(c, "csv must contain header and rows")

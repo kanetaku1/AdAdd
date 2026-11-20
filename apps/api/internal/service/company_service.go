@@ -17,8 +17,8 @@ func NewCompanyService() *CompanyService {
 	return &CompanyService{repo: repository.NewCompanyRepository()}
 }
 
-func (s *CompanyService) ListAll() ([]model.Company, error) {
-	return s.repo.ListAll()
+func (s *CompanyService) ListAll(keyword string) ([]model.Company, error) {
+	return s.repo.ListAll(keyword)
 }
 
 func (s *CompanyService) Create(c *model.Company) error {

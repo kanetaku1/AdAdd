@@ -5,7 +5,10 @@ import {
   mockYearlyCompanies,
 } from "@/lib/mock/yearly-companies"
 import type { CompanyStatus } from "@/types/yearly-company"
-import type { Year } from "@/types/year"
+import {
+  EMPTY_YEAR_DOCUMENT_ISSUER,
+  type Year,
+} from "@/types/year"
 
 export const mockYears: Year[] = [
   {
@@ -14,6 +17,7 @@ export const mockYears: Year[] = [
     startDate: "2025-04-01",
     endDate: "2025-11-30",
     isActive: false,
+    ...EMPTY_YEAR_DOCUMENT_ISSUER,
   },
   {
     id: "year_2026",
@@ -21,6 +25,7 @@ export const mockYears: Year[] = [
     startDate: "2026-04-01",
     endDate: "2026-11-30",
     isActive: true,
+    ...EMPTY_YEAR_DOCUMENT_ISSUER,
   },
 ]
 
@@ -98,6 +103,9 @@ export function addYear(input: {
   startDate: string
   endDate: string
 }): void {
+  const previousYear = [...mockYears]
+    .filter((year) => year.endDate < input.startDate)
+    .sort((a, b) => b.endDate.localeCompare(a.endDate))[0]
   mockYears.forEach((y) => {
     y.isActive = false
   })
@@ -108,6 +116,20 @@ export function addYear(input: {
     startDate: input.startDate,
     endDate: input.endDate,
     isActive: true,
+    ...(previousYear
+      ? {
+          issuerName: previousYear.issuerName,
+          issuerPostalCode: previousYear.issuerPostalCode,
+          issuerAddressLine1: previousYear.issuerAddressLine1,
+          issuerAddressLine2: previousYear.issuerAddressLine2,
+          issuerEmail: previousYear.issuerEmail,
+          bankName: previousYear.bankName,
+          bankBranchName: previousYear.bankBranchName,
+          bankAccountType: previousYear.bankAccountType,
+          bankAccountNumber: previousYear.bankAccountNumber,
+          bankAccountHolderName: previousYear.bankAccountHolderName,
+        }
+      : EMPTY_YEAR_DOCUMENT_ISSUER),
   }
   mockYears.push(year)
 

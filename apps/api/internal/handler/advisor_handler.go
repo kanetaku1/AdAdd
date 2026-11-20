@@ -29,7 +29,7 @@ func createAdvisorAssignment(c echo.Context) error {
 		MemberUserID  string `json:"memberUserId"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if body.YearID == "" || body.AdvisorUserID == "" || body.MemberUserID == "" {
 		return respondBadRequest(c, "yearId, advisorUserId, and memberUserId are required")

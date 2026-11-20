@@ -1,19 +1,8 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer"
 
-import {
-  FESTIVAL_ADDRESS_LINE,
-  FESTIVAL_ADDRESS_LINE2,
-  FESTIVAL_BANK_ACCOUNT_HOLDER,
-  FESTIVAL_BANK_ACCOUNT_NUMBER,
-  FESTIVAL_BANK_ACCOUNT_TYPE,
-  FESTIVAL_BANK_BRANCH,
-  FESTIVAL_BANK_NAME,
-  FESTIVAL_EMAIL,
-  FESTIVAL_NAME,
-  FESTIVAL_POSTAL_CODE,
-} from "./constants"
 import { ensureJapaneseFontRegistered, JAPANESE_FONT_FAMILY } from "./fonts"
 import { formatDateSlashes } from "./format-date"
+import type { YearDocumentIssuer } from "@/types/year"
 
 ensureJapaneseFontRegistered()
 
@@ -141,6 +130,7 @@ export type InvoiceData = {
   remark: string
   items: InvoiceLineItem[]
   totalAmount: number
+  issuer: YearDocumentIssuer
 }
 
 export function InvoiceDocument({ data }: { data: InvoiceData }) {
@@ -194,12 +184,16 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
               請求日 : {formatDateSlashes(data.issuedDate)}
             </Text>
             <View style={styles.marginBottom}>
-              <Text>{FESTIVAL_NAME}</Text>
-              <Text>{FESTIVAL_POSTAL_CODE}</Text>
-              <Text>{FESTIVAL_ADDRESS_LINE}</Text>
-              <Text>{FESTIVAL_ADDRESS_LINE2}</Text>
+              <Text>{data.issuer.issuerName ?? ""}</Text>
+              <Text>{data.issuer.issuerPostalCode ?? ""}</Text>
+              <Text>{data.issuer.issuerAddressLine1 ?? ""}</Text>
+              {data.issuer.issuerAddressLine2 && (
+                <Text>{data.issuer.issuerAddressLine2}</Text>
+              )}
             </View>
-            <Text style={styles.text_S}>メール : {FESTIVAL_EMAIL}</Text>
+            <Text style={styles.text_S}>
+              メール : {data.issuer.issuerEmail ?? ""}
+            </Text>
             <Text>担当 : {data.staffName}</Text>
           </View>
         </View>
@@ -242,16 +236,20 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
             までに下記口座へお振込みくださいますようお願い申し上げます。
           </Text>
           <Text style={styles.text_S}>&lt;振込先&gt;</Text>
-          <Text style={styles.text_S}>銀 行 名 : {FESTIVAL_BANK_NAME}</Text>
-          <Text style={styles.text_S}>支 店 名 : {FESTIVAL_BANK_BRANCH}</Text>
           <Text style={styles.text_S}>
-            預金種別 : {FESTIVAL_BANK_ACCOUNT_TYPE}
+            銀 行 名 : {data.issuer.bankName ?? ""}
           </Text>
           <Text style={styles.text_S}>
-            口座番号 : {FESTIVAL_BANK_ACCOUNT_NUMBER}
+            支 店 名 : {data.issuer.bankBranchName ?? ""}
           </Text>
           <Text style={styles.text_S}>
-            口座名義 : {FESTIVAL_BANK_ACCOUNT_HOLDER}
+            預金種別 : {data.issuer.bankAccountType ?? ""}
+          </Text>
+          <Text style={styles.text_S}>
+            口座番号 : {data.issuer.bankAccountNumber ?? ""}
+          </Text>
+          <Text style={styles.text_S}>
+            口座名義 : {data.issuer.bankAccountHolderName ?? ""}
           </Text>
         </View>
 

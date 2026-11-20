@@ -131,6 +131,9 @@ func updateUser(c echo.Context) error {
 }
 
 func bulkImportUsers(c echo.Context) error {
+	if err := c.Request().ParseMultipartForm(1 << 20); err != nil {
+		return respondRequestBodyError(c, err, "invalid multipart form")
+	}
 	dryRun := c.FormValue("dryRun") == "true"
 
 	fileHeader, err := c.FormFile("file")
@@ -156,7 +159,7 @@ func bulkImportUsers(c echo.Context) error {
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return respondBadRequest(c, "invalid csv formatting")
+		return respondRequestBodyError(c, err, "invalid csv formatting")
 	}
 	if len(records) < 2 {
 		return respondBadRequest(c, "csv must contain header and rows")

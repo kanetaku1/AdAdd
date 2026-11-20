@@ -62,7 +62,7 @@ Represents one festival year.
 | bankAccountNumber     | string |  | Bank transfer destination: account number |
 | bankAccountHolderName | string |  | Bank transfer destination: account holder name |
 
-The `issuer*` and `bank*` attributes are the **document issuer information** printed on that Year's invoices and receipts (FR-015, `spec/domain.md#Document Issuer Information`). They replace the constants previously hard-coded in the frontend (`apps/web/src/lib/pdf/constants.ts`), so an Administrator can change them without a redeploy. They are plain text, printed as entered — e.g. the bank and branch codes may be written inside `bankName` / `bankBranchName` as they are today (`大光銀行（金融機関コード : 0532）`).
+The `issuer*` and `bank*` attributes are the **document issuer information** printed on that Year's invoices and receipts (FR-015, `spec/domain.md#Document Issuer Information`). They replace the constants previously hard-coded in the frontend (`apps/web/src/lib/pdf/constants.ts`), so an Administrator can change them without a redeploy. They are plain text, printed as entered — e.g. the bank and branch codes may be written inside `bankName` / `bankBranchName` (`○○銀行（金融機関コード : 0000）`).
 
 Both documents use the `issuer*` attributes; only the invoice uses the `bank*` attributes.
 

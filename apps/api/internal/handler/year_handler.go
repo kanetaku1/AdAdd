@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
 type createYearRequest struct {
@@ -23,6 +25,7 @@ func RegisterYearRoutes(e *echo.Echo) {
 	rc := e.Group("")
 	rc.Use(RequireRoles("ADMINISTRATOR"))
 	rc.POST("/years", createYear)
+	rc.PATCH("/years/:yearId/document-issuer", updateYearDocumentIssuer)
 }
 
 func listYears(c echo.Context) error {
@@ -37,7 +40,7 @@ func listYears(c echo.Context) error {
 func createYear(c echo.Context) error {
 	var req createYearRequest
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 
 	if strings.TrimSpace(req.Name) == "" {
@@ -73,4 +76,19 @@ func createYear(c echo.Context) error {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": year, "message": "created"})
+}
+
+func updateYearDocumentIssuer(c echo.Context) error {
+	var req service.DocumentIssuerInput
+	if err := c.Bind(&req); err != nil {
+		return respondRequestBodyError(c, err, "invalid request body")
+	}
+	year, err := service.NewYearService().UpdateDocumentIssuer(c.Param("yearId"), req)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return respondNotFound(c, "year not found")
+	}
+	if err != nil {
+		return respondInternalServerError(c, err)
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": year, "message": "success"})
 }

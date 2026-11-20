@@ -109,7 +109,7 @@ func listContractMenus(c echo.Context) error {
 func addContractMenu(c echo.Context) error {
 	var body contractMenuRequest
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 
 	userID, _ := c.Get("userId").(string)
@@ -140,7 +140,7 @@ func updateContractMenuStatus(c echo.Context) error {
 		Status string `json:"status"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	// validate status
 	if err := ValidateContractMenuStatus(body.Status); err != nil {
@@ -176,7 +176,7 @@ func uploadContractMenuProduction(c echo.Context) error {
 		Remarks        *string `json:"remarks"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	svc := service.NewContractMenuService()
 	var file *service.ContractMenuDriveFileInput
@@ -199,14 +199,14 @@ func uploadContractMenuProduction(c echo.Context) error {
 func driveUploadContractMenu(c echo.Context) error {
 	id := c.Param("id")
 
+	form, err := c.MultipartForm()
+	if err != nil {
+		return respondRequestBodyError(c, err, "multipart form is required")
+	}
 	// Get form values
 	folderId := c.FormValue("folderId")
 	if folderId == "" {
 		return respondBadRequest(c, "folderId is required")
-	}
-	form, err := c.MultipartForm()
-	if err != nil {
-		return respondBadRequest(c, "multipart form is required")
 	}
 	fileHeaders := append(form.File["file"], form.File["files"]...)
 	if len(fileHeaders) == 0 {
@@ -249,7 +249,7 @@ func driveUploadContractMenu(c echo.Context) error {
 		file.Close()
 		if readErr != nil {
 			cleanupUploadedDriveFiles(c.Request().Context(), driveSvc, inputs)
-			return respondInternalServerError(c, fmt.Errorf("failed to read file content: %w", readErr))
+			return respondRequestBodyError(c, readErr, "invalid multipart form")
 		}
 		originalExt := filepath.Ext(fileHeader.Filename)
 		uploadSuffix := suffix
@@ -320,7 +320,7 @@ func updateContractMenuDetails(c echo.Context) error {
 		ProductionType     optionalString   `json:"productionType"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if body.Quantity != nil && *body.Quantity <= 0 {
 		return respondBadRequest(c, "quantity must be > 0")
@@ -364,7 +364,7 @@ func addContractMenuFiles(c echo.Context) error {
 		} `json:"files"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	inputs := make([]service.ContractMenuDriveFileInput, 0, len(body.Files))
 	for _, file := range body.Files {
@@ -389,7 +389,7 @@ func updateContractMenuFile(c echo.Context) error {
 		DriveFileName *string `json:"driveFileName"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	file, err := service.NewContractMenuService().UpdateFile(
 		c.Param("id"), c.Param("fileId"), body.DriveURL, body.DriveFileName,
