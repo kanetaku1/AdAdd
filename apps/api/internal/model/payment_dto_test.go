@@ -77,13 +77,13 @@ func TestPaymentDetailResponse_ConfirmedByName(t *testing.T) {
 
 	t.Run("confirmed payment serializes confirmedByName with user name", func(t *testing.T) {
 		name := "佐藤"
-		confirmedByID := "user-1"
+		confirmedBy := "user-1"
 		dto := PaymentDetailResponse{
 			Payment: Payment{
 				ID:            "pay-1",
 				ContractID:    "con-1",
 				Status:        "CONFIRMED",
-				ConfirmedByID: &confirmedByID,
+				ConfirmedByID: &confirmedBy,
 			},
 			ConfirmedByName: &name,
 		}
