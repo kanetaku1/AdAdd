@@ -1210,7 +1210,7 @@ Permission:
 
 Every other Role, Sponsorship Member included, receives `403 Forbidden`. The restriction is enforced in the backend, not only by hiding the control (Issue #126).
 
-For a new Contract Menu, `status` is `WAITING` for all production types. When changing `productionType` on a submission-required menu, the status is reset to `WAITING` if there are no active files; otherwise it remains `SUBMITTED`. Existing data is normalized once: active files set `SUBMITTED`; fileless `COMPANY` / `CONTINUED` become `WAITING`; fileless `INTERNAL` retains `WAITING`, while `REQUESTED` / `PRODUCING` / `COMPLETED` become `REQUESTED`.
+For a new Contract Menu, `status` is `WAITING` for all production types. When changing `productionType` on a submission-required menu, the status is reset to `WAITING` if there are no active files; otherwise it remains `SUBMITTED`. Existing data is normalized once: active files set `SUBMITTED`; every fileless `COMPANY` / `CONTINUED` / `INTERNAL` menu becomes `WAITING`. Existing `INTERNAL` rows cannot be assigned to a production department automatically, so they remain unassigned until an Advertisement Manager selects the department and may then move them to `REQUESTED`.
 
 ---
 
