@@ -29,10 +29,7 @@ func TestCompanyAssignmentIsZeroOrOne(t *testing.T) {
 	expectStatus(t, actor.administrator.do(http.MethodPost, path, map[string]any{"userId": sponsorshipMember2ID}), http.StatusCreated)
 	expectAssignees(t, yearlyCompanyID, sponsorshipMember2ID)
 
-	contract := createContract(t, actor.sponsorshipMember2, yearlyCompanyID)
-	if contract.AssigneeID != sponsorshipMember2ID {
-		t.Fatalf("contract assigneeId = %q, want %q", contract.AssigneeID, sponsorshipMember2ID)
-	}
+	createContract(t, actor.sponsorshipMember2, yearlyCompanyID)
 
 	expectStatus(t, actor.administrator.do(http.MethodPost, path, map[string]any{"userId": nil}), http.StatusOK)
 	expectAssignees(t, yearlyCompanyID)

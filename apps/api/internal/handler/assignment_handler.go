@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
 )
@@ -22,9 +23,25 @@ func createAssignment(c echo.Context) error {
 		return respondRequestBodyError(c, err, "invalid request body")
 	}
 
+	ycRepo := repository.NewYearlyCompanyRepository()
+	if _, err := ycRepo.GetByIDRaw(ycId); err != nil {
+		return respondNotFound(c, "yearly company not found")
+	}
+
 	userID := ""
 	if body.UserID != nil {
 		userID = *body.UserID
+	}
+
+	if userID != "" {
+		userRepo := repository.NewUserRepository()
+		user, err := userRepo.GetByID(userID)
+		if err != nil {
+			return respondNotFound(c, "user not found")
+		}
+		if !user.IsActive {
+			return respondBadRequest(c, "user is not active")
+		}
 	}
 
 	actorID := ""

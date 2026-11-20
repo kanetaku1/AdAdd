@@ -61,6 +61,14 @@ func (r *YearlyCompanyRepository) Create(yc *model.YearlyCompany) error {
 	return db.DB.Create(yc).Error
 }
 
+func (r *YearlyCompanyRepository) GetByIDRaw(id string) (*model.YearlyCompany, error) {
+	var yc model.YearlyCompany
+	if err := db.DB.First(&yc, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &yc, nil
+}
+
 func (r *YearlyCompanyRepository) GetByID(id string) (*model.YearlyCompanyResponse, error) {
 	var yc model.YearlyCompanyResponse
 	err := db.DB.Table("yearly_companies").

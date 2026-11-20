@@ -28,18 +28,12 @@ export function AdvisorAssignmentsSection({
   isPastYear: boolean
 }) {
   const { users, loading: usersLoading, ensureUsers } = useUsers()
-  const {
-    advisorAssignments,
-    isAdvisorAssignmentsLoading,
-    advisorAssignmentsError,
-    ensureAdvisorAssignments,
-    setAdvisorAssignments,
-  } = useYearCatalog()
+  const { advisorAssignments: advisorAssignmentsCache } = useYearCatalog()
   const [error, setError] = useState<string | null>(null)
   const [busyMemberId, setBusyMemberId] = useState<string | null>(null)
-  const assignments = advisorAssignments(yearId)
+  const assignments = advisorAssignmentsCache.data(yearId)
   const catalogLoading = Boolean(
-    yearId && isAdvisorAssignmentsLoading(yearId)
+    yearId && advisorAssignmentsCache.isLoading(yearId)
   )
   const loading = usersLoading || catalogLoading
 
@@ -49,8 +43,8 @@ export function AdvisorAssignmentsSection({
 
   useEffect(() => {
     if (!yearId) return
-    void ensureAdvisorAssignments(yearId)
-  }, [yearId, ensureAdvisorAssignments])
+    void advisorAssignmentsCache.ensure(yearId)
+  }, [yearId, advisorAssignmentsCache])
 
   async function handleAdd(memberId: string, advisorId: string) {
     if (!yearId || isPastYear) return
@@ -58,7 +52,7 @@ export function AdvisorAssignmentsSection({
     setBusyMemberId(memberId)
     try {
       const created = await addAdvisorAssignment(yearId, memberId, advisorId)
-      setAdvisorAssignments(yearId, [...assignments, created])
+      advisorAssignmentsCache.set(yearId, [...assignments, created])
     } catch (e) {
       setError(
         getErrorMessage(e, {
@@ -77,7 +71,7 @@ export function AdvisorAssignmentsSection({
     setBusyMemberId(memberId)
     try {
       await removeAdvisorAssignment(assignmentId)
-      setAdvisorAssignments(
+      advisorAssignmentsCache.set(
         yearId,
         assignments.filter((assignment) => assignment.id !== assignmentId)
       )
@@ -113,7 +107,7 @@ export function AdvisorAssignmentsSection({
       </div>
 
       <ErrorBanner
-        message={error || (yearId ? advisorAssignmentsError(yearId) : null)}
+        message={error || (yearId ? advisorAssignmentsCache.error(yearId) : null)}
       />
 
       <div className="rounded-md border">

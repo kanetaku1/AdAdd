@@ -12,10 +12,9 @@ export type PaymentStatus = "WAITING" | "CONFIRMED"
  * bank transfer in AdAdd, not necessarily the date the transfer itself
  * occurred. Used when generating the receipt (spec/usecase.md UC-10).
  *
- * confirmedById/confirmedByName follow the same denormalized xId + xName
- * pairing as SponsorshipContract.assigneeId/assigneeName: model.md only
- * defines confirmedById as the backend FK; confirmedByName is a
- * frontend-only convenience since no User master data/endpoint exists yet.
+ * confirmedById/confirmedByName follow a denormalized xId + xName pairing:
+ * model.md only defines confirmedById as the backend FK; confirmedByName is
+ * a frontend-only convenience since no User master data/endpoint exists yet.
  */
 export type Payment = {
   id: string

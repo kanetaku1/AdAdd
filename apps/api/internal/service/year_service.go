@@ -21,6 +21,10 @@ func (s *YearService) List() ([]model.Year, error) {
 	return s.repo.List()
 }
 
+func (s *YearService) NameExists(name string) (bool, error) {
+	return s.repo.NameExists(name)
+}
+
 func (s *YearService) Create(y *model.Year) error {
 	return db.WithTx(func(tx *gorm.DB) error {
 		var preceding model.Year
