@@ -812,7 +812,7 @@ AdAdd runs in one of two modes during development (`spec/decisions/0004-developm
 | Role gating | Applied | Applied |
 | Use | Checking each Role's screens; the Vercel preview (ADR-0002) | Checking the real flow as in production |
 
-In MySQL mode, a developer's Google account must be registered both as a test user of the AdAdd OAuth client and as an AdAdd `User` with the Roles to check. Locally, the AdAdd `User` is registered from `scripts/dev-users.local.csv` (`spec/development.md#Developer Users`). After the first sign-in, the session is renewed while in use and ends after 30 days without use.
+In MySQL mode, a developer signs in with Google as an AdAdd `User` with the Roles to check. Once the login OAuth project is published (ADR-0007), no OAuth test-user registration is needed — any Google account passes Google sign-in, and AdAdd checks the email against its `users` table. While the project is still in Testing mode, the developer must also be listed as an OAuth test user. Locally, the AdAdd `User` is registered from `scripts/dev-users.local.csv` (`spec/development.md#Developer Users`). After the first sign-in, the session is renewed while in use and ends after 30 days without use.
 
 ### Environment variables
 
@@ -834,7 +834,7 @@ In MySQL mode, a developer's Google account must be registered both as a test us
 | `GOOGLE_CLIENT_ID` | Verifies Google id_tokens (same value as in `apps/web`). |
 | `DB_*`, `MIGRATE_ON_START`, `MIGRATIONS_PATH`, `APP_PORT`, `ALLOWED_ORIGINS` | Database and server. |
 | `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Drive folder for ad material files. |
-| `GOOGLE_DRIVE_CLIENT_ID` / `GOOGLE_DRIVE_CLIENT_SECRET` | OAuth web client used only by the dedicated Drive account (ADR-0006). The client ID defaults to `GOOGLE_CLIENT_ID`. |
+| `GOOGLE_DRIVE_CLIENT_ID` / `GOOGLE_DRIVE_CLIENT_SECRET` | OAuth web client used only by the dedicated Drive account (ADR-0006). Belongs to a separate Google Cloud project from the login client (ADR-0007). All three Drive variables (`CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`) must be set together, or all empty (Drive integration disabled). A partial configuration is a startup error. |
 | `GOOGLE_DRIVE_REFRESH_TOKEN` | Offline token for the dedicated Drive account. Secret; never commit or expose to the browser. |
 | `GOOGLE_DRIVE_ACCOUNT_EMAIL` | Optional login hint for the one-time Drive authorization command. |
 | `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | Optional Slack mention (UC-16). |

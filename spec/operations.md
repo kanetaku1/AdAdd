@@ -67,7 +67,7 @@ Production runs from its own Compose file, `compose.production.yml` (Issue #156)
 | API port | Published on `127.0.0.1:8080` only, never on every interface |
 | `ALLOWED_ORIGINS` | The origin of the production web app |
 | Authentication | AdAdd session JWTs only. There is no development authentication to switch off (`spec/api.md#Authentication`) |
-| Dedicated Drive account | `GOOGLE_DRIVE_CLIENT_SECRET` and `GOOGLE_DRIVE_REFRESH_TOKEN` are required secrets; `GOOGLE_DRIVE_CLIENT_ID` defaults to `GOOGLE_CLIENT_ID`. `GOOGLE_DRIVE_ACCOUNT_EMAIL` identifies the authorized account for operators. |
+| Dedicated Drive account | `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, and `GOOGLE_DRIVE_REFRESH_TOKEN` are required secrets — all three must be set. They belong to a separate Google Cloud project from the login client (ADR-0007). `GOOGLE_DRIVE_CLIENT_ID` does not default to `GOOGLE_CLIENT_ID`. `GOOGLE_DRIVE_ACCOUNT_EMAIL` identifies the authorized account for operators. |
 
 The values come from `.env.production` at the repository root. Copy `.env.production.example` and fill it in. The file is gitignored and is never committed: the repository is public. Every required value is checked by Compose (`${VAR:?}`), so a missing value stops `up` instead of starting with an empty one.
 

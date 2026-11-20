@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/config"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/slack"
 )
@@ -32,9 +32,10 @@ func getSlackPoster() slackPoster {
 		return slackPosterOverride
 	}
 	slackClientOnce.Do(func() {
+		cfg := config.Load()
 		slackClientDefault = slack.NewClient(
-			os.Getenv("SLACK_BOT_TOKEN"),
-			os.Getenv("SLACK_CHANNEL_ID"),
+			cfg.SlackBotToken,
+			cfg.SlackChannelID,
 		)
 	})
 	return slackClientDefault

@@ -54,11 +54,6 @@ func Load() *Config {
 		allowedOrigins = append(allowedOrigins, "http://localhost:3000", "http://localhost:3001")
 	}
 
-	googleClientID := getEnv("GOOGLE_CLIENT_ID", "")
-	googleDriveClientID := getEnv("GOOGLE_DRIVE_CLIENT_ID", "")
-	if googleDriveClientID == "" {
-		googleDriveClientID = googleClientID
-	}
 	return &Config{
 		AppEnv:                  appEnv,
 		AllowedOrigins:          allowedOrigins,
@@ -70,14 +65,48 @@ func Load() *Config {
 		DBName:                  getEnv("DB_NAME", "adadd"),
 		MigrateOnStart:          migrateOnStart,
 		MigrationsPath:          getEnv("MIGRATIONS_PATH", "./migrations"),
-		GoogleClientID:          googleClientID,
-		GoogleDriveClientID:     googleDriveClientID,
+		GoogleClientID:          getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleDriveClientID:     getEnv("GOOGLE_DRIVE_CLIENT_ID", ""),
 		GoogleDriveClientSecret: getEnv("GOOGLE_DRIVE_CLIENT_SECRET", ""),
 		GoogleDriveRefreshToken: getEnv("GOOGLE_DRIVE_REFRESH_TOKEN", ""),
 		GoogleDriveAccountEmail: getEnv("GOOGLE_DRIVE_ACCOUNT_EMAIL", ""),
 		JWTSecret:               getEnv("JWT_SECRET", ""),
 		SlackBotToken:           getEnv("SLACK_BOT_TOKEN", ""),
 		SlackChannelID:          getEnv("SLACK_CHANNEL_ID", ""),
+	}
+}
+
+func countNonEmpty(values ...string) int {
+	n := 0
+	for _, v := range values {
+		if v != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// Validate checks that required environment variables are set and that
+// variable groups are configured consistently. Call it from cmd/server
+// after Load(). cmd/drive-auth skips it because it does not need JWT_SECRET
+// or the full Drive triple.
+func (c *Config) Validate() {
+	if c.JWTSecret == "" {
+		log.Fatal("JWT_SECRET must be set (see .env.example)")
+	}
+
+	if c.GoogleClientID == "" {
+		log.Println("WARNING: GOOGLE_CLIENT_ID not set, POST /auth/google will be unavailable")
+	}
+
+	driveVarsSet := countNonEmpty(c.GoogleDriveClientID, c.GoogleDriveClientSecret, c.GoogleDriveRefreshToken)
+	if driveVarsSet != 0 && driveVarsSet != 3 {
+		log.Fatal("GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, and GOOGLE_DRIVE_REFRESH_TOKEN must all be set together or all be empty")
+	}
+
+	slackVarsSet := countNonEmpty(c.SlackBotToken, c.SlackChannelID)
+	if slackVarsSet == 1 {
+		log.Fatal("SLACK_BOT_TOKEN and SLACK_CHANNEL_ID must both be set or both be empty")
 	}
 }
 
