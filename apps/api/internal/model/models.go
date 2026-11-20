@@ -101,6 +101,18 @@ type YearlyCompanyResponse struct {
 	ContractTotalAmount *decimal.Decimal `gorm:"column:contract_total_amount" json:"contractTotalAmount"`
 }
 
+// YearlyCompanyFilters holds filter criteria for GET /years/{yearId}/companies
+// (spec/api.md#List Yearly Companies).
+type YearlyCompanyFilters struct {
+	Keyword        string
+	CompanyStatus  string
+	Phase          string
+	AssigneeUserID string
+	AdvisorUserID  string
+	Progress       string
+	HasContract    *bool
+}
+
 // SponsorshipContract
 type SponsorshipContract struct {
 	ID              string          `gorm:"type:char(36);primaryKey" json:"id"`
@@ -257,6 +269,13 @@ type PaymentResponse struct {
 	YearlyCompanyID    string  `gorm:"column:yearly_company_id" json:"yearlyCompanyId"`
 	AssignedMemberName *string `gorm:"column:assigned_member_name" json:"assignedMemberName"`
 	ConfirmedByName    *string `gorm:"column:confirmed_by_name" json:"confirmedByName"`
+}
+
+// PaymentDetailResponse is the returned DTO for single-contract payment status
+// (spec/api.md#Get Payment Status).
+type PaymentDetailResponse struct {
+	Payment
+	ConfirmedByName *string `gorm:"column:confirmed_by_name" json:"confirmedByName"`
 }
 
 // CompanyAssignment (table: assignments) — 0..1 per YearlyCompany

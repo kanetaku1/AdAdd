@@ -32,8 +32,9 @@ func RegisterCompanyRoutes(e *echo.Echo) {
 }
 
 func listCompanies(c echo.Context) error {
+	keyword := c.QueryParam("keyword")
 	svc := service.NewCompanyService()
-	companies, err := svc.ListAll()
+	companies, err := svc.ListAll(keyword)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
