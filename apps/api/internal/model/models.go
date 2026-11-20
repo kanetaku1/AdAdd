@@ -11,14 +11,24 @@ import (
 
 // Year
 type Year struct {
-	ID        string         `gorm:"type:char(36);primaryKey" json:"id"`
-	Name      string         `gorm:"size:32;not null" json:"name"`
-	StartDate Date           `gorm:"type:date" json:"startDate"`
-	EndDate   Date           `gorm:"type:date" json:"endDate"`
-	IsActive  bool           `gorm:"not null;default:false" json:"isActive"`
-	CreatedAt time.Time      `json:"createdAt"`
-	UpdatedAt time.Time      `json:"updatedAt"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                    string         `gorm:"type:char(36);primaryKey" json:"id"`
+	Name                  string         `gorm:"size:32;not null" json:"name"`
+	StartDate             Date           `gorm:"type:date" json:"startDate"`
+	EndDate               Date           `gorm:"type:date" json:"endDate"`
+	IsActive              bool           `gorm:"not null;default:false" json:"isActive"`
+	IssuerName            *string        `gorm:"size:255" json:"issuerName"`
+	IssuerPostalCode      *string        `gorm:"size:20" json:"issuerPostalCode"`
+	IssuerAddressLine1    *string        `gorm:"size:512" json:"issuerAddressLine1"`
+	IssuerAddressLine2    *string        `gorm:"size:512" json:"issuerAddressLine2"`
+	IssuerEmail           *string        `gorm:"size:255" json:"issuerEmail"`
+	BankName              *string        `gorm:"size:255" json:"bankName"`
+	BankBranchName        *string        `gorm:"size:255" json:"bankBranchName"`
+	BankAccountType       *string        `gorm:"size:64" json:"bankAccountType"`
+	BankAccountNumber     *string        `gorm:"size:64" json:"bankAccountNumber"`
+	BankAccountHolderName *string        `gorm:"size:255" json:"bankAccountHolderName"`
+	CreatedAt             time.Time      `json:"createdAt"`
+	UpdatedAt             time.Time      `json:"updatedAt"`
+	DeletedAt             gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (y *Year) BeforeCreate(tx *gorm.DB) (err error) {
@@ -91,13 +101,24 @@ type YearlyCompanyResponse struct {
 	ContractTotalAmount *decimal.Decimal `gorm:"column:contract_total_amount" json:"contractTotalAmount"`
 }
 
+// YearlyCompanyFilters holds filter criteria for GET /years/{yearId}/companies
+// (spec/api.md#List Yearly Companies).
+type YearlyCompanyFilters struct {
+	Keyword        string
+	CompanyStatus  string
+	Phase          string
+	AssigneeUserID string
+	AdvisorUserID  string
+	Progress       string
+	HasContract    *bool
+}
+
 // SponsorshipContract
 type SponsorshipContract struct {
 	ID              string          `gorm:"type:char(36);primaryKey" json:"id"`
 	YearlyCompanyID string          `gorm:"type:char(36);not null;uniqueIndex" json:"yearlyCompanyId"`
 	ContractDate    *Date           `json:"contractDate"`
 	TotalAmount     decimal.Decimal `json:"totalAmount"`
-	AssigneeID      string          `gorm:"type:char(36)" json:"assigneeId"`
 	Remarks         string          `gorm:"type:text" json:"remarks"`
 	CreatedAt       time.Time       `json:"createdAt"`
 	UpdatedAt       time.Time       `json:"updatedAt"`
@@ -222,7 +243,7 @@ type Payment struct {
 	Remarks             string           `gorm:"type:text" json:"remarks"`
 	Status              string           `gorm:"size:32" json:"status"`
 	ConfirmedAt         *time.Time       `json:"confirmedAt"`
-	ConfirmedByID       string           `gorm:"type:char(36)" json:"confirmedById"`
+	ConfirmedByID       *string          `gorm:"type:char(36)" json:"confirmedById"`
 	CreatedAt           time.Time        `json:"createdAt"`
 	UpdatedAt           time.Time        `json:"updatedAt"`
 	DeletedAt           gorm.DeletedAt   `gorm:"index" json:"-"`
@@ -247,6 +268,13 @@ type PaymentResponse struct {
 	YearlyCompanyID    string  `gorm:"column:yearly_company_id" json:"yearlyCompanyId"`
 	AssignedMemberName *string `gorm:"column:assigned_member_name" json:"assignedMemberName"`
 	ConfirmedByName    *string `gorm:"column:confirmed_by_name" json:"confirmedByName"`
+}
+
+// PaymentDetailResponse is the returned DTO for single-contract payment status
+// (spec/api.md#Get Payment Status).
+type PaymentDetailResponse struct {
+	Payment
+	ConfirmedByName *string `gorm:"column:confirmed_by_name" json:"confirmedByName"`
 }
 
 // CompanyAssignment (table: assignments) — 0..1 per YearlyCompany

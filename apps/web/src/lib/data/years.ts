@@ -4,7 +4,7 @@ import {
   mockYears,
   registerCompanyToYear as registerMockCompanyToYear,
 } from "@/lib/mock/years"
-import type { Year } from "@/types/year"
+import type { Year, YearDocumentIssuer } from "@/types/year"
 
 /**
  * Data access for the Year domain (Issue #18).
@@ -16,13 +16,7 @@ import type { Year } from "@/types/year"
  * Never fall back from API failures to mock reads/writes.
  */
 
-type ApiYear = {
-  id: string
-  name: string
-  startDate: string
-  endDate: string
-  isActive: boolean
-}
+type ApiYear = Year
 
 function mapApiYear(raw: ApiYear): Year {
   return {
@@ -31,6 +25,16 @@ function mapApiYear(raw: ApiYear): Year {
     startDate: raw.startDate.slice(0, 10),
     endDate: raw.endDate.slice(0, 10),
     isActive: raw.isActive,
+    issuerName: raw.issuerName,
+    issuerPostalCode: raw.issuerPostalCode,
+    issuerAddressLine1: raw.issuerAddressLine1,
+    issuerAddressLine2: raw.issuerAddressLine2,
+    issuerEmail: raw.issuerEmail,
+    bankName: raw.bankName,
+    bankBranchName: raw.bankBranchName,
+    bankAccountType: raw.bankAccountType,
+    bankAccountNumber: raw.bankAccountNumber,
+    bankAccountHolderName: raw.bankAccountHolderName,
   }
 }
 
@@ -63,6 +67,25 @@ export async function createYear(input: {
   const created = mockYears.find((y) => y.isActive)
   if (!created) throw new Error("年度の作成に失敗しました")
   return created
+}
+
+export async function updateYearDocumentIssuer(
+  yearId: string,
+  issuer: YearDocumentIssuer
+): Promise<Year> {
+  if (isApiEnabled()) {
+    const raw = await apiFetch<ApiYear>(`/years/${yearId}/document-issuer`, {
+      method: "PATCH",
+      body: JSON.stringify(issuer),
+    })
+    return mapApiYear(raw)
+  }
+
+  const year = mockYears.find((candidate) => candidate.id === yearId)
+  if (!year) throw new Error("年度が見つかりません")
+  if (!year.isActive) throw new Error("過去の年度は閲覧のみです")
+  Object.assign(year, issuer)
+  return year
 }
 
 /**

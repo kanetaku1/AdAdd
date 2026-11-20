@@ -91,7 +91,7 @@ export async function createCompany(input: CompanyInput): Promise<Company> {
 
 export async function updateCompany(
   id: string,
-  input: CompanyInput
+  input: Partial<CompanyInput>
 ): Promise<Company> {
   if (isApiEnabled()) {
     return apiFetch<Company>(`/companies/${id}`, {
@@ -99,7 +99,7 @@ export async function updateCompany(
       body: JSON.stringify(input),
     })
   }
-  return updateMockCompany(id, input)
+  return updateMockCompany(id, input as CompanyInput)
 }
 
 /**

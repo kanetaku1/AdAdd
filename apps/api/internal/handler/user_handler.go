@@ -73,14 +73,37 @@ func listUsers(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": resp, "message": "success"})
 }
 
+type createUserRequest struct {
+	StudentID string  `json:"studentId"`
+	Name      string  `json:"name"`
+	Email     string  `json:"email"`
+	SlackID   *string `json:"slackId"`
+}
+
 func createUser(c echo.Context) error {
-	var user model.User
-	if err := c.Bind(&user); err != nil {
+	var req createUserRequest
+	if err := c.Bind(&req); err != nil {
 		return respondBadRequest(c, "invalid request body")
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return respondBadRequest(c, "name is required")
+	}
+	if strings.TrimSpace(req.Email) == "" {
+		return respondBadRequest(c, "email is required")
+	}
+
+	user := &model.User{
+		StudentID: req.StudentID,
+		Name:      strings.TrimSpace(req.Name),
+		Email:     strings.TrimSpace(req.Email),
+		IsActive:  true,
+	}
+	if req.SlackID != nil {
+		user.SlackID = *req.SlackID
 	}
 
 	svc := service.NewUserService()
-	if err := svc.Create(&user); err != nil {
+	if err := svc.Create(user); err != nil {
 		if errors.Is(err, service.ErrEmailAlreadyExists) {
 			return respondConflict(c, err.Error())
 		}
@@ -108,6 +131,9 @@ func updateUser(c echo.Context) error {
 }
 
 func bulkImportUsers(c echo.Context) error {
+	if err := c.Request().ParseMultipartForm(1 << 20); err != nil {
+		return respondRequestBodyError(c, err, "invalid multipart form")
+	}
 	dryRun := c.FormValue("dryRun") == "true"
 
 	fileHeader, err := c.FormFile("file")
@@ -133,7 +159,7 @@ func bulkImportUsers(c echo.Context) error {
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return respondBadRequest(c, "invalid csv formatting")
+		return respondRequestBodyError(c, err, "invalid csv formatting")
 	}
 	if len(records) < 2 {
 		return respondBadRequest(c, "csv must contain header and rows")

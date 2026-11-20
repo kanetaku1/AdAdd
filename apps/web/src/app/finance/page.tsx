@@ -32,6 +32,7 @@ import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
 import { useSelectedYear } from "@/hooks/use-selected-year"
 import type { PaymentAcrossYear, PaymentStatus } from "@/types/payment"
+import { EMPTY_YEAR_DOCUMENT_ISSUER } from "@/types/year"
 
 const ALLOWED_ROLES = ["FINANCE_DEPARTMENT", "ADMINISTRATOR"]
 
@@ -233,6 +234,7 @@ function FinancePageContent() {
                             : payment.amount,
                         issuedDate: businessToday(),
                         paymentDate: receiptPaymentDate(payment),
+                        issuer: selectedYear ?? EMPTY_YEAR_DOCUMENT_ISSUER,
                       }}
                       fileName={`領収書_${payment.companyName}.pdf`}
                     />

@@ -11,9 +11,13 @@ func NewCompanyRepository() *CompanyRepository {
 	return &CompanyRepository{}
 }
 
-func (r *CompanyRepository) ListAll() ([]model.Company, error) {
+func (r *CompanyRepository) ListAll(keyword string) ([]model.Company, error) {
 	var companies []model.Company
-	if err := db.DB.Find(&companies).Error; err != nil {
+	query := db.DB.Model(&model.Company{})
+	if keyword != "" {
+		query = query.Where("company_name LIKE ? OR company_name_kana LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	}
+	if err := query.Find(&companies).Error; err != nil {
 		return nil, err
 	}
 	return companies, nil
@@ -39,12 +43,9 @@ func (r *CompanyRepository) FindByCompanyName(name string) (*model.Company, erro
 	return &c, nil
 }
 
-func (r *CompanyRepository) Update(c *model.Company) error {
-	var existing model.Company
-	if err := db.DB.First(&existing, "id = ?", c.ID).Error; err == nil {
-		c.CreatedAt = existing.CreatedAt
-	}
-	return db.DB.Save(c).Error
+// UpdateColumns writes only the given columns (spec/database.md#Concurrent Updates).
+func (r *CompanyRepository) UpdateColumns(id string, changes map[string]interface{}) error {
+	return db.DB.Model(&model.Company{}).Where("id = ?", id).Updates(changes).Error
 }
 
 // HasYearlyCompanies reports whether the Company has a Yearly Company in any Year.

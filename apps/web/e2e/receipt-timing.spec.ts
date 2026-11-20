@@ -13,6 +13,9 @@ test("入金待ちの領収書は入金日の入力が必要で、確認済み�
   const companyName = uniqueCompanyName("領収書")
   await actAs(page, seedUsers.administrator)
 
+  // Set up document issuer info so the receipt download button is enabled.
+  await setUpDocumentIssuer(page, "year_2026")
+
   await page.goto("/companies/new")
   await page.getByLabel("会社名").fill(companyName)
   await page.getByLabel("フリガナ").fill("イーツーイーリョウシュウショ")
@@ -65,4 +68,36 @@ async function openReceipt(page: Page, scope = page.locator("body")) {
   const dialog = page.getByRole("dialog", { name: "領収書の生成" })
   await expect(dialog).toBeVisible()
   return dialog
+}
+
+/**
+ * Navigates to the document-issuer settings for the given yearId and fills in
+ * the minimum required fields so that receipt/invoice downloads are enabled.
+ */
+async function setUpDocumentIssuer(page: Page, yearId: string) {
+  await page.goto(`/settings/document-issuer?yearId=${yearId}`)
+  await expect(
+    page.getByRole("heading", { name: "書類発行情報", level: 2 })
+  ).toBeVisible()
+  const issuerValues = [
+    ["発行者名（必須）", "E2E Festival Committee"],
+    ["郵便番号（必須）", "940-2188"],
+    ["住所（1行目）（必須）", "E2E test address"],
+    ["メールアドレス（必須）", "e2e@example.com"],
+    ["銀行名（必須）", "E2E Bank"],
+    ["支店名（必須）", "E2E Branch"],
+    ["預金種別（必須）", "Ordinary"],
+    ["口座番号（必須）", "1234567"],
+    ["口座名義（必須）", "E2E Festival"],
+  ] as const
+  for (const [label, value] of issuerValues) {
+    const field = page.getByLabel(label)
+    // Only fill if the field is currently empty to avoid overwriting prior runs.
+    const current = await field.inputValue()
+    if (!current) {
+      await field.fill(value)
+    }
+  }
+  await page.getByRole("button", { name: "書類発行情報を保存" }).click()
+  await expect(page.getByText("保存しました。")).toBeVisible()
 }

@@ -128,7 +128,6 @@ function mapApiContract(raw: {
   yearlyCompanyId: string
   contractDate?: string
   totalAmount: number | string
-  assigneeId?: string
   remarks?: string
 }): SponsorshipContract {
   return {
@@ -136,8 +135,6 @@ function mapApiContract(raw: {
     yearlyCompanyId: raw.yearlyCompanyId,
     contractDate: (raw.contractDate ?? "").toString().slice(0, 10),
     totalAmount: Number(raw.totalAmount),
-    assigneeId: raw.assigneeId ?? null,
-    assigneeName: null,
     remarks: raw.remarks ?? "",
   }
 }
@@ -261,7 +258,6 @@ export async function getContractByYearlyCompany(
         yearlyCompanyId: string
         contractDate?: string
         totalAmount: number | string
-        assigneeId?: string
         remarks?: string
       }>(`/yearly-companies/${yearlyCompanyId}/contract`)
       return mapApiContract(raw)
@@ -713,6 +709,7 @@ export async function getPaymentByContract(
         status: string
         confirmedAt?: string | null
         confirmedById?: string | null
+        confirmedByName?: string | null
       }>(`/contracts/${contractId}/payment`)
       return {
         id: raw.id,
@@ -724,7 +721,7 @@ export async function getPaymentByContract(
         status: raw.status as Payment["status"],
         confirmedAt: toConfirmationDate(raw.confirmedAt),
         confirmedById: raw.confirmedById ?? null,
-        confirmedByName: null,
+        confirmedByName: raw.confirmedByName ?? null,
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) return null
@@ -985,7 +982,6 @@ export async function createContractWithMenus(
       yearlyCompanyId: string
       contractDate?: string
       totalAmount: number | string
-      assigneeId?: string
       remarks?: string
     }>(`/yearly-companies/${yearlyCompanyId}/contract`, {
       method: "POST",
@@ -1013,8 +1009,6 @@ export async function createContractWithMenus(
     yearlyCompanyId,
     contractDate: input.contractDate,
     totalAmount: total,
-    assigneeId: yc?.assignedMemberId ?? null,
-    assigneeName: yc?.assignedMemberName ?? null,
     remarks: input.remarks,
   }
   addSponsorshipContract(contract)

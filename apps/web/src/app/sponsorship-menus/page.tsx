@@ -128,6 +128,7 @@ function SponsorshipMenusPageContent() {
       )
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "更新に失敗しました" }))
+      updateLocalMenu(id, current)
     } finally {
       setSavingId(null)
     }

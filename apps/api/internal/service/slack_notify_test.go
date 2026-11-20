@@ -33,4 +33,8 @@ func TestConfirmedMentionText(t *testing.T) {
 	if got != "<@U02> 企業 の協賛が確定しました。" {
 		t.Fatalf("empty company name: %q", got)
 	}
+	got = ConfirmedMentionText("U03", "<!channel> & company")
+	if got != "<@U03> &lt;!channel&gt; &amp; company の協賛が確定しました。" {
+		t.Fatalf("mrkdwn characters were not escaped: %q", got)
+	}
 }

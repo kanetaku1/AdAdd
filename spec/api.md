@@ -123,7 +123,11 @@ If the User has `isActive = false`: `403 Forbidden`, `error.code = "FORBIDDEN"`,
 }
 ```
 
-The fixed set of `error.code` values is `INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR` (`apps/api/internal/handler/error.go`).
+The fixed set of `error.code` values is `INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR` (`apps/api/internal/handler/error.go`). A request body that exceeds its limit returns HTTP `413 Request Entity Too Large` with `error.code = "INVALID_REQUEST"`; parser details are not returned to the caller.
+
+## Request Body Limits
+
+JSON and other non-file request bodies are limited to 1 MiB. The multipart upload endpoints `POST /contract-menus/{id}/drive-upload`, `POST /companies/bulk`, and `POST /users/bulk` are limited to 50 MiB for the entire request, including multipart overhead and the combined size of all files. The limit is enforced both from `Content-Length` and while reading requests without a declared length.
 
 ---
 
@@ -399,7 +403,7 @@ Request (every field optional; omitted fields are unchanged):
   "bankBranchName": "○○支店（支店コード : 000）",
   "bankAccountType": "普通預金",
   "bankAccountNumber": "0000000",
-  "bankAccountHolderName": "技大祭実行委員会(ギダイサイジツコウイインカイ)"
+  "bankAccountHolderName": "サンプル実行委員会"
 }
 ```
 
