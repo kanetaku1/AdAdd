@@ -250,7 +250,7 @@ function ContractMenusList() {
         id,
         productionDepartment
       )
-      setContractMenusAcrossYear(
+      contractMenusCache.set(
         activeYearId,
         contractMenus.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
       )

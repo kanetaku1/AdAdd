@@ -139,7 +139,7 @@ func TestUpdateContractMenuProductionType(t *testing.T) {
 	expectStatus(t, member.do(http.MethodPatch, menuPath, map[string]any{"productionType": "COMMITTEE"}), http.StatusBadRequest)
 	expectStatus(t, member.do(http.MethodPatch, menuPath, map[string]any{"productionType": nil}), http.StatusBadRequest)
 
-	manager := asUser(t, actor.administrator.server, "user-advertisement-manager-type-change", "ADVERTISEMENT_MANAGER")
+	manager := asUser(t, actor.administrator.server, "user-ad-manager-type-change", "ADVERTISEMENT_MANAGER")
 	expectStatus(t, manager.do(http.MethodPatch, menuPath+"/production-department", map[string]any{
 		"productionDepartment": "PRODUCTION_BUREAU",
 	}), http.StatusOK)

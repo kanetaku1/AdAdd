@@ -10,7 +10,7 @@ import (
 
 func TestContractMenuProductionDepartmentAndStatusRules(t *testing.T) {
 	actors := newActors(t)
-	manager := asUser(t, actors.administrator.server, "user-advertisement-manager-department", "ADVERTISEMENT_MANAGER")
+	manager := asUser(t, actors.administrator.server, "user-ad-manager-department", "ADVERTISEMENT_MANAGER")
 	companyID := createCompany(t, actors.administrator, "制作部門割当株式会社")
 	yearID := createYear(t, actors.administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2027, 3, 31))
 	menuID := createSponsorshipMenu(t, actors.administrator, yearID, "制作部門割当メニュー", 80000)
