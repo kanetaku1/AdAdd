@@ -12,6 +12,7 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -227,10 +228,6 @@ func contractMenuAddedMessage(menuName string, contractMenu *model.ContractMenu)
 	return fmt.Sprintf("「%s」を追加（数量 %d、単価 %s）", menuName, contractMenu.Quantity, label.Yen(contractMenu.UnitPrice))
 }
 
-func (s *ContractMenuService) Update(m *model.ContractMenu) error {
-	return s.UpdateWithUser(m, "")
-}
-
 func contractMenuStatusLogMessage(menuName, from, to string) string {
 	if menuName == "" {
 		menuName = "協賛メニュー"
@@ -258,32 +255,35 @@ func validateManualContractMenuStatus(productionType, productionDepartment *stri
 	return ErrInvalidContractMenuStatus
 }
 
-// UpdateWithUser updates the contract menu and, if status changed, writes one
-// ActivityLog (spec/domain.md#Activity Log — every Contract Menu status
-// transition, not only SUBMITTED). Same-status PATCHes write nothing.
-func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID string) error {
+// UpdateStatus changes the Contract Menu's status and, when it actually
+// changes, writes one Activity Log (spec/domain.md#Activity Log — every
+// Contract Menu status transition, not only SUBMITTED). The same status writes
+// nothing. Only the status column is written, so a concurrent change to the
+// quantity, price, or production type is kept
+// (spec/database.md#Concurrent Updates).
+func (s *ContractMenuService) UpdateStatus(id, status, userID string) error {
 	return db.WithTx(func(tx *gorm.DB) error {
-		if err := ensureContractMenuActiveYear(tx, m.ID); err != nil {
+		if err := ensureContractMenuActiveYear(tx, id); err != nil {
 			return err
 		}
 		var existing model.ContractMenu
-		if err := tx.First(&existing, "id = ?", m.ID).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		statusChanged := existing.Status != m.Status
 		var fileCount int64
 		if err := tx.Model(&model.ContractMenuDriveFile{}).
-			Where("contract_menu_id = ?", m.ID).Count(&fileCount).Error; err != nil {
+			Where("contract_menu_id = ?", id).Count(&fileCount).Error; err != nil {
 			return err
 		}
-		if err := validateManualContractMenuStatus(existing.ProductionType, existing.ProductionDepartment, m.Status, fileCount); err != nil {
+		if err := validateManualContractMenuStatus(existing.ProductionType, existing.ProductionDepartment, status, fileCount); err != nil {
 			return err
 		}
-		if err := tx.Model(&existing).Update("status", m.Status).Error; err != nil {
-			return err
-		}
-		if !statusChanged {
+		if existing.Status == status {
 			return nil
+		}
+		if err := tx.Model(&model.ContractMenu{}).Where("id = ?", id).Update("status", status).Error; err != nil {
+			return err
 		}
 		var contract model.SponsorshipContract
 		if err := tx.First(&contract, "id = ?", existing.ContractID).Error; err != nil {
@@ -294,14 +294,8 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 		if err := tx.First(&smenu, "id = ?", existing.SponsorshipMenuID).Error; err == nil && smenu.Name != "" {
 			menuName = smenu.Name
 		}
-		al := &model.ActivityLog{
-			YearlyCompanyID: contract.YearlyCompanyID,
-			UserID:          userID,
-			Action:          model.EventContractMenuStatusUpdated,
-			Description:     contractMenuStatusLogMessage(menuName, existing.Status, m.Status),
-			CreatedAt:       time.Now(),
-		}
-		return tx.Create(al).Error
+		return writeActivityLog(tx, contract.YearlyCompanyID, userID, model.EventContractMenuStatusUpdated,
+			contractMenuStatusLogMessage(menuName, existing.Status, status))
 	})
 }
 
@@ -357,13 +351,18 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		if err := ensureContractMenuActiveYear(tx, id); err != nil {
 			return err
 		}
-		if err := tx.First(&m, "id = ?", id).Error; err != nil {
+		// The new unit price depends on the stored isGoodsSponsorship, so the
+		// row is locked while it is read and written.
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&m, "id = ?", id).Error; err != nil {
 			return err
 		}
 
 		previousQuantity := m.Quantity
 		previousUnitPrice := m.UnitPrice
 		previousStatus := m.Status
+		previousProductionType := m.ProductionType
+		previousProductionDepartment := m.ProductionDepartment
+		previousSubmittedAt := m.SubmittedAt
 
 		if quantity != nil {
 			m.Quantity = *quantity
@@ -376,9 +375,8 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 			if err := checkProductionType(&sponsorshipMenu, productionType.Value); err != nil {
 				return err
 			}
-			previousProductionType := m.ProductionType
 			m.ProductionType = productionType.Value
-			if !sameOptionalString(previousProductionType, m.ProductionType) {
+			if !equalOptionalStrings(previousProductionType, m.ProductionType) {
 				var fileCount int64
 				if err := tx.Model(&model.ContractMenuDriveFile{}).
 					Where("contract_menu_id = ?", m.ID).Count(&fileCount).Error; err != nil {
@@ -421,8 +419,35 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 			m.UnitPrice = smenu.DefaultPrice
 		}
 
-		if err := tx.Omit("Files").Save(&m).Error; err != nil {
-			return err
+		// Only changed columns are written. Production-type changes may also
+		// reset their dependent status/department fields, but Drive references
+		// are never touched (spec/database.md#Concurrent Updates).
+		columns := map[string]interface{}{}
+		if m.Quantity != previousQuantity {
+			columns["quantity"] = m.Quantity
+		}
+		if !m.UnitPrice.Equal(previousUnitPrice) {
+			columns["unit_price"] = m.UnitPrice
+		}
+		if m.IsGoodsSponsorship != wasGoods {
+			columns["is_goods_sponsorship"] = m.IsGoodsSponsorship
+		}
+		if !equalOptionalStrings(m.ProductionType, previousProductionType) {
+			columns["production_type"] = m.ProductionType
+		}
+		if !equalOptionalStrings(m.ProductionDepartment, previousProductionDepartment) {
+			columns["production_department"] = m.ProductionDepartment
+		}
+		if m.Status != previousStatus {
+			columns["status"] = m.Status
+		}
+		if previousSubmittedAt != nil && m.SubmittedAt == nil {
+			columns["submitted_at"] = nil
+		}
+		if len(columns) > 0 {
+			if err := tx.Model(&model.ContractMenu{}).Where("id = ?", m.ID).Updates(columns).Error; err != nil {
+				return err
+			}
 		}
 		if _, err := csvc.RecalculateTotalAmount(tx, m.ContractID, userID); err != nil {
 			return err
@@ -467,13 +492,6 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 	return &m, nil
 }
 
-func sameOptionalString(left, right *string) bool {
-	if left == nil || right == nil {
-		return left == nil && right == nil
-	}
-	return *left == *right
-}
-
 func (s *ContractMenuService) PatchProductionDepartment(id string, department *string) (*model.ContractMenu, error) {
 	if department != nil && !IsProductionDepartment(*department) {
 		return nil, ErrInvalidProductionDepartment
@@ -483,7 +501,7 @@ func (s *ContractMenuService) PatchProductionDepartment(id string, department *s
 			return err
 		}
 		var menu model.ContractMenu
-		if err := tx.First(&menu, "id = ?", id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&menu, "id = ?", id).Error; err != nil {
 			return err
 		}
 		if menu.ProductionType == nil || *menu.ProductionType != "INTERNAL" {
@@ -503,6 +521,13 @@ func contains(values []string, value string) bool {
 		}
 	}
 	return false
+}
+
+func equalOptionalStrings(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 
 func (s *ContractMenuService) ListFiles(contractMenuID string) ([]model.ContractMenuDriveFile, error) {

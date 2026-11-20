@@ -22,7 +22,7 @@ func loginWithGoogle(c echo.Context) error {
 		IDToken string `json:"idToken"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if body.IDToken == "" {
 		return respondBadRequest(c, "idToken is required")

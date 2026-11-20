@@ -66,13 +66,13 @@ Year
 
 Exactly one Year is active: the most recently created one. Creating a new Year makes every earlier Year a **past Year**. There is no separate archive step, and a past Year never becomes active again.
 
-A past Year is read-only, with one exception: **payment confirmation**. Bank transfers for the previous cycle can arrive after the next Year has started, so the Finance Department can still confirm a past Year's Payment, or move it back to waiting to correct a mistake.
+A past Year is read-only. This includes every Payment field and its related Yearly Company progress: the Finance Department cannot confirm or revert a past Year's Payment, or change its received amount or remarks, after the next Year is created.
 
 Everything else in a past Year — Yearly Companies, assignments, Contracts, Contract Menus, Sponsorship Menus, creating Payments — cannot be changed. Viewing it and producing documents from it (invoice and receipt PDFs, CSV export) do not change data and stay available.
 
 Company master data is not part of any Year and stays editable.
 
-Payment confirmation in a past Year includes recording the received amount and the remarks of that Payment (see Payment below), since a late or split transfer is exactly the case this exception exists for.
+Next-Year carryover and other financial adjustments handled separately by the Finance Department do not justify changing a past Year's AdAdd records. AdAdd does not provide a separate carryover-recording workflow.
 
 ### Correcting a Year
 
@@ -281,6 +281,8 @@ AdAdd does not decide whether a difference is acceptable. Confirming is the Fina
 The received amount is required to confirm a Payment; its input defaults to the billed amount. After confirmation, the received amount and the remarks stay editable without moving the Payment back to Waiting. Moving the Payment back to Waiting keeps the received amount.
 
 The receipt prints the received amount (see `spec/requirements.md` FR-015 → Receipt Timing).
+
+The mutability described above applies only while the Payment belongs to the active Year. Once that Year becomes past, its Payment and related progress are read-only under Active Year and Past Years.
 
 ### Relation to Sponsorship Progress
 
@@ -623,7 +625,7 @@ A contract can be created whether or not a member is assigned to the Yearly Comp
 | The contract's Payment becomes Confirmed | Progress moves to 協賛金入金 (`PAYMENT_RECEIVED`) automatically — unless it is already 領収書送付 (`RECEIPT_SENT`), which is kept. |
 | The Payment moves back from Confirmed to Waiting | If progress is 協賛金入金 or 領収書送付, it moves back to 協賛確定 (`CONFIRMED`) automatically. Other values are kept. |
 
-The automatic changes are part of the payment confirmation itself. They also apply when a past Year's Payment is confirmed or reverted, since payment confirmation is the one change a past Year accepts (see Active Year and Past Years). Each automatic change is recorded in the Activity Log like a manual one.
+The automatic changes are part of the payment confirmation itself. They apply only while the Payment belongs to the active Year; past-Year payments cannot be confirmed or reverted (see Active Year and Past Years). Each automatic change is recorded in the Activity Log like a manual one.
 
 ### Why the receipt stage follows confirmation
 

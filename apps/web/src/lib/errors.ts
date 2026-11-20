@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/api/client"
+import { ApiError, NETWORK_ERROR_CODE } from "@/lib/api/client"
 
 /**
  * Japanese message per backend error.code (apps/api/internal/handler/error.go).
@@ -8,12 +8,16 @@ import { ApiError } from "@/lib/api/client"
  */
 const ERROR_CODE_MESSAGE: Record<string, string> = {
   INVALID_REQUEST: "入力内容に誤りがあります。",
-  UNAUTHORIZED: "ログインが必要です。",
+  UNAUTHORIZED: "ログインの有効期限が切れたため、保存できませんでした。ログインし直してから、もう一度操作してください。",
   FORBIDDEN: "この操作を行う権限がありません。",
   NOT_FOUND: "データが見つかりませんでした。",
   CONFLICT: "既に登録されている、または競合するデータがあります。",
   INTERNAL_ERROR: "サーバーでエラーが発生しました。時間をおいて再度お試しください。",
   DRIVE_UNAVAILABLE: "Google Driveとの連携に失敗しました。管理者に連絡してください。",
+  // /api/proxy could not reach the Go API (spec/frontend.md Principle 6).
+  BAD_GATEWAY: "サーバーに接続できませんでした。時間をおいて再度お試しください。",
+  // The browser could not reach the web app (offline, network error).
+  [NETWORK_ERROR_CODE]: "サーバーに接続できませんでした。通信環境を確認してください。",
 }
 
 /**

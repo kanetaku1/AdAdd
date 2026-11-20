@@ -16,6 +16,8 @@ import {
   type ContractCreationInput,
 } from "@/components/contract-creation-form"
 import { ContractMenuSection } from "@/components/contract-menu-section"
+import { PastYearNotice } from "@/components/past-year-notice"
+import { useActiveYear } from "@/components/active-year-provider"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { useUsers } from "@/components/users-provider"
 import { useYearCatalog } from "@/components/year-catalog-provider"
@@ -51,6 +53,7 @@ import type { ActivityLog } from "@/types/activity-log"
 import type { ContractMenu } from "@/types/contract-menu"
 import type { Payment } from "@/types/payment"
 import type { SponsorshipContract } from "@/types/sponsorship-contract"
+import { EMPTY_YEAR_DOCUMENT_ISSUER } from "@/types/year"
 import type {
   CompanyStatus,
   SponsorshipPhase,
@@ -76,6 +79,7 @@ export default function YearlyCompanyDetailPage() {
     "SPONSORSHIP_MEMBER",
     "ADMINISTRATOR",
   ])
+  const { years, loading: yearsLoading } = useActiveYear()
   const canEditAssignee = canAccess(currentUser?.roles, ["ADMINISTRATOR"])
   const canManageContract = canAccess(currentUser?.roles, [
     "SPONSORSHIP_MEMBER",
@@ -115,6 +119,10 @@ export default function YearlyCompanyDetailPage() {
   const [error, setError] = useState<string | null>(null)
 
   const yearId = yearlyCompany?.yearId ?? null
+  const scopedYear = years.find((year) => year.id === yearId) ?? null
+  const isPastYear = Boolean(
+    yearlyCompany && (yearsLoading || scopedYear?.isActive === false)
+  )
   const menus = sponsorshipMenus(yearId)
   const advisorAssignments = advisorAssignmentsForYear(yearId)
 
@@ -265,16 +273,21 @@ export default function YearlyCompanyDetailPage() {
       deadline: addBusinessDays(today, 14),
       staffName: contract.assigneeName ?? yearlyCompany.assignedMemberName ?? "",
       remark: contract.remarks,
-      items: contractMenus.map((cm) => ({
-        name:
-          menus.find((m) => m.id === cm.sponsorshipMenuId)?.name ??
-          "(不明なメニュー)",
-        quantity: cm.quantity,
-        unitPrice: cm.unitPrice,
-      })),
+      // Goods sponsorship lines are not printed (spec/frontend.md#Invoice and
+      // Receipt Documents → Invoice line items).
+      items: contractMenus
+        .filter((cm) => !cm.isGoodsSponsorship)
+        .map((cm) => ({
+          name:
+            menus.find((m) => m.id === cm.sponsorshipMenuId)?.name ??
+            "(不明なメニュー)",
+          quantity: cm.quantity,
+          unitPrice: cm.unitPrice,
+        })),
       totalAmount: contract.totalAmount,
+      issuer: scopedYear ?? EMPTY_YEAR_DOCUMENT_ISSUER,
     }
-  }, [yearlyCompany, contract, contractMenus, menus])
+  }, [yearlyCompany, contract, contractMenus, menus, scopedYear])
 
   if (loading) {
     return <LoadingBlock />
@@ -285,7 +298,10 @@ export default function YearlyCompanyDetailPage() {
       <div className="flex flex-col gap-3">
         <h1 className="text-2xl font-semibold">読み込みエラー</h1>
         <ErrorBanner message={error} />
-        <Link href="/yearly-companies" className="text-sm hover:underline">
+        <Link
+          href="/yearly-companies"
+          className="text-sm hover:underline"
+        >
           協賛企業(年度別)に戻る
         </Link>
       </div>
@@ -437,13 +453,17 @@ export default function YearlyCompanyDetailPage() {
           が未設定のためモックデータを使用しています。認証は開発用のスタブです。
         </p>
       )}
+      <PastYearNotice year={scopedYear} />
 
       <ErrorBanner message={error} />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">
-            <Link href="/yearly-companies" className="hover:underline">
+            <Link
+              href={`/yearly-companies?yearId=${encodeURIComponent(yearlyCompany.yearId)}`}
+              className="hover:underline"
+            >
               協賛企業(年度別)
             </Link>
           </p>
@@ -457,7 +477,7 @@ export default function YearlyCompanyDetailPage() {
                 aria-label="Webサイト"
                 value={yearlyCompany.website}
                 placeholder="Webサイト未登録"
-                disabled={busy || !canEditStatusPhaseProgress}
+                disabled={busy || isPastYear || !canEditStatusPhaseProgress}
                 onChange={(website) => void handleContactChange({ website })}
               />
             </div>
@@ -478,7 +498,7 @@ export default function YearlyCompanyDetailPage() {
       <CompanyInfoSection
         contact={yearlyCompanyContact(yearlyCompany)}
         onChange={(patch) => void handleContactChange(patch)}
-        disabled={busy || !canEditStatusPhaseProgress}
+        disabled={busy || isPastYear || !canEditStatusPhaseProgress}
       />
 
       <AssignmentSection
@@ -494,7 +514,8 @@ export default function YearlyCompanyDetailPage() {
         onPhaseChange={(value) => void handlePhase(value)}
         progress={yearlyCompany.progress}
         onProgressChange={(value) => void handleProgress(value)}
-        statusPhaseProgressDisabled={busy || !canEditStatusPhaseProgress}
+        statusPhaseProgressDisabled={busy || isPastYear || !canEditStatusPhaseProgress}
+        readOnly={isPastYear}
       />
 
       <Separator />
@@ -508,6 +529,7 @@ export default function YearlyCompanyDetailPage() {
             totalAmount={contract.totalAmount}
             menus={menus}
             contractedQuantityByMenu={contractedQuantityByMenu}
+            readOnly={isPastYear}
             onChanged={(nextMenus) => {
               setContractMenus(nextMenus)
               invalidateContractMenusAcrossYear(yc.yearId)
@@ -517,7 +539,7 @@ export default function YearlyCompanyDetailPage() {
         ) : (
           <>
             <h2 className="font-medium">協賛メニュー</h2>
-            {canManageContract ? (
+            {canManageContract && !isPastYear ? (
               <ContractCreationForm
                 menus={menus}
                 busy={busy}
@@ -544,7 +566,7 @@ export default function YearlyCompanyDetailPage() {
                 initialData={invoiceData}
                 fileName={`請求書_${invoiceData.companyName}.pdf`}
               />
-              {contract.totalAmount > 0 && !payment && canCreatePayment && (
+              {contract.totalAmount > 0 && !payment && canCreatePayment && !isPastYear && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -558,9 +580,13 @@ export default function YearlyCompanyDetailPage() {
                 <ReceiptGeneratorModal
                   initialData={{
                     companyName: yearlyCompany.companyName,
-                    amount: payment.amount,
+                    amount:
+                      payment.status === "CONFIRMED"
+                        ? payment.receivedAmount ?? payment.amount
+                        : payment.amount,
                     issuedDate: businessToday(),
                     paymentDate: receiptPaymentDate(payment),
+                    issuer: scopedYear ?? EMPTY_YEAR_DOCUMENT_ISSUER,
                   }}
                   fileName={`領収書_${yearlyCompany.companyName}.pdf`}
                 />

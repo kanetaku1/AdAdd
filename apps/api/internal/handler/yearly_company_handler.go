@@ -55,7 +55,7 @@ func updateProgress(c echo.Context) error {
 		Progress string `json:"progress"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if err := ValidateProgress(body.Progress); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -83,7 +83,7 @@ func updateProgress(c echo.Context) error {
 		Description:     label.StatusChange("進捗", label.Progress(oldVal), label.Progress(yc.Progress)),
 	}
 
-	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
+	if err := svc.UpdateColumnWithLog(yc.ID, "progress", yc.Progress, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	service.NotifyAssigneeOnConfirmedAsync(id, oldVal, body.Progress)
@@ -92,8 +92,25 @@ func updateProgress(c echo.Context) error {
 
 func listYearlyCompanies(c echo.Context) error {
 	yearId := c.Param("yearId")
+	filters := model.YearlyCompanyFilters{
+		Keyword:        c.QueryParam("keyword"),
+		CompanyStatus:  c.QueryParam("companyStatus"),
+		Phase:          c.QueryParam("phase"),
+		AssigneeUserID: c.QueryParam("assigneeUserId"),
+		AdvisorUserID:  c.QueryParam("advisorUserId"),
+		Progress:       c.QueryParam("progress"),
+	}
+	if hasContractStr := c.QueryParam("hasContract"); hasContractStr != "" {
+		if hasContractStr == "true" {
+			v := true
+			filters.HasContract = &v
+		} else if hasContractStr == "false" {
+			v := false
+			filters.HasContract = &v
+		}
+	}
 	svc := service.NewYearlyCompanyService()
-	list, err := svc.ListByYear(yearId)
+	list, err := svc.ListByYear(yearId, filters)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
@@ -104,7 +121,7 @@ func createYearlyCompany(c echo.Context) error {
 	yearId := c.Param("yearId")
 	var req model.YearlyCompany
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	// validation
 	if req.CompanyID == "" {
@@ -124,7 +141,7 @@ func updateCompanyStatus(c echo.Context) error {
 		CompanyStatus string `json:"companyStatus"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if err := ValidateCompanyStatus(body.CompanyStatus); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -152,7 +169,7 @@ func updateCompanyStatus(c echo.Context) error {
 		Description:     label.StatusChange("企業ステータス", label.CompanyStatus(oldVal), label.CompanyStatus(yc.CompanyStatus)),
 	}
 
-	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
+	if err := svc.UpdateColumnWithLog(yc.ID, "company_status", yc.CompanyStatus, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
@@ -164,7 +181,7 @@ func updatePhase(c echo.Context) error {
 		Phase string `json:"phase"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if err := ValidatePhase(body.Phase); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -192,7 +209,7 @@ func updatePhase(c echo.Context) error {
 		Description:     label.StatusChange("フェーズ", label.Phase(oldVal), label.Phase(yc.Phase)),
 	}
 
-	if err := svc.UpdateWithLog(&yc.YearlyCompany, logEntry); err != nil {
+	if err := svc.UpdateColumnWithLog(yc.ID, "phase", yc.Phase, logEntry); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": yc, "message": "updated"})
@@ -202,7 +219,7 @@ func updateCompanyContact(c echo.Context) error {
 	id := c.Param("id")
 	var body model.CompanyContactInput
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	svc := service.NewYearlyCompanyService()
 	yc, err := svc.UpdateContact(id, body)

@@ -56,11 +56,11 @@ func activityLogActions(t *testing.T) []string {
 	return actions
 }
 
-// Each status change through UpdateWithUser writes one
+// Each status change through UpdateStatus writes one
 // CONTRACT_MENU_STATUS_UPDATED entry; the same status writes nothing. Only
 // transitions allowed without files are used here: SUBMITTED is derived from
 // active files (see TestAddFilesSubmitsAndLogsUpload).
-func TestUpdateWithUserLogsAnyStatusChangeOnce(t *testing.T) {
+func TestUpdateStatusLogsAnyStatusChangeOnce(t *testing.T) {
 	testdb.Open(t)
 	cm := seedStatusLogContractMenu(t)
 	svc := NewContractMenuService()
@@ -74,8 +74,7 @@ func TestUpdateWithUserLogsAnyStatusChangeOnce(t *testing.T) {
 		{"COMPLETED", 2},
 	}
 	for _, step := range steps {
-		cm.Status = step.status
-		if err := svc.UpdateWithUser(cm, "user-test"); err != nil {
+		if err := svc.UpdateStatus(cm.ID, step.status, "user-test"); err != nil {
 			t.Fatalf("update to %s: %v", step.status, err)
 		}
 		actions := activityLogActions(t)
@@ -90,14 +89,13 @@ func TestUpdateWithUserLogsAnyStatusChangeOnce(t *testing.T) {
 	}
 }
 
-// SUBMITTED cannot be set through UpdateWithUser while no file is
+// SUBMITTED cannot be set through UpdateStatus while no file is
 // registered, and the rejected change writes no log.
-func TestUpdateWithUserRejectsSubmittedWithoutFiles(t *testing.T) {
+func TestUpdateStatusRejectsSubmittedWithoutFiles(t *testing.T) {
 	testdb.Open(t)
 	cm := seedStatusLogContractMenu(t)
 
-	cm.Status = "SUBMITTED"
-	if err := NewContractMenuService().UpdateWithUser(cm, "user-test"); !errors.Is(err, ErrSubmittedStateConflict) {
+	if err := NewContractMenuService().UpdateStatus(cm.ID, "SUBMITTED", "user-test"); !errors.Is(err, ErrSubmittedStateConflict) {
 		t.Fatalf("err = %v, want ErrSubmittedStateConflict", err)
 	}
 	if actions := activityLogActions(t); len(actions) != 0 {

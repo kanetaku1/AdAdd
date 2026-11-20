@@ -218,7 +218,10 @@ Re-login:
 * The Google authorization request does not force the account chooser. After a successful sign-in, Next.js keeps the signed-in email in an httpOnly cookie (`adadd_login_hint`, 180 days) and sends it to Google as `login_hint`, so a browser still signed in to that Google account comes straight back. The hint is kept after logging out, and removed when sign-in fails because the email is not registered.
 * `/login` never redirects to Google by itself; the member presses the button.
 
-Every screen fetches data from the browser through `/api/proxy`, so the session is attached in one place. When an API call returns `401` (missing, expired, or invalid session, or the User was deactivated), the browser is sent to `/login` instead of showing an error, and the rejected session cookie is removed.
+Every screen fetches data from the browser through `/api/proxy`, so the session is attached in one place. An API call returns `401` when the session is missing, expired (30 days without use), or invalid (e.g. `JWT_SECRET` was changed), or the User was deactivated. `/api/proxy` then removes the rejected session cookie, and the screen reacts by the kind of request (Issue #168):
+
+* Reading (`GET`), e.g. opening a screen — the browser is sent to `/login`. Nothing entered is lost at this point.
+* Writing (`POST` / `PATCH` / `PUT` / `DELETE`), e.g. saving a form — the screen stays as it is, so what the member entered is not lost, and a dialog says so: `ログインの有効期限が切れたため、保存できませんでした。入力中の内容はこの画面に残っています。新しいタブでログインし直してから、この画面でもう一度操作してください。` It offers `新しいタブでログイン` (opens `/login` in a new tab) and `閉じる`. After signing in in the other tab, the new session cookie is used by this screen too, so the member saves again here. A deactivated User cannot sign in again; `/login` shows that the account is not registered.
 
 `/api/proxy` forwards only to the Go API (`NEXT_PUBLIC_API_BASE_URL`), because it attaches the session (Issue #157):
 
@@ -507,10 +510,11 @@ Rules for the generation actions next to the Contract summary (FR-015 → Docume
   * `CONFIRMED` — amount defaults to `Payment.receivedAmount`; payment date (入金日) defaults to `Payment.confirmedAt`.
   * `WAITING` — amount defaults to `Payment.amount` (billed amount); payment date has no default and must be entered before download.
   * The amount stays editable in the dialog in both cases.
+* **Addressee** — the company name followed by `御中`, underlined; on the line below, in smaller text and not underlined, the company-side contact person (`YearlyCompany.contactPersonName`) as `ご担当： <contact person> 様`. Both are pre-filled in the dialog and can be overwritten there, like the other fields. When the contact person is empty, that line is not printed (Issue #168).
 * **Invoice line items** — the Contract Menus with `isGoodsSponsorship = false`. Goods sponsorship lines are not printed.
 * **No document number, no consumption-tax breakdown, no revenue stamp field.** The documents print amounts only.
 * **Issuer block and bank transfer account** — read from the Contract's Year (`GET /years`, `spec/model.md#Year`), not from constants in the frontend source.
-* **Missing issuer information** — if a field the document requires is empty (`spec/model.md#Year` → Required fields for document generation), generation is blocked and the dialog lists the missing fields by their Japanese labels, so the user can ask an Administrator to fill them in on Year List.
+* **Missing issuer information** — if a field the document requires is empty (`spec/model.md#Year` → Required fields for document generation), generation is blocked and the dialog lists the missing fields by their Japanese labels, so the user can ask an Administrator to fill them in under Settings → Document Issuer Information.
 * **Seal image** — the receipt keeps using the static file `apps/web/public/images/43rd_Stamp.png`, as today (Issue #176, the user's decision).
 
 When a `WAITING` Payment already has a `receivedAmount` (part of a split payment), whether the receipt amount should default to it instead of the billed amount is TBD (FR-015).
@@ -707,22 +711,20 @@ Display:
 | Company (+ companyNameKana, カタカナ表記 — for matching against bank passbook records) |
 | Assigned Sponsorship Member |
 | Contract amount (billed amount, `Payment.amount`) |
-| Received amount (実入金額, `Payment.receivedAmount`) |
-| Difference (received − billed; shown only when they differ) |
-| Remarks (備考, `Payment.remarks`) |
 | Payment status          |
-| Payment date            |
+| Payment confirmation date |
+| Confirmed by             |
+| Receipt PDF action       |
 
 Data source: `GET /years/{yearId}/payments` (`spec/api.md`), which already joins `companyNameKana` and `assignedMemberName`.
 
 Actions:
 
-* Record the received amount — for a split payment, overwrite it with the cumulative total each time money arrives
-* Edit remarks — e.g. the reason for a bank fee deduction or overpayment
-* Confirm payment — the received amount is required; its input is pre-filled with the billed amount. Confirming is allowed even when the received amount differs from the billed amount; the difference stays visible
-* Update status — moving back to 入金待ち keeps the received amount
+* Confirm payment — Finance Department / Administrator can change the status. When confirming a Payment that has no recorded received amount, the frontend submits the billed amount as the default. The finance list does not display or edit the received amount, difference, or remarks.
+* Update status — moving back to 入金待ち keeps any existing received amount.
+* Confirmation step — choosing a new payment status does not save it at once. A dialog names the company, the amount, and the change (e.g. `〇〇株式会社の入金（¥95,000）を確認済みにします。よろしいですか？`, or `…を入金待ちに戻します。…` when reverting), and the change is saved only after the user confirms. Both directions are confirmed, because both move the company's progress (below) and decide what a receipt shows. Cancelling leaves the status as it was (Issue #168).
 
-The received amount and remarks stay editable after confirmation (no need to move back to 入金待ち). Each change is recorded in 活動記録.
+The Finance Payment List does not provide a separate payment-details update dialog or action button.
 
 There is no partial-payment status. A split payment stays 入金待ち until the full amount has arrived (`spec/domain.md#Payment`).
 
@@ -865,26 +867,39 @@ Actions:
 
 * Create a new Year — copies every Company forward as a Yearly Company for the new Year (`companyStatus` auto-computed, see `spec/domain.md` → Company Status), and makes the new Year active in place of whichever Year was active before. The issuer information and bank transfer account are copied from the previous Year.
 * Correct the active Year's name, start date, and end date (Administrator — `PATCH /years/{yearId}`, `spec/domain.md#Correcting a Year`). Past Years are not editable (see Viewing a Past Year).
-* Click a row to open that Year's Yearly Company List (`/yearly-companies?yearId=`, current or past), scoped to that Year regardless of which Year is active.
-* Edit the Year's document issuer information (Administrator) — issuer name, postal code, address lines, contact email, and the bank transfer account printed on invoices and receipts (`PATCH /years/{yearId}/document-issuer`, `spec/model.md#Year`). Fields required for document generation are marked, so a missing value is visible before anyone tries to generate a document.
+* Click a Year name to open that Year's Yearly Company List (`/yearly-companies?yearId=`, current or past), scoped to that Year regardless of which Year is active. The selected Year is carried only between year-scoped pages. Navigating to a page that is not filtered by Year clears the selection and returns to the active Year context.
+* The Year List does not show document issuer status or a Settings action. Administrators manage year-scoped settings from Settings after selecting a Year.
 
-Where this edit action sits on the screen (inline on the row, or a separate Year detail view) is TBD. There is no seal-image action; the seal stays a static file in the repository (Issue #176).
+There is no seal-image action; the seal stays a static file in the repository (Issue #176).
 
 Only one Year is active at a time. `/yearly-companies` and `/sponsorship-menus` scope to the active Year (or the clicked-through Year, per above).
 
 ### Viewing a Past Year
 
-A past Year is read-only except payment confirmation (`spec/domain.md#Active Year and Past Years`, `spec/api.md#Past Years Are Read-Only`).
+A past Year is read-only, including its Payments (`spec/domain.md#Active Year and Past Years`, `spec/api.md#Past Years Are Read-Only`).
 
-* Yearly Company List, Yearly Company Detail, Sponsorship Menu, Contract Menu List, and Payment List can show any Year. They default to the active Year. A Year selector (or the `yearId` query from Year List) switches to a past Year.
-* While a past Year is shown, the page shows a fixed notice: 過去の年度（{name}）を表示しています。入金確認のほかは変更できません。
-* Every edit control is hidden, including inline-editable cells and Administrator-only delete actions. The only exception is the payment status on Payment List and on Yearly Company Detail, for Finance Department / Administrator as in the active Year.
+* Dashboard, Yearly Company List, Yearly Company Detail, Sponsorship Menu, Contract Menu List, Advertisement Progress, Payment List, and year-scoped Settings can show any Year. They default to the active Year. Clicking a Year name in Year List switches to that Year; the `yearId` query is preserved between these pages, including Advisor and Document Issuer Settings. Navigating to Company List or Year List clears the past-Year filter.
+* On a year-scoped page showing a past Year, a fixed notice says: 過去の年度（{name}）を表示しています。変更できません。
+* The sidebar shows the selected Year while a past-Year filter is active, and uses a blue accent for year-scoped navigation items only while a past-Year notice is displayed. Outside a year-scoped page the filter is cleared; Company List and Year List use the normal active-Year context. Year List marks its active Year in the table.
+* Every edit control is hidden, including inline-editable cells, Payment status and details controls, Administrator-only delete actions, and all Year-scoped Settings actions. Year-scoped Settings can display past-Year Advisor Assignments and document issuer information read-only. The Finance Payment List shows past-Year Payment data read-only. The Yearly Company Detail keeps payment status read-only.
 * Invoice / receipt PDF and CSV export stay available.
 * The backend rejects past-Year changes on its own. Hiding the controls is for clarity, not the enforcement.
 
 ---
 
 # System Administration
+
+## Settings
+
+Settings is Administrator-only and has three top-level tabs:
+
+* **Users** — global user and Role management; this tab is not Year-scoped.
+* **Advisors** — Advisor Assignments for the Year in the shared `yearId` context. It defaults to the active Year and writes only to that Year.
+* **Document Issuer Information** — issuer and bank information for the Year in the shared `yearId` context. It defaults to the active Year and writes only to that Year.
+
+The year-scoped Settings tabs use the same selected-Year context as other year-scoped pages; they do not have a separate Year selector. The `yearId` query is carried between year-scoped navigation links. Past Years show recorded settings read-only, with no add, remove, edit, or save controls. Changing the selected Year changes the view only and does not change which Year is active. Advertisement Management settings are not included until their requirements are defined.
+
+Only Administrators can edit settings. The Administrator Role is the responsible operator for user administration, Advisor Assignments, and document issuer information.
 
 ## User List
 
@@ -928,13 +943,17 @@ Display, one row per User. Holding the Advisor Role (`spec/domain.md#Role`) is w
 
 Actions:
 
-* The Advisors cell shows one chip per current `AdvisorAssignment`, scoped to the active Year (`AdvisorAssignment.yearId`).
-* A "+" control on the cell opens a dropdown to add another Advisor (Principle 4) — a User cannot be selected as their own Advisor, and an Advisor already present as a chip is excluded from the dropdown.
-* Clicking a chip's "×" removes that single advisor assignment (`DELETE /advisor-assignments/{id}`) without affecting the Member's other Advisors.
+* The Advisors cell shows one chip per `AdvisorAssignment` in the selected Year (`AdvisorAssignment.yearId`).
+* For the active Year, a "+" control on the cell opens a dropdown to add another Advisor (Principle 4) — a User cannot be selected as their own Advisor, and an Advisor already present as a chip is excluded from the dropdown.
+* For the active Year, clicking a chip's "×" removes that single advisor assignment (`DELETE /advisor-assignments/{id}`) without affecting the Member's other Advisors. Past-Year assignments are displayed without mutation controls.
 
 Below the table, a read-only summary groups members by their current Advisor(s) — a member with multiple Advisors appears under each — covering FR-013's "view the members supervised by a given Advisor." Viewing the companies an Advisor's members handle (FR-013's 4th bullet) is not built here — that belongs to a future Advisor Dashboard, out of scope for now (see Dashboard → Department view decision).
 
-Assignments do not carry over when a new Year is created — reassignment is a fresh per-Year action, same as the Yearly Company assigned-member picker.
+Assignments do not carry over when a new Year is created — reassignment is a fresh per-Year action, same as the Yearly Company assigned-member picker. The Administrator is the responsible operator for these assignments.
+
+## Document Issuer Information
+
+The document issuer and bank transfer information are edited on the Document Issuer Information Settings tab, not in an action or modal on the Year List. All fields required by the relevant document are visible and marked. A past Year displays its saved values read-only.
 
 ---
 
@@ -961,14 +980,17 @@ Assignments do not carry over when a new Year is created — reassignment is a f
 │
 └── 設定                   Settings
       ├── ユーザー           Users
-      └── アドバイザー割当   Advisor Assignments
+      ├── アドバイザー       Advisors
+      └── 書類発行情報       Document Issuer Information
 ```
 
 Sidebar labels are Japanese (right column above is the internal/route name only, not shown to users). Items are ordered by expected frequency of use for the broadest role (Sponsorship Member) first, admin-only items last.
 
-`広告進捗` sits with `広告管理` because both are daily production work (UC-07/UC-08), not master-data management. Users and Advisor Assignments are Settings tabs, not top-level sidebar items — one Administrator-only entry keeps the sidebar short.
+`広告進捗` sits with `広告管理` because both are daily production work (UC-07/UC-08), not master-data management. Users, Advisors, and Document Issuer Information are Settings tabs, not top-level sidebar items — one Administrator-only entry keeps the sidebar short. Users is global; year-scoped Settings tabs preserve the selected Year context.
 
-Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, 広告管理 is shown to Sponsorship Member and Advertisement Manager, Settings (and its Users / Advisor Assignments tabs) unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is implemented (`apps/web/src/components/app-sidebar.tsx` `allowedRoles` + `canAccess`, matching backend `RequireRoles`).
+Each item is shown only to the Roles that can use it (`spec/frontend.md` → User Roles, `spec/domain.md#Role`) — e.g. Finance is hidden unless the signed-in User holds the Finance Department Role, 広告管理 is shown to Sponsorship Member and Advertisement Manager, Settings (and its Users / Advisors / Document Issuer Information tabs) unless they hold Administrator. Administrator sees everything (superuser, `spec/model.md#UserRole`). This gating, and read-vs-edit restriction within a visible page, is implemented (`apps/web/src/components/app-sidebar.tsx` `allowedRoles` + `canAccess`, matching backend `RequireRoles`).
+
+When a past Year is selected on a year-scoped page, the sidebar displays its name and gives year-scoped items (Dashboard, Yearly Companies, Sponsorship Menus, Contract Menus, Advertisement Progress, Finance, and Advisor / Document Issuer Settings) a blue accent. The `yearId` is carried only between these scoped pages. Navigating to Company List or Year List clears the past-Year filter and returns to the active Year context. The Years table marks the active Year, and clicking a Year name explicitly selects that Year again.
 
 ---
 
@@ -1038,6 +1060,11 @@ Row-level and toolbar actions (edit, delete, add, upload, etc.) use icons with a
 ## Principle 6: Point at the Error, Not Just at the Form
 
 When a submission is rejected (e.g. Create Contract validation), highlight the specific invalid field(s) inline, not just a generic top-of-form error banner — the user should not have to guess which of several inputs is wrong.
+
+Error messages are Japanese business language, never a developer-facing or English string (Principle 2). In particular (Issue #168):
+
+* The web app cannot reach the API (`502 BAD_GATEWAY` from `/api/proxy`) — `サーバーに接続できませんでした。時間をおいて再度お試しください。` The developer-facing cause (which URL, which setting) goes to the server log only.
+* The browser cannot reach the web app at all (offline, network error; e.g. `Failed to fetch`) — `サーバーに接続できませんでした。通信環境を確認してください。`
 
 ---
 

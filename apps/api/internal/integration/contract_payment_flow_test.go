@@ -77,14 +77,15 @@ func TestContractToPaymentConfirmationFlow(t *testing.T) {
 
 	// Confirmation is performed by Finance only.
 	paymentStatusPath := "/payments/" + payment.ID
-	confirm := map[string]any{"status": "CONFIRMED"}
+	confirm := map[string]any{"status": "CONFIRMED", "receivedAmount": 160000}
 	expectStatus(t, member.do(http.MethodPatch, paymentStatusPath, confirm), http.StatusForbidden)
 	expectStatus(t, actor.advisor.do(http.MethodPatch, paymentStatusPath, confirm), http.StatusForbidden)
 	expectStatus(t, actor.finance.do(http.MethodPatch, paymentStatusPath, confirm), http.StatusOK)
 
 	confirmed := loadPayment(t, contract.ID)
-	if confirmed.Status != "CONFIRMED" || confirmed.ConfirmedAt == nil || confirmed.ConfirmedByID != financeID {
-		t.Fatalf("confirmed payment = status %s, confirmedAt %v, confirmedById %q; want CONFIRMED, set, %q",
+	if confirmed.Status != "CONFIRMED" || confirmed.ConfirmedAt == nil ||
+		confirmed.ConfirmedByID == nil || *confirmed.ConfirmedByID != financeID {
+		t.Fatalf("confirmed payment = status %s, confirmedAt %v, confirmedById %v; want CONFIRMED, set, %q",
 			confirmed.Status, confirmed.ConfirmedAt, confirmed.ConfirmedByID, financeID)
 	}
 	if got := countActivityLogs(t, yearlyCompanyID, model.EventPaymentStatusUpdated); got != 1 {

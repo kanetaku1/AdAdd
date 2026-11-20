@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 
-import { useActiveYear } from "@/components/active-year-provider"
 import { useYearCatalog } from "@/components/year-catalog-provider"
 import {
   ColumnFilterOption,
@@ -26,6 +25,7 @@ import { EditableProductionDepartmentCell } from "@/components/editable-producti
 import { EditableQuantityCell } from "@/components/editable-quantity-cell"
 import { useCurrentUser } from "@/components/current-user-provider"
 import { EmptyRow, ErrorBanner, LoadingRow } from "@/components/query-state"
+import { PastYearNotice } from "@/components/past-year-notice"
 import {
   updateContractMenu,
   updateContractMenuProductionDepartment,
@@ -33,6 +33,7 @@ import {
 } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { canAccess } from "@/lib/auth/roles"
+import { useSelectedYear } from "@/hooks/use-selected-year"
 import { downloadCsv } from "@/lib/csv"
 import { ContractMenuFilesSummary } from "@/components/contract-menu-files-summary"
 
@@ -71,7 +72,7 @@ function isContractMenuStatus(
 
 /**
  * Contract Menu List (spec/frontend.md#Contract Menu Management).
- * Cross-contract view of every Contract Menu in the active Year
+ * Cross-contract view of every Contract Menu in the selected Year
  * (spec/api.md#List Contract Menus Across a Year), for the Sponsorship Menu
  * Advertisement Management to track production/submission status across all
  * companies at once (UC-07, UC-08) — not scoped to one Contract like the
@@ -101,11 +102,18 @@ function ContractMenusList() {
   const initialStatus = searchParams.get("status")
   const initialCompanyName = searchParams.get("companyName")
 
-  const { activeYear, loading: yearLoading, error: yearError } = useActiveYear()
-  const activeYearId = activeYear?.id ?? null
+  const {
+    selectedYear,
+    selectedYearId: activeYearId,
+    isPastYear,
+    invalidYearSelection,
+    yearLoading,
+    yearError,
+  } = useSelectedYear()
   const { currentUser } = useCurrentUser()
-  const canManage = canAccess(currentUser?.roles, ALLOWED_ROLES)
-  const canManageStatus = canAccess(currentUser?.roles, STATUS_ALLOWED_ROLES)
+  const canManage = !isPastYear && canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const canManageStatus =
+    !isPastYear && canAccess(currentUser?.roles, STATUS_ALLOWED_ROLES)
   const {
     sponsorshipMenus,
     contractMenusAcrossYear,
@@ -266,7 +274,7 @@ function ContractMenusList() {
 
   function handleCsvExport() {
     downloadCsv(
-      `広告管理-${activeYear?.name ?? "年度"}.csv`,
+      `広告管理-${selectedYear?.name ?? "年度"}.csv`,
       ["会社名", "担当者", "メニュー", "数量", "制作者", "ステータス", "資料"],
       visibleContractMenus.map((cm) => [
         cm.companyName,
@@ -289,13 +297,15 @@ function ContractMenusList() {
       <div>
         <h1 className="text-2xl font-semibold">広告管理</h1>
         <p className="text-muted-foreground">
-          {activeYear?.name ?? ""}
+          {selectedYear?.name ?? ""}
           年度・契約済みの協賛メニューの制作・提出状況を横断管理
         </p>
       </div>
+      <PastYearNotice year={selectedYear} />
 
       <ErrorBanner
         message={
+          (invalidYearSelection ? "指定された年度が見つかりません。" : null) ||
           yearError ||
           error ||
           (activeYearId
@@ -529,6 +539,8 @@ function ContractMenusList() {
           <TableBody>
             {yearLoading || catalogLoading ? (
               <LoadingRow colSpan={7} />
+            ) : invalidYearSelection ? (
+              <EmptyRow colSpan={7} message="指定された年度が見つかりません。" />
             ) : !activeYearId ? (
               <EmptyRow
                 colSpan={7}
@@ -553,7 +565,7 @@ function ContractMenusList() {
                   <TableRow key={cm.id}>
                     <TableCell className="font-medium">
                       <Link
-                        href={`/yearly-companies/${cm.yearlyCompanyId}`}
+                        href={`/yearly-companies/${cm.yearlyCompanyId}?yearId=${encodeURIComponent(activeYearId ?? "")}`}
                         className="hover:underline"
                       >
                         {cm.companyName}
@@ -573,19 +585,25 @@ function ContractMenusList() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <EditableQuantityCell
-                        value={cm.quantity}
-                        disabled={savingId === cm.id || !canManage}
-                        onChange={(quantity) =>
-                          void handleDetailsChange(cm.id, { quantity })
-                        }
-                      />
+                      {isPastYear ? (
+                        cm.quantity
+                      ) : (
+                        <EditableQuantityCell
+                          value={cm.quantity}
+                          disabled={savingId === cm.id || !canManage}
+                          onChange={(quantity) =>
+                            void handleDetailsChange(cm.id, { quantity })
+                          }
+                        />
+                      )}
                     </TableCell>
                     <TableCell>
                       <EditableProductionDepartmentCell
                         productionType={cm.productionType}
                         value={cm.productionDepartment}
-                        disabled={savingId === cm.id || !canManageStatus}
+                        disabled={
+                          isPastYear || savingId === cm.id || !canManageStatus
+                        }
                         onChange={(productionDepartment) =>
                           void handleProductionDepartmentChange(
                             cm.id,
@@ -597,6 +615,8 @@ function ContractMenusList() {
                     <TableCell>
                       {cm.productionType === null ? (
                         <span className="text-muted-foreground">-</span>
+                      ) : isPastYear ? (
+                        CONTRACT_MENU_STATUS_LABEL[cm.status]
                       ) : (
                         <EditableContractMenuStatusBadge
                           value={cm.status}

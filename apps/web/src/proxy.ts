@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { MOCK_USER_COOKIE, SESSION_COOKIE } from "@/lib/auth/constants"
+import { appUrl } from "@/lib/auth/app-origin"
 
 /**
  * Route guard (spec/frontend.md#Login) — redirects to /login when there's
@@ -27,7 +28,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.next()
   }
 
-  return NextResponse.redirect(new URL("/login", req.url))
+  return NextResponse.redirect(appUrl("/login", req.url))
 }
 
 export const config = {

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { actAs, seedUsers, signSessionToken, webBaseUrl } from "./support"
+import { actAs, seedUsers, signSessionToken, uniqueCompanyName, webBaseUrl } from "./support"
 
 /**
  * The session path (spec/frontend.md#Login, Issue #152): every screen reaches
@@ -32,6 +32,35 @@ test.describe("セッション", () => {
 
     await page.goto("/companies")
     await expect(page).toHaveURL(/\/login$/)
+  })
+
+  test("保存がセッション切れで拒否されても、画面と入力内容は残り、ログインし直せば同じ画面で保存できる", async ({ page }) => {
+    // Issue #168: a write rejected with 401 does not leave the screen.
+    const companyName = uniqueCompanyName("セッション切れ")
+    await actAs(page, seedUsers.administrator)
+    await page.goto("/companies/new")
+    await page.getByLabel("会社名").fill(companyName)
+    await page.getByLabel("フリガナ").fill("イーツーイーセッションギレ")
+
+    // The session becomes invalid while the form is open (expired, or the
+    // secret was changed).
+    await page.context().addCookies([{ name: "adadd_session", value: "not-a-valid-token", url: webBaseUrl }])
+    await page.getByRole("button", { name: "登録", exact: true }).click()
+
+    const dialog = page.getByRole("dialog", { name: "ログインし直してください" })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole("button", { name: "新しいタブでログイン" })).toBeVisible()
+    await expect(page).toHaveURL(/\/companies\/new$/)
+    await page.keyboard.press("Escape")
+    await expect(dialog).toBeHidden()
+    await expect(page.getByLabel("会社名")).toHaveValue(companyName)
+
+    // Signing in again (in another tab) sets a new session cookie, and the
+    // same screen can save.
+    await actAs(page, seedUsers.administrator)
+    await page.getByRole("button", { name: "登録", exact: true }).click()
+    await expect(page).toHaveURL(/\/companies$/)
+    await expect(page.getByRole("row").filter({ hasText: companyName })).toHaveCount(1)
   })
 
   test("使っている間はセッションが延長される", async ({ page }) => {

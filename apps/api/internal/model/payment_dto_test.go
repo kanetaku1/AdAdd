@@ -52,3 +52,50 @@ func TestPaymentResponse_JoinedFields(t *testing.T) {
 		}
 	})
 }
+
+func TestPaymentDetailResponse_ConfirmedByName(t *testing.T) {
+	t.Run("unconfirmed payment serializes confirmedByName as null", func(t *testing.T) {
+		dto := PaymentDetailResponse{
+			Payment: Payment{
+				ID:         "pay-1",
+				ContractID: "con-1",
+				Status:     "WAITING",
+			},
+			ConfirmedByName: nil,
+		}
+
+		b, err := json.Marshal(dto)
+		if err != nil {
+			t.Fatalf("failed to marshal: %v", err)
+		}
+
+		jsonStr := string(b)
+		if !strings.Contains(jsonStr, `"confirmedByName":null`) {
+			t.Errorf("expected confirmedByName null in JSON, got: %s", jsonStr)
+		}
+	})
+
+	t.Run("confirmed payment serializes confirmedByName with user name", func(t *testing.T) {
+		name := "佐藤"
+		confirmedByID := "user-1"
+		dto := PaymentDetailResponse{
+			Payment: Payment{
+				ID:            "pay-1",
+				ContractID:    "con-1",
+				Status:        "CONFIRMED",
+				ConfirmedByID: &confirmedByID,
+			},
+			ConfirmedByName: &name,
+		}
+
+		b, err := json.Marshal(dto)
+		if err != nil {
+			t.Fatalf("failed to marshal: %v", err)
+		}
+
+		jsonStr := string(b)
+		if !strings.Contains(jsonStr, `"confirmedByName":"佐藤"`) {
+			t.Errorf("expected confirmedByName in JSON, got: %s", jsonStr)
+		}
+	})
+}

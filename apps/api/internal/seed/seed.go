@@ -286,7 +286,15 @@ func ensurePayment(contractID, status string) error {
 		return err
 	}
 	if status == "CONFIRMED" {
-		return paymentService.Update(&model.Payment{ID: payment.ID, Status: "CONFIRMED", ConfirmedByID: FinanceUserID})
+		receivedAmount := contract.TotalAmount
+		confirmedByID := FinanceUserID
+		return paymentService.Update(&model.Payment{
+			ID:                  payment.ID,
+			Status:              "CONFIRMED",
+			ReceivedAmount:      &receivedAmount,
+			ReceivedAmountGiven: true,
+			ConfirmedByID:       &confirmedByID,
+		})
 	}
 	return nil
 }

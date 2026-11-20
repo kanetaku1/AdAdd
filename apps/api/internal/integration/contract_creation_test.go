@@ -175,7 +175,9 @@ func TestConfirmedPaymentBlocksZeroTotal(t *testing.T) {
 	created := member.do(http.MethodPost, "/contracts/"+contract.ID+"/payment", nil)
 	expectStatus(t, created, http.StatusCreated)
 	payment := decodeData[model.Payment](t, created)
-	expectStatus(t, actor.finance.do(http.MethodPatch, "/payments/"+payment.ID, map[string]any{"status": "CONFIRMED"}), http.StatusOK)
+	expectStatus(t, actor.finance.do(http.MethodPatch, "/payments/"+payment.ID, map[string]any{
+		"status": "CONFIRMED", "receivedAmount": 80000,
+	}), http.StatusOK)
 
 	expectStatus(t, member.do(http.MethodPatch, "/contract-menus/"+contractMenuID, map[string]any{"isGoodsSponsorship": true}), http.StatusConflict)
 	expectStatus(t, actor.administrator.do(http.MethodDelete, "/contract-menus/"+contractMenuID, nil), http.StatusConflict)

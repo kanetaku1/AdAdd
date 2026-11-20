@@ -138,7 +138,7 @@
   - 説明: 支払い情報更新（ステータス変更など）
   - バリデーション: status は WAITING|CONFIRMED
   - CONFIRMED にするとサーバ側で confirmedAt/confirmedById がセットされます
-  - WAITING に戻すと confirmedAt/confirmedById をクリア
+  - WAITING に戻すと confirmedAt/confirmedById をクリア（null。空文字にはしない）
   - 存在しない paymentId は 404
 
 ### Assignments（CompanyAssignment 0..1）

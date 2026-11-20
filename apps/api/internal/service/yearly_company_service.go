@@ -15,8 +15,8 @@ func NewYearlyCompanyService() *YearlyCompanyService {
 	return &YearlyCompanyService{repo: repository.NewYearlyCompanyRepository()}
 }
 
-func (s *YearlyCompanyService) ListByYear(yearId string) ([]model.YearlyCompanyResponse, error) {
-	return s.repo.ListByYear(yearId)
+func (s *YearlyCompanyService) ListByYear(yearId string, filters model.YearlyCompanyFilters) ([]model.YearlyCompanyResponse, error) {
+	return s.repo.ListByYear(yearId, filters)
 }
 
 func (s *YearlyCompanyService) Create(yc *model.YearlyCompany) error {
@@ -35,10 +35,10 @@ func (s *YearlyCompanyService) GetByID(id string) (*model.YearlyCompanyResponse,
 	return s.repo.GetByID(id)
 }
 
-func (s *YearlyCompanyService) Update(yc *model.YearlyCompany) error { return s.repo.Update(yc) }
-
-func (s *YearlyCompanyService) UpdateWithLog(yc *model.YearlyCompany, log *model.ActivityLog) error {
-	return s.repo.UpdateWithLog(yc, log)
+// UpdateColumnWithLog changes one column (phase, progress, or companyStatus)
+// and writes its Activity Log.
+func (s *YearlyCompanyService) UpdateColumnWithLog(id, column string, value interface{}, log *model.ActivityLog) error {
+	return s.repo.UpdateColumnWithLog(id, column, value, log)
 }
 
 func (s *YearlyCompanyService) UpdateContact(id string, in model.CompanyContactInput) (*model.YearlyCompanyResponse, error) {
@@ -47,16 +47,21 @@ func (s *YearlyCompanyService) UpdateContact(id string, in model.CompanyContactI
 		if err := tx.First(&yc, "id = ?", id).Error; err != nil {
 			return err
 		}
-		model.ApplyContactToYearlyCompany(&yc, in)
-		if err := tx.Save(&yc).Error; err != nil {
-			return err
+		// Only changed contact columns are written; phase, progress and the
+		// company name are never touched (spec/database.md#Concurrent Updates).
+		if changes := model.ContactColumnChanges(model.ContactOfYearlyCompany(&yc), in); len(changes) > 0 {
+			if err := tx.Model(&model.YearlyCompany{}).Where("id = ?", yc.ID).Updates(changes).Error; err != nil {
+				return err
+			}
 		}
 		var company model.Company
 		if err := tx.First(&company, "id = ?", yc.CompanyID).Error; err != nil {
 			return err
 		}
-		model.ApplyContactToCompany(&company, in)
-		return tx.Save(&company).Error
+		if changes := model.ContactColumnChanges(model.ContactOfCompany(&company), in); len(changes) > 0 {
+			return tx.Model(&model.Company{}).Where("id = ?", company.ID).Updates(changes).Error
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

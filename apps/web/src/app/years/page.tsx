@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
+import Link from "next/link"
 
 import { CalendarPlus } from "lucide-react"
 
@@ -48,9 +49,17 @@ function emptyForm() {
  * reads the active Year re-scopes immediately.
  */
 export default function YearsPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-muted-foreground">読み込み中...</div>}>
+      <YearsPageContent />
+    </Suspense>
+  )
+}
+
+function YearsPageContent() {
   const { years, loading, error, refresh } = useActiveYear()
   const { currentUser } = useCurrentUser()
-  const canCreateYear = canAccess(currentUser?.roles, ALLOWED_ROLES)
+  const isAdministrator = canAccess(currentUser?.roles, ALLOWED_ROLES)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyForm())
   const [creating, setCreating] = useState(false)
@@ -81,8 +90,8 @@ export default function YearsPage() {
           <h1 className="text-2xl font-semibold">年度</h1>
           <p className="text-muted-foreground">技大祭の年度管理</p>
         </div>
-        {canCreateYear && (
-        <Dialog
+        {isAdministrator && (
+          <Dialog
           open={open}
           onOpenChange={(next) => {
             setOpen(next)
@@ -149,7 +158,7 @@ export default function YearsPage() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
         )}
       </div>
 
@@ -182,7 +191,14 @@ export default function YearsPage() {
             ) : (
               years.map((year) => (
                 <TableRow key={year.id}>
-                  <TableCell className="font-medium">{year.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/yearly-companies?yearId=${encodeURIComponent(year.id)}`}
+                      className="hover:underline"
+                    >
+                      {year.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{year.startDate}</TableCell>
                   <TableCell>{year.endDate}</TableCell>
                   <TableCell>
@@ -194,6 +210,7 @@ export default function YearsPage() {
           </TableBody>
         </Table>
       </div>
+
     </div>
   )
 }

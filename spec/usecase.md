@@ -87,7 +87,7 @@ Companies are ready for assignment.
 
 ## Actor
 
-Company Management Team
+System Administrator
 
 ## Goal
 
@@ -109,7 +109,7 @@ Each advisor is assigned to the member individually, not to a company. Advisors 
 
 ## Actor
 
-Company Management Team
+System Administrator
 
 ## Goal
 
@@ -191,7 +191,7 @@ Regardless of trigger, entering the contract at step 3 is always a manual action
 
 ## Actor
 
-Sponsorship Menu Management Team
+Sponsorship Menu Management Team, coordinating with the Advertisement Management Department
 
 ## Goal
 
@@ -208,7 +208,7 @@ Manage the sponsorship menus contracted within a sponsorship contract.
 
 ## Result
 
-Each Contract Menu's assignee, progress, and Drive information is managed.
+Each Contract Menu's production method, production destination (when it is Internal Production), status, and Drive submission are managed. The Sponsorship Member responsible for the company remains the Yearly Company's current `CompanyAssignment`; a Contract Menu has no assignee of its own (`spec/model.md#ContractMenu`).
 
 ---
 
@@ -416,15 +416,15 @@ Complete the sponsorship cycle.
 
 1. Create the next Year (UC-01).
 2. Every earlier Year becomes a past Year automatically.
-3. The Finance Department keeps confirming the past Year's remaining Payments as transfers arrive (UC-09).
+3. The Finance Department handles next-Year carryover and other financial adjustments through its separate workflow. AdAdd's past-Year records remain unchanged.
 
 ## Result
 
-The past Year is read-only except payment confirmation (`spec/domain.md#Active Year and Past Years`). All historical records are preserved and can be viewed.
+The past Year, including its Payments and related sponsorship progress, is read-only (`spec/domain.md#Active Year and Past Years`). All historical records are preserved and can be viewed.
 
 ## Notes
 
-There is no separate archive action. Before creating the next Year, finish any change other than payment confirmation in the current Year — contracts, contract menus, and assignments can no longer be changed afterwards. The past Year's own name and period can no longer be corrected either (`spec/domain.md#Correcting a Year`).
+There is no separate archive action. Before creating the next Year, finish all changes to the current Year, including payment confirmation and correction — contracts, contract menus, assignments, and Payments can no longer be changed afterwards. The past Year's own name and period can no longer be corrected either (`spec/domain.md#Correcting a Year`).
 
 ---
 

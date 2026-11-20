@@ -33,10 +33,12 @@ WHERE production_type IN ('COMPANY', 'CONTINUED')
       AND contract_menu_drive_files.deleted_at IS NULL
   );
 
+-- Existing INTERNAL rows cannot be assigned to a production department
+-- automatically. Keep them in the only valid unassigned state until an
+-- Advertisement Manager selects the department and moves them to REQUESTED.
 UPDATE contract_menus
-SET status = 'REQUESTED'
+SET status = 'WAITING'
 WHERE production_type = 'INTERNAL'
-  AND status IN ('REQUESTED', 'PRODUCING', 'COMPLETED')
   AND NOT EXISTS (
     SELECT 1
     FROM contract_menu_drive_files

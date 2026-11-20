@@ -191,7 +191,7 @@ Global enumeration, applied per Contract Menu.
 
 ### Maintained By
 
-Advertisement Management Department (Contract Menu status and production-department updates); Sponsorship Member (production-type selection).
+The enumeration values are fixed and are not maintained as editable master data. Per Contract Menu, Sponsorship Members select the production type; Advertisement Managers update the status and production department. Administrators are allowed as superusers (`spec/api.md#Authorization Matrix`).
 
 ### Referenced By
 

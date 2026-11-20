@@ -123,7 +123,11 @@ If the User has `isActive = false`: `403 Forbidden`, `error.code = "FORBIDDEN"`,
 }
 ```
 
-The fixed set of `error.code` values is `INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR` (`apps/api/internal/handler/error.go`).
+The fixed set of `error.code` values is `INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR` (`apps/api/internal/handler/error.go`). A request body that exceeds its limit returns HTTP `413 Request Entity Too Large` with `error.code = "INVALID_REQUEST"`; parser details are not returned to the caller.
+
+## Request Body Limits
+
+JSON and other non-file request bodies are limited to 1 MiB. The multipart upload endpoints `POST /contract-menus/{id}/drive-upload`, `POST /companies/bulk`, and `POST /users/bulk` are limited to 50 MiB for the entire request, including multipart overhead and the combined size of all files. The limit is enforced both from `Content-Length` and while reading requests without a declared length.
 
 ---
 
@@ -328,9 +332,9 @@ Each Year includes its document issuer information (`spec/model.md#Year`): `issu
 
 ## Past Years Are Read-Only
 
-Only the active Year accepts changes. A past Year accepts exactly one kind of change: `PATCH /payments/{paymentId}` (payment confirmation, both `CONFIRMED` and back to `WAITING`, together with `receivedAmount` and `remarks`) — see `spec/domain.md#Active Year and Past Years`.
+Only the active Year accepts changes. Every write to a record that belongs to a past Year, including `PATCH /payments/{paymentId}`, is rejected — see `spec/domain.md#Active Year and Past Years`.
 
-Every other write to a record that belongs to a past Year is rejected with HTTP 409 `CONFLICT` and the message 過去の年度は閲覧のみです（入金確認を除く）. The Year of a record is resolved through its owner:
+Writes to a past Year are rejected with HTTP 409 `CONFLICT` and the message 過去の年度は閲覧のみです. The Year of a record is resolved through its owner:
 
 | Endpoint | Year comes from |
 | -------- | --------------- |
@@ -344,7 +348,7 @@ Every other write to a record that belongs to a past Year is rejected with HTTP 
 
 The check is enforced in the backend, regardless of Role (Administrator included). Reads (`GET`) are not restricted. Year-independent data — Companies, Users, Roles — is not affected.
 
-Confirming a past Year's Payment, or moving it back to `WAITING`, also changes that Yearly Company's `progress` (see Update Payment Status). That change is part of the allowed payment confirmation, not a separate write, so it is not rejected.
+Updating a Payment in the active Year may also change that Yearly Company's `progress` (see Update Payment Status). Past-Year Payments cannot be updated, so their related progress remains unchanged.
 
 ---
 
@@ -399,7 +403,7 @@ Request (every field optional; omitted fields are unchanged):
   "bankBranchName": "○○支店（支店コード : 000）",
   "bankAccountType": "普通預金",
   "bankAccountNumber": "0000000",
-  "bankAccountHolderName": "技大祭実行委員会(ギダイサイジツコウイインカイ)"
+  "bankAccountHolderName": "サンプル実行委員会"
 }
 ```
 
@@ -658,16 +662,6 @@ Request:
 ```
 
 `companyStatus` is computed server-side (Continuing/New, based on whether the Company had a Yearly Company with a Sponsorship Contract in the immediately preceding Year — see `spec/model.md#Value Objects` → `CompanyStatus`) and must not be accepted from the request body. `phase` defaults to `PHASE_3`; `progress` defaults to `NOT_CONTACTED`. Contact snapshot fields are copied from the Company at creation.
-
----
-
-## Get Yearly Company
-
-```
-GET /yearly-companies/{id}
-```
-
-Same item shape as List Yearly Companies (including the contact snapshot and joined `companyName` / `companyNameKana`).
 
 ---
 
@@ -1101,9 +1095,7 @@ Query:
 `productionType=INTERNAL` matches every `INTERNAL` Contract Menu, whether or not `productionDepartment` is assigned and whichever department it is. `productionDepartment` matches only `INTERNAL` Contract Menus assigned to that department.
 An unsupported `productionDepartment` code returns `400 Bad Request`.
 
-Each item additionally includes `productionDepartment`, `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row.
-
-A Contract Menu whose Sponsorship Menu has since been deleted is excluded from this list — it never shows a stale or missing `sponsorshipMenuName`.
+Each item additionally includes `productionDepartment`, `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row. A Sponsorship Menu referenced by a Contract Menu cannot be deleted; a delete attempt returns `409 Conflict` (see Delete Sponsorship Menu).
 
 ---
 
@@ -1383,9 +1375,7 @@ Query:
 | --------- | ----------------------- |
 | status    | Filter by Payment status |
 
-Each item additionally includes `companyName`, `companyNameKana` (for bank-transfer-record matching, see `spec/frontend.md#Payment List`) and `yearlyCompanyId` (joined from the owning Contract's Yearly Company), `assignedMemberName` (joined from the Yearly Company's `CompanyAssignment`), and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row. `receivedAmount` and `remarks` are included as on Get Payment Status.
-
-A Payment whose Contract's Yearly Company has since been deleted is excluded from this list.
+Each item additionally includes `companyName`, `companyNameKana` (for bank-transfer-record matching, see `spec/frontend.md#Payment List`) and `yearlyCompanyId` (joined from the owning Contract's Yearly Company), `assignedMemberName` (joined from the Yearly Company's `CompanyAssignment`), and `confirmedByName` (joined from the confirming User, when set) so the list doesn't require a second round trip per row. `receivedAmount` and `remarks` are included as on Get Payment Status. Yearly Companies cannot be deleted through the API, so their Payments are not omitted on that basis.
 
 ---
 
@@ -1450,7 +1440,7 @@ The request may also carry `receivedAmount` and `remarks` (each optional; omitte
 * Moving `status` back to `WAITING` keeps `receivedAmount`.
 * Every change of `receivedAmount` or `remarks` is recorded in 活動記録 as `PAYMENT_DETAILS_UPDATED` (event type defined with Issue #172).
 
-Errors: `404 Not Found` when the Payment does not exist; `400 Bad Request` for a `status` other than `WAITING` / `CONFIRMED`.
+Errors: `404 Not Found` when the Payment does not exist; `400 Bad Request` for a `status` other than `WAITING` / `CONFIRMED`, a negative or malformed `receivedAmount`, an empty update, or confirming while `receivedAmount` is `null`.
 
 ---
 
@@ -1666,9 +1656,10 @@ All domain changes must update:
 
 * domain.md
 * model.md
-* er.md
 * database.md
 * api.md
+
+Update `frontend.md` as well when the change affects user-facing behavior. `database.md` documents both entity relationships and database implementation.
 
 ---
 

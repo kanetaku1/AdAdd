@@ -26,6 +26,8 @@ Responsible for:
 * Reviewing each company's status (Continuing / New / Dormant)
 * Setting each company's sponsorship phase (outreach priority ranking) for the Year
 
+These are the team's operational responsibilities. In AdAdd, assignment changes are restricted to the Administrator Role (`spec/api.md#Company-Assignment-API` and `spec/api.md#Advisor-Assignment-API`).
+
 ---
 
 ## Sponsorship Members
@@ -62,13 +64,12 @@ An Advisor may also be a Sponsorship Member.
 Responsible for:
 
 * Managing the Sponsorship Menu master (menus offered each festival year)
-* Coordinating production requests when a menu requires submission
+* Coordinating production and submission progress for each contracted menu
+* Requesting production from other departments when a menu requires submission
 * Collecting completed submission files
 * Delivering completed submissions to relevant external parties (e.g. the printing company)
 
-This team's operational coordination does not grant permission to change
-Contract Menu status or assign production departments; those actions belong
-only to the Advertisement Management Department and Administrator.
+Contract Menu status changes and production-department assignments are performed by the Advertisement Management Department Role, not by the Sponsorship Menu Management Team (`spec/api.md#Authorization Matrix`).
 Sponsorship Menu Managers may also be Sponsorship Members.
 
 ---

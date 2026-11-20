@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { getApiBaseUrl } from "@/lib/api/client"
+import { appUrl } from "@/lib/auth/app-origin"
 import { LOGIN_HINT_COOKIE, OAUTH_STATE_COOKIE, SESSION_COOKIE } from "@/lib/auth/constants"
 import { emailFromIdToken, exchangeCodeForTokens } from "@/lib/auth/google-oauth"
 import { sessionCookieOptions } from "@/lib/auth/session"
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   let idToken: string
   try {
-    const redirectUri = new URL("/api/auth/google/callback", req.url).toString()
+    const redirectUri = appUrl("/api/auth/google/callback", req.url).toString()
     const tokens = await exchangeCodeForTokens(code, redirectUri)
     idToken = tokens.id_token
   } catch {
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
 
   const body = (await apiRes.json()) as { data: { token: string } }
 
-  const res = NextResponse.redirect(new URL("/", req.url))
+  const res = NextResponse.redirect(appUrl("/", req.url))
   res.cookies.set(SESSION_COOKIE, body.data.token, sessionCookieOptions())
   res.cookies.delete(OAUTH_STATE_COOKIE)
   const email = emailFromIdToken(idToken)
@@ -80,7 +81,7 @@ function loginHintCookieOptions() {
 }
 
 function redirectWithError(req: NextRequest, error: string) {
-  const url = new URL("/login", req.url)
+  const url = appUrl("/login", req.url)
   url.searchParams.set("error", error)
   const res = NextResponse.redirect(url)
   res.cookies.delete(OAUTH_STATE_COOKIE)

@@ -62,7 +62,7 @@ func createContract(c echo.Context) error {
 		ContractMenus []contractMenuRequest `json:"contractMenus"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 
 	input := service.ContractCreationInput{
@@ -93,7 +93,7 @@ func updateContract(c echo.Context) error {
 		Remarks      *string     `json:"remarks"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	// totalAmount and assigneeId remain server-owned
 
