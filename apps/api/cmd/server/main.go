@@ -16,6 +16,7 @@ import (
 
 func main() {
 	cfg := config.Load()
+	cfg.Validate()
 
 	// MIGRATE_ON_START=true (development) applies migrations on startup.
 	// Otherwise (production) they are applied with cmd/migrate, and the API
@@ -63,20 +64,11 @@ func main() {
 	}
 }
 
-// initAuth wires the JWT issuer and Google id_token verifier used by
-// AuthMiddleware and POST /auth/google (spec/api.md#Authentication).
-// JWT_SECRET is required in every environment: the repository is public, so
-// a built-in fallback secret would let anyone sign a session (Issue #156).
 func initAuth(cfg *config.Config) {
-	if cfg.JWTSecret == "" {
-		log.Fatal("JWT_SECRET must be set (see .env.example)")
-	}
 	issuer := auth.NewJWTIssuer(cfg.JWTSecret)
 
 	var verifier *auth.GoogleVerifier
-	if cfg.GoogleClientID == "" {
-		log.Println("WARNING: GOOGLE_CLIENT_ID not set, POST /auth/google will be unavailable")
-	} else {
+	if cfg.GoogleClientID != "" {
 		v, err := auth.NewGoogleVerifier(context.Background(), cfg.GoogleClientID)
 		if err != nil {
 			log.Printf("WARNING: failed to initialize Google id_token verifier: %v", err)
