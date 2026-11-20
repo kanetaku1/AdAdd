@@ -57,7 +57,7 @@ const NAV_ITEMS = [
     url: "/settings",
     icon: Settings,
     allowedRoles: ["ADMINISTRATOR"],
-    yearScoped: false,
+    yearScoped: true,
   },
 ]
 

@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
@@ -41,12 +42,12 @@ func createSponsorshipMenu(c echo.Context) error {
 	yearId := c.Param("yearId")
 	var req model.SponsorshipMenu
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
-	// validation
-	if req.Name == "" {
+	if strings.TrimSpace(req.Name) == "" {
 		return respondBadRequest(c, "name is required")
 	}
+	req.Name = strings.TrimSpace(req.Name)
 	if !validateNonNegativeAmount(req.DefaultPrice) {
 		return respondBadRequest(c, "defaultPrice must be non-negative")
 	}
@@ -71,7 +72,13 @@ func updateSponsorshipMenu(c echo.Context) error {
 		MaxQuantity        *int            `json:"maxQuantity"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return respondBadRequest(c, "name is required")
+	}
+	if !validateNonNegativeAmount(req.DefaultPrice) {
+		return respondBadRequest(c, "defaultPrice must be non-negative")
 	}
 	if err := validateMaxQuantity(req.MaxQuantity); err != nil {
 		return respondBadRequest(c, err.Error())
@@ -83,7 +90,7 @@ func updateSponsorshipMenu(c echo.Context) error {
 		return respondNotFound(c, "sponsorship menu not found")
 	}
 
-	existing.Name = req.Name
+	existing.Name = strings.TrimSpace(req.Name)
 	existing.DefaultPrice = req.DefaultPrice
 	existing.RequiresSubmission = req.RequiresSubmission
 	existing.IsActive = req.IsActive

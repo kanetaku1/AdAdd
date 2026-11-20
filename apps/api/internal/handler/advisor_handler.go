@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
+	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -28,7 +29,7 @@ func createAdvisorAssignment(c echo.Context) error {
 		MemberUserID  string `json:"memberUserId"`
 	}
 	if err := c.Bind(&body); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 	if body.YearID == "" || body.AdvisorUserID == "" || body.MemberUserID == "" {
 		return respondBadRequest(c, "yearId, advisorUserId, and memberUserId are required")
@@ -36,6 +37,28 @@ func createAdvisorAssignment(c echo.Context) error {
 	if body.AdvisorUserID == body.MemberUserID {
 		return respondBadRequest(c, "advisor and member must be different users")
 	}
+
+	yearRepo := repository.NewYearRepository()
+	if _, err := yearRepo.GetByID(body.YearID); err != nil {
+		return respondNotFound(c, "year not found")
+	}
+
+	userRepo := repository.NewUserRepository()
+	advisorUser, err := userRepo.GetByID(body.AdvisorUserID)
+	if err != nil {
+		return respondNotFound(c, "advisor user not found")
+	}
+	if !advisorUser.IsActive {
+		return respondBadRequest(c, "advisor user is not active")
+	}
+	memberUser, err := userRepo.GetByID(body.MemberUserID)
+	if err != nil {
+		return respondNotFound(c, "member user not found")
+	}
+	if !memberUser.IsActive {
+		return respondBadRequest(c, "member user is not active")
+	}
+
 	if allowed, err := RejectPastYearWrite(c, body.YearID); err != nil || !allowed {
 		return err
 	}

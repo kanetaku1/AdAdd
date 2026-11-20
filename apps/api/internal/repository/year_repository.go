@@ -34,4 +34,12 @@ func (r *YearRepository) FindActive() (*model.Year, error) {
 	return &y, nil
 }
 
+func (r *YearRepository) NameExists(name string) (bool, error) {
+	var count int64
+	if err := db.DB.Model(&model.Year{}).Where("name = ?", name).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *YearRepository) Create(y *model.Year) error { return db.DB.Create(y).Error }

@@ -21,7 +21,7 @@ func NewPaymentService() *PaymentService {
 	return &PaymentService{repo: repository.NewPaymentRepository()}
 }
 
-func (s *PaymentService) GetByContractID(contractId string) (*model.Payment, error) {
+func (s *PaymentService) GetByContractID(contractId string) (*model.PaymentDetailResponse, error) {
 	return s.repo.GetByContractID(contractId)
 }
 
@@ -74,14 +74,23 @@ func (s *PaymentService) Update(p *model.Payment) error {
 			updates["confirmed_at"] = &n
 
 			confirmedByID := p.ConfirmedByID
-			if confirmedByID == "" {
+			if confirmedByID == nil {
 				confirmedByID = existing.ConfirmedByID
 			}
 			updates["confirmed_by_id"] = confirmedByID
 			p.ConfirmedByID = confirmedByID // Set for activity log
 		} else if statusChanged && status == "WAITING" {
+			// NULL, never '': an empty string references no User
+			// (spec/database.md#Referential Integrity).
 			updates["confirmed_at"] = nil
-			updates["confirmed_by_id"] = ""
+			updates["confirmed_by_id"] = nil
+		}
+
+		// The acting user of this request (the handler passes it as
+		// ConfirmedByID) records the Activity Logs below.
+		actorUserID := ""
+		if p.ConfirmedByID != nil {
+			actorUserID = *p.ConfirmedByID
 		}
 
 		if err := tx.Model(&model.Payment{}).Where("id = ?", p.ID).Updates(updates).Error; err != nil {
@@ -102,7 +111,7 @@ func (s *PaymentService) Update(p *model.Payment) error {
 			}
 			al := &model.ActivityLog{
 				YearlyCompanyID: contract.YearlyCompanyID,
-				UserID:          p.ConfirmedByID,
+				UserID:          actorUserID,
 				Action:          model.EventPaymentStatusUpdated,
 				Description:     description,
 				CreatedAt:       time.Now(),
@@ -119,7 +128,7 @@ func (s *PaymentService) Update(p *model.Payment) error {
 			}
 			al := &model.ActivityLog{
 				YearlyCompanyID: contract.YearlyCompanyID,
-				UserID:          p.ConfirmedByID,
+				UserID:          actorUserID,
 				Action:          model.EventPaymentDetailsUpdated,
 				Description:     paymentDetailsDescription(receivedAmountChanged, remarksChanged),
 				CreatedAt:       time.Now(),

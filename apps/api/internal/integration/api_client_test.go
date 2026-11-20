@@ -54,6 +54,7 @@ func newAPI(t *testing.T) *echo.Echo {
 		return integrationDriveOperator{}
 	})
 	server := echo.New()
+	server.Use(handler.RequestBodyLimit)
 	handler.RegisterHealthRoutes(server)
 	handler.RegisterRoutes(server)
 	return server

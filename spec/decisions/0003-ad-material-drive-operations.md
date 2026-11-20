@@ -50,6 +50,10 @@ a dedicated AdAdd identity, not with the operator's token.
 * Who may upload or delete is decided only by AdAdd Roles:
   Sponsorship Member, Advisor, and Administrator.
 * The browser never sends a Google access token to `apps/api` for Drive operations.
+* The browser-to-API BFF proxy streams request bodies instead of buffering the
+  entire upload in memory. `apps/api` enforces a 50 MiB total request limit for
+  Drive uploads; the production deployment must support that body size or
+  record a different upload path in the deployment decision.
 
 ### Deletion moves the file to the trash
 
@@ -71,6 +75,11 @@ The browser only sends the folder ID; `apps/api` accesses it with the AdAdd iden
 Files placed in that folder directly in Drive are not shown in AdAdd.
 AdAdd lists only the files uploaded through AdAdd (MySQL remains the Single Source of Truth).
 
+The current upload flow does not search Drive by company name or interpolate
+company names into a Drive query. It uploads directly to the folder ID and
+stores the returned file reference. If a Drive search is introduced later,
+its query values must be safely escaped.
+
 ### Exception to "Delete is Administrator-only"
 
 `spec/api.md#Authorization Matrix` makes deletion Administrator-only.
@@ -85,7 +94,10 @@ Deleting a Contract Menu itself stays Administrator-only.
 All four items below were confirmed on 2026-10-09:
 the AdAdd identity can be added to the shared drive, AdAdd Roles are an acceptable gate,
 members have view access to the shared drive, and Advisor may upload as well as delete.
-Item 4 (file size and upload path) is settled together with the production deployment.
+The application-level upload size (50 MiB for the full request, including all
+files and multipart overhead) and the standard API request size (1 MiB) were
+confirmed for Issue #176. The production upload path remains subject to the
+deployment decision, since the current Vercel deployment is mock-only.
 
 1. **Can the AdAdd identity join the shared drive?**
    A Google Cloud service account has an address outside the organization's domain.
@@ -101,8 +113,9 @@ Item 4 (file size and upload path) is settled together with the production deplo
 3. **Who can view the files?**
    Members open files through Drive links. They need at least view access to the
    shared drive, or AdAdd needs another way to show files.
-4. **File size and upload path.**
-   Decide the maximum file size and whether the browser uploads directly to Drive
+4. **Production upload path.**
+   Confirm that the production deployment accepts the 50 MiB application-level
+   request cap, or decide whether the browser uploads directly to Drive
    (resumable upload session issued by `apps/api`) instead of relaying the body
    through `/api/proxy`. This depends on the production deployment (ADR-0002).
 

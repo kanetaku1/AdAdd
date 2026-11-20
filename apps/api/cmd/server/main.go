@@ -35,6 +35,7 @@ func main() {
 
 	e := echo.New()
 
+	e.Use(handler.RequestBodyLimit)
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: cfg.AllowedOrigins,
 		AllowHeaders: []string{

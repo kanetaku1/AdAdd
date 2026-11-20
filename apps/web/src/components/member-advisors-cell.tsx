@@ -29,6 +29,7 @@ export function MemberAdvisorsCell({
   onAdd,
   onRemove,
   disabled,
+  readOnly = false,
 }: {
   member: User
   assignments: AdvisorAssignment[]
@@ -36,6 +37,7 @@ export function MemberAdvisorsCell({
   onAdd: (advisorId: string) => void
   onRemove: (assignmentId: string) => void
   disabled?: boolean
+  readOnly?: boolean
 }) {
   const [adding, setAdding] = useState(false)
 
@@ -51,19 +53,21 @@ export function MemberAdvisorsCell({
         return (
           <Badge key={assignment.id} variant="outline" className="gap-1">
             {advisor?.name ?? "(不明なユーザー)"}
-            <IconActionButton
-              label={`${advisor?.name ?? "アドバイザー"}を削除`}
-              size="icon-xs"
-              disabled={disabled}
-              onClick={() => onRemove(assignment.id)}
-            >
-              <X />
-            </IconActionButton>
+            {!readOnly && (
+              <IconActionButton
+                label={`${advisor?.name ?? "アドバイザー"}を削除`}
+                size="icon-xs"
+                disabled={disabled}
+                onClick={() => onRemove(assignment.id)}
+              >
+                <X />
+              </IconActionButton>
+            )}
           </Badge>
         )
       })}
 
-      {adding ? (
+      {!readOnly && (adding ? (
         <Select
           defaultOpen
           onValueChange={(value) => {
@@ -94,7 +98,7 @@ export function MemberAdvisorsCell({
         >
           <Plus />
         </IconActionButton>
-      )}
+      ))}
     </div>
   )
 }

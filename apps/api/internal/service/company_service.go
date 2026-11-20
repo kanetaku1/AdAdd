@@ -17,8 +17,8 @@ func NewCompanyService() *CompanyService {
 	return &CompanyService{repo: repository.NewCompanyRepository()}
 }
 
-func (s *CompanyService) ListAll() ([]model.Company, error) {
-	return s.repo.ListAll()
+func (s *CompanyService) ListAll(keyword string) ([]model.Company, error) {
+	return s.repo.ListAll(keyword)
 }
 
 func (s *CompanyService) Create(c *model.Company) error {
@@ -29,8 +29,18 @@ func (s *CompanyService) GetByID(id string) (*model.Company, error) {
 	return s.repo.GetByID(id)
 }
 
-func (s *CompanyService) Update(c *model.Company) error {
-	return s.repo.Update(c)
+// UpdateColumns writes only the given columns and returns the Company as
+// stored. An empty changes map is a no-op.
+func (s *CompanyService) UpdateColumns(id string, changes map[string]interface{}) (*model.Company, error) {
+	if _, err := s.repo.GetByID(id); err != nil {
+		return nil, err
+	}
+	if len(changes) > 0 {
+		if err := s.repo.UpdateColumns(id, changes); err != nil {
+			return nil, err
+		}
+	}
+	return s.repo.GetByID(id)
 }
 
 type CompanyCsvRow struct {

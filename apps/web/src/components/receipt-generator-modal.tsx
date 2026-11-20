@@ -21,6 +21,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
+import { getMissingDocumentIssuerFields } from "@/lib/pdf/document-issuer"
 import { ReceiptDocument, type ReceiptData } from "@/lib/pdf/receipt-document"
 
 /**
@@ -43,6 +44,7 @@ export function ReceiptGeneratorModal({
   const [busy, setBusy] = useState(false)
   // A WAITING Payment has no default payment date (FR-015 → Receipt Timing).
   const paymentDateMissing = !data.paymentDate
+  const missingIssuerFields = getMissingDocumentIssuerFields(data.issuer, "receipt")
 
   function set<K extends keyof ReceiptData>(key: K, value: ReceiptData[K]) {
     setData((prev) => ({ ...prev, [key]: value }))
@@ -137,10 +139,16 @@ export function ReceiptGeneratorModal({
           </div>
         </div>
 
+        {missingIssuerFields.length > 0 && (
+          <p role="alert" className="text-sm text-destructive">
+            年度の発行者情報が不足しています。管理者に設定を依頼してください：
+            {missingIssuerFields.join("、")}
+          </p>
+        )}
         <DialogFooter>
           <Button
             onClick={handleDownload}
-            disabled={busy || paymentDateMissing}
+            disabled={busy || paymentDateMissing || missingIssuerFields.length > 0}
           >
             ダウンロード
           </Button>

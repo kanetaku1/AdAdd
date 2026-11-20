@@ -32,8 +32,9 @@ func RegisterCompanyRoutes(e *echo.Echo) {
 }
 
 func listCompanies(c echo.Context) error {
+	keyword := c.QueryParam("keyword")
 	svc := service.NewCompanyService()
-	companies, err := svc.ListAll()
+	companies, err := svc.ListAll(keyword)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
@@ -50,60 +51,117 @@ func getCompany(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{"data": company, "message": "success"})
 }
 
+type createCompanyRequest struct {
+	CompanyName          string `json:"companyName"`
+	CompanyNameKana      string `json:"companyNameKana"`
+	PostalCode           string `json:"postalCode"`
+	Address              string `json:"address"`
+	PhoneNumber          string `json:"phoneNumber"`
+	Website              string `json:"website"`
+	ContactPersonName    string `json:"contactPersonName"`
+	ContactEmailOrForm   string `json:"contactEmailOrForm"`
+	FirstSponsorshipYear string `json:"firstSponsorshipYear"`
+	Memo                 string `json:"memo"`
+}
+
 func createCompany(c echo.Context) error {
-	var req model.Company
+	var req createCompanyRequest
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
+	}
+	if strings.TrimSpace(req.CompanyName) == "" {
+		return respondBadRequest(c, "companyName is required")
+	}
+	company := &model.Company{
+		CompanyName:          strings.TrimSpace(req.CompanyName),
+		CompanyNameKana:      req.CompanyNameKana,
+		PostalCode:           req.PostalCode,
+		Address:              req.Address,
+		PhoneNumber:          req.PhoneNumber,
+		Website:              req.Website,
+		ContactPersonName:    req.ContactPersonName,
+		ContactEmailOrForm:   req.ContactEmailOrForm,
+		FirstSponsorshipYear: req.FirstSponsorshipYear,
+		Memo:                 req.Memo,
 	}
 	svc := service.NewCompanyService()
-	if err := svc.Create(&req); err != nil {
+	if err := svc.Create(company); err != nil {
 		return respondInternalServerError(c, err)
 	}
-	return c.JSON(http.StatusCreated, map[string]interface{}{"data": req, "message": "created"})
+	return c.JSON(http.StatusCreated, map[string]interface{}{"data": company, "message": "created"})
+}
+
+type updateCompanyRequest struct {
+	CompanyName          optionalString `json:"companyName"`
+	CompanyNameKana      optionalString `json:"companyNameKana"`
+	PostalCode           optionalString `json:"postalCode"`
+	Address              optionalString `json:"address"`
+	PhoneNumber          optionalString `json:"phoneNumber"`
+	Website              optionalString `json:"website"`
+	ContactPersonName    optionalString `json:"contactPersonName"`
+	ContactEmailOrForm   optionalString `json:"contactEmailOrForm"`
+	FirstSponsorshipYear optionalString `json:"firstSponsorshipYear"`
+	Memo                 optionalString `json:"memo"`
 }
 
 func updateCompany(c echo.Context) error {
 	id := c.Param("id")
-	var req struct {
-		CompanyName          string `json:"companyName"`
-		CompanyNameKana      string `json:"companyNameKana"`
-		PostalCode           string `json:"postalCode"`
-		Address              string `json:"address"`
-		PhoneNumber          string `json:"phoneNumber"`
-		Website              string `json:"website"`
-		ContactPersonName    string `json:"contactPersonName"`
-		ContactEmailOrForm   string `json:"contactEmailOrForm"`
-		FirstSponsorshipYear string `json:"firstSponsorshipYear"`
-		Memo                 string `json:"memo"`
-	}
+	var req updateCompanyRequest
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
+	}
+
+	if req.CompanyName.Sent && (req.CompanyName.Value == nil || strings.TrimSpace(*req.CompanyName.Value) == "") {
+		return respondBadRequest(c, "companyName must not be empty")
+	}
+
+	changes := map[string]interface{}{}
+	if req.CompanyName.Sent && req.CompanyName.Value != nil {
+		changes["company_name"] = strings.TrimSpace(*req.CompanyName.Value)
+	}
+	if req.CompanyNameKana.Sent && req.CompanyNameKana.Value != nil {
+		changes["company_name_kana"] = *req.CompanyNameKana.Value
+	}
+	if req.PostalCode.Sent && req.PostalCode.Value != nil {
+		changes["postal_code"] = *req.PostalCode.Value
+	}
+	if req.Address.Sent && req.Address.Value != nil {
+		changes["address"] = *req.Address.Value
+	}
+	if req.PhoneNumber.Sent && req.PhoneNumber.Value != nil {
+		changes["phone_number"] = *req.PhoneNumber.Value
+	}
+	if req.Website.Sent && req.Website.Value != nil {
+		changes["website"] = *req.Website.Value
+	}
+	if req.ContactPersonName.Sent && req.ContactPersonName.Value != nil {
+		changes["contact_person_name"] = *req.ContactPersonName.Value
+	}
+	if req.ContactEmailOrForm.Sent && req.ContactEmailOrForm.Value != nil {
+		changes["contact_email_or_form"] = *req.ContactEmailOrForm.Value
+	}
+	if req.FirstSponsorshipYear.Sent && req.FirstSponsorshipYear.Value != nil {
+		changes["first_sponsorship_year"] = *req.FirstSponsorshipYear.Value
+	}
+	if req.Memo.Sent && req.Memo.Value != nil {
+		changes["memo"] = *req.Memo.Value
 	}
 
 	svc := service.NewCompanyService()
-	existing, err := svc.GetByID(id)
+	updated, err := svc.UpdateColumns(id, changes)
 	if err != nil {
-		return respondNotFound(c, "company not found")
-	}
-
-	existing.CompanyName = req.CompanyName
-	existing.CompanyNameKana = req.CompanyNameKana
-	existing.PostalCode = req.PostalCode
-	existing.Address = req.Address
-	existing.PhoneNumber = req.PhoneNumber
-	existing.Website = req.Website
-	existing.ContactPersonName = req.ContactPersonName
-	existing.ContactEmailOrForm = req.ContactEmailOrForm
-	existing.FirstSponsorshipYear = req.FirstSponsorshipYear
-	existing.Memo = req.Memo
-
-	if err := svc.Update(existing); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return respondNotFound(c, "company not found")
+		}
 		return respondInternalServerError(c, err)
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": existing, "message": "updated"})
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": updated, "message": "updated"})
 }
 
 func bulkImportCompanies(c echo.Context) error {
+	if err := c.Request().ParseMultipartForm(1 << 20); err != nil {
+		return respondRequestBodyError(c, err, "invalid multipart form")
+	}
 	dryRun := c.FormValue("dryRun") == "true"
 
 	fileHeader, err := c.FormFile("file")
@@ -127,7 +185,7 @@ func bulkImportCompanies(c echo.Context) error {
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return respondBadRequest(c, "invalid csv formatting")
+		return respondRequestBodyError(c, err, "invalid csv formatting")
 	}
 	if len(records) < 2 {
 		return respondBadRequest(c, "csv must contain header and rows")

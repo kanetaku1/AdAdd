@@ -12,6 +12,7 @@ import (
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -217,10 +218,6 @@ func contractMenuAddedMessage(menuName string, contractMenu *model.ContractMenu)
 	return fmt.Sprintf("「%s」を追加（数量 %d、単価 %s）", menuName, contractMenu.Quantity, label.Yen(contractMenu.UnitPrice))
 }
 
-func (s *ContractMenuService) Update(m *model.ContractMenu) error {
-	return s.UpdateWithUser(m, "")
-}
-
 func contractMenuStatusLogMessage(menuName, from, to string) string {
 	if menuName == "" {
 		menuName = "協賛メニュー"
@@ -228,40 +225,35 @@ func contractMenuStatusLogMessage(menuName, from, to string) string {
 	return menuName + "のステータスを「" + label.ContractMenuStatus(from) + "」から「" + label.ContractMenuStatus(to) + "」に更新"
 }
 
-// UpdateWithUser updates the contract menu and, if status changed, writes one
-// ActivityLog (spec/domain.md#Activity Log — every Contract Menu status
-// transition, not only SUBMITTED). Same-status PATCHes write nothing.
-func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID string) error {
-	csvc := NewContractService()
+// UpdateStatus changes the Contract Menu's status and, when it actually
+// changes, writes one Activity Log (spec/domain.md#Activity Log — every
+// Contract Menu status transition, not only SUBMITTED). The same status writes
+// nothing. Only the status column is written, so a concurrent change to the
+// quantity, price, or production type is kept
+// (spec/database.md#Concurrent Updates).
+func (s *ContractMenuService) UpdateStatus(id, status, userID string) error {
 	return db.WithTx(func(tx *gorm.DB) error {
 		var existing model.ContractMenu
-		if err := tx.First(&existing, "id = ?", m.ID).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		statusChanged := existing.Status != m.Status
 		var fileCount int64
 		if err := tx.Model(&model.ContractMenuDriveFile{}).
-			Where("contract_menu_id = ?", m.ID).Count(&fileCount).Error; err != nil {
+			Where("contract_menu_id = ?", id).Count(&fileCount).Error; err != nil {
 			return err
 		}
-		if (fileCount > 0 && m.Status != "SUBMITTED") || (fileCount == 0 && m.Status == "SUBMITTED") {
+		if (fileCount > 0 && status != "SUBMITTED") || (fileCount == 0 && status == "SUBMITTED") {
 			return ErrSubmittedStateConflict
 		}
-		m.CreatedAt = existing.CreatedAt
-		if m.IsGoodsSponsorship {
-			m.UnitPrice = decimal.Zero
-		}
-		if err := tx.Omit("Files").Save(m).Error; err != nil {
-			return err
-		}
-		if _, err := csvc.RecalculateTotalAmount(tx, m.ContractID, userID); err != nil {
-			return err
-		}
-		if !statusChanged {
+		if existing.Status == status {
 			return nil
 		}
+		if err := tx.Model(&model.ContractMenu{}).Where("id = ?", id).Update("status", status).Error; err != nil {
+			return err
+		}
 		var contract model.SponsorshipContract
-		if err := tx.First(&contract, "id = ?", m.ContractID).Error; err != nil {
+		if err := tx.First(&contract, "id = ?", existing.ContractID).Error; err != nil {
 			return err
 		}
 		menuName := "協賛メニュー"
@@ -269,14 +261,8 @@ func (s *ContractMenuService) UpdateWithUser(m *model.ContractMenu, userID strin
 		if err := tx.First(&smenu, "id = ?", existing.SponsorshipMenuID).Error; err == nil && smenu.Name != "" {
 			menuName = smenu.Name
 		}
-		al := &model.ActivityLog{
-			YearlyCompanyID: contract.YearlyCompanyID,
-			UserID:          userID,
-			Action:          model.EventContractMenuStatusUpdated,
-			Description:     contractMenuStatusLogMessage(menuName, existing.Status, m.Status),
-			CreatedAt:       time.Now(),
-		}
-		return tx.Create(al).Error
+		return writeActivityLog(tx, contract.YearlyCompanyID, userID, model.EventContractMenuStatusUpdated,
+			contractMenuStatusLogMessage(menuName, existing.Status, status))
 	})
 }
 
@@ -329,12 +315,15 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 	var m model.ContractMenu
 
 	err := db.WithTx(func(tx *gorm.DB) error {
-		if err := tx.First(&m, "id = ?", id).Error; err != nil {
+		// The new unit price depends on the stored isGoodsSponsorship, so the
+		// row is locked while it is read and written.
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&m, "id = ?", id).Error; err != nil {
 			return err
 		}
 
 		previousQuantity := m.Quantity
 		previousUnitPrice := m.UnitPrice
+		previousProductionType := m.ProductionType
 
 		if quantity != nil {
 			m.Quantity = *quantity
@@ -373,8 +362,25 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 			m.UnitPrice = smenu.DefaultPrice
 		}
 
-		if err := tx.Omit("Files").Save(&m).Error; err != nil {
-			return err
+		// Only the changed detail columns are written; status and the Drive
+		// references are never touched (spec/database.md#Concurrent Updates).
+		columns := map[string]interface{}{}
+		if m.Quantity != previousQuantity {
+			columns["quantity"] = m.Quantity
+		}
+		if !m.UnitPrice.Equal(previousUnitPrice) {
+			columns["unit_price"] = m.UnitPrice
+		}
+		if m.IsGoodsSponsorship != wasGoods {
+			columns["is_goods_sponsorship"] = m.IsGoodsSponsorship
+		}
+		if !equalOptionalStrings(m.ProductionType, previousProductionType) {
+			columns["production_type"] = m.ProductionType
+		}
+		if len(columns) > 0 {
+			if err := tx.Model(&model.ContractMenu{}).Where("id = ?", m.ID).Updates(columns).Error; err != nil {
+				return err
+			}
 		}
 		if _, err := csvc.RecalculateTotalAmount(tx, m.ContractID, userID); err != nil {
 			return err
@@ -402,6 +408,13 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 		return nil, err
 	}
 	return &m, nil
+}
+
+func equalOptionalStrings(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 
 func (s *ContractMenuService) ListFiles(contractMenuID string) ([]model.ContractMenuDriveFile, error) {

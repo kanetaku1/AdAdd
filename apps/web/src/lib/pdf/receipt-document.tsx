@@ -1,14 +1,8 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer"
 
-import {
-  FESTIVAL_ADDRESS_LINE,
-  FESTIVAL_ADDRESS_LINE2,
-  FESTIVAL_EMAIL,
-  FESTIVAL_NAME,
-  FESTIVAL_POSTAL_CODE,
-} from "./constants"
 import { ensureJapaneseFontRegistered, JAPANESE_FONT_FAMILY } from "./fonts"
 import { formatDateSlashes } from "./format-date"
+import type { YearDocumentIssuer } from "@/types/year"
 
 ensureJapaneseFontRegistered()
 
@@ -78,6 +72,7 @@ export type ReceiptData = {
   issuedDate: string
   paymentDate: string
   amount: number
+  issuer: YearDocumentIssuer
 }
 
 export function ReceiptDocument({ data }: { data: ReceiptData }) {
@@ -128,11 +123,13 @@ export function ReceiptDocument({ data }: { data: ReceiptData }) {
           </View>
 
           <View>
-            <Text>{FESTIVAL_NAME}</Text>
-            <Text>{FESTIVAL_POSTAL_CODE}</Text>
-            <Text>{FESTIVAL_ADDRESS_LINE}</Text>
-            <Text>{FESTIVAL_ADDRESS_LINE2}</Text>
-            <Text>メール : {FESTIVAL_EMAIL}</Text>
+            <Text>{data.issuer.issuerName ?? ""}</Text>
+            <Text>{data.issuer.issuerPostalCode ?? ""}</Text>
+            <Text>{data.issuer.issuerAddressLine1 ?? ""}</Text>
+            {data.issuer.issuerAddressLine2 && (
+              <Text>{data.issuer.issuerAddressLine2}</Text>
+            )}
+            <Text>メール : {data.issuer.issuerEmail ?? ""}</Text>
           </View>
         </View>
       </Page>

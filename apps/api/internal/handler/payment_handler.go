@@ -60,7 +60,7 @@ func updatePayment(c echo.Context) error {
 		Remarks        *string         `json:"remarks"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return respondBadRequest(c, err.Error())
+		return respondRequestBodyError(c, err, "invalid request body")
 	}
 
 	if req.Status != nil {
@@ -97,8 +97,8 @@ func updatePayment(c echo.Context) error {
 		updateModel.Remarks = *req.Remarks
 		updateModel.RemarksGiven = true
 	}
-	if uid, ok := c.Get("userId").(string); ok {
-		updateModel.ConfirmedByID = uid
+	if uid, ok := c.Get("userId").(string); ok && uid != "" {
+		updateModel.ConfirmedByID = &uid
 	}
 
 	svc := service.NewPaymentService()
