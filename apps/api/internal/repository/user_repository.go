@@ -37,6 +37,7 @@ func (r *UserRepository) Create(user *model.User) error {
 	return db.DB.Create(user).Error
 }
 
-func (r *UserRepository) Update(user *model.User) error {
-	return db.DB.Save(user).Error
+// UpdateColumns writes only the given columns (spec/database.md#Concurrent Updates).
+func (r *UserRepository) UpdateColumns(id string, changes map[string]interface{}) error {
+	return db.DB.Model(&model.User{}).Where("id = ?", id).Updates(changes).Error
 }

@@ -80,28 +80,15 @@ func (r *YearlyCompanyRepository) GetByID(id string) (*model.YearlyCompanyRespon
 	return &yc, nil
 }
 
-func (r *YearlyCompanyRepository) Update(yc *model.YearlyCompany) error {
-	// preserve existing CreatedAt to avoid writing zero DATETIME
-	var existing model.YearlyCompany
-	if err := db.DB.First(&existing, "id = ?", yc.ID).Error; err == nil {
-		yc.CreatedAt = existing.CreatedAt
-	}
-	return db.DB.Save(yc).Error
-}
-
-func (r *YearlyCompanyRepository) UpdateWithLog(yc *model.YearlyCompany, log *model.ActivityLog) error {
-	var existing model.YearlyCompany
-	if err := db.DB.First(&existing, "id = ?", yc.ID).Error; err == nil {
-		yc.CreatedAt = existing.CreatedAt
-	}
-
+// UpdateColumnWithLog writes one column and its Activity Log in one
+// transaction. Only that column is written, so a concurrent change to another
+// column (e.g. progress set to CONFIRMED by contract creation while the phase
+// changes) is kept (spec/database.md#Concurrent Updates).
+func (r *YearlyCompanyRepository) UpdateColumnWithLog(id, column string, value interface{}, log *model.ActivityLog) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(yc).Error; err != nil {
+		if err := tx.Model(&model.YearlyCompany{}).Where("id = ?", id).Update(column, value).Error; err != nil {
 			return err
 		}
-		if err := tx.Create(log).Error; err != nil {
-			return err
-		}
-		return nil
+		return tx.Create(log).Error
 	})
 }

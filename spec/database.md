@@ -480,6 +480,82 @@ The database default is also `utf8mb4_0900_bin` (set by `0001_baseline.up.sql`),
 
 ---
 
+## Referential Integrity
+
+The database itself rejects a row whose reference points to nothing. Every reference column has a foreign key (Issue #175):
+
+| Column | References | ON DELETE |
+| ------ | ---------- | --------- |
+| `yearly_companies.year_id` | `years` | RESTRICT |
+| `yearly_companies.company_id` | `companies` | RESTRICT |
+| `sponsorship_contracts.yearly_company_id` | `yearly_companies` | RESTRICT |
+| `sponsorship_menus.year_id` | `years` | RESTRICT |
+| `contract_menus.contract_id` | `sponsorship_contracts` | RESTRICT |
+| `contract_menus.sponsorship_menu_id` | `sponsorship_menus` | RESTRICT |
+| `contract_menu_drive_files.contract_menu_id` | `contract_menus` | CASCADE |
+| `payments.contract_id` | `sponsorship_contracts` | RESTRICT |
+| `payments.confirmed_by_id` | `users` | RESTRICT |
+| `assignments.yearly_company_id` | `yearly_companies` | RESTRICT |
+| `assignments.user_id` | `users` | RESTRICT |
+| `advisor_assignments.year_id` | `years` | RESTRICT |
+| `advisor_assignments.advisor_id` | `users` | RESTRICT |
+| `advisor_assignments.member_id` | `users` | RESTRICT |
+| `activity_logs.yearly_company_id` | `yearly_companies` | RESTRICT |
+| `activity_logs.user_id` | `users` | RESTRICT |
+| `user_roles.user_id` | `users` | RESTRICT |
+| `user_roles.role_id` | `roles` | RESTRICT |
+
+Rules:
+
+* **RESTRICT by default.** A row that is referenced cannot be deleted. Past records are kept (Preserve Historical Data), and the API already refuses these deletions with a business error before the database does (e.g. Delete Company while it has a Yearly Company, Delete Sponsorship Menu while a Contract Menu uses it).
+* **CASCADE only for `contract_menu_drive_files`.** A Drive reference has no meaning without its Contract Menu, and deleting a Contract Menu removes its references with it.
+* **ON UPDATE is not set** (RESTRICT). IDs are UUIDs and never change.
+* **An optional reference is NULL when unset, never an empty string.** `payments.confirmed_by_id` is NULL while the Payment is `WAITING`. An empty string would point to no User and is rejected.
+* **Every foreign key column is indexed**: by its own named index, or as the first column of a UNIQUE key. MySQL needs one to check a foreign key, and the same index serves joins. Indexes added for Issue #175 are named `idx_<table>_<column>`; older ones keep their names (e.g. `idx_yearlycompany_year`).
+
+`sponsorship_contracts.assignee_id` has no foreign key. A Contract has no assignee (`spec/model.md#SponsorshipContract`); the column is a leftover to be removed (Issue #216).
+
+---
+
+## Deletion
+
+A row is either kept or deleted physically. Soft delete (`deleted_at`) is used only where a UNIQUE key cannot conflict with it.
+
+| Table | Deleted by | How |
+| ----- | ---------- | --- |
+| `years` | never (`spec/domain.md#Year`) | — |
+| `users` | never; deactivated with `is_active = false` | — |
+| `roles` | never (fixed master data) | — |
+| `companies` | Delete Company, only without a Yearly Company | physical |
+| `yearly_companies` | never | — |
+| `sponsorship_contracts` | never | — |
+| `sponsorship_menus` | Delete Sponsorship Menu, only without a Contract Menu | physical |
+| `contract_menus` | Delete Contract Menu | physical |
+| `contract_menu_drive_files` | Delete Contract Menu File / its Contract Menu | soft; physical by CASCADE |
+| `payments` | removed when the contract total becomes 0 while `WAITING` | physical |
+| `assignments` | clearing the assignee | physical |
+| `advisor_assignments` | Delete Advisor Assignment | physical |
+| `user_roles` | revoking a Role | physical |
+| `activity_logs` | never | — |
+
+Why physical: these tables have UNIQUE keys (`users.email`, `user_roles (user_id, role_id)`, `sponsorship_contracts.yearly_company_id`, `payments.contract_id`, `assignments.yearly_company_id`, `advisor_assignments (year_id, member_id, advisor_id)`, `companies.company_name`, `sponsorship_menus (year_id, name)`). A soft-deleted row would keep its value and block creating the same value again (re-granting a Role, a new Payment after the total becomes positive again). The Activity Log keeps the history of what was removed.
+
+The `deleted_at` column still exists on these tables, but the application never sets it. Before a table starts using soft delete, its UNIQUE keys must first be changed to cover only rows that are not deleted, and this section updated.
+
+---
+
+## Concurrent Updates
+
+An update writes only the columns that the request changes. It never reads a whole row and writes every column back.
+
+Why: two requests on the same row at the same time must not undo each other. For example, changing a Yearly Company's phase while a contract is created for it (which sets `progress` to `CONFIRMED`) keeps both changes.
+
+* Two concurrent changes to **different** columns of a row both persist.
+* Two concurrent changes to the **same** column: the later write wins. AdAdd has no optimistic locking (version column); at its scale, two members editing the same field at the same moment is rare, and the Activity Log shows both changes.
+* A check that must see the current row before writing (e.g. at most one contract per Yearly Company) locks the row in its transaction (`SELECT … FOR UPDATE`).
+
+---
+
 ## Single Source of Truth
 
 MySQL stores all authoritative business data.

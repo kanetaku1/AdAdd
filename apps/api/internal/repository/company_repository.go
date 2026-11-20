@@ -43,12 +43,9 @@ func (r *CompanyRepository) FindByCompanyName(name string) (*model.Company, erro
 	return &c, nil
 }
 
-func (r *CompanyRepository) Update(c *model.Company) error {
-	var existing model.Company
-	if err := db.DB.First(&existing, "id = ?", c.ID).Error; err == nil {
-		c.CreatedAt = existing.CreatedAt
-	}
-	return db.DB.Save(c).Error
+// UpdateColumns writes only the given columns (spec/database.md#Concurrent Updates).
+func (r *CompanyRepository) UpdateColumns(id string, changes map[string]interface{}) error {
+	return db.DB.Model(&model.Company{}).Where("id = ?", id).Updates(changes).Error
 }
 
 // HasYearlyCompanies reports whether the Company has a Yearly Company in any Year.

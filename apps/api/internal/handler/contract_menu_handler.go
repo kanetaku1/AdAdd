@@ -147,25 +147,20 @@ func updateContractMenuStatus(c echo.Context) error {
 		return respondBadRequest(c, err.Error())
 	}
 	svc := service.NewContractMenuService()
-	cm, err := svc.GetByID(id)
-	if err != nil {
+	if _, err := svc.GetByID(id); err != nil {
 		return respondNotFound(c, "contract menu not found")
 	}
-	cm.Status = body.Status
 	userId := ""
 	if uid := c.Get("userId"); uid != nil {
 		userId, _ = uid.(string)
 	}
-	if err := svc.UpdateWithUser(cm, userId); err != nil {
-		if errors.Is(err, service.ErrConfirmedPaymentAmountMismatch) {
-			return respondConflict(c, err.Error())
-		}
+	if err := svc.UpdateStatus(id, body.Status, userId); err != nil {
 		if errors.Is(err, service.ErrSubmittedStateConflict) {
 			return respondConflict(c, err.Error())
 		}
 		return respondInternalServerError(c, err)
 	}
-	cm, err = svc.GetByID(id)
+	cm, err := svc.GetByID(id)
 	if err != nil {
 		return respondInternalServerError(c, err)
 	}
