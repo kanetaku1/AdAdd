@@ -19,7 +19,6 @@ import {
 import { EmptyBlock, EmptyRow, ErrorBanner, LoadingBlock } from "@/components/query-state"
 import { useMyAssignmentScope } from "@/hooks/use-my-assignment-scope"
 import { useSelectedYear } from "@/hooks/use-selected-year"
-import { listYearlyCompaniesByYear } from "@/lib/data/sponsorship"
 import { getErrorMessage } from "@/lib/errors"
 import { CONTRACT_MENU_STATUS_LABEL } from "@/lib/contract-menu-labels"
 import type { YearlyCompany } from "@/types/yearly-company"
@@ -144,30 +143,23 @@ function AdMaterialProgressPageContent() {
     yearError,
   } = useSelectedYear()
 
-  const [yearlyCompanies, setYearlyCompanies] = useState<YearlyCompany[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const {
-    sponsorshipMenus,
-    contractMenusAcrossYear,
-    advisorAssignments: advisorAssignmentsForYear,
-    isSponsorshipMenusLoading,
-    isContractMenusAcrossYearLoading,
-    isAdvisorAssignmentsLoading,
-    sponsorshipMenusError,
-    contractMenusAcrossYearError,
-    advisorAssignmentsError,
-    ensureSponsorshipMenus,
-    ensureContractMenusAcrossYear,
-    ensureAdvisorAssignments,
+    sponsorshipMenus: sponsorshipMenusCache,
+    contractMenusAcrossYear: contractMenusCache,
+    advisorAssignments: advisorAssignmentsCache,
+    yearlyCompanies: yearlyCompaniesCache,
   } = useYearCatalog()
-  const menus = sponsorshipMenus(activeYearId)
-  const contractMenus = contractMenusAcrossYear(activeYearId)
-  const advisorAssignments = advisorAssignmentsForYear(activeYearId)
+  const yearlyCompanies = yearlyCompaniesCache.data(activeYearId)
+  const menus = sponsorshipMenusCache.data(activeYearId)
+  const contractMenus = contractMenusCache.data(activeYearId)
+  const advisorAssignments = advisorAssignmentsCache.data(activeYearId)
   const catalogLoading =
-    Boolean(activeYearId && isSponsorshipMenusLoading(activeYearId)) ||
-    Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId)) ||
-    Boolean(activeYearId && isAdvisorAssignmentsLoading(activeYearId))
+    Boolean(activeYearId && sponsorshipMenusCache.isLoading(activeYearId)) ||
+    Boolean(activeYearId && contractMenusCache.isLoading(activeYearId)) ||
+    Boolean(activeYearId && advisorAssignmentsCache.isLoading(activeYearId)) ||
+    Boolean(activeYearId && yearlyCompaniesCache.isLoading(activeYearId))
 
   const { currentUser } = useCurrentUser()
   const currentUserId = currentUser?.id ?? null
@@ -176,7 +168,6 @@ function AdMaterialProgressPageContent() {
     let cancelled = false
     async function load(yearId: string | null) {
       if (!yearId) {
-        setYearlyCompanies([])
         setLoading(false)
         setError(null)
         return
@@ -184,14 +175,13 @@ function AdMaterialProgressPageContent() {
       setLoading(true)
       setError(null)
       try {
-        const [ycList] = await Promise.all([
-          listYearlyCompaniesByYear(yearId),
-          ensureSponsorshipMenus(yearId),
-          ensureContractMenusAcrossYear(yearId),
-          ensureAdvisorAssignments(yearId),
+        await Promise.all([
+          yearlyCompaniesCache.ensure(yearId),
+          sponsorshipMenusCache.ensure(yearId),
+          contractMenusCache.ensure(yearId),
+          advisorAssignmentsCache.ensure(yearId),
         ])
         if (cancelled) return
-        setYearlyCompanies(ycList)
       } catch (e) {
         if (!cancelled) {
           setError(getErrorMessage(e, { fallback: "読み込みに失敗しました" }))
@@ -204,7 +194,7 @@ function AdMaterialProgressPageContent() {
     return () => {
       cancelled = true
     }
-  }, [activeYearId, ensureSponsorshipMenus, ensureContractMenusAcrossYear, ensureAdvisorAssignments])
+  }, [activeYearId, yearlyCompaniesCache, sponsorshipMenusCache, contractMenusCache, advisorAssignmentsCache])
 
   const statusSummary = STATUS_ORDER.map((status) => ({
     status,
@@ -313,9 +303,9 @@ function AdMaterialProgressPageContent() {
           yearError ||
           error ||
           (activeYearId
-            ? sponsorshipMenusError(activeYearId) ||
-              contractMenusAcrossYearError(activeYearId) ||
-              advisorAssignmentsError(activeYearId)
+            ? sponsorshipMenusCache.error(activeYearId) ||
+              contractMenusCache.error(activeYearId) ||
+              advisorAssignmentsCache.error(activeYearId)
             : null)
         }
       />

@@ -96,21 +96,14 @@ function ContractMenusList() {
   const { currentUser } = useCurrentUser()
   const canManage = !isPastYear && canAccess(currentUser?.roles, ALLOWED_ROLES)
   const {
-    sponsorshipMenus,
-    contractMenusAcrossYear,
-    isSponsorshipMenusLoading,
-    isContractMenusAcrossYearLoading,
-    sponsorshipMenusError,
-    contractMenusAcrossYearError,
-    ensureSponsorshipMenus,
-    ensureContractMenusAcrossYear,
-    setContractMenusAcrossYear,
+    sponsorshipMenus: sponsorshipMenusCache,
+    contractMenusAcrossYear: contractMenusCache,
   } = useYearCatalog()
-  const menus = sponsorshipMenus(activeYearId)
-  const contractMenus = contractMenusAcrossYear(activeYearId)
+  const menus = sponsorshipMenusCache.data(activeYearId)
+  const contractMenus = contractMenusCache.data(activeYearId)
   const catalogLoading =
-    Boolean(activeYearId && isSponsorshipMenusLoading(activeYearId)) ||
-    Boolean(activeYearId && isContractMenusAcrossYearLoading(activeYearId))
+    Boolean(activeYearId && sponsorshipMenusCache.isLoading(activeYearId)) ||
+    Boolean(activeYearId && contractMenusCache.isLoading(activeYearId))
   const [error, setError] = useState<string | null>(null)
 
   const [companyNameQuery, setCompanyNameQuery] = useState(
@@ -134,10 +127,10 @@ function ContractMenusList() {
   useEffect(() => {
     if (!activeYearId) return
     void Promise.all([
-      ensureSponsorshipMenus(activeYearId),
-      ensureContractMenusAcrossYear(activeYearId),
+      sponsorshipMenusCache.ensure(activeYearId),
+      contractMenusCache.ensure(activeYearId),
     ])
-  }, [activeYearId, ensureSponsorshipMenus, ensureContractMenusAcrossYear])
+  }, [activeYearId, sponsorshipMenusCache, contractMenusCache])
 
   const companySuggestions = useMemo(() => {
     const names = Array.from(new Set(contractMenus.map((cm) => cm.companyName)))
@@ -178,7 +171,7 @@ function ContractMenusList() {
     setSavingId(id)
     try {
       const updated = await updateContractMenuStatus(id, status)
-      setContractMenusAcrossYear(
+      contractMenusCache.set(
         activeYearId,
         contractMenus.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
       )
@@ -203,7 +196,7 @@ function ContractMenusList() {
     try {
       const updated = await updateContractMenu(id, patch)
       if (!activeYearId) return
-      setContractMenusAcrossYear(
+      contractMenusCache.set(
         activeYearId,
         contractMenus.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
       )
@@ -257,8 +250,8 @@ function ContractMenusList() {
           yearError ||
           error ||
           (activeYearId
-            ? sponsorshipMenusError(activeYearId) ||
-              contractMenusAcrossYearError(activeYearId)
+            ? sponsorshipMenusCache.error(activeYearId) ||
+              contractMenusCache.error(activeYearId)
             : null)
         }
       />

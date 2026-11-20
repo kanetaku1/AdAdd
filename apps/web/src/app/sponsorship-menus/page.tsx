@@ -80,16 +80,10 @@ function SponsorshipMenusPageContent() {
   const canManage = !isPastYear && canAccess(currentUser?.roles, ALLOWED_ROLES)
   const canDelete = !isPastYear && canAccess(currentUser?.roles, DELETE_ROLES)
   const columnCount = canDelete ? 6 : 5
-  const {
-    sponsorshipMenus,
-    isSponsorshipMenusLoading,
-    sponsorshipMenusError,
-    ensureSponsorshipMenus,
-    setSponsorshipMenus,
-  } = useYearCatalog()
-  const menus = sponsorshipMenus(activeYearId)
+  const { sponsorshipMenus: sponsorshipMenusCache } = useYearCatalog()
+  const menus = sponsorshipMenusCache.data(activeYearId)
   const loading = Boolean(
-    activeYearId && isSponsorshipMenusLoading(activeYearId)
+    activeYearId && sponsorshipMenusCache.isLoading(activeYearId)
   )
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -102,12 +96,12 @@ function SponsorshipMenusPageContent() {
 
   useEffect(() => {
     if (!activeYearId) return
-    void ensureSponsorshipMenus(activeYearId)
-  }, [activeYearId, ensureSponsorshipMenus])
+    void sponsorshipMenusCache.ensure(activeYearId)
+  }, [activeYearId, sponsorshipMenusCache])
 
   function updateLocalMenu(id: string, patch: Partial<SponsorshipMenu>) {
     if (!activeYearId) return
-    setSponsorshipMenus(
+    sponsorshipMenusCache.set(
       activeYearId,
       menus.map((menu) => (menu.id === id ? { ...menu, ...patch } : menu))
     )
@@ -128,7 +122,7 @@ function SponsorshipMenusPageContent() {
         isActive: fields.isActive,
         maxQuantity: fields.maxQuantity,
       })
-      setSponsorshipMenus(
+      sponsorshipMenusCache.set(
         activeYearId,
         menus.map((menu) => (menu.id === id ? updated : menu))
       )
@@ -157,7 +151,7 @@ function SponsorshipMenusPageContent() {
         isActive: true,
         maxQuantity: null,
       })
-      setSponsorshipMenus(activeYearId, [...menus, created])
+      sponsorshipMenusCache.set(activeYearId, [...menus, created])
     } catch (e) {
       setError(getErrorMessage(e, { fallback: "追加に失敗しました" }))
     } finally {
@@ -171,7 +165,7 @@ function SponsorshipMenusPageContent() {
     setDeleteError(null)
     try {
       await deleteSponsorshipMenu(target.id)
-      setSponsorshipMenus(
+      sponsorshipMenusCache.set(
         activeYearId,
         menus.filter((menu) => menu.id !== target.id)
       )
@@ -219,7 +213,7 @@ function SponsorshipMenusPageContent() {
           (invalidYearSelection ? "指定された年度が見つかりません。" : null) ||
           yearError ||
           error ||
-          (activeYearId ? sponsorshipMenusError(activeYearId) : null)
+          (activeYearId ? sponsorshipMenusCache.error(activeYearId) : null)
         }
       />
 
