@@ -36,7 +36,7 @@ func main() {
 	}
 	cfg := config.Load()
 	if cfg.GoogleDriveClientID == "" || cfg.GoogleDriveClientSecret == "" {
-		log.Fatal("GOOGLE_DRIVE_CLIENT_ID (or GOOGLE_CLIENT_ID) and GOOGLE_DRIVE_CLIENT_SECRET are required")
+		log.Fatal("GOOGLE_DRIVE_CLIENT_ID and GOOGLE_DRIVE_CLIENT_SECRET are required")
 	}
 
 	const redirectURL = "http://127.0.0.1:8787/callback"
