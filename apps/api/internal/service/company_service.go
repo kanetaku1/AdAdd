@@ -29,23 +29,11 @@ func (s *CompanyService) GetByID(id string) (*model.Company, error) {
 	return s.repo.GetByID(id)
 }
 
-// Update sets the Company's editable fields to requested, writing only the
-// columns whose value changes (spec/database.md#Concurrent Updates), and
-// returns the Company as stored.
-func (s *CompanyService) Update(id string, requested model.Company) (*model.Company, error) {
-	current, err := s.repo.GetByID(id)
-	if err != nil {
+// UpdateColumns writes only the given columns and returns the Company as
+// stored. An empty changes map is a no-op.
+func (s *CompanyService) UpdateColumns(id string, changes map[string]interface{}) (*model.Company, error) {
+	if _, err := s.repo.GetByID(id); err != nil {
 		return nil, err
-	}
-	changes := model.ContactColumnChanges(model.ContactOfCompany(current), model.ContactOfCompany(&requested))
-	if current.CompanyName != requested.CompanyName {
-		changes["company_name"] = requested.CompanyName
-	}
-	if current.CompanyNameKana != requested.CompanyNameKana {
-		changes["company_name_kana"] = requested.CompanyNameKana
-	}
-	if current.FirstSponsorshipYear != requested.FirstSponsorshipYear {
-		changes["first_sponsorship_year"] = requested.FirstSponsorshipYear
 	}
 	if len(changes) > 0 {
 		if err := s.repo.UpdateColumns(id, changes); err != nil {
