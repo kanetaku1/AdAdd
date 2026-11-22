@@ -488,7 +488,7 @@ The assigned member shown here is also the assignee of the contract and every Co
 Shown before Contract (production/status work happens more often than contract-level edits). The Contract Menu table is both the creation point (no contract yet — see below) and the ongoing edit point for a Contract's Contract Menus:
 
 * No contract yet — a "契約を作成" action expands an inline creation form (contract date, remarks, one or more Contract Menu line items) in place; no page navigation. Each line item's production type offers 委員 the same as the other values. The form has no production department field — a new Contract Menu starts unassigned, and the department is assigned later by the Advertisement Management Department. Creating a contract also sets `YearlyCompany.progress` to Confirmed. The form requires at least one line item and sends the contract and its lines in one request (`spec/api.md#Create Contract`); if it fails, nothing is created and the form can be submitted again. The total shown in the form is a preview only — the saved `totalAmount` is calculated by the server. A `Payment` record is created separately once a Contract Menu exists and `totalAmount > 0` (`POST /contracts/{contractId}/payment`); goods-sponsorship-only contracts (`totalAmount = 0`) get no Payment record. Field-level validation errors are highlighted at the specific field, not just a generic banner (see UI Design Principles below).
-* A contract exists — each line is editable in place (quantity, production type, status, production department, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Assign Contract Menu Production Department` / `#Add Contract Menu Files`). Files use the same compact `資料 N件` summary as Contract Menu List; opening it shows file names/links and per-file delete actions. Upload/delete controls follow the API-provided `allowUpload` / `allowDelete` flags, so they disappear for past Years. Upload sends no member Google token: the API operates Drive as the dedicated account. File deletion moves the Drive body to trash before disappearing from AdAdd; a Drive failure is shown and the item remains. `isGoodsSponsorship` is set only at creation or when adding a menu line. Contract Menu entity deletion remains Administrator-only and separate from file-reference deletion. After any line is added, edited, or deleted, the screen reads the contract and Payment again from the API rather than recalculating the total in the browser (the Payment may have been resynchronized or removed).
+* A contract exists — each line is editable in place (quantity, production type, status, production department, Drive submission — `spec/api.md#Update Contract Menu` / `#Update Contract Menu Status` / `#Assign Contract Menu Production Department` / `#Add Contract Menu Files`). Files use the same compact `資料 N件` summary as Contract Menu List; opening it shows file names/links and per-file delete actions. Upload/delete controls follow the API-provided `allowUpload` / `allowDelete` flags, so they disappear for past Years. Upload opens the Drive Upload Dialog (see below), which presents an in-app folder browser instead of Google Picker — no member Google token or OAuth consent is involved. File deletion moves the Drive body to trash before disappearing from AdAdd; a Drive failure is shown and the item remains. `isGoodsSponsorship` is set only at creation or when adding a menu line. Contract Menu entity deletion remains Administrator-only and separate from file-reference deletion. After any line is added, edited, or deleted, the screen reads the contract and Payment again from the API rather than recalculating the total in the browser (the Payment may have been resynchronized or removed).
 * Menu choices — when creating a contract or adding a line, only Sponsorship Menus with `isActive = true` are offered. The API also rejects an inactive menu (`spec/api.md#Add Contract Menu`). Existing lines that reference a menu turned inactive later stay as they are.
 * Production type — offered only for a Sponsorship Menu with `requiresSubmission = true`, with the choices 企業 / 委員 / 継続. For a menu that does not require submission, the line has no production type: the creation form shows no production type field, and an existing line shows `-` and cannot be edited. An existing line whose menu has since stopped requiring submission shows its stored production type read-only; one whose menu now requires submission but has no production type offers the choices (`spec/model.md#ContractMenuProductionType`).
 * Capacity warning — for a Sponsorship Menu with `maxQuantity`, the creation form and "メニューを追加" show a warning beside the quantity when the Year's contracted quantity for that menu plus the quantity being entered would exceed `maxQuantity` (e.g. `上限 8 のうち 7 が契約済みです。この数量で上限を超えます`). It is a warning only: the line can still be saved (`spec/model.md#SponsorshipMenu`).
@@ -629,6 +629,49 @@ active Year; Contract Menu entity deletion stays Administrator-only.
 CSV export uses the same summary instead of concatenating file names: the
 資料列 is `資料N件` when `fileCount > 0`, otherwise `未提出`. The status column
 uses the same file-derived state as the screen and Yearly Company Detail.
+
+---
+
+## Drive Upload Dialog
+
+The dialog for uploading ad material files to Google Drive. It is opened from the Contract Menu line in Yearly Company Detail and from Contract Menu List (wherever the upload action icon appears). It replaces the former Google Picker–based dialog (Issue #225).
+
+### Flow
+
+1. The dialog opens. It shows a file dropzone (unchanged from the existing dialog).
+2. The member drops or selects files.
+3. The member presses "フォルダを選択してアップロード". A folder browser appears inside the dialog.
+4. The folder browser shows the subfolders of the root folder (`GOOGLE_DRIVE_ROOT_FOLDER_ID`), fetched from `GET /drive/folders` (`spec/api.md#List Drive Folders`). No Google OAuth consent popup is shown — the API accesses Drive as the dedicated account.
+5. The member navigates into subfolders by clicking them. A breadcrumb bar above the folder list shows the path from the root folder and allows jumping back to any ancestor.
+6. The member presses "このフォルダにアップロード" on the desired folder.
+7. The upload is sent to the API as before (`POST /contract-menus/{id}/drive-upload` with `folderId` and file bodies).
+
+### Folder browser
+
+| Element | Behavior |
+| ------- | -------- |
+| Breadcrumb bar | Shows the path from the root folder to the current folder. Each segment is clickable and navigates to that folder. The root folder is always the leftmost segment. Example: `2026年度_広告素材 > パンフレット広告 > 企業名A` |
+| Folder list | Lists subfolders of the current folder, sorted by name ascending. Each item is clickable and navigates into it. Files are not shown (file management is not part of folder selection). When the folder has no subfolders, the list shows a message such as `サブフォルダはありません`. |
+| "このフォルダにアップロード" button | Submits the upload with the currently displayed folder as the destination. Enabled as long as files have been selected. The member can upload to any folder in the hierarchy, not only leaf folders. |
+| Loading state | While `GET /drive/folders` is in flight, the folder list shows a spinner. |
+| Error state | A Drive API error shows an error banner inside the dialog. The member can retry by navigating again. |
+
+### What changes from the former dialog
+
+| Before (Google Picker) | After |
+| ----------------------- | ----- |
+| Pressing "フォルダを選択してアップロード" opened Google Picker (external Google UI) with a possible OAuth consent popup | The folder browser appears inline inside the AdAdd dialog. No OAuth popup. |
+| Picker showed the member's own Google Drive view, scoped to the root folder but navigable beyond it | The folder browser shows only the root folder's subtree. Folders outside the root are unreachable. |
+| Picker used `NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `NEXT_PUBLIC_GOOGLE_API_KEY` | No browser-side Google credentials are needed. The API uses the dedicated account. |
+
+### Removed browser-side environment variables
+
+After this change, the following are no longer used by the frontend and can be removed:
+
+* `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (was derived from `GOOGLE_CLIENT_ID` in `next.config.ts`)
+* `NEXT_PUBLIC_GOOGLE_API_KEY` (was derived from `GOOGLE_API_KEY` in `next.config.ts`)
+
+`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` remain as server-only variables for the login OAuth flow. `NEXT_PUBLIC_GOOGLE_DRIVE_ROOT_FOLDER_ID` is no longer needed in the frontend either: the root folder is configured on the API side only, and `GET /drive/folders` defaults to it when `parent` is omitted.
 
 ---
 
