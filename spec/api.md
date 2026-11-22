@@ -1563,6 +1563,68 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 
 ---
 
+# Drive Folder API
+
+## List Drive Folders
+
+```
+GET /drive/folders?parent={folderId}
+```
+
+Lists subfolders of a folder in the ad material Drive hierarchy. The API accesses Google Drive as the dedicated account (ADR-0006); no Google credentials are needed from the browser.
+
+This endpoint replaces the browser-side Google Picker that previously required the committee member's own Google OAuth consent and a Picker API Key (Issue #225).
+
+### Parameters
+
+| Parameter | Required | Description |
+| --------- | -------- | ----------- |
+| `parent` | no | Drive ID of the parent folder. When omitted, lists the children of the root folder (`GOOGLE_DRIVE_ROOT_FOLDER_ID`). |
+
+### Authorization
+
+Sponsorship Member / Advisor / Advertisement Manager / Administrator. Same as "Add/update production files / Drive upload" in the Authorization Matrix. No active-Year restriction (read-only).
+
+### Response (200)
+
+```json
+{
+  "current": {
+    "id": "current-folder-id",
+    "name": "企業名A"
+  },
+  "ancestors": [
+    { "id": "root-id", "name": "2026年度_広告データ" },
+    { "id": "menu-id", "name": "パンフレット広告" }
+  ],
+  "folders": [
+    { "id": "folder-1", "name": "素材" },
+    { "id": "folder-2", "name": "完成" }
+  ]
+}
+```
+
+| Field | Description |
+| ----- | ----------- |
+| `current` | The folder being listed. When `parent` is omitted, this is the root folder. |
+| `ancestors` | Path from the root folder to `current`'s parent, root first. Empty when `current` is the root folder. Each entry has `id` and `name`. Used for breadcrumb navigation. |
+| `folders` | Immediate subfolders of `current`, sorted by name ascending. Files are not included. Each entry has `id` and `name`. |
+
+### Errors
+
+| Situation | Response |
+| --------- | -------- |
+| `parent` is not a descendant of the root folder | `400 Bad Request` — `"folder is outside the root folder"` |
+| `parent` does not exist or is not a folder | `404 Not Found` |
+| Drive integration is not configured | `503 Service Unavailable` (ADR-0006) |
+| Drive API returns an error | `502 Bad Gateway` |
+
+### Implementation notes
+
+The ancestor path is built by traversing from `current` to the root folder via `parents`, the same technique `DriveService.UploadFile` uses to validate the upload destination. If the traversal does not reach the root folder, the request is rejected with `400`.
+
+---
+
 # Authorization Matrix
 
 | Function                        | (no Role) | Sponsorship Member | Advisor | Finance | Advertisement Manager    | Administrator |
@@ -1578,6 +1640,7 @@ Slack mentions (UC-16) are not an Integration REST resource. They are a side eff
 | Copy Sponsorship Menus from the previous Year | - | ○         | -       | -       | -                        | ○              |
 | Edit Contract Menu quantity / unit price / goods sponsorship | - | ○ | - | - | -  | ○ |
 | Edit Contract Menu production type | -       | ○                   | -       | -       | ○                        | ○              |
+| List Drive folders               | -         | ○                   | ○       | -       | ○                        | ○              |
 | Add/update production files / Drive upload | - | ○ | ○ | - | ○ | ○ |
 | Delete a production file reference | - | ○ | ○ | - | ○ | ○ |
 | Update Contract Menu status     | -         | -                   | -       | -       | ○                        | ○              |
