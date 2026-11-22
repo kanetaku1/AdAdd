@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
     ArrowLeft,
     ArrowRight,
@@ -42,7 +42,7 @@ export function DriveFolderBrowser({ onSelect, onCancel }: Props) {
     const [hasChildrenCache, setHasChildrenCache] = useState<Map<string, boolean>>(new Map())
     const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set())
 
-    const rootIdRef = useRef<string | null>(null)
+    const [rootId, setRootId] = useState<string | null>(null)
 
     const cacheChildren = useCallback((parentId: string, folders: DriveFolderEntry[]) => {
         setChildrenCache(prev => {
@@ -72,17 +72,17 @@ export function DriveFolderBrowser({ onSelect, onCancel }: Props) {
             setSelectedId(null)
             setSelectedName(null)
 
-            if (!rootIdRef.current) {
-                rootIdRef.current = folderId
-                    ? (listing.ancestors.length > 0 ? listing.ancestors[0].id : listing.current.id)
-                    : listing.current.id
-            }
+            const computedRootId = folderId
+                ? (listing.ancestors.length > 0 ? listing.ancestors[0].id : listing.current.id)
+                : listing.current.id
+
+            setRootId(prev => prev ?? computedRootId)
 
             cacheChildren(listing.current.id, listing.folders)
 
             setExpandedNodes(prev => {
                 const next = new Set(prev)
-                if (rootIdRef.current) next.add(rootIdRef.current)
+                next.add(computedRootId)
                 for (const ancestor of listing.ancestors) {
                     next.add(ancestor.id)
                 }
@@ -105,8 +105,29 @@ export function DriveFolderBrowser({ onSelect, onCancel }: Props) {
     }, [historyIndex, cacheChildren])
 
     useEffect(() => {
-        void navigateToFolder()
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+        let cancelled = false
+        async function init() {
+            setLoading(true)
+            setError(null)
+            try {
+                const listing = await fetchDriveFolders(undefined, { hasChildren: true })
+                if (cancelled) return
+                setCurrentListing(listing)
+                setCurrentId(listing.current.id)
+                setRootId(listing.current.id)
+                cacheChildren(listing.current.id, listing.folders)
+                setExpandedNodes(new Set([listing.current.id]))
+                setHistory([listing.current.id])
+                setHistoryIndex(0)
+            } catch (err) {
+                if (!cancelled) setError(getErrorMessage(err, { fallback: "フォルダの読み込みに失敗しました" }))
+            } finally {
+                if (!cancelled) setLoading(false)
+            }
+        }
+        void init()
+        return () => { cancelled = true }
+    }, [cacheChildren])
 
     const canGoBack = historyIndex > 0
     const canGoForward = historyIndex < history.length - 1
@@ -239,7 +260,6 @@ export function DriveFolderBrowser({ onSelect, onCancel }: Props) {
         )
     }
 
-    const rootId = rootIdRef.current
     const rootName = currentListing
         ? (currentListing.ancestors.length > 0 ? currentListing.ancestors[0].name : currentListing.current.name)
         : "ルート"

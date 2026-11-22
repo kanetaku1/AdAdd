@@ -71,7 +71,7 @@ export function DriveUploadDialog({
         }
     }
 
-    function handleManualFolderSelect(folderId: string, _folderName: string) {
+    function handleManualFolderSelect(folderId: string) {
         setShowBrowser(false)
         void doManualUpload(folderId)
     }

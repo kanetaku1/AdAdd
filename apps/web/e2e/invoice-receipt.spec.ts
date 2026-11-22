@@ -14,7 +14,7 @@ test("メニューを変更した後に開いた請求書・領収書は、最�
 
   await page.goto("/years")
   const activeYearRow = page.getByRole("row").filter({ hasText: "2026" })
-  await expect(activeYearRow.getByRole("cell")).toHaveCount(4)
+  await expect(activeYearRow.getByRole("cell")).toHaveCount(5)
   await expect(activeYearRow.getByRole("button")).toHaveCount(0)
   await activeYearRow.getByRole("link").click()
   await expect(page).toHaveURL(/\/yearly-companies\?yearId=year_2026/)
@@ -45,7 +45,7 @@ test("メニューを変更した後に開いた請求書・領収書は、最�
   await page.goto("/years")
   await expect(
     page.getByRole("row").filter({ hasText: "2026" }).getByRole("cell")
-  ).toHaveCount(4)
+  ).toHaveCount(5)
 
   await page.goto("/companies/new")
   await page.getByLabel("会社名").fill(companyName)
