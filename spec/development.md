@@ -823,7 +823,6 @@ In MySQL mode, a developer signs in with Google as an AdAdd `User` with the Role
 | `NEXT_PUBLIC_API_BASE_URL` | Empty (`dev:mock` sets it) | `http://127.0.0.1:8080` | Empty means mock mode |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | — | Required | Google sign-in |
 | `APP_ORIGIN` | — | Optional | The web app's public origin, e.g. `https://adadd.example`. The Google sign-in redirect URI and the redirects after sign-in are built from it. When empty, the origin of the incoming request is used, which is enough when the browser reaches Next.js directly (local development). Set it when a reverse proxy or a hosting service sits in front, so the redirect URI matches the one registered on the OAuth client (Issue #168). |
-| `GOOGLE_API_KEY` / `GOOGLE_DRIVE_ROOT_FOLDER_ID` | — | When using Drive | Drive Picker (exposed to the browser by `next.config.ts`) |
 
 `apps/api` — the repository-root `.env` for Docker Compose (see `.env.example`), or `apps/api/.env` for `go run` (see `apps/api/.env.example`):
 

@@ -21,9 +21,11 @@ import (
 )
 
 var (
-	ErrDriveNotConfigured = errors.New("dedicated Google Drive account is not configured")
-	ErrDriveFileIDMissing = errors.New("Google Drive file ID is unavailable")
-	ErrDriveFolderTarget  = errors.New("the Drive reference points to a folder, not a file")
+	ErrDriveNotConfigured    = errors.New("dedicated Google Drive account is not configured")
+	ErrDriveFileIDMissing    = errors.New("Google Drive file ID is unavailable")
+	ErrDriveFolderTarget     = errors.New("the Drive reference points to a folder, not a file")
+	ErrDriveFolderNotFound   = errors.New("folder not found or is not a folder")
+	ErrDriveFolderOutsideRoot = errors.New("folder is outside the root folder")
 )
 
 var driveFileIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
@@ -184,6 +186,104 @@ func (s *DriveService) TrashFile(ctx context.Context, fileID string) error {
 		return fmt.Errorf("move Drive file to trash: %w", err)
 	}
 	return nil
+}
+
+type DriveFolderEntry struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type DriveFolderListing struct {
+	Current   DriveFolderEntry   `json:"current"`
+	Ancestors []DriveFolderEntry `json:"ancestors"`
+	Folders   []DriveFolderEntry `json:"folders"`
+}
+
+func (s *DriveService) ListFolders(ctx context.Context, parentID, rootFolderID string) (*DriveFolderListing, error) {
+	srv, err := s.driveClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	targetID := parentID
+	if targetID == "" {
+		targetID = rootFolderID
+	}
+
+	current, err := srv.Files.Get(targetID).
+		Fields("id, name, mimeType, parents").
+		SupportsAllDrives(true).
+		Do()
+	if err != nil {
+		if gErr, ok := err.(*googleapi.Error); ok && (gErr.Code == 404 || gErr.Code == 403) {
+			return nil, ErrDriveFolderNotFound
+		}
+		return nil, fmt.Errorf("get folder: %w", err)
+	}
+	if current.MimeType != "application/vnd.google-apps.folder" {
+		return nil, ErrDriveFolderNotFound
+	}
+
+	ancestors := make([]DriveFolderEntry, 0)
+	if targetID != rootFolderID {
+		// Single traversal: walk from current's parent up to rootFolderID,
+		// collecting ancestors and validating the folder is inside the root.
+		var chain []DriveFolderEntry
+		walkID := current.Parents[0]
+		if len(current.Parents) == 0 {
+			return nil, ErrDriveFolderOutsideRoot
+		}
+		const maxDepth = 20
+		for i := 0; i < maxDepth; i++ {
+			if walkID == rootFolderID {
+				break
+			}
+			f, err := srv.Files.Get(walkID).
+				Fields("id, name, parents").
+				SupportsAllDrives(true).
+				Do()
+			if err != nil {
+				return nil, fmt.Errorf("traverse ancestors: %w", err)
+			}
+			chain = append(chain, DriveFolderEntry{ID: f.Id, Name: f.Name})
+			if len(f.Parents) == 0 {
+				return nil, ErrDriveFolderOutsideRoot
+			}
+			walkID = f.Parents[0]
+		}
+		if walkID != rootFolderID {
+			return nil, ErrDriveFolderOutsideRoot
+		}
+		// chain is leaf-to-root order; reverse to root-to-leaf for the response
+		for i, j := 0, len(chain)-1; i < j; i, j = i+1, j-1 {
+			chain[i], chain[j] = chain[j], chain[i]
+		}
+		ancestors = chain
+	}
+
+	query := fmt.Sprintf("'%s' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false", targetID)
+	fileList, err := srv.Files.List().
+		Q(query).
+		Fields("files(id, name)").
+		OrderBy("name").
+		PageSize(1000).
+		SupportsAllDrives(true).
+		IncludeItemsFromAllDrives(true).
+		Do()
+	if err != nil {
+		return nil, fmt.Errorf("list subfolders: %w", err)
+	}
+
+	folders := make([]DriveFolderEntry, 0, len(fileList.Files))
+	for _, f := range fileList.Files {
+		folders = append(folders, DriveFolderEntry{ID: f.Id, Name: f.Name})
+	}
+
+	return &DriveFolderListing{
+		Current:   DriveFolderEntry{ID: current.Id, Name: current.Name},
+		Ancestors: ancestors,
+		Folders:   folders,
+	}, nil
 }
 
 // ExtractDriveFileID recovers IDs from the Drive URL formats AdAdd has stored
