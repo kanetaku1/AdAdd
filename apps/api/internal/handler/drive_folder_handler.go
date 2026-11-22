@@ -12,7 +12,7 @@ import (
 )
 
 type DriveFolderOperator interface {
-	ListFolders(ctx context.Context, parentID, rootFolderID string) (*service.DriveFolderListing, error)
+	ListFolders(ctx context.Context, parentID, rootFolderID string, includeHasChildren ...bool) (*service.DriveFolderListing, error)
 }
 
 var newDriveFolderOperator = func() DriveFolderOperator {
@@ -36,8 +36,10 @@ func listDriveFolders(c echo.Context) error {
 		})
 	}
 
+	hasChildrenParam := c.QueryParam("hasChildren") == "true"
+
 	drv := newDriveFolderOperator()
-	listing, err := drv.ListFolders(c.Request().Context(), parentID, rootFolderID)
+	listing, err := drv.ListFolders(c.Request().Context(), parentID, rootFolderID, hasChildrenParam)
 	if err != nil {
 		if errors.Is(err, service.ErrDriveNotConfigured) {
 			return c.JSON(http.StatusServiceUnavailable, map[string]string{

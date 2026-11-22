@@ -366,9 +366,12 @@ Request:
 {
   "name": "2027",
   "startDate": "2027-04-01",
-  "endDate": "2027-11-30"
+  "endDate": "2027-11-30",
+  "editionNumber": 46
 }
 ```
+
+`editionNumber` (optional integer) is the festival edition number (回数, e.g. 46 for the 46th festival). Used in Drive file naming (`spec/domain.md#Drive File Naming`). When omitted, it is copied from the previous Year along with issuer/bank attributes. The first Year, with no previous Year, starts null.
 
 Side effect: bulk-generates a `YearlyCompany` for every existing `Company` (see `spec/usecase.md` UC-01, `spec/domain.md#Yearly Company`). For each Company, `companyStatus` is computed automatically (Continuing/New — never Dormant, see `spec/model.md#Value Objects` → `CompanyStatus`), `phase` defaults to `PHASE_3`, `progress` defaults to `NOT_CONTACTED`, and contact fields (`postalCode`, `address`, `phoneNumber`, `website`, `contactPersonName`, `contactEmailOrForm`, `memo`) are copied from that Company.
 
@@ -378,7 +381,7 @@ Permission:
 
 * Administrator
 
-Side effect: the new Year's document issuer information (`issuer*`, `bank*`) is copied from the previous Year (`spec/model.md#Year`). The Administrator then edits it with Update Document Issuer Information below.
+Side effect: the new Year's document issuer information (`issuer*`, `bank*`) and `editionNumber` are copied from the previous Year (`spec/model.md#Year`). The Administrator then edits them with Update Year / Update Document Issuer Information below.
 
 ---
 
@@ -431,11 +434,12 @@ Request (all fields optional):
 {
   "name": "2027",
   "startDate": "2027-04-01",
-  "endDate": "2027-11-30"
+  "endDate": "2027-11-30",
+  "editionNumber": 46
 }
 ```
 
-`name`, `startDate`, and `endDate` use the same format as Create Year. `isActive` is not accepted; it changes only through Create Year. Nothing the Year owns is changed.
+`name`, `startDate`, `endDate`, and `editionNumber` use the same format as Create Year. `editionNumber` may be set to `null` to clear it. `isActive` is not accepted; it changes only through Create Year. Nothing the Year owns is changed.
 
 A past Year is rejected with `409 CONFLICT` (see Past Years Are Read-Only). Whether a past Year's name should become correctable is not decided (Issue #172). An unknown `yearId` returns `404`.
 
@@ -1304,12 +1308,14 @@ One request appends one or more references:
 
 The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. The request contains `folderId` and file bodies; it does not contain a Google access token. The API uploads as the configured dedicated Google account and persists each returned `driveFileId`. Every successfully uploaded Drive file is appended as a separate reference in one database transaction. If the dedicated integration is unavailable, the endpoint returns `503 Service Unavailable` without adding a reference.
 
-Each uploaded file is renamed in Drive as `<folders>_<production type>_<company name><extension>`:
+Each uploaded file is renamed in Drive as `<edition>th_<company name>_<sponsorship menu name>_<production type><extension>` (`spec/domain.md#Drive File Naming`):
 
-* `<folders>` — the names of the folders from the one directly below the configured root folder down to the upload folder, joined with `_`.
-* `<production type>` — the Contract Menu's production type label: `企業` (`COMPANY`), `委員` (`INTERNAL`), `継続` (`CONTINUED`). A Contract Menu with no production type (its Sponsorship Menu does not require submission) has no such part: `<folders>_<company name><extension>`.
+* `<edition>` — the Year's `editionNumber` (回数). When the Year has no edition number, the naming falls back to the legacy format: `<folders>_<production type>_<company name><extension>` (folder names from root to upload folder joined with `_`).
 * `<company name>` — the Yearly Company's company name.
-* When one request uploads several files, each name also gets `_<two-digit sequence>_<original file name without extension>` before the extension, e.g. `2026_パンフレット_企業_長岡テクノ_01_表面.pdf`.
+* `<sponsorship menu name>` — the referenced Sponsorship Menu's name.
+* `<production type>` — the Contract Menu's production type label: `企業` (`COMPANY`), `委員` (`INTERNAL`), `継続` (`CONTINUED`). A Contract Menu with no production type (its Sponsorship Menu does not require submission) omits this part.
+* When a file with the same generated name already exists in the target folder, a sequential number is appended before the extension: `_2`, `_3`, etc. Example: `45th_企業名A_パンフレット広告_委員.png`, then `45th_企業名A_パンフレット広告_委員_2.png`.
+* When one request uploads several files, each name also gets `_<two-digit sequence>_<original file name without extension>` before the extension, e.g. `45th_企業名A_パンフレット広告_企業_01_表面.pdf`.
 
 Every body is created as a new Drive file even when another file in the folder has the same display name. If a later upload or the database transaction fails, the API makes a best-effort attempt to move the files created by that request to trash; no incomplete reference is committed.
 
@@ -1630,6 +1636,58 @@ Sponsorship Member / Advisor / Advertisement Manager / Administrator. Same as "A
 ### Implementation notes
 
 The ancestor path is built by traversing from `current` to the root folder via `parents`, the same technique `DriveService.UploadFile` uses to validate the upload destination. If the traversal does not reach the root folder, the request is rejected with `400`.
+
+### Optional `hasChildren` flag
+
+When the query parameter `hasChildren=true` is passed, each entry in `folders` includes a boolean `hasChildren` field indicating whether the subfolder contains its own subfolders. This is used by the tree sidebar to show expand/collapse icons before the children are fetched. When the parameter is omitted, `hasChildren` is not included (to avoid extra Drive API calls).
+
+---
+
+## Auto-generate Drive Folder Structure
+
+```
+POST /contract-menus/{id}/drive-folder
+```
+
+Creates the Drive folder hierarchy for the Contract Menu's ad material, following the convention in `spec/domain.md#Drive Folder Structure`. Existing folders are reused by name; only missing folders are created. Only the requested material category subfolder is created.
+
+### Request Body (JSON)
+
+```json
+{ "category": "素材" }
+```
+
+`category` (required) — the material category subfolder to create: `素材`, `仮完成`, or `完成`.
+
+The endpoint resolves the folder names from the Contract Menu's relationships:
+
+* `SponsorshipMenu.name` → first-level folder under root
+* `Company.companyName` (via Contract → YearlyCompany → Company) → second-level folder
+* `category` → the single leaf subfolder
+
+### Authorization
+
+Sponsorship Member / Advisor / Advertisement Manager / Administrator. Active Year only. A past-Year Contract Menu returns `409 CONFLICT`.
+
+### Response (200)
+
+```json
+{
+  "companyFolderId": "company-folder-id",
+  "categoryFolders": {
+    "素材": "folder-id-1"
+  }
+}
+```
+
+### Errors
+
+| Situation | Response |
+| --------- | -------- |
+| Contract Menu not found | `404 Not Found` |
+| Past Year | `409 Conflict` |
+| Drive integration not configured | `503 Service Unavailable` |
+| Drive API error | `502 Bad Gateway` |
 
 ---
 

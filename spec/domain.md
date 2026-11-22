@@ -51,6 +51,7 @@ Represents one festival cycle.
 * Archive yearly data
 * Separate yearly business information
 * Document issuer information for that Year's invoices and receipts (committee name, address, contact email, bank transfer account)
+* Edition number (回数) for Drive file naming (e.g. 45 for the 45th festival). Copied from the previous Year on creation; the Administrator may edit it.
 
 A Year is never deleted. It owns that cycle's Yearly Companies, Sponsorship Menus, Contracts, and Payments, and the next Year's Company Status is computed from it (see Company Status below). Deleting it would orphan that history and change later statuses (`spec/database.md#Preserve Historical Data`, `spec/api.md#Festival Year API`).
 
@@ -243,6 +244,42 @@ Goods sponsorship is **not** a Sponsorship Menu of its own — the same Sponsors
 * Progress status
 * Google Drive folder and zero or more submitted-file references
 * Submitted-state derivation: at least one undeleted file reference means submitted; deleted references do not count
+
+### Drive Folder Structure
+
+When ad material is uploaded for a Contract Menu, the files are stored in a folder hierarchy under the configured root folder:
+
+```
+root (GOOGLE_DRIVE_ROOT_FOLDER_ID)
+  └── {SponsorshipMenu.name}
+        └── {Company.companyName}
+              ├── 素材
+              ├── 仮完成
+              └── 完成
+```
+
+The backend auto-creates any missing folders on an explicit folder-generation request (`spec/api.md#Auto-generate Drive Folder Structure`). The request specifies which material category subfolder to create; only that single subfolder is created (not all three). Existing folders are reused by matching the name under the same parent. The three possible leaf subfolders represent **material categories** (素材区分):
+
+* **素材** — raw material (logos, text, images) provided by the company for internal production.
+* **仮完成** — draft completion, shared for review before finalization.
+* **完成** — final completion, ready to use.
+
+The user selects a material category when uploading; the selection determines which subfolder receives the file.
+
+### Drive File Naming
+
+Each uploaded file is renamed as:
+
+```
+{editionNumber}th_{companyName}_{sponsorshipMenuName}_{productionTypeLabel}.{ext}
+```
+
+* `editionNumber` — the Year's edition number (回数, e.g. `45`). Always present; set during Year creation (copied from the previous Year or entered manually).
+* `companyName` — the Yearly Company's company name.
+* `sponsorshipMenuName` — the referenced Sponsorship Menu's name.
+* `productionTypeLabel` — `企業` (Company), `委員` (Internal), `継続` (Continued). Omitted when the Contract Menu has no production type.
+
+When a file with the same name already exists in the target folder, a sequential number is appended: `_2`, `_3`, etc.
 
 ### Relationships
 

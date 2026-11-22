@@ -25,6 +25,7 @@ function mapApiYear(raw: ApiYear): Year {
     startDate: raw.startDate.slice(0, 10),
     endDate: raw.endDate.slice(0, 10),
     isActive: raw.isActive,
+    editionNumber: raw.editionNumber ?? null,
     issuerName: raw.issuerName,
     issuerPostalCode: raw.issuerPostalCode,
     issuerAddressLine1: raw.issuerAddressLine1,
@@ -55,6 +56,7 @@ export async function createYear(input: {
   name: string
   startDate: string
   endDate: string
+  editionNumber?: number | null
 }): Promise<Year> {
   if (isApiEnabled()) {
     const raw = await apiFetch<ApiYear>("/years", {
@@ -67,6 +69,24 @@ export async function createYear(input: {
   const created = mockYears.find((y) => y.isActive)
   if (!created) throw new Error("年度の作成に失敗しました")
   return created
+}
+
+export async function updateYear(
+  yearId: string,
+  input: { name?: string; startDate?: string; endDate?: string; editionNumber?: number | null }
+): Promise<Year> {
+  if (isApiEnabled()) {
+    const raw = await apiFetch<ApiYear>(`/years/${yearId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    })
+    return mapApiYear(raw)
+  }
+  const year = mockYears.find((y) => y.id === yearId)
+  if (!year) throw new Error("年度が見つかりません")
+  if (input.name !== undefined) year.name = input.name
+  if (input.editionNumber !== undefined) year.editionNumber = input.editionNumber
+  return year
 }
 
 export async function updateYearDocumentIssuer(

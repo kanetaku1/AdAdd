@@ -16,7 +16,7 @@ type fakeDriveFolderOperator struct {
 	err     error
 }
 
-func (f *fakeDriveFolderOperator) ListFolders(_ context.Context, _, _ string) (*service.DriveFolderListing, error) {
+func (f *fakeDriveFolderOperator) ListFolders(_ context.Context, _, _ string, _ ...bool) (*service.DriveFolderListing, error) {
 	return f.listing, f.err
 }
 

@@ -2,11 +2,18 @@ package service
 
 import (
 	"errors"
+	"strings"
+	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/repository"
 	"gorm.io/gorm"
+)
+
+var (
+	ErrPastYear    = errors.New("past year is read-only")
+	ErrInvalidDate = errors.New("invalid date format")
 )
 
 type YearService struct {
@@ -19,6 +26,10 @@ func NewYearService() *YearService {
 
 func (s *YearService) List() ([]model.Year, error) {
 	return s.repo.List()
+}
+
+func (s *YearService) GetByID(id string) (*model.Year, error) {
+	return s.repo.GetByID(id)
 }
 
 func (s *YearService) NameExists(name string) (bool, error) {
@@ -36,7 +47,11 @@ func (s *YearService) Create(y *model.Year) error {
 		}
 		precedingID := preceding.ID
 		if precedingID != "" {
+			providedEdition := y.EditionNumber
 			copyDocumentIssuer(y, &preceding)
+			if providedEdition != nil {
+				y.EditionNumber = providedEdition
+			}
 		}
 
 		if err := tx.Model(&model.Year{}).Where("1 = 1").Update("is_active", false).Error; err != nil {
@@ -144,6 +159,58 @@ func (s *YearService) UpdateDocumentIssuer(yearID string, input DocumentIssuerIn
 	return s.repo.GetByID(yearID)
 }
 
+type UpdateYearInput struct {
+	Name          *string `json:"name"`
+	StartDate     *string `json:"startDate"`
+	EndDate       *string `json:"endDate"`
+	EditionNumber *int    `json:"editionNumber"`
+	// EditionNumberSent distinguishes "not sent" from "sent as null".
+	EditionNumberSent bool `json:"-"`
+}
+
+func (s *YearService) Update(yearID string, input UpdateYearInput) (*model.Year, error) {
+	year, err := s.repo.GetByID(yearID)
+	if err != nil {
+		return nil, err
+	}
+	if !year.IsActive {
+		return nil, ErrPastYear
+	}
+
+	updates := make(map[string]interface{})
+	if input.Name != nil {
+		updates["name"] = strings.TrimSpace(*input.Name)
+	}
+	if input.StartDate != nil {
+		d, err := time.Parse("2006-01-02", *input.StartDate)
+		if err != nil {
+			return nil, ErrInvalidDate
+		}
+		updates["start_date"] = model.Date(d)
+	}
+	if input.EndDate != nil {
+		d, err := time.Parse("2006-01-02", *input.EndDate)
+		if err != nil {
+			return nil, ErrInvalidDate
+		}
+		updates["end_date"] = model.Date(d)
+	}
+	if input.EditionNumberSent {
+		if input.EditionNumber != nil {
+			updates["edition_number"] = *input.EditionNumber
+		} else {
+			updates["edition_number"] = nil
+		}
+	}
+	if len(updates) == 0 {
+		return year, nil
+	}
+	if err := db.DB.Model(&model.Year{}).Where("id = ?", yearID).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+	return s.repo.GetByID(yearID)
+}
+
 func copyDocumentIssuer(target, source *model.Year) {
 	target.IssuerName = source.IssuerName
 	target.IssuerPostalCode = source.IssuerPostalCode
@@ -155,4 +222,5 @@ func copyDocumentIssuer(target, source *model.Year) {
 	target.BankAccountType = source.BankAccountType
 	target.BankAccountNumber = source.BankAccountNumber
 	target.BankAccountHolderName = source.BankAccountHolderName
+	target.EditionNumber = source.EditionNumber
 }

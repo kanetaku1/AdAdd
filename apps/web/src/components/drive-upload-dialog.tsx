@@ -1,8 +1,7 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useState } from "react"
 import { useDropzone } from "react-dropzone"
-import { Folder, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -12,12 +11,18 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { ErrorBanner } from "@/components/query-state"
-import { Skeleton } from "@/components/ui/skeleton"
 import { uploadContractMenuToDrive } from "@/lib/data/sponsorship"
-import { fetchDriveFolders, type DriveFolderEntry } from "@/lib/data/drive-folders"
+import { ensureDriveFolderStructure } from "@/lib/data/drive-folders"
 import { getErrorMessage } from "@/lib/errors"
 import { ApiError } from "@/lib/api/client"
+import { DriveFolderBrowser } from "@/components/drive-folder-browser"
+import {
+    MaterialCategorySelector,
+    type MaterialCategory,
+} from "@/components/material-category-selector"
 import type { ContractMenu } from "@/types/contract-menu"
+
+type UploadMode = "auto" | "manual"
 
 export function DriveUploadDialog({
     menuId,
@@ -33,14 +38,9 @@ export function DriveUploadDialog({
     const [files, setFiles] = useState<File[]>([])
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
-
-    // Folder browser state
-    const [browsing, setBrowsing] = useState(false)
-    const [currentFolder, setCurrentFolder] = useState<DriveFolderEntry | null>(null)
-    const [ancestors, setAncestors] = useState<DriveFolderEntry[]>([])
-    const [subfolders, setSubfolders] = useState<DriveFolderEntry[]>([])
-    const [loadingFolders, setLoadingFolders] = useState(false)
-    const [folderError, setFolderError] = useState<string | null>(null)
+    const [mode, setMode] = useState<UploadMode>("auto")
+    const [category, setCategory] = useState<MaterialCategory | null>(null)
+    const [showBrowser, setShowBrowser] = useState(false)
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         multiple: true,
@@ -49,37 +49,40 @@ export function DriveUploadDialog({
         },
     })
 
-    const loadFolder = useCallback(async (parentId?: string) => {
-        setLoadingFolders(true)
-        setFolderError(null)
-        try {
-            const listing = await fetchDriveFolders(parentId)
-            setCurrentFolder(listing.current)
-            setAncestors(listing.ancestors)
-            setSubfolders(listing.folders)
-        } catch (err) {
-            setFolderError(getErrorMessage(err, { fallback: "フォルダの読み込みに失敗しました" }))
-        } finally {
-            setLoadingFolders(false)
-        }
-    }, [])
-
-    function handleStartBrowsing() {
-        setBrowsing(true)
-        void loadFolder()
-    }
-
-    function handleNavigate(folderId: string) {
-        void loadFolder(folderId)
-    }
-
-    async function handleUpload() {
-        if (files.length === 0 || !currentFolder) return
+    async function handleAutoUpload() {
+        if (files.length === 0 || !category) return
 
         setBusy(true)
         setError(null)
         try {
-            const updated = await uploadContractMenuToDrive(menuId, files, currentFolder.id)
+            const structure = await ensureDriveFolderStructure(menuId, category)
+            const folderId = structure.categoryFolders[category]
+            if (!folderId) {
+                setError("フォルダの自動生成に失敗しました。手動モードをお試しください。")
+                return
+            }
+            const updated = await uploadContractMenuToDrive(menuId, files, folderId)
+            onSuccess?.(updated)
+            onOpenChange(false)
+        } catch (err) {
+            setError(getErrorMessage(err, { fallback: "アップロードに失敗しました" }))
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    function handleManualFolderSelect(folderId: string, _folderName: string) {
+        setShowBrowser(false)
+        void doManualUpload(folderId)
+    }
+
+    async function doManualUpload(folderId: string) {
+        if (files.length === 0) return
+
+        setBusy(true)
+        setError(null)
+        try {
+            const updated = await uploadContractMenuToDrive(menuId, files, folderId)
             onSuccess?.(updated)
             onOpenChange(false)
         } catch (err) {
@@ -101,26 +104,27 @@ export function DriveUploadDialog({
 
     function resetState() {
         setFiles([])
-        setBrowsing(false)
-        setCurrentFolder(null)
-        setAncestors([])
-        setSubfolders([])
-        setFolderError(null)
+        setMode("auto")
+        setCategory(null)
+        setShowBrowser(false)
         setError(null)
     }
+
+    const hasFiles = files.length > 0
 
     return (
         <Dialog open={open} onOpenChange={(val) => {
             if (!busy) onOpenChange(val)
             if (!val) resetState()
         }}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="sm:max-w-5xl w-[90vw]">
                 <DialogHeader>
                     <DialogTitle>Driveへアップロード</DialogTitle>
                 </DialogHeader>
 
                 <ErrorBanner message={error} />
 
+                {/* File drop zone */}
                 <div
                     {...getRootProps()}
                     className={`border-2 border-dashed p-6 text-center rounded-md cursor-pointer transition-colors ${isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:bg-gray-50"
@@ -141,72 +145,59 @@ export function DriveUploadDialog({
                     )}
                 </div>
 
-                {browsing && (
-                    <div className="space-y-2">
-                        <ErrorBanner message={folderError} />
-
-                        {/* Breadcrumb */}
-                        {currentFolder && (
-                            <nav className="flex items-center gap-1 text-sm text-muted-foreground overflow-x-auto">
-                                {ancestors.map((ancestor) => (
-                                    <span key={ancestor.id} className="flex items-center gap-1 shrink-0">
-                                        <button
-                                            type="button"
-                                            className="hover:underline text-blue-600"
-                                            onClick={() => handleNavigate(ancestor.id)}
-                                        >
-                                            {ancestor.name}
-                                        </button>
-                                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                                    </span>
-                                ))}
-                                <span className="font-medium text-foreground shrink-0">{currentFolder.name}</span>
-                            </nav>
-                        )}
-
-                        {/* Folder list */}
-                        <div className="border rounded-md max-h-48 overflow-y-auto">
-                            {loadingFolders ? (
-                                <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
-                                    <Skeleton className="h-4 w-4 shrink-0 rounded-full" />
-                                    読み込み中…
-                                </div>
-                            ) : subfolders.length === 0 ? (
-                                <div className="p-3 text-sm text-muted-foreground">
-                                    サブフォルダはありません
-                                </div>
-                            ) : (
-                                <ul>
-                                    {subfolders.map((folder) => (
-                                        <li key={folder.id}>
-                                            <button
-                                                type="button"
-                                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
-                                                onClick={() => handleNavigate(folder.id)}
-                                            >
-                                                <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                <span className="truncate">{folder.name}</span>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                {hasFiles && !showBrowser && (
+                    <>
+                        {/* Mode toggle */}
+                        <div className="flex items-center gap-2 text-sm">
+                            <button
+                                type="button"
+                                className={`px-2 py-1 rounded ${mode === "auto" ? "bg-muted font-medium" : "hover:bg-muted/50"}`}
+                                onClick={() => setMode("auto")}
+                            >
+                                自動
+                            </button>
+                            <button
+                                type="button"
+                                className={`px-2 py-1 rounded ${mode === "manual" ? "bg-muted font-medium" : "hover:bg-muted/50"}`}
+                                onClick={() => setMode("manual")}
+                            >
+                                手動
+                            </button>
                         </div>
-                    </div>
+
+                        {mode === "auto" ? (
+                            <div className="space-y-3">
+                                <MaterialCategorySelector value={category} onChange={setCategory} />
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>キャンセル</Button>
+                                    <Button onClick={() => void handleAutoUpload()} disabled={!category || busy}>
+                                        {busy ? "アップロード中..." : "アップロード"}
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>キャンセル</Button>
+                                <Button onClick={() => setShowBrowser(true)} disabled={busy}>
+                                    フォルダを選択
+                                </Button>
+                            </div>
+                        )}
+                    </>
                 )}
 
-                <div className="flex justify-end gap-2 mt-4">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>キャンセル</Button>
-                    {!browsing ? (
-                        <Button onClick={handleStartBrowsing} disabled={files.length === 0 || busy}>
-                            フォルダを選択してアップロード
-                        </Button>
-                    ) : (
-                        <Button onClick={() => void handleUpload()} disabled={files.length === 0 || !currentFolder || busy}>
-                            {busy ? "アップロード中..." : "このフォルダにアップロード"}
-                        </Button>
-                    )}
-                </div>
+                {showBrowser && (
+                    <DriveFolderBrowser
+                        onSelect={handleManualFolderSelect}
+                        onCancel={() => setShowBrowser(false)}
+                    />
+                )}
+
+                {!hasFiles && (
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>キャンセル</Button>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     )
