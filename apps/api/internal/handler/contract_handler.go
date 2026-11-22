@@ -128,6 +128,8 @@ func respondContractWriteError(c echo.Context, err error) error {
 		return respondConflict(c, "この企業には既に契約が存在します")
 	case errors.Is(err, service.ErrSponsorshipMenuInactive):
 		return respondConflict(c, "無効になっている協賛メニューは追加できません: "+err.Error())
+	case errors.Is(err, service.ErrPastYearReadOnly):
+		return respondConflict(c, err.Error())
 	case errors.Is(err, service.ErrConfirmedPaymentAmountMismatch):
 		return respondConflict(c, "入金確認済みのため、契約金額が変わる変更はできません")
 	default:

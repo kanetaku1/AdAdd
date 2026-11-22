@@ -33,6 +33,7 @@ import type { ActivityLog } from "@/types/activity-log"
 import type {
   ContractMenu,
   ContractMenuAcrossYear,
+  ContractMenuProductionDepartment,
   ContractMenuProductionType,
   ContractMenuStatus,
 } from "@/types/contract-menu"
@@ -147,6 +148,7 @@ function mapApiContractMenu(cm: {
   unitPrice: number | string
   isGoodsSponsorship: boolean
   productionType?: string
+  productionDepartment?: string | null
   status: string
   driveFolderId?: string
   driveUrl?: string
@@ -186,6 +188,8 @@ function mapApiContractMenu(cm: {
     // An empty string (stored before Issue #162) also means "none".
     productionType:
       (cm.productionType as ContractMenu["productionType"]) || null,
+    productionDepartment:
+      (cm.productionDepartment as ContractMenuProductionDepartment | null) ?? null,
     status: (isSubmitted
       ? "SUBMITTED"
       : cm.status === "SUBMITTED"
@@ -303,6 +307,7 @@ export type ContractMenuAcrossYearFilters = {
   sponsorshipMenuId?: string
   status?: ContractMenuStatus
   productionType?: ContractMenuProductionType
+  productionDepartment?: ContractMenuProductionDepartment
 }
 
 /**
@@ -322,6 +327,8 @@ export async function listContractMenusAcrossYear(
     if (filters.status) params.set("status", filters.status)
     if (filters.productionType)
       params.set("productionType", filters.productionType)
+    if (filters.productionDepartment)
+      params.set("productionDepartment", filters.productionDepartment)
     const qs = params.toString()
     const list = await apiFetch<
       Array<{
@@ -332,6 +339,7 @@ export async function listContractMenusAcrossYear(
         unitPrice: number | string
         isGoodsSponsorship: boolean
         productionType?: string
+        productionDepartment?: string | null
         status: string
         driveFolderId?: string
         driveUrl?: string
@@ -391,6 +399,11 @@ export async function listContractMenusAcrossYear(
     .filter(
       (cm) =>
         !filters.productionType || cm.productionType === filters.productionType
+    )
+    .filter(
+      (cm) =>
+        !filters.productionDepartment ||
+        cm.productionDepartment === filters.productionDepartment
     )
 }
 
@@ -560,6 +573,35 @@ export async function updateContractMenuStatus(
     return mapApiContractMenu(updated)
   }
   return updateMockContractMenu(id, { status })
+}
+
+/** PATCH /contract-menus/{id}/production-department. */
+export async function updateContractMenuProductionDepartment(
+  id: string,
+  productionDepartment: ContractMenuProductionDepartment | null
+): Promise<ContractMenu> {
+  if (isApiEnabled()) {
+    const updated = await apiFetch<{
+      id: string
+      contractId: string
+      sponsorshipMenuId: string
+      quantity: number
+      unitPrice: number | string
+      isGoodsSponsorship: boolean
+      productionType?: string
+      productionDepartment?: string | null
+      status: string
+      driveFolderId?: string
+      driveUrl?: string
+      driveFileName?: string
+      remarks?: string
+    }>(`/contract-menus/${id}/production-department`, {
+      method: "PATCH",
+      body: JSON.stringify({ productionDepartment }),
+    })
+    return mapApiContractMenu(updated)
+  }
+  return updateMockContractMenu(id, { productionDepartment })
 }
 
 /**
@@ -1055,9 +1097,8 @@ function newMockContractMenu(
     unitPrice: item.isGoodsSponsorship ? 0 : item.unitPrice,
     isGoodsSponsorship: item.isGoodsSponsorship,
     productionType: item.productionType,
-    // A Continued advertisement was produced in an earlier Year
-    // (spec/model.md#ContractMenu).
-    status: item.productionType === "CONTINUED" ? "COMPLETED" : "WAITING",
+    productionDepartment: null,
+    status: "WAITING",
     driveFolderId: null,
     files: [],
     fileCount: 0,

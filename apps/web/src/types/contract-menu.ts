@@ -5,6 +5,11 @@
  */
 export type ContractMenuProductionType = "COMPANY" | "INTERNAL" | "CONTINUED"
 
+export type ContractMenuProductionDepartment =
+  | "DOCUMENT_CREATION_DEPARTMENT"
+  | "PRODUCTION_BUREAU"
+  | "SOCIAL_MEDIA_DEPARTMENT"
+
 /**
  * ContractMenuStatus (spec/model.md#Enumerations).
  */
@@ -47,6 +52,7 @@ export type ContractMenu = {
   unitPrice: number
   isGoodsSponsorship: boolean
   productionType: ContractMenuProductionType | null
+  productionDepartment: ContractMenuProductionDepartment | null
   status: ContractMenuStatus
   driveFolderId: string | null
   files: ContractMenuDriveFile[]

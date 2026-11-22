@@ -99,8 +99,7 @@ func TestProductionTypeMustMatchSponsorshipMenu(t *testing.T) {
 		}
 		statusByType[key] = contractMenu.Status
 	}
-	// A Continued advertisement is already produced: it starts COMPLETED.
-	want := map[string]string{"COMPANY": "WAITING", "INTERNAL": "WAITING", "CONTINUED": "COMPLETED", "null": "WAITING"}
+	want := map[string]string{"COMPANY": "WAITING", "INTERNAL": "WAITING", "CONTINUED": "WAITING", "null": "WAITING"}
 	for productionType, status := range want {
 		if statusByType[productionType] != status {
 			t.Fatalf("status of %s = %q, want %q (all: %v)", productionType, statusByType[productionType], status, statusByType)
@@ -117,8 +116,8 @@ func TestProductionTypeMustMatchSponsorshipMenu(t *testing.T) {
 		"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "CONTINUED",
 	})
 	expectStatus(t, added, http.StatusCreated)
-	if got := decodeData[model.ContractMenu](t, added).Status; got != "COMPLETED" {
-		t.Fatalf("added CONTINUED status = %s, want COMPLETED", got)
+	if got := decodeData[model.ContractMenu](t, added).Status; got != "WAITING" {
+		t.Fatalf("added CONTINUED status = %s, want WAITING", got)
 	}
 }
 
@@ -133,20 +132,42 @@ func TestUpdateContractMenuProductionType(t *testing.T) {
 	yearID := createYear(t, actor.administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2026, 11, 30))
 	pamphletMenuID := createSponsorshipMenu(t, actor.administrator, yearID, "パンフレット広告", 80000)
 	contract := createContract(t, member, loadYearlyCompany(t, yearID, companyID).ID,
-		map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "COMPANY"})
+		map[string]any{"sponsorshipMenuId": pamphletMenuID, "quantity": 1, "productionType": "INTERNAL"})
 	contractMenuID := listContractMenuIDs(t, contract.ID)[0]
 	menuPath := "/contract-menus/" + contractMenuID
 
 	expectStatus(t, member.do(http.MethodPatch, menuPath, map[string]any{"productionType": "COMMITTEE"}), http.StatusBadRequest)
 	expectStatus(t, member.do(http.MethodPatch, menuPath, map[string]any{"productionType": nil}), http.StatusBadRequest)
 
-	// Changing the production type never changes the status (status is the
-	// Advertisement Manager's), even to CONTINUED.
+	manager := asUser(t, actor.administrator.server, "user-ad-manager-type-change", "ADVERTISEMENT_MANAGER")
+	expectStatus(t, manager.do(http.MethodPatch, menuPath+"/production-department", map[string]any{
+		"productionDepartment": "PRODUCTION_BUREAU",
+	}), http.StatusOK)
+	expectStatus(t, actor.administrator.do(http.MethodPatch, menuPath+"/status", map[string]any{
+		"status": "REQUESTED",
+	}), http.StatusOK)
+	var statusLogsBefore int64
+	if err := db.DB.Model(&model.ActivityLog{}).
+		Where("yearly_company_id = ? AND action = ?", contract.YearlyCompanyID, model.EventContractMenuStatusUpdated).
+		Count(&statusLogsBefore).Error; err != nil {
+		t.Fatalf("count status logs: %v", err)
+	}
+
+	// Changing the production type clears its department and normalizes status.
 	updated := member.do(http.MethodPatch, menuPath, map[string]any{"productionType": "CONTINUED"})
 	expectStatus(t, updated, http.StatusOK)
 	contractMenu := decodeData[model.ContractMenu](t, updated)
-	if contractMenu.ProductionType == nil || *contractMenu.ProductionType != "CONTINUED" || contractMenu.Status != "WAITING" {
+	if contractMenu.ProductionType == nil || *contractMenu.ProductionType != "CONTINUED" || contractMenu.Status != "WAITING" || contractMenu.ProductionDepartment != nil {
 		t.Fatalf("after CONTINUED: productionType = %v, status = %s; want CONTINUED, WAITING", contractMenu.ProductionType, contractMenu.Status)
+	}
+	var statusLogsAfter int64
+	if err := db.DB.Model(&model.ActivityLog{}).
+		Where("yearly_company_id = ? AND action = ?", contract.YearlyCompanyID, model.EventContractMenuStatusUpdated).
+		Count(&statusLogsAfter).Error; err != nil {
+		t.Fatalf("count status logs: %v", err)
+	}
+	if statusLogsAfter != statusLogsBefore+1 {
+		t.Fatalf("status log count = %d, want %d", statusLogsAfter, statusLogsBefore+1)
 	}
 
 	// The menu stops requiring submission: the stored value stays.
@@ -191,8 +212,7 @@ func TestMaxQuantityIsNotEnforced(t *testing.T) {
 	}), http.StatusCreated)
 }
 
-// A CONTINUED Contract Menu starts COMPLETED (its design exists), but
-// whether it is submitted follows its Drive files: registering one makes it
+// A CONTINUED Contract Menu starts WAITING; registering a Drive file makes it
 // SUBMITTED, and deleting the last one returns it to WAITING
 // (spec/model.md#ContractMenu).
 func TestContinuationSubmissionFollowsDriveFiles(t *testing.T) {
@@ -218,7 +238,7 @@ func TestContinuationSubmissionFollowsDriveFiles(t *testing.T) {
 		}
 	}
 
-	expectContractMenuStatus("COMPLETED")
+	expectContractMenuStatus("WAITING")
 	added := member.do(http.MethodPost, filesPath, map[string]any{
 		"files": []map[string]string{{"driveUrl": "https://drive.google.com/file/d/previous/view", "driveFileName": "前年度広告.pdf"}},
 	})

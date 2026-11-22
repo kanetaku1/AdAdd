@@ -1,4 +1,5 @@
 import type {
+  ContractMenuProductionDepartment,
   ContractMenuProductionType,
   ContractMenuStatus,
 } from "@/types/contract-menu"
@@ -38,4 +39,13 @@ export const CONTRACT_MENU_PRODUCTION_TYPE_LABEL: Record<
   COMPANY: "企業",
   INTERNAL: "委員",
   CONTINUED: "継続",
+}
+
+export const CONTRACT_MENU_PRODUCTION_DEPARTMENT_LABEL: Record<
+  ContractMenuProductionDepartment,
+  string
+> = {
+  DOCUMENT_CREATION_DEPARTMENT: "資料作成部門",
+  PRODUCTION_BUREAU: "制作局",
+  SOCIAL_MEDIA_DEPARTMENT: "SNS部門",
 }

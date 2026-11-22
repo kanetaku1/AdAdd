@@ -46,19 +46,18 @@ async function handler(
   const sessionToken = await getSessionToken()
   const headers = buildProxyRequestHeaders(req.headers, sessionToken)
 
-  const hasBody = !["GET", "HEAD"].includes(req.method)
+  const forwardsBody = ["POST", "PUT", "PATCH"].includes(req.method)
+  // Buffer the body before forwarding it. Passing NextRequest's web stream
+  // directly to Node's fetch can fail after middleware has handled the
+  // request ("expected non-null body source"), which turns a valid API 401
+  // into an unrelated 502 response.
+  const body = forwardsBody ? await req.arrayBuffer() : undefined
   let upstream: Response
   try {
     upstream = await fetch(target, {
       method: req.method,
       headers,
-      body: hasBody
-        ? req.method === "POST" || req.method === "PUT" || req.method === "PATCH"
-          ? req.body
-          : undefined
-        : undefined,
-      // @ts-expect-error (Next.js internal fetch typing missing duplex in some versions)
-      duplex: "half",
+      body,
     })
   } catch (err) {
     // The API URL and the error detail stay in the server log only.

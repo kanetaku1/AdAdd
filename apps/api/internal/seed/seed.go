@@ -382,7 +382,7 @@ func ensureCurrentYearContracts() error {
 		id: "contract_2026_c_001", yearID: CurrentYearID, companyID: "c_001",
 		contractDate: date(2026, 6, 15),
 		menus: []contractMenuInput{
-			{sponsorshipMenuID: currentPamphletMenuID, unitPrice: 80000, productionType: "COMPANY", status: "PRODUCING"},
+			{sponsorshipMenuID: currentPamphletMenuID, unitPrice: 80000, productionType: "COMPANY", status: "WAITING"},
 			{sponsorshipMenuID: currentHomepageMenuID, unitPrice: 15000, productionType: "COMPANY", status: "WAITING"},
 			{sponsorshipMenuID: currentBoothMenuID, unitPrice: 0, isGoodsSponsorship: true, status: "WAITING"},
 		},

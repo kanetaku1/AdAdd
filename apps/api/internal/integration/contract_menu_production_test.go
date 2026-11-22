@@ -16,13 +16,13 @@ func TestProductionRemarksOnlyKeepStatusAndActivityLog(t *testing.T) {
 	actors := newActors(t)
 	companyID := createCompany(t, actors.administrator, "制作備考株式会社")
 	yearID := createYear(t, actors.administrator, "2026", festivalDate(2026, 4, 1), festivalDate(2027, 3, 31))
-	menuID := createSponsorshipMenu(t, actors.administrator, yearID, "パンフレット広告", 80000)
+	menuID := createSponsorshipMenuWithoutSubmission(t, actors.administrator, yearID, "ブース", 80000)
 	yearlyCompany := loadYearlyCompany(t, yearID, companyID)
 	contract := createContract(t, actors.sponsorshipMember, yearlyCompany.ID)
 	added := actors.sponsorshipMember.do(http.MethodPost, "/contracts/"+contract.ID+"/menus", map[string]any{
 		"sponsorshipMenuId": menuID,
 		"quantity":          1,
-		"productionType":    "COMPANY",
+		"productionType":    nil,
 	})
 	expectStatus(t, added, http.StatusCreated)
 	contractMenu := decodeData[model.ContractMenu](t, added)
@@ -61,7 +61,7 @@ func TestProductionRemarksOnlyKeepStatusAndActivityLog(t *testing.T) {
 		t.Fatalf("activity logs after remarks-only update = %d, want %d", got, logsBefore)
 	}
 
-	// From an in-progress status: it is not reset or moved to SUBMITTED.
+	// A non-submission menu keeps its status when remarks change.
 	expectStatus(t, actors.administrator.do(http.MethodPatch, "/contract-menus/"+contractMenu.ID+"/status", map[string]any{
 		"status": "PRODUCING",
 	}), http.StatusOK)

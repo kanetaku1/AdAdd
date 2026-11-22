@@ -1090,10 +1090,12 @@ Query:
 | sponsorshipMenuId   | Filter by Sponsorship Menu       |
 | status              | Filter by Contract Menu status   |
 | productionType      | Filter by production type        |
+| productionDepartment | Filter by `INTERNAL` production department |
 
-`productionType=INTERNAL` matches every `INTERNAL` Contract Menu, whether or not `productionDepartment` is assigned and whichever department it is. A filter by `productionDepartment` is not designed (未決).
+`productionType=INTERNAL` matches every `INTERNAL` Contract Menu, whether or not `productionDepartment` is assigned and whichever department it is. `productionDepartment` matches only `INTERNAL` Contract Menus assigned to that department.
+An unsupported `productionDepartment` code returns `400 Bad Request`.
 
-Each item additionally includes `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row. A Sponsorship Menu referenced by a Contract Menu cannot be deleted; a delete attempt returns `409 Conflict` (see Delete Sponsorship Menu).
+Each item additionally includes `productionDepartment`, `companyName`, `yearlyCompanyId`, `assignedMemberId`, and `assignedMemberName` (joined from the owning Contract's Yearly Company and its CompanyAssignment), and `sponsorshipMenuName` (joined from the referenced Sponsorship Menu) so the list doesn't require a second round trip per row. A Sponsorship Menu referenced by a Contract Menu cannot be deleted; a delete attempt returns `409 Conflict` (see Delete Sponsorship Menu).
 
 ---
 
@@ -1117,7 +1119,7 @@ Request:
 }
 ```
 
-`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. `productionType` is required (`COMPANY` / `INTERNAL` / `CONTINUED`) when the Sponsorship Menu has `requiresSubmission = true`, and must be omitted or `null` when it is `false` (`spec/model.md#ContractMenuProductionType`). A new Contract Menu starts with `status = COMPLETED` when `productionType` is `CONTINUED`, otherwise `WAITING` (`spec/model.md#ContractMenu`). `productionDepartment` is not part of this request — a new Contract Menu always starts with `productionDepartment = null`, and the department is assigned afterwards (Assign Contract Menu Production Department below). The quantity is not checked against `SponsorshipMenu.maxQuantity`: the cap is a guide shown on the screens (`spec/model.md#SponsorshipMenu`). Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
+`unitPrice` defaults to the referenced `SponsorshipMenu.defaultPrice` when omitted (`spec/model.md#ContractMenu`). When `isGoodsSponsorship` is true, `unitPrice` is forced to `0` (goods sponsorship must not inherit `defaultPrice`). `sponsorshipMenuId` must belong to the same Year as the contract's Yearly Company. A Sponsorship Menu with `isActive = false` is rejected with `409 CONFLICT`. `productionType` is required (`COMPANY` / `INTERNAL` / `CONTINUED`) when the Sponsorship Menu has `requiresSubmission = true`, and must be omitted or `null` when it is `false` (`spec/model.md#ContractMenuProductionType`). A new Contract Menu starts with `status = WAITING` for every production type (`spec/model.md#ContractMenu`). `productionDepartment` is not part of this request — a new Contract Menu always starts with `productionDepartment = null`, and the department is assigned afterwards (Assign Contract Menu Production Department below). The quantity is not checked against `SponsorshipMenu.maxQuantity`: the cap is a guide shown on the screens (`spec/model.md#SponsorshipMenu`). Adding a Contract Menu recalculates the parent Contract's `totalAmount` (see Update Contract above) and applies the Payment synchronization / confirmed-payment conflict rule described there.
 
 Errors: `404 Not Found` when the contract does not exist; `400 Bad Request` when `sponsorshipMenuId` is missing, the Sponsorship Menu does not exist or belongs to a different Year, `quantity < 1`, `unitPrice` is negative, or `productionType` breaks the rule above; `409 Conflict` for an inactive Sponsorship Menu or a Payment conflict (Update Contract above).
 
@@ -1146,16 +1148,17 @@ Request (all fields optional):
 
 Same `unitPrice`/`isGoodsSponsorship` defaulting rule as Add Contract Menu. Recalculates the parent Contract's `totalAmount` and applies the Payment synchronization / confirmed-payment conflict rule described in Update Contract above.
 
-When `productionType` is sent, it must satisfy the rule in Add Contract Menu against the Sponsorship Menu's current `requiresSubmission`, or the request returns `400 Bad Request`. Sending `null` explicitly clears it (allowed only when the menu does not require submission); omitting it leaves the stored value. An update that does not send `productionType` is accepted even when the stored value no longer matches the menu (`spec/model.md#ContractMenuProductionType`). Changing `productionType` does not change `status`.
+When `productionType` is sent, it must satisfy the rule in Add Contract Menu against the Sponsorship Menu's current `requiresSubmission`, or the request returns `400 Bad Request`. Sending `null` explicitly clears it (allowed only when the menu does not require submission); omitting it leaves the stored value. An update that does not send `productionType` is accepted even when the stored value no longer matches the menu (`spec/model.md#ContractMenuProductionType`). When it changes on a submission-required menu, the server clears `productionDepartment` if the new value is not `INTERNAL` and resets `status` to `WAITING` when there are no active files; active files keep it `SUBMITTED`. Clearing `productionType` for a menu that no longer requires submission retains the existing status.
 
 `productionDepartment` and `status` are not part of this request; they have their own endpoints below, with narrower permissions. When this request changes `productionType` from `INTERNAL` to another value, the server sets `productionDepartment` to `null` in the same update (`spec/model.md#ContractMenu`).
 
 Writes one `CONTRACT_MENU_UPDATED` Activity Log when `quantity` or `unitPrice` actually changes (including a `unitPrice` forced to `0` by `isGoodsSponsorship`): `「パンフレット広告1P」の数量を「1」から「2」に更新`, `「パンフレット広告1P」の単価を「¥80,000」から「¥0」に更新`, or both joined with `、`.
+If changing `productionType` also changes `status`, it additionally writes the usual `CONTRACT_MENU_STATUS_UPDATED` Activity Log for that transition.
 
 Permission:
 
 * Sponsorship Member / Administrator — every field
-* Advertisement Manager — `productionType` only (the 広告管理 screen's production type cell). `quantity`, `unitPrice`, and `isGoodsSponsorship` change the Contract's amount and stay Sponsorship Member / Administrator work: a request containing any of them from a User who holds Advertisement Manager without Sponsorship Member (or Administrator) returns `403 Forbidden`.
+* Advertisement Manager — `403 Forbidden` (production type selection remains Sponsorship Member work; department assignment has its own endpoint).
 
 ---
 
@@ -1187,17 +1190,27 @@ Example:
 
 ```json
 {
-  "status": "COMPLETED"
+  "status": "REQUESTED"
 }
 ```
 
-Any non-`SUBMITTED` `ContractMenuStatus` may be set from any other while no active files exist. `SUBMITTED` cannot be set directly: adding the first file sets it, and deleting the last active file resets it to `WAITING`. A request that conflicts with the file-derived state returns `409 Conflict`.
+For a menu that does not require submission (`productionType = null`), any non-`SUBMITTED` `ContractMenuStatus` may be set while no active files exist. For a submission-required menu, allowed manual states are:
+
+| `productionType` | `productionDepartment` | Allowed manual status |
+| --- | --- | --- |
+| `COMPANY` / `CONTINUED` | `null` | `WAITING` only |
+| `INTERNAL` | `null` | No status changes |
+| `INTERNAL` | assigned | `WAITING` / `REQUESTED` |
+
+`SUBMITTED` cannot be set directly: adding the first file sets it, and deleting the last active file resets it to `WAITING`. A status that is not allowed for the current production type or conflicts with the file-derived state returns `409 Conflict`.
 
 Permission:
 
 * Advertisement Manager / Administrator (superuser)
 
 Every other Role, Sponsorship Member included, receives `403 Forbidden`. The restriction is enforced in the backend, not only by hiding the control (Issue #126).
+
+For a new Contract Menu, `status` is `WAITING` for all production types. When changing `productionType` on a submission-required menu, the status is reset to `WAITING` if there are no active files; otherwise it remains `SUBMITTED`. Existing data is normalized once: active files set `SUBMITTED`; every fileless `COMPANY` / `CONTINUED` / `INTERNAL` menu becomes `WAITING`. Existing `INTERNAL` rows cannot be assigned to a production department automatically, so they remain unassigned until an Advertisement Manager selects the department and may then move them to `REQUESTED`.
 
 ---
 
@@ -1652,7 +1665,7 @@ The ancestor path is built by traversing from `current` to the root folder via `
 
 Entity deletion is Administrator-only system-wide. A production file reference is managed as submitted material and follows its dedicated row above; it is not permission to delete the Contract Menu, Sponsorship Menu, or Company.
 
-Contract Menu status and production department belong to Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) and Administrator only; a Sponsorship Member receives `403` for both (Issue #126, #127). On its own, Advertisement Manager covers every operation of the 広告管理 screen (`spec/frontend.md#Contract Menu List`) — status, production department, production type, production information, Drive upload — because a User may hold it without Sponsorship Member (cooperation with other bureaus such as the SNS部門). Usually it is held together with Sponsorship Member.
+Contract Menu status and production department belong to Advertisement Manager (`ADVERTISEMENT_MANAGER`, 広告管理部門) and Administrator only; a Sponsorship Member receives `403` for both (Issue #126, #127). On its own, Advertisement Manager covers the 広告管理 screen's status, production-department assignment, production information, and Drive upload; production type selection remains Sponsorship Member / Administrator work and is read-only on the 広告管理 list. A User may hold Advertisement Manager without Sponsorship Member (cooperation with other bureaus such as the SNS部門). Usually it is held together with Sponsorship Member.
 
 Money-related Contract Menu edits — `quantity`, `unitPrice`, `isGoodsSponsorship`, which change `totalAmount` and a Waiting Payment's amount — are not part of Advertisement Manager. A User holding Advertisement Manager alone receives `403` for them.
 
