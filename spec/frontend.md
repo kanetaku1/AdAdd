@@ -479,7 +479,7 @@ Saving a field calls `PATCH /yearly-companies/{id}/company-contact` (writes this
 
 ### Assignment (担当)
 
-Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), `companyStatus`, `phase`, and `progress`, together in one row/strip rather than stacked sections. Company status, phase, and progress are each inline-editable here the same as on Yearly Company List (Principle 4), for `SPONSORSHIP_MEMBER` / `ADMINISTRATOR`. A progress value that contradicts the contract or Payment (協賛確定 without a contract; 未連絡 / 資料送付 / 見送り / 保留 with one — delete the contract first if the company declines after contracting; 協賛金入金 / 領収書送付 before the Payment is confirmed, 物品受領 for a contract that has a Payment) is rejected by the API with 409, and the reason is shown at the progress cell (Principle 6). Progress also changes on its own when the Payment is confirmed or reverted (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
+Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), `companyStatus`, `phase`, and `progress`, together in one row/strip rather than stacked sections. Company status, phase, and progress are each inline-editable here the same as on Yearly Company List (Principle 4), for `SPONSORSHIP_MEMBER` / `ADMINISTRATOR`. A progress value that contradicts the contract or Payment (協賛確定 without a contract; 未連絡 / 資料送付 / 見送り / 保留 with one — delete the contract first if the company declines after contracting; 協賛金入金 / 領収書送付 before the Payment is confirmed) is rejected by the API with 409, and the reason is shown at the progress cell (Principle 6). Progress also changes on its own when the Payment is confirmed or reverted (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 
 The assigned member shown here is also the assignee of the contract and every Contract Menu; the contract has no assignee of its own (`spec/model.md#SponsorshipContract`).
 
@@ -545,11 +545,10 @@ Status:
 資料送付
  ↓
 協賛確定
- ├─ (お金の協賛) 請求書送付 → 協賛金入金 → 領収書送付
- └─ (物品協賛のみ) 物品受領
+ └─ 請求書送付 → 協賛金入金 → 領収書送付
 ```
 
-物品受領 (`GOODS_RECEIVED`) is only for goods-only contracts, which have no Payment. 協賛金入金 is reached only by confirming the Payment, and 領収書送付 only after that (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
+協賛金入金 is reached only by confirming the Payment, and 領収書送付 only after that (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency). Goods-sponsorship-only contracts (`totalAmount = 0`) have no Payment, so the payment stages do not apply.
 
 Display:
 
@@ -1116,7 +1115,7 @@ Error messages are Japanese business language, never a developer-facing or Engli
 Potential improvements:
 
 * Mobile-friendly sponsorship member interface
-* Automatic Google Forms application import (blocked on company-name matching; members transcribe today — UC-06)
+* Automatic contract application import from external sources (members transcribe today — UC-06)
 * A Slack alert when a capped Sponsorship Menu (`maxQuantity`) nears capacity, see Ad Material Progress above
 * Analytics dashboard
 * Calendar integration

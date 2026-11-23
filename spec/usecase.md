@@ -12,15 +12,15 @@ Each use case represents a complete business operation.
 
 # Actors
 
-The following actors interact with the system.
+The following actors interact with the system, identified by their system roles.
 
-* Company Management Team
-* Sponsorship Member
-* Sponsorship Advisor
-* Sponsorship Menu Management Team
-* Advertisement Management Department（広告管理部門）
-* Finance Department
-* System Administrator
+* Administrator（管理者）— Full system access.
+* Advertisement Manager（広告管理部門）— Contract Menu status and production department management.
+* Sponsorship Member（協賛メンバー）— Day-to-day company contact and contract recording.
+* Finance Department（財務局）— Payment confirmation, invoice/receipt generation.
+* Advisor（アドバイザー）— OB/OG who monitors assigned members' progress.
+
+A user may hold multiple roles simultaneously (via the UserRole join table).
 
 ---
 
@@ -28,7 +28,7 @@ The following actors interact with the system.
 
 ## Actor
 
-Company Management Team
+Administrator
 
 ## Goal
 
@@ -64,7 +64,7 @@ Yearly Company creation also happens **individually**, outside this bulk flow, f
 
 ## Actor
 
-Company Management Team
+Administrator, Advertisement Manager, Sponsorship Member
 
 ## Goal
 
@@ -87,7 +87,7 @@ Companies are ready for assignment.
 
 ## Actor
 
-System Administrator
+Administrator, Advertisement Manager
 
 ## Goal
 
@@ -109,7 +109,7 @@ Each advisor is assigned to the member individually, not to a company. Advisors 
 
 ## Actor
 
-System Administrator
+Administrator, Advertisement Manager
 
 ## Goal
 
@@ -191,7 +191,7 @@ Regardless of trigger, entering the contract at step 3 is always a manual action
 
 ## Actor
 
-Sponsorship Menu Management Team, coordinating with the Advertisement Management Department
+Advertisement Manager, Sponsorship Member (coordinating with each other)
 
 ## Goal
 
@@ -216,7 +216,7 @@ Each Contract Menu's production method, production destination (when it is Inter
 
 ## Actor
 
-Sponsorship Menu Management Team
+Advertisement Manager, Sponsorship Member
 
 ## Goal
 
@@ -311,7 +311,7 @@ The receipt has no receipt number, no consumption-tax breakdown, and no revenue 
 
 ## Actor
 
-Sponsorship Advisor
+Advisor
 
 ## Goal
 
@@ -334,7 +334,7 @@ Advisors understand current progress.
 
 ## Actor
 
-System Administrator
+Administrator
 
 ## Goal
 
@@ -394,7 +394,7 @@ Understand past business activities.
 
 1. Open Yearly Company.
 2. Open 活動記録.
-3. Review recorded events (system-generated only — progress and other status changes, assignment, contract and Contract Menu changes, payment confirmation and its revert, contact changes; no manual entry — see `spec/domain.md#Activity Log`).
+3. Review recorded events (system-generated only — progress, company status, and phase changes, assignment, contract and Contract Menu changes, payment confirmation and its revert, contact changes; no manual entry — see `spec/domain.md#Activity Log`).
 
 ## Result
 
@@ -406,7 +406,7 @@ Business history is visible. A handover note that isn't itself one of those reco
 
 ## Actor
 
-Administrator (by creating the next Year)
+Administrator — triggered by creating the next Year
 
 ## Goal
 

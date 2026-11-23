@@ -1391,7 +1391,6 @@ POST /contracts/{contractId}/payment
 
 Response `status` starts at `WAITING`, with `receivedAmount` `null` and `remarks` empty.
 
-Side effect: if the Yearly Company's `progress` is `GOODS_RECEIVED`, it moves back to `CONFIRMED` — a contract with a Payment progresses through the payment stages (see Update Sponsorship Progress).
 
 ---
 
@@ -1462,7 +1461,7 @@ Example:
 }
 ```
 
-`progress` is one of `NOT_CONTACTED / MATERIALS_SENT / CONFIRMED / GOODS_RECEIVED / INVOICE_SENT / PAYMENT_RECEIVED / RECEIPT_SENT / DECLINED / PENDING` (`spec/model.md#Enumerations` → `SponsorshipProgress`). This endpoint returns only the current value; historical events are handled by Activity Log APIs below.
+`progress` is one of `NOT_CONTACTED / MATERIALS_SENT / CONFIRMED / INVOICE_SENT / PAYMENT_RECEIVED / RECEIPT_SENT / DECLINED / PENDING` (`spec/model.md#Enumerations` → `SponsorshipProgress`). This endpoint returns only the current value; historical events are handled by Activity Log APIs below.
 
 ---
 
@@ -1486,10 +1485,6 @@ Consistency with the contract (`spec/domain.md` → Lifecycle → Sponsorship Pr
 * `progress` = `NOT_CONTACTED`, `MATERIALS_SENT`, `DECLINED`, or `PENDING` (pre-contract stages) while a contract exists. If the company declines after contracting, the contract must be deleted first. `INVOICE_SENT` is a post-contract stage and is allowed while a contract exists.
 * `progress` = `PAYMENT_RECEIVED` unless the contract's Payment is `CONFIRMED` (also when there is no contract or no Payment). It is reached only by confirming the Payment (Update Payment Status).
 * `progress` = `RECEIPT_SENT` when there is no contract, or while the contract's Payment is not `CONFIRMED`. Whether a goods-only contract (no Payment) may use `RECEIPT_SENT` is not decided (Issue #172).
-* `progress` = `GOODS_RECEIVED` (物品受領) when there is no contract, or the contract has a Payment. It is set by hand, only for goods-only contracts, and may be set back to `CONFIRMED` by hand.
-
-When Create Payment creates a Payment for a contract whose Yearly Company is at `GOODS_RECEIVED` (a paid Contract Menu was added), `progress` moves back to `CONFIRMED` in the same transaction and writes a `PROGRESS_UPDATED` Activity Log.
-
 Side effect: when `progress` changes to `CONFIRMED` from any other value, send a Slack mention to the assigned Sponsorship Member (UC-16, FR-014). A no-op if Slack is not configured, if nobody is assigned, or if they have no `slackId`. Slack failure does not fail this request.
 
 Writes a `PROGRESS_UPDATED` Activity Log only when the value actually changes.

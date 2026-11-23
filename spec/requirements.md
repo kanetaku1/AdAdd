@@ -112,7 +112,7 @@ The system shall allow users to:
 * Show the contract's Sponsorship Member — always the Yearly Company's current assignment, shared by all Contract Menus under it; the contract stores no assignee of its own (`spec/model.md#SponsorshipContract`)
 * Register a contract even when no Sponsorship Member is assigned yet
 * Keep sponsorship progress consistent with the contract and payment, enforced by the server (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency)
-* Support contracts whose content originates from manual entry rather than Google Forms (e.g. goods sponsorship — 物品協賛)
+* Support goods sponsorship (物品協賛) contract lines
 
 ### Related Use Cases
 
@@ -170,7 +170,7 @@ The system shall allow Finance Department users to:
 * Track payment status
 * Update payment information only while its Year is active; past-Year Payments are read-only
 
-Progress always matches the payment status. Confirming a payment moves the Yearly Company's progress to 協賛金入金 automatically (領収書送付 is kept); reverting it moves 協賛金入金 / 領収書送付 back to 協賛確定. 協賛金入金 and 領収書送付 cannot be set by hand before the payment is confirmed. A goods-only contract, which has no payment, uses 物品受領 instead (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
+Progress always matches the payment status. Confirming a payment moves the Yearly Company's progress to 協賛金入金 automatically (領収書送付 is kept); reverting it moves 協賛金入金 / 領収書送付 back to 協賛確定. 協賛金入金 and 領収書送付 cannot be set by hand before the payment is confirmed. A goods-only contract, which has no payment, has no further payment-related progress stages (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 
 A Payment may be confirmed even when the received amount differs from the billed amount (bank fee deducted, overpayment). The difference is shown, not blocked. A split payment is recorded by overwriting `receivedAmount` with the cumulative total each time money arrives, and the Payment is confirmed once the full amount has arrived — there is no partial-payment status (`spec/domain.md#Payment`).
 
@@ -328,22 +328,18 @@ Medium
 
 ---
 
-## FR-012 Google Forms Integration
+## FR-012 Contract Data Entry
 
 ### Purpose
 
-Treat Google Forms as a contract input method, not a source of truth.
+Allow manual contract recording from any source.
 
 ### Description
 
 The system shall:
 
-* Allow a Sponsorship Member to record a Sponsorship Contract after reading a Google Forms response (manual transcription, UC-06)
-* Not import Google Forms automatically — Forms company names often do not match Company master names, so a human identifies the Yearly Company in AdAdd
-
-Automatic Forms import (`POST /integrations/google/forms/import`) is a Future Extension (`spec/api.md#Future Extensions`).
-
-Google Forms is not the source of truth. MySQL is.
+* Allow a Sponsorship Member to record a Sponsorship Contract by manual entry (UC-06)
+* Treat MySQL as the single source of truth — external sources (Google Forms, email, etc.) are input methods, not data stores
 
 ### Related Use Cases
 
@@ -363,7 +359,7 @@ Assign Sponsorship Advisors to Sponsorship Members.
 
 ### Description
 
-The system shall allow the Company Management Team to:
+The system shall allow the Administrator or Advertisement Manager to:
 
 * Assign one or more Advisors to a Sponsorship Member (a Member may have multiple Advisors at once, no upper bound)
 * Remove an existing advisor assignment
@@ -386,7 +382,7 @@ High
 
 ### Purpose
 
-Notify the Sponsorship Member assigned to a company when sponsorship is confirmed, so they can proceed without relying on Google Forms name matching.
+Notify the Sponsorship Member assigned to a company when sponsorship is confirmed.
 
 ### Description
 

@@ -14,46 +14,39 @@ AdAdd is a platform that supports sponsorship operations for the Nagaoka Univers
 
 The mission of AdAdd is to centralize sponsorship information, improve collaboration across departments, and reduce operational complexity while preserving existing business workflows.
 
-The system exists to support people, not replace them.
-
 ---
 
 # Vision
 
 Create a single platform where every stakeholder involved in sponsorship management can access accurate, up-to-date information throughout the entire festival cycle.
 
-AdAdd aims to eliminate fragmented information management while maintaining the flexibility required by student-led organizations.
+AdAdd eliminates fragmented information management while maintaining the flexibility required by student-led organizations.
 
 ---
 
 # Why AdAdd?
 
-Current sponsorship operations rely on multiple independent tools.
-
-Examples include:
+Current sponsorship operations rely on multiple independent tools:
 
 * Google Sheets
-* Google Forms
 * Google Drive
 * Google Groups
 * Manual communication
 
 These tools work individually but lack a unified view of the sponsorship process.
 
-As a result,
+As a result:
 
-* information is duplicated,
-* progress is difficult to track,
-* responsibilities become unclear,
-* and knowledge is difficult to inherit between years.
+* Information is duplicated.
+* Progress is difficult to track.
+* Responsibilities become unclear.
+* Knowledge is difficult to inherit between years.
 
 AdAdd solves these problems by providing a centralized platform while integrating with existing tools rather than replacing them.
 
 ---
 
 # Goals
-
-The project pursues the following goals.
 
 ## Centralized Information
 
@@ -71,11 +64,11 @@ Allow every department to understand the current status of sponsorship activitie
 
 Improve communication between:
 
-* Sponsorship Members
-* Sponsorship Advisors
-* Company Management Team
-* Advertisement Management Team
-* Finance Department
+* Sponsorship Members（協賛メンバー）
+* Sponsorship Advisors（アドバイザー）
+* Advertisement Management Department（広告管理部門）
+* Finance Department（財務局）
+* System Administrators（管理者）
 
 ---
 
@@ -125,16 +118,6 @@ Other services synchronize with the system but never replace it.
 
 ---
 
-## Human-Centered Workflow
-
-The system assists users.
-
-Users remain responsible for business decisions.
-
-AdAdd never attempts to automate decision making.
-
----
-
 # Scope
 
 AdAdd manages the sponsorship lifecycle.
@@ -155,7 +138,7 @@ The scope includes:
 
 # Out of Scope
 
-The following responsibilities remain outside the system.
+The following responsibilities remain outside the system:
 
 * Sending emails
 * Creating advertisements
@@ -171,12 +154,13 @@ These operations continue to use existing workflows.
 
 Primary users include:
 
-* Sponsorship Members
-* Sponsorship Advisors
-* Company Management Team
-* Advertisement Management Team
-* Finance Department
-* System Administrators
+* Sponsorship Members（協賛メンバー）— SPONSORSHIP_MEMBER role
+* Sponsorship Advisors（アドバイザー）— ADVISOR role
+* Advertisement Managers（広告管理部門）— ADVERTISEMENT_MANAGER role
+* Finance Department（財務局）— FINANCE_DEPARTMENT role
+* System Administrators（管理者）— ADMINISTRATOR role
+
+A user may hold multiple roles.
 
 ---
 
