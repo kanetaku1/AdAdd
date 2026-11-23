@@ -17,9 +17,9 @@ import { getErrorMessage } from "@/lib/errors"
 import { ApiError } from "@/lib/api/client"
 import { DriveFolderBrowser } from "@/components/drive-folder-browser"
 import {
-    MaterialCategorySelector,
-    type MaterialCategory,
-} from "@/components/material-category-selector"
+    DataCategorySelector,
+    type DataCategory,
+} from "@/components/data-category-selector"
 import type { ContractMenu } from "@/types/contract-menu"
 
 type UploadMode = "auto" | "manual"
@@ -39,7 +39,7 @@ export function DriveUploadDialog({
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [mode, setMode] = useState<UploadMode>("auto")
-    const [category, setCategory] = useState<MaterialCategory | null>(null)
+    const [category, setCategory] = useState<DataCategory | null>(null)
     const [showBrowser, setShowBrowser] = useState(false)
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -167,7 +167,7 @@ export function DriveUploadDialog({
 
                         {mode === "auto" ? (
                             <div className="space-y-3">
-                                <MaterialCategorySelector value={category} onChange={setCategory} />
+                                <DataCategorySelector value={category} onChange={setCategory} />
                                 <div className="flex justify-end gap-2">
                                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>キャンセル</Button>
                                     <Button onClick={() => void handleAutoUpload()} disabled={!category || busy}>

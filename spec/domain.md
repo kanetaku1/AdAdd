@@ -258,27 +258,27 @@ root (GOOGLE_DRIVE_ROOT_FOLDER_ID)
               └── 完成
 ```
 
-The backend auto-creates any missing folders on an explicit folder-generation request (`spec/api.md#Auto-generate Drive Folder Structure`). The request specifies which material category subfolder to create; only that single subfolder is created (not all three). Existing folders are reused by matching the name under the same parent. The three possible leaf subfolders represent **material categories** (素材区分):
+The backend auto-creates any missing folders on an explicit folder-generation request (`spec/api.md#Auto-generate Drive Folder Structure`). The request specifies which data category subfolder to create; only that single subfolder is created (not all three). Existing folders are reused by matching the name under the same parent. The three possible leaf subfolders represent **data categories** (データ区分):
 
 * **素材** — raw material (logos, text, images) provided by the company for internal production.
 * **仮完成** — draft completion, shared for review before finalization.
 * **完成** — final completion, ready to use.
 
-The user selects a material category when uploading; the selection determines which subfolder receives the file.
+The user selects a data category when uploading; the selection determines which subfolder receives the file.
 
 ### Drive File Naming
 
 Each uploaded file is renamed as:
 
 ```
-{editionNumber}_{companyName}_{sponsorshipMenuName}_{productionTypeLabel}_{materialCategory}.{ext}
+{editionNumber}_{companyName}_{sponsorshipMenuName}_{productionTypeLabel}_{dataCategory}.{ext}
 ```
 
 * `editionNumber` — the Year's edition number (回数, e.g. `45`). Always present; set during Year creation (copied from the previous Year or entered manually).
 * `companyName` — the Yearly Company's company name.
 * `sponsorshipMenuName` — the referenced Sponsorship Menu's name.
 * `productionTypeLabel` — `企業` (Company), `委員` (Internal), `継続` (Continued). Omitted when the Contract Menu has no production type.
-* `materialCategory` — the material category the file is uploaded into: `素材`, `仮完成`, or `完成`. Present only in auto-upload mode (when the system creates the folder structure). Omitted in manual-upload mode.
+* `dataCategory` — the data category (データ区分): `素材`, `仮完成`, or `完成`. Present only in auto-upload mode (when the system creates the folder structure). Omitted in manual-upload mode.
 
 When a file with the same name already exists in the target folder, a sequential number is appended: `_2`, `_3`, etc.
 

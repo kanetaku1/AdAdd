@@ -639,14 +639,14 @@ The dialog for uploading ad material files to Google Drive. It is opened from th
 
 The dialog supports two modes:
 
-* **Auto mode** (default) — the folder is determined automatically from the Contract Menu's context. The member only selects a material category.
+* **Auto mode** (default) — the folder is determined automatically from the Contract Menu's context. The member only selects a data category (データ区分).
 * **Manual mode** — the member navigates a full folder browser to pick any folder under the root. A toggle ("フォルダを手動で選択" / "自動選択に戻る") switches between modes.
 
 ### Auto mode flow
 
 1. The dialog opens. It shows a file dropzone.
 2. The member drops or selects files.
-3. A material category selector appears: **素材** / **仮完成** / **完成**.
+3. A data category selector appears: **素材** / **仮完成** / **完成**.
 4. On category selection, the dialog calls `POST /contract-menus/{id}/drive-folder` (`spec/api.md#Auto-generate Drive Folder Structure`) to ensure the folder hierarchy exists, then auto-selects the matching subfolder.
 5. The member presses "アップロード".
 6. The upload is sent to the API (`POST /contract-menus/{id}/drive-upload` with `folderId` and file bodies).
@@ -696,7 +696,7 @@ Only the root folder's children are fetched on initial load. Children of other f
 
 | Before (Google Picker) | After |
 | ----------------------- | ----- |
-| Pressing "フォルダを選択してアップロード" opened Google Picker (external Google UI) with a possible OAuth consent popup | Default: auto mode with material category selection. Optional: inline Linux-style folder browser. No OAuth popup. |
+| Pressing "フォルダを選択してアップロード" opened Google Picker (external Google UI) with a possible OAuth consent popup | Default: auto mode with data category selection. Optional: inline Linux-style folder browser. No OAuth popup. |
 | Picker showed the member's own Google Drive view, scoped to the root folder but navigable beyond it | The folder browser shows only the root folder's subtree. Folders outside the root are unreachable. |
 | Picker used `NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `NEXT_PUBLIC_GOOGLE_API_KEY` | No browser-side Google credentials are needed. The API uses the dedicated account. |
 | Member had to manually navigate to the correct subfolder every time | Auto mode determines the correct folder from the Contract Menu context. |

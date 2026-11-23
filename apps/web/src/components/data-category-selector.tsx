@@ -1,25 +1,25 @@
 "use client"
 
-const MATERIAL_CATEGORIES = [
+const DATA_CATEGORIES = [
     { value: "素材", label: "素材" },
     { value: "仮完成", label: "仮完成" },
     { value: "完成", label: "完成" },
 ] as const
 
-export type MaterialCategory = (typeof MATERIAL_CATEGORIES)[number]["value"]
+export type DataCategory = (typeof DATA_CATEGORIES)[number]["value"]
 
-export function MaterialCategorySelector({
+export function DataCategorySelector({
     value,
     onChange,
 }: {
-    value: MaterialCategory | null
-    onChange: (category: MaterialCategory) => void
+    value: DataCategory | null
+    onChange: (category: DataCategory) => void
 }) {
     return (
         <div className="space-y-1.5">
-            <label className="text-sm font-medium">素材区分</label>
+            <label className="text-sm font-medium">データ区分</label>
             <div className="flex gap-1">
-                {MATERIAL_CATEGORIES.map((cat) => (
+                {DATA_CATEGORIES.map((cat) => (
                     <button
                         key={cat.value}
                         type="button"
