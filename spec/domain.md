@@ -271,7 +271,7 @@ The user selects a material category when uploading; the selection determines wh
 Each uploaded file is renamed as:
 
 ```
-{editionNumber}th_{companyName}_{sponsorshipMenuName}_{productionTypeLabel}_{materialCategory}.{ext}
+{editionNumber}_{companyName}_{sponsorshipMenuName}_{productionTypeLabel}_{materialCategory}.{ext}
 ```
 
 * `editionNumber` — the Year's edition number (回数, e.g. `45`). Always present; set during Year creation (copied from the previous Year or entered manually).

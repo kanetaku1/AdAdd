@@ -606,7 +606,7 @@ func ensureDriveFolder(c echo.Context) error {
 func buildDriveFileName(editionNumber *int, companyName, sponsorshipMenuName string, productionType *string, category string) string {
 	var base string
 	if editionNumber != nil {
-		base = fmt.Sprintf("%dth_%s_%s", *editionNumber, companyName, sponsorshipMenuName)
+		base = fmt.Sprintf("%d_%s_%s", *editionNumber, companyName, sponsorshipMenuName)
 	} else {
 		base = fmt.Sprintf("%s_%s", companyName, sponsorshipMenuName)
 	}

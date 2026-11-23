@@ -1308,15 +1308,15 @@ One request appends one or more references:
 
 The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. The request contains `folderId` and file bodies; it does not contain a Google access token. The API uploads as the configured dedicated Google account and persists each returned `driveFileId`. Every successfully uploaded Drive file is appended as a separate reference in one database transaction. If the dedicated integration is unavailable, the endpoint returns `503 Service Unavailable` without adding a reference.
 
-Each uploaded file is renamed in Drive as `<edition>th_<company name>_<sponsorship menu name>_<production type>_<material category><extension>` (`spec/domain.md#Drive File Naming`):
+Each uploaded file is renamed in Drive as `<edition>_<company name>_<sponsorship menu name>_<production type>_<material category><extension>` (`spec/domain.md#Drive File Naming`):
 
 * `<edition>` — the Year's `editionNumber` (回数). When the Year has no edition number, the naming falls back to the legacy format: `<folders>_<production type>_<company name><extension>` (folder names from root to upload folder joined with `_`).
 * `<company name>` — the Yearly Company's company name.
 * `<sponsorship menu name>` — the referenced Sponsorship Menu's name.
 * `<production type>` — the Contract Menu's production type label: `企業` (`COMPANY`), `委員` (`INTERNAL`), `継続` (`CONTINUED`). A Contract Menu with no production type (its Sponsorship Menu does not require submission) omits this part.
 * `<material category>` — the material category (`素材`, `仮完成`, `完成`) provided in the `category` form field. Present only when the field is sent (auto-upload mode). Omitted otherwise (manual-upload mode).
-* When a file with the same generated name already exists in the target folder, a sequential number is appended before the extension: `_2`, `_3`, etc. Example: `45th_企業名A_パンフレット広告_委員_素材.png`, then `45th_企業名A_パンフレット広告_委員_素材_2.png`.
-* When one request uploads several files, each name also gets `_<two-digit sequence>_<original file name without extension>` before the extension, e.g. `45th_企業名A_パンフレット広告_企業_完成_01_表面.pdf`.
+* When a file with the same generated name already exists in the target folder, a sequential number is appended before the extension: `_2`, `_3`, etc. Example: `45_企業名A_パンフレット広告_委員_素材.png`, then `45_企業名A_パンフレット広告_委員_素材_2.png`.
+* When one request uploads several files, each name also gets `_<two-digit sequence>_<original file name without extension>` before the extension, e.g. `45_企業名A_パンフレット広告_企業_完成_01_表面.pdf`.
 
 Every body is created as a new Drive file even when another file in the folder has the same display name. If a later upload or the database transaction fails, the API makes a best-effort attempt to move the files created by that request to trash; no incomplete reference is committed.
 

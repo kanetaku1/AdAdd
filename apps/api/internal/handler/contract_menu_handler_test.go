@@ -55,12 +55,12 @@ func TestBuildDriveFileName(t *testing.T) {
 		category           string
 		want               string
 	}{
-		{intPtr(45), "長岡テクノ", "パンフレット広告", code("COMPANY"), "素材", "45th_長岡テクノ_パンフレット広告_企業_素材"},
-		{intPtr(45), "長岡テクノ", "パンフレット広告", code("INTERNAL"), "仮完成", "45th_長岡テクノ_パンフレット広告_委員_仮完成"},
-		{intPtr(45), "長岡テクノ", "パンフレット広告", nil, "完成", "45th_長岡テクノ_パンフレット広告_完成"},
+		{intPtr(45), "長岡テクノ", "パンフレット広告", code("COMPANY"), "素材", "45_長岡テクノ_パンフレット広告_企業_素材"},
+		{intPtr(45), "長岡テクノ", "パンフレット広告", code("INTERNAL"), "仮完成", "45_長岡テクノ_パンフレット広告_委員_仮完成"},
+		{intPtr(45), "長岡テクノ", "パンフレット広告", nil, "完成", "45_長岡テクノ_パンフレット広告_完成"},
 		{nil, "長岡テクノ", "パンフレット広告", code("COMPANY"), "素材", "長岡テクノ_パンフレット広告_企業_素材"},
 		{nil, "長岡テクノ", "パンフレット広告", nil, "", "長岡テクノ_パンフレット広告"},
-		{intPtr(45), "長岡テクノ", "パンフレット広告", code("COMPANY"), "", "45th_長岡テクノ_パンフレット広告_企業"},
+		{intPtr(45), "長岡テクノ", "パンフレット広告", code("COMPANY"), "", "45_長岡テクノ_パンフレット広告_企業"},
 	}
 	for _, c := range cases {
 		if got := buildDriveFileName(c.editionNumber, c.companyName, c.sponsorshipMenu, c.productionType, c.category); got != c.want {
