@@ -51,6 +51,7 @@ Represents one festival year.
 | startDate | date    | ✓        | Festival cycle start   |
 | endDate   | date    | ✓        | Festival cycle end     |
 | isActive  | boolean | ✓        | Current operating year |
+| editionNumber | integer |  | Festival edition number (回数). Example: `45` for the 45th festival. Used in Drive file naming. Set by the Administrator when creating or editing a Year. |
 | issuerName            | string |  | Document issuer name (e.g. 長岡技術科学大学 技大祭実行委員会) |
 | issuerPostalCode      | string |  | Issuer postal code |
 | issuerAddressLine1    | string |  | Issuer address, first line |
@@ -66,7 +67,7 @@ The `issuer*` and `bank*` attributes are the **document issuer information** pri
 
 Both documents use the `issuer*` attributes; only the invoice uses the `bank*` attributes.
 
-Creating a new Year (`POST /years`) copies every `issuer*` and `bank*` attribute from the previous Year. The Administrator then edits them (`spec/api.md#Update Document Issuer Information`). The first Year, with no previous Year, starts empty.
+Creating a new Year (`POST /years`) copies `editionNumber` and every `issuer*` and `bank*` attribute from the previous Year. The Administrator then edits them (`spec/api.md#Update Document Issuer Information`). The first Year, with no previous Year, starts empty.
 
 **Required fields for document generation.** The attributes are nullable in storage, but a document cannot be generated while a field it needs is empty — the UI blocks generation and lists the missing fields (`spec/frontend.md#Invoice and Receipt Documents`):
 

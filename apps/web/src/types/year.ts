@@ -8,6 +8,7 @@ export type Year = {
   startDate: string
   endDate: string
   isActive: boolean
+  editionNumber: number | null
 } & YearDocumentIssuer
 
 export type YearDocumentIssuer = {

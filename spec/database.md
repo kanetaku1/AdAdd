@@ -74,7 +74,9 @@ Year
 
 ### Notes
 
-A Year also holds the document issuer information for its invoices and receipts — issuer name, postal code, address, contact email, and bank transfer account (`spec/model.md#Year`). It is data, edited by an Administrator, not a constant in the source code. A new Year copies these values from the previous Year.
+A Year also holds the document issuer information for its invoices and receipts — issuer name, postal code, address, contact email, and bank transfer account (`spec/model.md#Year`). It is data, edited by an Administrator, not a constant in the source code. A new Year copies these values and `edition_number` from the previous Year.
+
+The `edition_number` column (`INT NULL`) stores the festival edition number (回数, e.g. 45 for the 45th festival). It is used in Drive file naming (`spec/domain.md#Drive File Naming`).
 
 The seal image (印影) is not stored in the database. It stays in the source code repository (`apps/web/public/images/43rd_Stamp.png`) by the user's decision on Issue #176 (`spec/domain.md#Document Issuer Information`).
 

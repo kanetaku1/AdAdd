@@ -154,6 +154,42 @@ func (s *DriveService) UploadFile(ctx context.Context, folderId, rootFolderId, s
 	return uploadedFile, nil
 }
 
+// UploadFileWithName uploads a file using an explicit pre-built name (no folder hierarchy traversal).
+func (s *DriveService) UploadFileWithName(ctx context.Context, folderId, fullName, originalExt, providedMimeType string, fileContent io.Reader) (*drive.File, error) {
+	srv, err := s.driveClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	mimeType := providedMimeType
+	if mimeType == "" || mimeType == "application/octet-stream" {
+		mimeType = mime.TypeByExtension(originalExt)
+		if mimeType == "" {
+			if strings.EqualFold(originalExt, ".pdf") {
+				mimeType = "application/pdf"
+			} else if strings.EqualFold(originalExt, ".jpg") || strings.EqualFold(originalExt, ".jpeg") {
+				mimeType = "image/jpeg"
+			} else if strings.EqualFold(originalExt, ".png") {
+				mimeType = "image/png"
+			} else {
+				mimeType = "application/octet-stream"
+			}
+		}
+	}
+
+	fileName := fullName + originalExt
+	fileMeta := &drive.File{
+		Name:     fileName,
+		Parents:  []string{folderId},
+		MimeType: mimeType,
+	}
+	uploadedFile, err := srv.Files.Create(fileMeta).Media(fileContent, googleapi.ContentType(mimeType)).Fields("id, webViewLink, name").SupportsAllDrives(true).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload file to drive: %w", err)
+	}
+	return uploadedFile, nil
+}
+
 // TrashFile moves a Drive file to trash as the dedicated Google account. It
 // deliberately refuses folders and never calls Files.Delete (permanent delete).
 func (s *DriveService) TrashFile(ctx context.Context, fileID string) error {
@@ -189,8 +225,9 @@ func (s *DriveService) TrashFile(ctx context.Context, fileID string) error {
 }
 
 type DriveFolderEntry struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	HasChildren *bool  `json:"hasChildren,omitempty"`
 }
 
 type DriveFolderListing struct {
@@ -199,7 +236,7 @@ type DriveFolderListing struct {
 	Folders   []DriveFolderEntry `json:"folders"`
 }
 
-func (s *DriveService) ListFolders(ctx context.Context, parentID, rootFolderID string) (*DriveFolderListing, error) {
+func (s *DriveService) ListFolders(ctx context.Context, parentID, rootFolderID string, includeHasChildren ...bool) (*DriveFolderListing, error) {
 	srv, err := s.driveClient(ctx)
 	if err != nil {
 		return nil, err
@@ -274,9 +311,50 @@ func (s *DriveService) ListFolders(ctx context.Context, parentID, rootFolderID s
 		return nil, fmt.Errorf("list subfolders: %w", err)
 	}
 
+	checkChildren := len(includeHasChildren) > 0 && includeHasChildren[0]
 	folders := make([]DriveFolderEntry, 0, len(fileList.Files))
+
+	parentHasChild := make(map[string]bool)
+	if checkChildren && len(fileList.Files) > 0 {
+		// Batch query: find any subfolder whose parent is one of our folders.
+		// Drive API "in parents" only accepts one parent per clause, so we
+		// build an OR of up to 50 at a time (API query length limit).
+		const batchSize = 50
+		for i := 0; i < len(fileList.Files); i += batchSize {
+			end := i + batchSize
+			if end > len(fileList.Files) {
+				end = len(fileList.Files)
+			}
+			var clauses []string
+			for _, f := range fileList.Files[i:end] {
+				clauses = append(clauses, fmt.Sprintf("'%s' in parents", f.Id))
+			}
+			batchQuery := fmt.Sprintf("(%s) and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+				strings.Join(clauses, " or "))
+			batchList, err := srv.Files.List().
+				Q(batchQuery).
+				Fields("files(parents)").
+				PageSize(1000).
+				SupportsAllDrives(true).
+				IncludeItemsFromAllDrives(true).
+				Do()
+			if err == nil {
+				for _, bf := range batchList.Files {
+					for _, pid := range bf.Parents {
+						parentHasChild[pid] = true
+					}
+				}
+			}
+		}
+	}
+
 	for _, f := range fileList.Files {
-		folders = append(folders, DriveFolderEntry{ID: f.Id, Name: f.Name})
+		entry := DriveFolderEntry{ID: f.Id, Name: f.Name}
+		if checkChildren {
+			has := parentHasChild[f.Id]
+			entry.HasChildren = &has
+		}
+		folders = append(folders, entry)
 	}
 
 	return &DriveFolderListing{
@@ -284,6 +362,78 @@ func (s *DriveService) ListFolders(ctx context.Context, parentID, rootFolderID s
 		Ancestors: ancestors,
 		Folders:   folders,
 	}, nil
+}
+
+// FindOrCreateFolder finds or creates a subfolder with the given name under parentID.
+func (s *DriveService) FindOrCreateFolder(ctx context.Context, parentID, name string) (string, error) {
+	srv, err := s.driveClient(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	query := fmt.Sprintf("'%s' in parents and name = '%s' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+		parentID, strings.ReplaceAll(name, "'", "\\'"))
+	list, err := srv.Files.List().Q(query).Fields("files(id)").PageSize(1).SupportsAllDrives(true).IncludeItemsFromAllDrives(true).Do()
+	if err != nil {
+		return "", fmt.Errorf("search folder %q under %s: %w", name, parentID, err)
+	}
+	if len(list.Files) > 0 {
+		return list.Files[0].Id, nil
+	}
+
+	created, err := srv.Files.Create(&drive.File{
+		Name:     name,
+		MimeType: "application/vnd.google-apps.folder",
+		Parents:  []string{parentID},
+	}).Fields("id").SupportsAllDrives(true).Do()
+	if err != nil {
+		return "", fmt.Errorf("create folder %q under %s: %w", name, parentID, err)
+	}
+	return created.Id, nil
+}
+
+type FolderStructure struct {
+	CompanyFolderID string            `json:"companyFolderId"`
+	CategoryFolders map[string]string `json:"categoryFolders"`
+}
+
+// EnsureFolderStructure creates the Drive folder hierarchy for ad material.
+// It creates root > sponsorshipMenuName > companyName > category (only the requested category).
+func (s *DriveService) EnsureFolderStructure(ctx context.Context, rootFolderID, sponsorshipMenuName, companyName, category string) (*FolderStructure, error) {
+	menuFolderID, err := s.FindOrCreateFolder(ctx, rootFolderID, sponsorshipMenuName)
+	if err != nil {
+		return nil, err
+	}
+	companyFolderID, err := s.FindOrCreateFolder(ctx, menuFolderID, companyName)
+	if err != nil {
+		return nil, err
+	}
+
+	catID, err := s.FindOrCreateFolder(ctx, companyFolderID, category)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FolderStructure{
+		CompanyFolderID: companyFolderID,
+		CategoryFolders: map[string]string{category: catID},
+	}, nil
+}
+
+// CountFilesWithName counts files in a folder that have exactly the given name (excluding trashed).
+func (s *DriveService) CountFilesWithName(ctx context.Context, folderID, name string) (int, error) {
+	srv, err := s.driveClient(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	query := fmt.Sprintf("'%s' in parents and name = '%s' and trashed = false",
+		folderID, strings.ReplaceAll(name, "'", "\\'"))
+	list, err := srv.Files.List().Q(query).Fields("files(id)").PageSize(1000).SupportsAllDrives(true).IncludeItemsFromAllDrives(true).Do()
+	if err != nil {
+		return 0, fmt.Errorf("count files named %q in %s: %w", name, folderID, err)
+	}
+	return len(list.Files), nil
 }
 
 // ExtractDriveFileID recovers IDs from the Drive URL formats AdAdd has stored

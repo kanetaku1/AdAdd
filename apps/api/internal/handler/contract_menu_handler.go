@@ -21,8 +21,10 @@ import (
 )
 
 type ContractMenuDriveOperator interface {
-	UploadFile(context.Context, string, string, string, string, string, io.Reader) (*drive.File, error)
+	UploadFile(ctx context.Context, folderId, rootFolderId, suffix, originalExt, providedMimeType string, fileContent io.Reader) (*drive.File, error)
+	UploadFileWithName(ctx context.Context, folderId, fullName, originalExt, providedMimeType string, fileContent io.Reader) (*drive.File, error)
 	TrashFile(context.Context, string) error
+	CountFilesWithName(ctx context.Context, folderID, name string) (int, error)
 }
 
 var newContractMenuDriveOperator = func() ContractMenuDriveOperator {
@@ -59,6 +61,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rFiles.DELETE("/contract-menus/:id/production/files/:fileId", deleteContractMenuFile)
 	// Compatibility for the path used by the first multiple-file prototype.
 	rFiles.DELETE("/contract-menus/:id/files/:fileId", deleteContractMenuFile)
+	rFiles.POST("/contract-menus/:id/drive-folder", ensureDriveFolder)
 
 	// Deletion is Administrator-only system-wide (spec/api.md#Authorization
 	// Matrix) — Sponsorship Member's "manage menus" access stops at update.
@@ -258,6 +261,7 @@ func driveUploadContractMenu(c echo.Context) error {
 	if folderId == "" {
 		return respondBadRequest(c, "folderId is required")
 	}
+	category := c.FormValue("category")
 	fileHeaders := append(form.File["file"], form.File["files"]...)
 	if len(fileHeaders) == 0 {
 		return respondBadRequest(c, "file or files is required")
@@ -273,19 +277,30 @@ func driveUploadContractMenu(c echo.Context) error {
 		return respondContractMenuFileError(c, err)
 	}
 
-	// 企業名の取得
+	// Resolve naming context: company name, sponsorship menu name, edition number
 	companyName := "不明な企業"
+	var editionNumber *int
+	var sponsorshipMenuName string
+
 	csvc := service.NewContractService()
 	if contract, err := csvc.GetByID(cm.ContractID); err == nil {
 		ycsvc := service.NewYearlyCompanyService()
 		if yc, err := ycsvc.GetByID(contract.YearlyCompanyID); err == nil {
 			companyName = yc.CompanyName
+			yearSvc := service.NewYearService()
+			if year, err := yearSvc.GetByID(yc.YearID); err == nil {
+				editionNumber = year.EditionNumber
+			}
 		}
 	}
 
-	suffix := contractMenuFileSuffix(cm.ProductionType, companyName)
+	smSvc := service.NewSponsorshipMenuService()
+	if sm, err := smSvc.GetByID(cm.SponsorshipMenuID); err == nil {
+		sponsorshipMenuName = sm.Name
+	}
 
-	rootFolderId := os.Getenv("GOOGLE_DRIVE_ROOT_FOLDER_ID")
+	fullName := buildDriveFileName(editionNumber, companyName, sponsorshipMenuName, cm.ProductionType, category)
+
 	driveSvc := newContractMenuDriveOperator()
 	inputs := make([]service.ContractMenuDriveFileInput, 0, len(fileHeaders))
 	fileNames := make([]string, 0, len(fileHeaders))
@@ -302,17 +317,24 @@ func driveUploadContractMenu(c echo.Context) error {
 			return respondRequestBodyError(c, readErr, "invalid multipart form")
 		}
 		originalExt := filepath.Ext(fileHeader.Filename)
-		uploadSuffix := suffix
+		var uploadedFile *drive.File
+		var uploadErr error
+
+		uploadName := fullName
 		if len(fileHeaders) > 1 {
 			base := filepath.Base(fileHeader.Filename)
 			base = base[:len(base)-len(originalExt)]
-			uploadSuffix = fmt.Sprintf("%s_%02d_%s", suffix, i+1, base)
+			uploadName = fmt.Sprintf("%s_%02d_%s", fullName, i+1, base)
 		}
-		uploadedFile, uploadErr := driveSvc.UploadFile(
+		candidateName := uploadName + originalExt
+		count, _ := driveSvc.CountFilesWithName(c.Request().Context(), folderId, candidateName)
+		if count > 0 {
+			uploadName = fmt.Sprintf("%s_%d", uploadName, count+1)
+		}
+		uploadedFile, uploadErr = driveSvc.UploadFileWithName(
 			c.Request().Context(),
 			folderId,
-			rootFolderId,
-			uploadSuffix,
+			uploadName,
 			originalExt,
 			fileHeader.Header.Get("Content-Type"),
 			bytes.NewReader(fileBytes),
@@ -521,12 +543,78 @@ func hasAnyRole(actual []string, allowed ...string) bool {
 	return false
 }
 
-// contractMenuFileSuffix is the part of an uploaded Drive file's name after
-// the folder hierarchy: "<制作区分>_<企業名>", or "<企業名>" for a Contract Menu
-// with no production type (spec/api.md#Add Contract Menu Files).
-func contractMenuFileSuffix(productionType *string, companyName string) string {
-	if productionType == nil {
-		return companyName
+func ensureDriveFolder(c echo.Context) error {
+	id := c.Param("id")
+
+	var body struct {
+		Category string `json:"category"`
 	}
-	return label.ProductionType(*productionType) + "_" + companyName
+	if err := c.Bind(&body); err != nil {
+		return respondBadRequest(c, "invalid request body")
+	}
+	if body.Category == "" {
+		return respondBadRequest(c, "category is required")
+	}
+
+	menuSvc := service.NewContractMenuService()
+	cm, err := menuSvc.GetByID(id)
+	if err != nil {
+		return respondNotFound(c, "contract menu not found")
+	}
+
+	contractSvc := service.NewContractService()
+	contract, err := contractSvc.GetByID(cm.ContractID)
+	if err != nil {
+		return respondNotFound(c, "contract not found")
+	}
+
+	ycSvc := service.NewYearlyCompanyService()
+	yc, err := ycSvc.GetByID(contract.YearlyCompanyID)
+	if err != nil {
+		return respondNotFound(c, "yearly company not found")
+	}
+
+	yearSvc := service.NewYearService()
+	year, err := yearSvc.GetByID(yc.YearID)
+	if err != nil {
+		return respondNotFound(c, "year not found")
+	}
+	if !year.IsActive {
+		return respondConflict(c, "past year is read-only")
+	}
+
+	smSvc := service.NewSponsorshipMenuService()
+	sponsorshipMenu, err := smSvc.GetByID(cm.SponsorshipMenuID)
+	if err != nil {
+		return respondNotFound(c, "sponsorship menu not found")
+	}
+
+	rootFolderID := os.Getenv("GOOGLE_DRIVE_ROOT_FOLDER_ID")
+	if rootFolderID == "" {
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"message": "Drive integration is not configured"})
+	}
+
+	driveSvc := service.NewDriveService()
+	result, err := driveSvc.EnsureFolderStructure(c.Request().Context(), rootFolderID, sponsorshipMenu.Name, yc.CompanyName, body.Category)
+	if err != nil {
+		return respondDriveOperationError(c, err)
+	}
+
+	return c.JSON(http.StatusOK, result)
+}
+
+func buildDriveFileName(editionNumber *int, companyName, sponsorshipMenuName string, productionType *string, category string) string {
+	var base string
+	if editionNumber != nil {
+		base = fmt.Sprintf("%d_%s_%s", *editionNumber, companyName, sponsorshipMenuName)
+	} else {
+		base = fmt.Sprintf("%s_%s", companyName, sponsorshipMenuName)
+	}
+	if productionType != nil {
+		base += "_" + label.ProductionType(*productionType)
+	}
+	if category != "" {
+		base += "_" + category
+	}
+	return base
 }
