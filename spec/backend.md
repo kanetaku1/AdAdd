@@ -69,16 +69,26 @@ Database  (MySQL)
 ```text
 apps/api/
 ├── cmd/
-│   └── server/
-│       └── main.go        # Application entry point
+│   ├── server/main.go      # HTTP server entry point
+│   ├── migrate/main.go      # Run migrations CLI
+│   ├── seed/main.go          # Seed data CLI
+│   └── drive-auth/main.go   # Drive service account auth test
 │
 ├── internal/
-│   ├── handler/            # Echo handlers
+│   ├── config/              # Environment / configuration loading
+│   ├── auth/                # Google OAuth + JWT helpers
+│   ├── db/                  # Database connection + migration runner
+│   ├── handler/             # Echo handlers, middleware, routes
 │   ├── service/             # Business logic
 │   ├── repository/          # Data access (GORM)
-│   ├── model/                # GORM entities
-│   └── config/                # Environment / configuration loading
+│   ├── model/               # GORM entities + DTOs
+│   ├── label/               # Japanese labels and amount formatting
+│   ├── seed/                # Seed data for development
+│   ├── slack/               # Slack notification client
+│   ├── testdb/              # Test database helper
+│   └── integration/         # Integration tests
 │
+├── migrations/              # SQL migration files (golang-migrate format)
 ├── go.mod
 ├── go.sum
 ├── .env.example

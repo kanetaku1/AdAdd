@@ -163,6 +163,8 @@ Represents an agreement between the festival and a company.
 
 A Yearly Company has at most one contract (zero before it is created). The company selects one or more Sponsorship Menus, but they are bundled into a single contract — the company/organization receives one invoice and one receipt per Year, not one per menu.
 
+A contract is created when an agreement is reached through email, direct communication, or other means.
+
 ---
 
 ## Sponsorship Menu
@@ -312,7 +314,7 @@ Examples:
 * Homepage banner advertisement → Submission management (banner artwork/logo)
 * Company booth → Booth information management
 
-For menus that require submission (e.g. advertisements, including web-based formats such as a homepage banner), there are three production methods. For a new advertisement, the company chooses between Company Production and Internal Production when submitting the Google Forms application, and the choice determines what the company is expected to submit. The Sponsorship Member records the production type; the 広告管理 list does not change it. A company may instead use an advertisement from a previous Year again (Continued Production).
+For menus that require submission (e.g. advertisements, including web-based formats such as a homepage banner), there are three production methods. For a new advertisement, the company chooses between Company Production and Internal Production, and the choice determines what the company is expected to submit. The Sponsorship Member records the production type; the 広告管理 list does not change it. A company may instead use an advertisement from a previous Year again (Continued Production).
 
 ## Company Production
 
@@ -382,12 +384,7 @@ Advisors monitor sponsorship progress by reviewing the companies handled by thei
 
 ## Sponsorship Contract
 
-Contracts are finalized when:
-
-* Google Forms is submitted, or
-* An agreement is reached through email or direct communication.
-
-Google Forms is not mandatory.
+Contracts are finalized when an agreement is reached through email, direct communication, or other means.
 
 ---
 
@@ -406,7 +403,7 @@ Typical progress includes:
 
 Additional statuses such as "Declined" or "Pending" may also exist.
 
-A goods-sponsorship-only contract has no payment. After Sponsorship Confirmed it moves to Goods Received (物品受領) instead of the payment stages.
+A goods-sponsorship-only contract has no payment, so the payment stages (Payment Received, Receipt Sent) never apply. After Sponsorship Confirmed, there is no further progress specific to goods-only contracts.
 
 Payment Received and Receipt Sent follow the Finance Department's confirmation in AdAdd. In the field the order varies: in a face-to-face contract the member brings both the invoice and the receipt and is paid on the spot; by email the receipt is usually sent after the payment is confirmed, but not always. A receipt can be prepared before confirmation, but progress is still recorded in order — Finance confirms, then Receipt Sent (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 
@@ -432,7 +429,7 @@ Submission files are stored in Google Drive.
 
 AdAdd stores metadata only.
 
-For goods sponsorship (物品協賛), the advertising given in exchange is an ordinary Contract Menu marked `isGoodsSponsorship`, with `unitPrice` set to `0`. This is a property of the individual Contract Menu, not the Sponsorship Menu — the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods description and estimated value are recorded in the Sponsorship Contract's remarks (contract-wide, not per menu), entered manually (never via Google Forms).
+For goods sponsorship (物品協賛), the advertising given in exchange is an ordinary Contract Menu marked `isGoodsSponsorship`, with `unitPrice` set to `0`. This is a property of the individual Contract Menu, not the Sponsorship Menu — the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods description and estimated value are recorded in the Sponsorship Contract's remarks (contract-wide, not per menu), entered manually.
 
 ---
 
@@ -477,16 +474,6 @@ History should never be deleted.
 
 AdAdd integrates with existing Google Workspace services.
 
-## Google Forms
-
-Used to collect sponsorship applications.
-
-Forms are an input method.
-
-They are not the source of truth.
-
----
-
 ## Google Drive
 
 Stores Contract Menu submission files.
@@ -507,7 +494,7 @@ Users can search historical emails using company names.
 
 ## Slack
 
-Used to notify the Sponsorship Member assigned to a company when sponsorship progress becomes Confirmed (協賛確定) — see UC-16 / FR-014. Google Forms is not imported; a human identifies the company in AdAdd first.
+Used to notify the Sponsorship Member assigned to a company when sponsorship progress becomes Confirmed (協賛確定) — see UC-16 / FR-014.
 
 Each User may have a linked Slack ID.
 
@@ -526,13 +513,3 @@ Google Sheets may be used for:
 * Legacy workflow support
 
 No operational data should depend on spreadsheets.
-
----
-
-# Guiding Principle
-
-AdAdd does not replace the sponsorship workflow.
-
-AdAdd makes the workflow visible.
-
-The system exists to help people collaborate using the same information.
