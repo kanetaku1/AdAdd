@@ -61,7 +61,7 @@ export function DriveUploadDialog({
                 setError("フォルダの自動生成に失敗しました。手動モードをお試しください。")
                 return
             }
-            const updated = await uploadContractMenuToDrive(menuId, files, folderId)
+            const updated = await uploadContractMenuToDrive(menuId, files, folderId, category)
             onSuccess?.(updated)
             onOpenChange(false)
         } catch (err) {

@@ -271,13 +271,14 @@ The user selects a material category when uploading; the selection determines wh
 Each uploaded file is renamed as:
 
 ```
-{editionNumber}th_{companyName}_{sponsorshipMenuName}_{productionTypeLabel}.{ext}
+{editionNumber}th_{companyName}_{sponsorshipMenuName}_{productionTypeLabel}_{materialCategory}.{ext}
 ```
 
 * `editionNumber` — the Year's edition number (回数, e.g. `45`). Always present; set during Year creation (copied from the previous Year or entered manually).
 * `companyName` — the Yearly Company's company name.
 * `sponsorshipMenuName` — the referenced Sponsorship Menu's name.
 * `productionTypeLabel` — `企業` (Company), `委員` (Internal), `継続` (Continued). Omitted when the Contract Menu has no production type.
+* `materialCategory` — the material category the file is uploaded into: `素材`, `仮完成`, or `完成`. Present only in auto-upload mode (when the system creates the folder structure). Omitted in manual-upload mode.
 
 When a file with the same name already exists in the target folder, a sequential number is appended: `_2`, `_3`, etc.
 

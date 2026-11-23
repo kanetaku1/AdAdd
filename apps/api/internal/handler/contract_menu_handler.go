@@ -261,6 +261,7 @@ func driveUploadContractMenu(c echo.Context) error {
 	if folderId == "" {
 		return respondBadRequest(c, "folderId is required")
 	}
+	category := c.FormValue("category")
 	fileHeaders := append(form.File["file"], form.File["files"]...)
 	if len(fileHeaders) == 0 {
 		return respondBadRequest(c, "file or files is required")
@@ -298,7 +299,7 @@ func driveUploadContractMenu(c echo.Context) error {
 		sponsorshipMenuName = sm.Name
 	}
 
-	fullName := buildDriveFileName(editionNumber, companyName, sponsorshipMenuName, cm.ProductionType)
+	fullName := buildDriveFileName(editionNumber, companyName, sponsorshipMenuName, cm.ProductionType, category)
 
 	driveSvc := newContractMenuDriveOperator()
 	inputs := make([]service.ContractMenuDriveFileInput, 0, len(fileHeaders))
@@ -602,7 +603,7 @@ func ensureDriveFolder(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
-func buildDriveFileName(editionNumber *int, companyName, sponsorshipMenuName string, productionType *string) string {
+func buildDriveFileName(editionNumber *int, companyName, sponsorshipMenuName string, productionType *string, category string) string {
 	var base string
 	if editionNumber != nil {
 		base = fmt.Sprintf("%dth_%s_%s", *editionNumber, companyName, sponsorshipMenuName)
@@ -611,6 +612,9 @@ func buildDriveFileName(editionNumber *int, companyName, sponsorshipMenuName str
 	}
 	if productionType != nil {
 		base += "_" + label.ProductionType(*productionType)
+	}
+	if category != "" {
+		base += "_" + category
 	}
 	return base
 }
