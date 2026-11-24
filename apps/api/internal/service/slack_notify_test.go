@@ -38,3 +38,17 @@ func TestConfirmedMentionText(t *testing.T) {
 		t.Fatalf("mrkdwn characters were not escaped: %q", got)
 	}
 }
+
+func TestReviewChangesMentionText(t *testing.T) {
+	got := ReviewChangesMentionText("U01TANAKA", "株式会社長岡", []string{
+		"ad.pdf: サイズ・解像度が要件を満たす",
+		"<draft>.ai: 必要な内容がすべて揃っている",
+	})
+	want := "<@U01TANAKA> 株式会社長岡 の広告資料に修正が必要です。\n" +
+		"以下の項目を確認し、再提出してください。\n" +
+		"・ad.pdf: サイズ・解像度が要件を満たす\n" +
+		"・&lt;draft&gt;.ai: 必要な内容がすべて揃っている"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}

@@ -1,8 +1,10 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
@@ -35,8 +37,9 @@ type ContractMenuReviewWorkflow struct {
 }
 
 type ContractMenuReviewResult struct {
-	Status   string                      `json:"status"`
-	Workflow *ContractMenuReviewWorkflow `json:"workflow"`
+	Status        string                      `json:"status"`
+	SlackDelivery SlackDeliveryResult         `json:"slackDelivery"`
+	Workflow      *ContractMenuReviewWorkflow `json:"workflow"`
 }
 
 func (s *ContractMenuService) GetReviewWorkflow(contractMenuID string) (*ContractMenuReviewWorkflow, error) {
@@ -108,6 +111,8 @@ func validateContractMenuReviewInputs(files []model.ContractMenuDriveFile, input
 
 func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, reviewerID string, inputs []ContractMenuFileReviewInput) (*ContractMenuReviewResult, error) {
 	targetStatus := ""
+	yearlyCompanyID := ""
+	missingItems := make([]string, 0)
 	err := db.WithTx(func(tx *gorm.DB) error {
 		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
 			return err
@@ -136,6 +141,7 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 		if err != nil {
 			return err
 		}
+		missingItems = missingLabels
 
 		now := time.Now()
 		for _, file := range files {
@@ -198,6 +204,7 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 				return err
 			}
 		}
+		yearlyCompanyID = logContext.YearlyCompanyID
 		details, _ := json.Marshal(map[string]interface{}{
 			"result": reviewStatus, "status": targetStatus, "missingItems": missingLabels,
 		})
@@ -213,9 +220,26 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 		return nil, err
 	}
 
+	delivery := SlackDeliveryResult{Status: "NOT_REQUIRED"}
+	if targetStatus == "WAITING" {
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		delivery = NotifyAssigneeReviewChanges(ctx, yearlyCompanyID, missingItems)
+		cancel()
+		details, _ := json.Marshal(delivery)
+		if err := db.DB.Create(&model.ContractMenuWorkflowEvent{
+			ContractMenuID: contractMenuID,
+			SubmissionID:   &submissionID,
+			EventType:      "SLACK_NOTIFICATION_" + delivery.Status,
+			ActorID:        optionalUserID(reviewerID),
+			Details:        details,
+		}).Error; err != nil {
+			log.Printf("record contract menu Slack delivery: %v", err)
+		}
+	}
+
 	workflow, err := s.GetReviewWorkflow(contractMenuID)
 	if err != nil {
 		return nil, err
 	}
-	return &ContractMenuReviewResult{Status: targetStatus, Workflow: workflow}, nil
+	return &ContractMenuReviewResult{Status: targetStatus, SlackDelivery: delivery, Workflow: workflow}, nil
 }
