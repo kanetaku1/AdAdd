@@ -87,11 +87,11 @@ func Run(out io.Writer) error {
 	}{
 		{"users and roles", ensureUsers},
 		{"companies (previous Year)", func() error { return ensureCompanies(previousYearCompanies) }},
-		{"Year 2025", func() error { return ensureYear(PreviousYearID, "2025", date(2025, 4, 1), date(2025, 11, 30)) }},
+		{"Year 2025", func() error { return ensureYear(PreviousYearID, "2025", date(2025, 4, 1), date(2025, 11, 30), intPointer(44)) }},
 		{"Sponsorship Menus 2025", func() error { return ensureSponsorshipMenus(sponsorshipMenus(PreviousYearID, "menu_2025_")) }},
 		{"contracts 2025", ensurePreviousYearContracts},
 		{"companies (new)", func() error { return ensureCompanies(newCompanies) }},
-		{"Year 2026", func() error { return ensureYear(CurrentYearID, "2026", date(2026, 4, 1), date(2026, 11, 30)) }},
+		{"Year 2026", func() error { return ensureYear(CurrentYearID, "2026", date(2026, 4, 1), date(2026, 11, 30), intPointer(45)) }},
 		{"Sponsorship Menus 2026", func() error { return ensureSponsorshipMenus(sponsorshipMenus(CurrentYearID, "menu_")) }},
 		{"assignments 2026", ensureCurrentYearAssignments},
 		{"advisor assignments 2026", ensureCurrentYearAdvisorAssignments},
@@ -175,12 +175,12 @@ func ensureCompanies(companies []model.Company) error {
 // ensureYear creates the Year through YearService, which also generates a
 // Yearly Company for every existing Company with its companyStatus computed
 // (UC-01, spec/domain.md#Company Status).
-func ensureYear(id, name string, startDate, endDate time.Time) error {
+func ensureYear(id, name string, startDate, endDate time.Time, editionNumber *int) error {
 	found, err := exists(&model.Year{}, "id = ?", id)
 	if err != nil || found {
 		return err
 	}
-	return service.NewYearService().Create(&model.Year{ID: id, Name: name, StartDate: model.Date(startDate), EndDate: model.Date(endDate)})
+	return service.NewYearService().Create(&model.Year{ID: id, Name: name, StartDate: model.Date(startDate), EndDate: model.Date(endDate), EditionNumber: editionNumber})
 }
 
 func ensureSponsorshipMenus(menus []model.SponsorshipMenu) error {

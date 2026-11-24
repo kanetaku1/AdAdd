@@ -22,4 +22,5 @@ func RegisterRoutes(e *echo.Echo) {
 	RegisterActivityLogRoutes(e)
 	RegisterAdvisorRoutes(e)
 	RegisterRoleRoutes(e)
+	RegisterDriveFolderRoutes(e)
 }

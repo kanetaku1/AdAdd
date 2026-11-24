@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -13,9 +15,18 @@ import (
 )
 
 type createYearRequest struct {
-	Name      string `json:"name"`
-	StartDate string `json:"startDate"`
-	EndDate   string `json:"endDate"`
+	Name          string `json:"name"`
+	StartDate     string `json:"startDate"`
+	EndDate       string `json:"endDate"`
+	EditionNumber *int   `json:"editionNumber"`
+}
+
+type updateYearRequest struct {
+	Name          *string          `json:"name"`
+	StartDate     *string          `json:"startDate"`
+	EndDate       *string          `json:"endDate"`
+	EditionNumber *int             `json:"editionNumber"`
+	RawEdition    *json.RawMessage `json:"-"`
 }
 
 func RegisterYearRoutes(e *echo.Echo) {
@@ -25,6 +36,7 @@ func RegisterYearRoutes(e *echo.Echo) {
 	rc := e.Group("")
 	rc.Use(RequireRoles("ADMINISTRATOR"))
 	rc.POST("/years", createYear)
+	rc.PATCH("/years/:yearId", updateYear)
 	rc.PATCH("/years/:yearId/document-issuer", updateYearDocumentIssuer)
 }
 
@@ -68,14 +80,57 @@ func createYear(c echo.Context) error {
 	}
 
 	year := &model.Year{
-		Name:      strings.TrimSpace(req.Name),
-		StartDate: model.Date(startDate),
-		EndDate:   model.Date(endDate),
+		Name:          strings.TrimSpace(req.Name),
+		StartDate:     model.Date(startDate),
+		EndDate:       model.Date(endDate),
+		EditionNumber: req.EditionNumber,
 	}
 	if err := svc.Create(year); err != nil {
 		return respondInternalServerError(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]interface{}{"data": year, "message": "created"})
+}
+
+func updateYear(c echo.Context) error {
+	body, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		return respondRequestBodyError(c, err, "invalid request body")
+	}
+
+	var req updateYearRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		return respondRequestBodyError(c, err, "invalid request body")
+	}
+
+	input := service.UpdateYearInput{
+		Name:      req.Name,
+		StartDate: req.StartDate,
+		EndDate:   req.EndDate,
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err == nil {
+		if _, ok := raw["editionNumber"]; ok {
+			input.EditionNumber = req.EditionNumber
+			input.EditionNumberSent = true
+		}
+	}
+
+	svc := service.NewYearService()
+	year, err := svc.Update(c.Param("yearId"), input)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return respondNotFound(c, "year not found")
+	}
+	if errors.Is(err, service.ErrPastYear) {
+		return respondConflict(c, "past year is read-only")
+	}
+	if errors.Is(err, service.ErrInvalidDate) {
+		return respondBadRequest(c, "startDate and endDate must be valid YYYY-MM-DD dates")
+	}
+	if err != nil {
+		return respondInternalServerError(c, err)
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"data": year, "message": "success"})
 }
 
 func updateYearDocumentIssuer(c echo.Context) error {

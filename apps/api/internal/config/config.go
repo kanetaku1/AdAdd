@@ -23,8 +23,9 @@ type Config struct {
 	GoogleDriveClientID     string
 	GoogleDriveClientSecret string
 	GoogleDriveRefreshToken string
-	GoogleDriveAccountEmail string
-	JWTSecret               string
+	GoogleDriveAccountEmail  string
+	GoogleDriveRootFolderID  string
+	JWTSecret                string
 	SlackBotToken           string
 	SlackChannelID          string
 }
@@ -70,6 +71,7 @@ func Load() *Config {
 		GoogleDriveClientSecret: getEnv("GOOGLE_DRIVE_CLIENT_SECRET", ""),
 		GoogleDriveRefreshToken: getEnv("GOOGLE_DRIVE_REFRESH_TOKEN", ""),
 		GoogleDriveAccountEmail: getEnv("GOOGLE_DRIVE_ACCOUNT_EMAIL", ""),
+		GoogleDriveRootFolderID: getEnv("GOOGLE_DRIVE_ROOT_FOLDER_ID", ""),
 		JWTSecret:               getEnv("JWT_SECRET", ""),
 		SlackBotToken:           getEnv("SLACK_BOT_TOKEN", ""),
 		SlackChannelID:          getEnv("SLACK_CHANNEL_ID", ""),

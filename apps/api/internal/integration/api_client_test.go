@@ -32,8 +32,17 @@ func (integrationDriveOperator) UploadFile(context.Context, string, string, stri
 	return &drive.File{Id: "integration-upload", Name: "integration.pdf", WebViewLink: "https://drive.google.com/file/d/integration-upload/view"}, nil
 }
 
+func (integrationDriveOperator) UploadFileWithName(_ context.Context, _, fullName, ext, _ string, _ io.Reader) (*drive.File, error) {
+	name := fullName + ext
+	return &drive.File{Id: "integration-upload", Name: name, WebViewLink: "https://drive.google.com/file/d/integration-upload/view"}, nil
+}
+
 func (integrationDriveOperator) TrashFile(context.Context, string) error {
 	return integrationDriveTrashErr
+}
+
+func (integrationDriveOperator) CountFilesWithName(context.Context, string, string) (int, error) {
+	return 0, nil
 }
 
 // apiClient sends requests to the full API as one User, with a session JWT.

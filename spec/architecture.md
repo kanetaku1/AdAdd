@@ -10,7 +10,7 @@ work together to support the Sponsorship business.
 This document does not describe business rules.
 Business rules are defined in `spec/business.md` and `spec/domain.md`.
 
-Related decision: `spec/decisions/0001-backend-language-framework.md`
+Related decisions: `spec/decisions/0001-backend-language-framework.md`, `spec/decisions/0002-deployment.md`
 
 ---
 

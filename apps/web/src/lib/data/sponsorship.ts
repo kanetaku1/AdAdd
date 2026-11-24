@@ -662,7 +662,8 @@ export async function updateContractMenuProduction(
 export async function uploadContractMenuToDrive(
   id: string,
   files: File[],
-  folderId: string
+  folderId: string,
+  category?: string
 ): Promise<ContractMenu> {
   if (isApiEnabled()) {
     const formData = new FormData()
@@ -673,6 +674,9 @@ export async function uploadContractMenuToDrive(
       formData.append(index === 0 ? "file" : "files", file)
     })
     formData.append("folderId", folderId)
+    if (category) {
+      formData.append("category", category)
+    }
 
     const updated = await apiFetch<{
       id: string

@@ -17,9 +17,17 @@ func (*cleanupDriveOperator) UploadFile(context.Context, string, string, string,
 	return nil, nil
 }
 
+func (*cleanupDriveOperator) UploadFileWithName(_ context.Context, _, fullName, ext, _ string, _ io.Reader) (*drive.File, error) {
+	return &drive.File{Id: "test", Name: fullName + ext}, nil
+}
+
 func (o *cleanupDriveOperator) TrashFile(_ context.Context, fileID string) error {
 	o.trashed = append(o.trashed, fileID)
 	return nil
+}
+
+func (*cleanupDriveOperator) CountFilesWithName(context.Context, string, string) (int, error) {
+	return 0, nil
 }
 
 func TestCleanupUploadedDriveFilesOnlyTrashesPersistableIDs(t *testing.T) {
@@ -36,20 +44,28 @@ func TestCleanupUploadedDriveFilesOnlyTrashesPersistableIDs(t *testing.T) {
 	}
 }
 
-func TestContractMenuFileSuffix(t *testing.T) {
+func TestBuildDriveFileName(t *testing.T) {
 	code := func(value string) *string { return &value }
+	intPtr := func(v int) *int { return &v }
 	cases := []struct {
-		productionType *string
-		want           string
+		editionNumber      *int
+		companyName        string
+		sponsorshipMenu    string
+		productionType     *string
+		category           string
+		want               string
 	}{
-		{code("COMPANY"), "企業_長岡テクノ"},
-		{code("INTERNAL"), "委員_長岡テクノ"},
-		{code("CONTINUED"), "継続_長岡テクノ"},
-		{nil, "長岡テクノ"},
+		{intPtr(45), "長岡テクノ", "パンフレット広告", code("COMPANY"), "素材", "45_長岡テクノ_パンフレット広告_企業_素材"},
+		{intPtr(45), "長岡テクノ", "パンフレット広告", code("INTERNAL"), "仮完成", "45_長岡テクノ_パンフレット広告_委員_仮完成"},
+		{intPtr(45), "長岡テクノ", "パンフレット広告", nil, "完成", "45_長岡テクノ_パンフレット広告_完成"},
+		{nil, "長岡テクノ", "パンフレット広告", code("COMPANY"), "素材", "長岡テクノ_パンフレット広告_企業_素材"},
+		{nil, "長岡テクノ", "パンフレット広告", nil, "", "長岡テクノ_パンフレット広告"},
+		{intPtr(45), "長岡テクノ", "パンフレット広告", code("COMPANY"), "", "45_長岡テクノ_パンフレット広告_企業"},
 	}
 	for _, c := range cases {
-		if got := contractMenuFileSuffix(c.productionType, "長岡テクノ"); got != c.want {
-			t.Fatalf("contractMenuFileSuffix(%v) = %q, want %q", c.productionType, got, c.want)
+		if got := buildDriveFileName(c.editionNumber, c.companyName, c.sponsorshipMenu, c.productionType, c.category); got != c.want {
+			t.Fatalf("buildDriveFileName(%v, %q, %q, %v, %q) = %q, want %q",
+				c.editionNumber, c.companyName, c.sponsorshipMenu, c.productionType, c.category, got, c.want)
 		}
 	}
 }

@@ -51,6 +51,7 @@ Represents one festival year.
 | startDate | date    | ✓        | Festival cycle start   |
 | endDate   | date    | ✓        | Festival cycle end     |
 | isActive  | boolean | ✓        | Current operating year |
+| editionNumber | integer |  | Festival edition number (回数). Example: `45` for the 45th festival. Used in Drive file naming. Set by the Administrator when creating or editing a Year. |
 | issuerName            | string |  | Document issuer name (e.g. 長岡技術科学大学 技大祭実行委員会) |
 | issuerPostalCode      | string |  | Issuer postal code |
 | issuerAddressLine1    | string |  | Issuer address, first line |
@@ -66,7 +67,7 @@ The `issuer*` and `bank*` attributes are the **document issuer information** pri
 
 Both documents use the `issuer*` attributes; only the invoice uses the `bank*` attributes.
 
-Creating a new Year (`POST /years`) copies every `issuer*` and `bank*` attribute from the previous Year. The Administrator then edits them (`spec/api.md#Update Document Issuer Information`). The first Year, with no previous Year, starts empty.
+Creating a new Year (`POST /years`) copies `editionNumber` and every `issuer*` and `bank*` attribute from the previous Year. The Administrator then edits them (`spec/api.md#Update Document Issuer Information`). The first Year, with no previous Year, starts empty.
 
 **Required fields for document generation.** The attributes are nullable in storage, but a document cannot be generated while a field it needs is empty — the UI blocks generation and lists the missing fields (`spec/frontend.md#Invoice and Receipt Documents`):
 
@@ -476,22 +477,21 @@ API / storage codes: `PHASE_1` – `PHASE_4`. The business has always used four 
 * NotContacted
 * MaterialsSent
 * Confirmed
-* GoodsReceived
 * InvoiceSent
 * PaymentReceived
 * ReceiptSent
 * Declined
 * Pending
 
-API / storage codes: `NOT_CONTACTED` (未連絡), `MATERIALS_SENT` (資料送付), `CONFIRMED` (協賛確定), `GOODS_RECEIVED` (物品受領), `INVOICE_SENT` (請求書送付), `PAYMENT_RECEIVED` (協賛金入金), `RECEIPT_SENT` (領収書送付), `DECLINED` (見送り), `PENDING` (保留).
+API / storage codes: `NOT_CONTACTED` (未連絡), `MATERIALS_SENT` (資料送付), `CONFIRMED` (協賛確定), `INVOICE_SENT` (請求書送付), `PAYMENT_RECEIVED` (協賛金入金), `RECEIPT_SENT` (領収書送付), `DECLINED` (見送り / 辞退), `PENDING` (保留).
 
-`GoodsReceived` is used only by goods-sponsorship-only contracts (no Payment) and is set by hand after `Confirmed`. The payment stages (`PaymentReceived`, `ReceiptSent`) follow the Payment status — see the YearlyCompany constraints below and `spec/domain.md` → Lifecycle → Sponsorship Progress Consistency.
+The payment stages (`PaymentReceived`, `ReceiptSent`) follow the Payment status — see the YearlyCompany constraints below and `spec/domain.md` → Lifecycle → Sponsorship Progress Consistency.
 
 ---
 
 ## ContractMenuProductionType
 
-Applies only when the referenced Sponsorship Menu has `requiresSubmission = true`. Chosen by the company on the Google Forms application; determines whether the company's submission is a finished product or raw material (see `spec/business.md` → Contract Menu Production Type).
+Applies only when the referenced Sponsorship Menu has `requiresSubmission = true`. Determines whether the company's submission is a finished product or raw material (see `spec/business.md` → Contract Menu Production Type).
 
 * Company — company submits a finished product (完成品)
 * Internal — company submits raw material (素材) for the committee to produce from. The business calls this 委員会; the UI label is 委員. The producing department is held separately in `ContractMenu.productionDepartment` (`ContractMenuProductionDepartment` below).
@@ -655,8 +655,6 @@ A User has zero or more UserRole rows, each pointing to one Role — i.e. User:R
 * `progress` cannot be set to `Confirmed` while the Yearly Company has no contract.
 * `progress` cannot be set to a pre-contract stage (`NotContacted`, `MaterialsSent`, `Declined`, `Pending`) while a contract exists. `InvoiceSent` is allowed.
 * `progress` cannot be set to `PaymentReceived` unless the contract's Payment is `Confirmed`, and cannot be set to `ReceiptSent` when there is no contract or while the contract's Payment is not `Confirmed`.
-* `progress` can be set to `GoodsReceived` only when a contract exists and it has no Payment (goods-only). It may be set back to `Confirmed` by hand. When a Payment is created for a contract at `GoodsReceived`, `progress` moves back to `Confirmed` automatically.
-
 ---
 
 ## CompanyAssignment

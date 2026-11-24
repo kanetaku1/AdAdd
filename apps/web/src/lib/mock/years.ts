@@ -17,6 +17,7 @@ export const mockYears: Year[] = [
     startDate: "2025-04-01",
     endDate: "2025-11-30",
     isActive: false,
+    editionNumber: 44,
     ...EMPTY_YEAR_DOCUMENT_ISSUER,
   },
   {
@@ -25,6 +26,7 @@ export const mockYears: Year[] = [
     startDate: "2026-04-01",
     endDate: "2026-11-30",
     isActive: true,
+    editionNumber: 45,
     ...EMPTY_YEAR_DOCUMENT_ISSUER,
   },
 ]
@@ -116,6 +118,7 @@ export function addYear(input: {
     startDate: input.startDate,
     endDate: input.endDate,
     isActive: true,
+    editionNumber: previousYear?.editionNumber != null ? previousYear.editionNumber + 1 : null,
     ...(previousYear
       ? {
           issuerName: previousYear.issuerName,

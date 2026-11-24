@@ -36,8 +36,10 @@ import { canAccess } from "@/lib/auth/roles"
 const ALLOWED_ROLES = ["ADMINISTRATOR"]
 
 function emptyForm() {
-  return { name: "", startDate: "", endDate: "" }
+  return { name: "", startDate: "", endDate: "", editionNumber: "" }
 }
+
+
 
 /**
  * Year List (spec/frontend.md#Year Management, UC-01). Creating a Year
@@ -70,7 +72,13 @@ function YearsPageContent() {
     setCreating(true)
     setCreateError(null)
     try {
-      await createYear(form)
+      const editionNumber = form.editionNumber ? parseInt(form.editionNumber, 10) : undefined
+      await createYear({
+        name: form.name,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        editionNumber: editionNumber != null && !isNaN(editionNumber) ? editionNumber : undefined,
+      })
       await refresh()
       setForm(emptyForm())
       setOpen(false)
@@ -142,6 +150,18 @@ function YearsPageContent() {
                   }
                 />
               </Field>
+              <Field>
+                <FieldLabel htmlFor="yearEditionNumber">回数</FieldLabel>
+                <Input
+                  id="yearEditionNumber"
+                  type="number"
+                  placeholder="例: 46"
+                  value={form.editionNumber}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, editionNumber: e.target.value }))
+                  }
+                />
+              </Field>
             </FieldGroup>
             <p className="text-xs text-muted-foreground">
               現在運用中の年度の企業情報を引き継いで、協賛企業(年度別)を一括生成します。
@@ -175,6 +195,7 @@ function YearsPageContent() {
           <TableHeader>
             <TableRow>
               <TableHead>年度名</TableHead>
+              <TableHead>回数</TableHead>
               <TableHead>開始日</TableHead>
               <TableHead>終了日</TableHead>
               <TableHead>状態</TableHead>
@@ -182,10 +203,10 @@ function YearsPageContent() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <LoadingRow colSpan={4} />
+              <LoadingRow colSpan={5} />
             ) : years.length === 0 ? (
               <EmptyRow
-                colSpan={4}
+                colSpan={5}
                 message="年度がまだありません。「新しい年度を作成」から最初の年度を作成してください。"
               />
             ) : (
@@ -199,6 +220,7 @@ function YearsPageContent() {
                       {year.name}
                     </Link>
                   </TableCell>
+                  <TableCell>{year.editionNumber != null ? `第${year.editionNumber}回` : "—"}</TableCell>
                   <TableCell>{year.startDate}</TableCell>
                   <TableCell>{year.endDate}</TableCell>
                   <TableCell>

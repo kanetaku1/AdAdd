@@ -16,6 +16,7 @@ type Year struct {
 	StartDate             Date           `gorm:"type:date" json:"startDate"`
 	EndDate               Date           `gorm:"type:date" json:"endDate"`
 	IsActive              bool           `gorm:"not null;default:false" json:"isActive"`
+	EditionNumber         *int           `gorm:"column:edition_number" json:"editionNumber"`
 	IssuerName            *string        `gorm:"size:255" json:"issuerName"`
 	IssuerPostalCode      *string        `gorm:"size:20" json:"issuerPostalCode"`
 	IssuerAddressLine1    *string        `gorm:"size:512" json:"issuerAddressLine1"`

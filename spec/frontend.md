@@ -479,7 +479,7 @@ Saving a field calls `PATCH /yearly-companies/{id}/company-contact` (writes this
 
 ### Assignment (担当)
 
-Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), `companyStatus`, `phase`, and `progress`, together in one row/strip rather than stacked sections. Company status, phase, and progress are each inline-editable here the same as on Yearly Company List (Principle 4), for `SPONSORSHIP_MEMBER` / `ADMINISTRATOR`. A progress value that contradicts the contract or Payment (協賛確定 without a contract; 未連絡 / 資料送付 / 見送り / 保留 with one — delete the contract first if the company declines after contracting; 協賛金入金 / 領収書送付 before the Payment is confirmed, 物品受領 for a contract that has a Payment) is rejected by the API with 409, and the reason is shown at the progress cell (Principle 6). Progress also changes on its own when the Payment is confirmed or reverted (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
+Compact — not full sub-sections: assigned Sponsorship Member (`CompanyAssignment`), the same company's Sponsorship Advisor(s) (derived client-side via `AdvisorAssignment` on the assigned member, same join as `spec/frontend.md#Ad Material Progress`), `companyStatus`, `phase`, and `progress`, together in one row/strip rather than stacked sections. Company status, phase, and progress are each inline-editable here the same as on Yearly Company List (Principle 4), for `SPONSORSHIP_MEMBER` / `ADMINISTRATOR`. A progress value that contradicts the contract or Payment (協賛確定 without a contract; 未連絡 / 資料送付 / 見送り / 保留 with one — delete the contract first if the company declines after contracting; 協賛金入金 / 領収書送付 before the Payment is confirmed) is rejected by the API with 409, and the reason is shown at the progress cell (Principle 6). Progress also changes on its own when the Payment is confirmed or reverted (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
 
 The assigned member shown here is also the assignee of the contract and every Contract Menu; the contract has no assignee of its own (`spec/model.md#SponsorshipContract`).
 
@@ -545,11 +545,10 @@ Status:
 資料送付
  ↓
 協賛確定
- ├─ (お金の協賛) 請求書送付 → 協賛金入金 → 領収書送付
- └─ (物品協賛のみ) 物品受領
+ └─ 請求書送付 → 協賛金入金 → 領収書送付
 ```
 
-物品受領 (`GOODS_RECEIVED`) is only for goods-only contracts, which have no Payment. 協賛金入金 is reached only by confirming the Payment, and 領収書送付 only after that (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency).
+協賛金入金 is reached only by confirming the Payment, and 領収書送付 only after that (`spec/domain.md` → Lifecycle → Sponsorship Progress Consistency). Goods-sponsorship-only contracts (`totalAmount = 0`) have no Payment, so the payment stages do not apply.
 
 Display:
 
@@ -636,33 +635,71 @@ uses the same file-derived state as the screen and Yearly Company Detail.
 
 The dialog for uploading ad material files to Google Drive. It is opened from the Contract Menu line in Yearly Company Detail and from Contract Menu List (wherever the upload action icon appears). It replaces the former Google Picker–based dialog (Issue #225).
 
-### Flow
+### Two upload modes
 
-1. The dialog opens. It shows a file dropzone (unchanged from the existing dialog).
+The dialog supports two modes:
+
+* **Auto mode** (default) — the folder is determined automatically from the Contract Menu's context. The member only selects a data category (データ区分).
+* **Manual mode** — the member navigates a full folder browser to pick any folder under the root. A toggle ("フォルダを手動で選択" / "自動選択に戻る") switches between modes.
+
+### Auto mode flow
+
+1. The dialog opens. It shows a file dropzone.
 2. The member drops or selects files.
-3. The member presses "フォルダを選択してアップロード". A folder browser appears inside the dialog.
-4. The folder browser shows the subfolders of the root folder (`GOOGLE_DRIVE_ROOT_FOLDER_ID`), fetched from `GET /drive/folders` (`spec/api.md#List Drive Folders`). No Google OAuth consent popup is shown — the API accesses Drive as the dedicated account.
-5. The member navigates into subfolders by clicking them. A breadcrumb bar above the folder list shows the path from the root folder and allows jumping back to any ancestor.
-6. The member presses "このフォルダにアップロード" on the desired folder.
-7. The upload is sent to the API as before (`POST /contract-menus/{id}/drive-upload` with `folderId` and file bodies).
+3. A data category selector appears: **素材** / **仮完成** / **完成**.
+4. On category selection, the dialog calls `POST /contract-menus/{id}/drive-folder` (`spec/api.md#Auto-generate Drive Folder Structure`) to ensure the folder hierarchy exists, then auto-selects the matching subfolder.
+5. The member presses "アップロード".
+6. The upload is sent to the API (`POST /contract-menus/{id}/drive-upload` with `folderId` and file bodies).
+7. After success, the full breadcrumb path from root to the upload folder is displayed.
 
-### Folder browser
+### Manual mode flow
+
+1. The member switches to manual mode via the toggle link.
+2. A Linux-style folder browser appears (see layout below).
+3. The member navigates and selects a folder.
+4. The member presses "このフォルダにアップロード".
+5. The upload proceeds as in auto mode.
+
+### Folder browser layout (manual mode)
+
+The folder browser uses a three-pane layout inspired by Linux file managers:
+
+```
++--------------------------------------------------------------+
+| [←] [→] [↑]  root > メニュー名 > 企業名                     |  Header
++--------------------------------------------------------------+
+| ▸ root            |  📁 素材                                  |
+|   ▾ メニュー名    |  📁 仮完成                                |  Body
+|     ▾ 企業名      |  📁 完成                                  |
+|       素材         |                                           |
++--------------------------------------------------------------+
+| 選択中: 素材                       [このフォルダを選択]        |  Footer
++--------------------------------------------------------------+
+```
 
 | Element | Behavior |
 | ------- | -------- |
-| Breadcrumb bar | Shows the path from the root folder to the current folder. Each segment is clickable and navigates to that folder. The root folder is always the leftmost segment. Example: `2026年度_広告素材 > パンフレット広告 > 企業名A` |
-| Folder list | Lists subfolders of the current folder, sorted by name ascending. Each item is clickable and navigates into it. Files are not shown (file management is not part of folder selection). When the folder has no subfolders, the list shows a message such as `サブフォルダはありません`. |
-| "このフォルダにアップロード" button | Submits the upload with the currently displayed folder as the destination. Enabled as long as files have been selected. The member can upload to any folder in the hierarchy, not only leaf folders. |
-| Loading state | While `GET /drive/folders` is in flight, the folder list shows a spinner. |
+| Header — navigation buttons | Back (←), Forward (→), Up (↑). Back/Forward use browser-style history. Up navigates to the parent folder. |
+| Header — breadcrumb | Shows the path from root to the current folder. Each segment is clickable. |
+| Left pane — tree sidebar | Displays the folder hierarchy as an expandable tree. Root is always visible and auto-expanded. Clicking a tree node navigates the right pane to that folder. The expand arrow (▸/▾) triggers lazy loading of children via `GET /drive/folders?parent={id}&hasChildren=true`. |
+| Right pane — folder list | Lists subfolders of the current folder. Single click highlights (selects). Double click opens (navigates into). Files are not shown. |
+| Footer — selection display | Shows the currently selected folder name. |
+| Footer — confirm button | "このフォルダを選択" — confirms the selection and returns the folder ID to the caller. |
+| Loading state | While `GET /drive/folders` is in flight, the affected pane shows a skeleton loader. |
 | Error state | A Drive API error shows an error banner inside the dialog. The member can retry by navigating again. |
+
+### Lazy loading
+
+Only the root folder's children are fetched on initial load. Children of other folders are fetched on demand — when a tree node is expanded or a folder is double-clicked in the right pane. Fetched children are cached in component state for the duration of the dialog session.
 
 ### What changes from the former dialog
 
 | Before (Google Picker) | After |
 | ----------------------- | ----- |
-| Pressing "フォルダを選択してアップロード" opened Google Picker (external Google UI) with a possible OAuth consent popup | The folder browser appears inline inside the AdAdd dialog. No OAuth popup. |
+| Pressing "フォルダを選択してアップロード" opened Google Picker (external Google UI) with a possible OAuth consent popup | Default: auto mode with data category selection. Optional: inline Linux-style folder browser. No OAuth popup. |
 | Picker showed the member's own Google Drive view, scoped to the root folder but navigable beyond it | The folder browser shows only the root folder's subtree. Folders outside the root are unreachable. |
 | Picker used `NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `NEXT_PUBLIC_GOOGLE_API_KEY` | No browser-side Google credentials are needed. The API uses the dedicated account. |
+| Member had to manually navigate to the correct subfolder every time | Auto mode determines the correct folder from the Contract Menu context. |
 
 ### Removed browser-side environment variables
 
@@ -1116,7 +1153,7 @@ Error messages are Japanese business language, never a developer-facing or Engli
 Potential improvements:
 
 * Mobile-friendly sponsorship member interface
-* Automatic Google Forms application import (blocked on company-name matching; members transcribe today — UC-06)
+* Automatic contract application import from external sources (members transcribe today — UC-06)
 * A Slack alert when a capped Sponsorship Menu (`maxQuantity`) nears capacity, see Ad Material Progress above
 * Analytics dashboard
 * Calendar integration
