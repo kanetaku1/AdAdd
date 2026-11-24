@@ -71,7 +71,7 @@ func TestUpdateStatusLogsAnyStatusChangeOnce(t *testing.T) {
 	}{
 		{"PRODUCING", 1},
 		{"PRODUCING", 1}, // same status: no new entry
-		{"COMPLETED", 2},
+		{"REQUESTED", 2},
 	}
 	for _, step := range steps {
 		if err := svc.UpdateStatus(cm.ID, step.status, "user-test"); err != nil {
@@ -95,15 +95,15 @@ func TestUpdateStatusRejectsSubmittedWithoutFiles(t *testing.T) {
 	testdb.Open(t)
 	cm := seedStatusLogContractMenu(t)
 
-	if err := NewContractMenuService().UpdateStatus(cm.ID, "SUBMITTED", "user-test"); !errors.Is(err, ErrSubmittedStateConflict) {
-		t.Fatalf("err = %v, want ErrSubmittedStateConflict", err)
+	if err := NewContractMenuService().UpdateStatus(cm.ID, "SUBMITTED", "user-test"); !errors.Is(err, ErrInvalidContractMenuStatus) {
+		t.Fatalf("err = %v, want ErrInvalidContractMenuStatus", err)
 	}
 	if actions := activityLogActions(t); len(actions) != 0 {
 		t.Fatalf("got logs %q, want none", actions)
 	}
 }
 
-// Registering a file makes the Contract Menu SUBMITTED and writes one
+// Registering a file makes the Contract Menu PROVISIONAL_SUBMITTED and writes one
 // AD_MATERIAL_UPLOADED entry per file, not CONTRACT_MENU_STATUS_UPDATED.
 func TestAddFilesSubmitsAndLogsUpload(t *testing.T) {
 	testdb.Open(t)
@@ -120,8 +120,8 @@ func TestAddFilesSubmitsAndLogsUpload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add files: %v", err)
 	}
-	if updated.Status != "SUBMITTED" {
-		t.Fatalf("status = %q, want SUBMITTED", updated.Status)
+	if updated.Status != "PROVISIONAL_SUBMITTED" {
+		t.Fatalf("status = %q, want PROVISIONAL_SUBMITTED", updated.Status)
 	}
 	actions := activityLogActions(t)
 	if len(actions) != 1 || actions[0] != model.EventAdMaterialUploaded {

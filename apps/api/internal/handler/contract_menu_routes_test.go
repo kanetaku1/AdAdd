@@ -39,6 +39,20 @@ func TestDeleteContractMenuRejectsRolelessUser(t *testing.T) {
 	}
 }
 
+func TestReviewContractMenuRejectsSponsorshipMember(t *testing.T) {
+	e := echo.New()
+	RegisterContractMenuRoutes(e)
+	e.Use(withRoles("SPONSORSHIP_MEMBER"))
+
+	req := httptest.NewRequest(http.MethodPost, "/contract-menus/1/submissions/2/review", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d for SPONSORSHIP_MEMBER, got %d", http.StatusForbidden, rec.Code)
+	}
+}
+
 func withRoles(roles ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {

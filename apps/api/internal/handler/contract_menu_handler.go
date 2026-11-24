@@ -41,6 +41,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/contracts/:contractId/menus", listContractMenus)
 	r.GET("/contract-menus/:id/production/files", listContractMenuFiles)
+	r.GET("/contract-menus/:id/review-workflow", getContractMenuReviewWorkflow)
 	// staff and admin manage contract menus — create/update only
 	rStaff := e.Group("")
 	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
@@ -51,6 +52,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rAdvertisementManager.Use(RequireRoles("ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
 	rAdvertisementManager.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 	rAdvertisementManager.PATCH("/contract-menus/:id/production-department", updateContractMenuProductionDepartment)
+	rAdvertisementManager.POST("/contract-menus/:id/submissions/:submissionId/review", reviewContractMenuSubmission)
 
 	rFiles := e.Group("")
 	rFiles.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))

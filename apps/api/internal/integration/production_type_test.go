@@ -213,7 +213,7 @@ func TestMaxQuantityIsNotEnforced(t *testing.T) {
 }
 
 // A CONTINUED Contract Menu starts WAITING; registering a Drive file makes it
-// SUBMITTED, and deleting the last one returns it to WAITING
+// PROVISIONAL_SUBMITTED, and deleting the last one returns it to WAITING
 // (spec/model.md#ContractMenu).
 func TestContinuationSubmissionFollowsDriveFiles(t *testing.T) {
 	actor := newActors(t)
@@ -243,7 +243,7 @@ func TestContinuationSubmissionFollowsDriveFiles(t *testing.T) {
 		"files": []map[string]string{{"driveUrl": "https://drive.google.com/file/d/previous/view", "driveFileName": "前年度広告.pdf"}},
 	})
 	expectStatus(t, added, http.StatusCreated)
-	expectContractMenuStatus("SUBMITTED")
+	expectContractMenuStatus("PROVISIONAL_SUBMITTED")
 
 	withFiles := decodeData[model.ContractMenu](t, added)
 	expectStatus(t, member.do(http.MethodDelete, filesPath+"/"+withFiles.Files[0].ID, nil), http.StatusOK)

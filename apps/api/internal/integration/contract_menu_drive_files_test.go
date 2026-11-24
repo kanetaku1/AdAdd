@@ -82,8 +82,8 @@ func TestContractMenuDriveFilesLifecyclePermissionsAndPastYear(t *testing.T) {
 	})
 	expectStatus(t, filesAdded, http.StatusCreated)
 	withFiles := decodeData[model.ContractMenu](t, filesAdded)
-	if withFiles.FileCount != 2 || len(withFiles.Files) != 2 || !withFiles.IsSubmitted || withFiles.Status != "SUBMITTED" {
-		t.Fatalf("after add = %+v, want two files and SUBMITTED", withFiles)
+	if withFiles.FileCount != 2 || len(withFiles.Files) != 2 || !withFiles.IsSubmitted || withFiles.Status != "PROVISIONAL_SUBMITTED" {
+		t.Fatalf("after add = %+v, want two files and PROVISIONAL_SUBMITTED", withFiles)
 	}
 	if !withFiles.AllowUpload || !withFiles.AllowDelete {
 		t.Fatalf("active-year member capabilities = upload:%v delete:%v, want both true", withFiles.AllowUpload, withFiles.AllowDelete)
@@ -123,8 +123,8 @@ func TestContractMenuDriveFilesLifecyclePermissionsAndPastYear(t *testing.T) {
 	firstDeleted := actors.advisor.do(http.MethodDelete, "/contract-menus/"+contractMenu.ID+"/production/files/"+withFiles.Files[0].ID, nil)
 	expectStatus(t, firstDeleted, http.StatusOK)
 	afterFirstDelete := decodeData[model.ContractMenu](t, firstDeleted)
-	if afterFirstDelete.FileCount != 1 || !afterFirstDelete.IsSubmitted || afterFirstDelete.Status != "SUBMITTED" {
-		t.Fatalf("after first delete = %+v, want one file and SUBMITTED", afterFirstDelete)
+	if afterFirstDelete.FileCount != 1 || !afterFirstDelete.IsSubmitted || afterFirstDelete.Status != "PROVISIONAL_SUBMITTED" {
+		t.Fatalf("after first delete = %+v, want one file and PROVISIONAL_SUBMITTED", afterFirstDelete)
 	}
 
 	lastDeleted := actors.advisor.do(http.MethodDelete, "/contract-menus/"+contractMenu.ID+"/production/files/"+withFiles.Files[1].ID, nil)

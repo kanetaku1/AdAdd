@@ -295,7 +295,7 @@ type ContractMenuWorkflowEvent struct {
 	ContractMenuDriveFileID *string         `gorm:"type:char(36)" json:"fileId"`
 	EventType               string          `gorm:"size:64;not null" json:"eventType"`
 	ActorID                 *string         `gorm:"type:char(36)" json:"actorId"`
-	ActorName               *string         `gorm:"-" json:"actorName"`
+	ActorName               *string         `gorm:"column:actor_name;->" json:"actorName"`
 	Details                 json.RawMessage `gorm:"type:json" json:"details"`
 	CreatedAt               time.Time       `json:"createdAt"`
 }
