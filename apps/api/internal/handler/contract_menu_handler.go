@@ -357,7 +357,7 @@ func driveUploadContractMenu(c echo.Context) error {
 	}
 
 	userID, _ := c.Get("userId").(string)
-	cm, err = menuSvc.AddUploadedFiles(id, folderId, inputs, userID)
+	cm, err = menuSvc.AddUploadedFilesWithCategory(id, folderId, category, inputs, userID)
 	if err != nil {
 		cleanupUploadedDriveFiles(c.Request().Context(), driveSvc, inputs)
 		return respondContractMenuFileError(c, err)

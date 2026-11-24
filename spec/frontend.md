@@ -631,6 +631,14 @@ uses the same file-derived state as the screen and Yearly Company Detail.
 
 ---
 
+## Ad Material Review Workflow
+
+The file cell remains count-first (`資料 N件`) and exposes links in a compact popover. Beside it, Advertisement Manager / Administrator sees a Review button for the current reviewable submission. A red dot means the current submission has not been reviewed; green means it was reviewed; no dot is shown before any submission. The same count and state are used in Contract Menu List, Yearly Company Detail, and CSV.
+
+The Review modal shows one checklist card per file and a commit-history-style timeline. Submit is disabled until every item for every file has an explicit value. Checked-all completes the applicable review stage. Any unchecked item previews the standard Slack message and requests changes. The timeline identifies uploader, reviewer, manual status changer, timestamps, affected files, result, and Slack delivery result. Reviewed historical submissions remain readable.
+
+Status filters include the context-sensitive labels 広告データ提出待ち, 広告データ仮提出済み, 素材データ提出待ち, 素材データ仮提出済み, 素材データ完成, 制作依頼済み, 企業への確認中, and 完成. Advertisement Manager / Administrator may manually select every state. Selecting a normally automatic state shows a warning and sends explicit acknowledgement; normal manual states change immediately. Past-Year controls are hidden and remain rejected by the API.
+
 ## Drive Upload Dialog
 
 The dialog for uploading ad material files to Google Drive. It is opened from the Contract Menu line in Yearly Company Detail and from Contract Menu List (wherever the upload action icon appears). It replaces the former Google Picker–based dialog (Issue #225).

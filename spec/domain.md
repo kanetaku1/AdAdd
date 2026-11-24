@@ -707,18 +707,36 @@ Completed
 Submitted
 ```
 
-For menus that do not require submission (e.g. company booth), the existing lifecycle remains unchanged and may skip directly from Waiting to Completed. For submission-required menus, the allowed status is determined by the production type:
+For menus that do not require submission (e.g. company booth), the existing lifecycle remains unchanged. Submission-required menus use these state machines:
 
-| Production type | No active Drive files | Active Drive files |
-| --- | --- | --- |
-| Company (`COMPANY`) | `WAITING` only | `SUBMITTED` |
-| Continued (`CONTINUED`) | `WAITING` only | `SUBMITTED` |
-| Internal (`INTERNAL`), no department | Status changes are read-only | `SUBMITTED` |
-| Internal (`INTERNAL`), department assigned | `WAITING` or `REQUESTED` | `SUBMITTED` |
+```
+COMPANY / CONTINUED:
+WAITING -> PROVISIONAL_SUBMITTED -> COMPLETED
+   ^                |
+   +-- changes -----+
 
-`SUBMITTED` is derived from active Drive files, never selected manually. Adding the first file sets it; deleting the last active file resets the status to `WAITING`. A new Contract Menu starts at `WAITING`, including Continued Production. A production type change on a submission-required menu with no active files resets its status to `WAITING`; with active files it remains `SUBMITTED`.
+INTERNAL:
+WAITING -> PROVISIONAL_SUBMITTED -> MATERIAL_COMPLETED
+   ^                |                       |
+   +-- changes -----+                       v
+                                  REQUESTED <-> COMPANY_REVIEWING
+                                                     |
+                                              final upload
+                                                     v
+                                                 COMPLETED
+```
 
-Manual status changes are limited to the Advertisement Manager Role and Administrator (as superuser) — see `spec/api.md#Update Contract Menu Status`. Other Roles see it read-only. Registering a production remark does not change status; adding or deleting Drive files updates the derived `SUBMITTED` state.
+One upload request creates one submission containing one or more files. Every file has the same fixed checklist; all files and all checklist items must pass. A rejected review returns to `WAITING`, keeps the reviewed submission and files as history, and sends a standard Slack mention to the assigned Sponsorship Member. A later upload creates a new pending submission and returns to `PROVISIONAL_SUBMITTED`.
+
+All statuses remain manually selectable by Advertisement Manager / Administrator for exceptional recovery. Moving manually into a normally automatic state (`PROVISIONAL_SUBMITTED`, `MATERIAL_COMPLETED`, or `COMPLETED`) requires explicit acknowledgement and is recorded in workflow history. Past Years are read-only.
+
+The initial checklist is global and fixed: the file opens, the format is correct, size/resolution is correct, and required content is complete. Labels are snapshotted into each review so this can later evolve into menu-specific definitions.
+
+Slack delivery is attempted after the review transaction. A delivery failure does not roll back the review/status; success or failure is appended to workflow history and the API returns the delivery result. Drive folder movement is deferred until the Drive integration exposes an atomic move operation; completion events already contain the submission needed by that follow-up.
+
+The previous file-count table and `SUBMITTED` derivation are deprecated. `isSubmitted` remains a separate indication that active Drive references exist.
+
+Manual status changes and reviews are limited to Advertisement Manager / Administrator. Sponsorship Member uploads and resubmits files and may read review history. The API, not only the UI, enforces these permissions.
 
 A homepage banner requires submission (`requiresSubmission = true`) — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 

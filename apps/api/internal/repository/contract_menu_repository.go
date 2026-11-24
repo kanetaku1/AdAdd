@@ -12,7 +12,7 @@ func NewContractMenuRepository() *ContractMenuRepository { return &ContractMenuR
 
 func (r *ContractMenuRepository) ListByContract(contractId string) ([]model.ContractMenu, error) {
 	var list []model.ContractMenu
-	if err := db.DB.Preload("Files", fileOrder).Where("contract_id = ?", contractId).Find(&list).Error; err != nil {
+	if err := preloadContractMenuWorkflow(db.DB).Where("contract_id = ?", contractId).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	if len(list) == 0 {
@@ -78,6 +78,10 @@ func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[strin
 			Order("created_at ASC, id ASC").Find(&list[i].Files).Error; err != nil {
 			return nil, err
 		}
+		if err := db.DB.Where("contract_menu_id = ?", list[i].ID).
+			Order("submission_sequence ASC").Find(&list[i].Submissions).Error; err != nil {
+			return nil, err
+		}
 		list[i].ActiveYear = year.IsActive
 		list[i].PrepareFileSummary()
 	}
@@ -88,7 +92,7 @@ func (r *ContractMenuRepository) Create(m *model.ContractMenu) error { return db
 
 func (r *ContractMenuRepository) GetByID(id string) (*model.ContractMenu, error) {
 	var m model.ContractMenu
-	if err := db.DB.Preload("Files", fileOrder).First(&m, "id = ?", id).Error; err != nil {
+	if err := preloadContractMenuWorkflow(db.DB).First(&m, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	active, err := contractActiveYear(db.DB, m.ContractID)
@@ -111,6 +115,13 @@ func (r *ContractMenuRepository) ListFiles(contractMenuID string) ([]model.Contr
 
 func fileOrder(tx *gorm.DB) *gorm.DB {
 	return tx.Order("created_at ASC, id ASC")
+}
+
+func preloadContractMenuWorkflow(tx *gorm.DB) *gorm.DB {
+	return tx.Preload("Files", fileOrder).
+		Preload("Submissions", func(q *gorm.DB) *gorm.DB {
+			return q.Order("submission_sequence ASC")
+		})
 }
 
 func contractActiveYear(tx *gorm.DB, contractID string) (bool, error) {

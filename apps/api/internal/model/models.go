@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -164,23 +165,26 @@ type ContractMenu struct {
 	IsGoodsSponsorship bool            `gorm:"not null;default:false" json:"isGoodsSponsorship"`
 	// ProductionType is nil when the Sponsorship Menu does not require
 	// submission (spec/model.md#ContractMenuProductionType).
-	ProductionType       *string                 `gorm:"size:32" json:"productionType"`
-	ProductionDepartment *string                 `gorm:"size:32" json:"productionDepartment"`
-	Status               string                  `gorm:"size:32" json:"status"`
-	DriveFolderID        string                  `gorm:"size:512" json:"driveFolderId"`
-	SubmittedAt          *time.Time              `json:"submittedAt"`
-	Remarks              string                  `gorm:"type:text" json:"remarks"`
-	CreatedAt            time.Time               `json:"createdAt"`
-	UpdatedAt            time.Time               `json:"updatedAt"`
-	DeletedAt            gorm.DeletedAt          `gorm:"index" json:"-"`
-	Files                []ContractMenuDriveFile `gorm:"foreignKey:ContractMenuID" json:"files"`
-	FileCount            int                     `gorm:"-" json:"fileCount"`
-	IsSubmitted          bool                    `gorm:"-" json:"isSubmitted"`
-	DriveURL             *string                 `gorm:"-" json:"driveUrl"`
-	DriveFileName        *string                 `gorm:"-" json:"driveFileName"`
-	AllowUpload          bool                    `gorm:"-" json:"allowUpload"`
-	AllowDelete          bool                    `gorm:"-" json:"allowDelete"`
-	ActiveYear           bool                    `gorm:"-" json:"-"`
+	ProductionType       *string                  `gorm:"size:32" json:"productionType"`
+	ProductionDepartment *string                  `gorm:"size:32" json:"productionDepartment"`
+	Status               string                   `gorm:"size:32" json:"status"`
+	DriveFolderID        string                   `gorm:"size:512" json:"driveFolderId"`
+	SubmittedAt          *time.Time               `json:"submittedAt"`
+	Remarks              string                   `gorm:"type:text" json:"remarks"`
+	CreatedAt            time.Time                `json:"createdAt"`
+	UpdatedAt            time.Time                `json:"updatedAt"`
+	DeletedAt            gorm.DeletedAt           `gorm:"index" json:"-"`
+	Files                []ContractMenuDriveFile  `gorm:"foreignKey:ContractMenuID" json:"files"`
+	Submissions          []ContractMenuSubmission `gorm:"foreignKey:ContractMenuID" json:"-"`
+	FileCount            int                      `gorm:"-" json:"fileCount"`
+	IsSubmitted          bool                     `gorm:"-" json:"isSubmitted"`
+	CurrentSubmission    *ContractMenuSubmission  `gorm:"-" json:"currentSubmission"`
+	ReviewIndicator      string                   `gorm:"-" json:"reviewIndicator"`
+	DriveURL             *string                  `gorm:"-" json:"driveUrl"`
+	DriveFileName        *string                  `gorm:"-" json:"driveFileName"`
+	AllowUpload          bool                     `gorm:"-" json:"allowUpload"`
+	AllowDelete          bool                     `gorm:"-" json:"allowDelete"`
+	ActiveYear           bool                     `gorm:"-" json:"-"`
 }
 
 func (cm *ContractMenu) BeforeCreate(tx *gorm.DB) (err error) {
@@ -198,11 +202,17 @@ func (cm *ContractMenu) PrepareFileSummary() {
 	cm.DriveURL = nil
 	cm.DriveFileName = nil
 	if cm.IsSubmitted {
-		cm.Status = "SUBMITTED"
 		cm.DriveURL = &cm.Files[0].DriveURL
 		cm.DriveFileName = &cm.Files[0].DriveFileName
-	} else if cm.Status == "SUBMITTED" {
-		cm.Status = "WAITING"
+	}
+	cm.ReviewIndicator = "NONE"
+	if len(cm.Submissions) > 0 {
+		cm.CurrentSubmission = &cm.Submissions[len(cm.Submissions)-1]
+		if cm.CurrentSubmission.ReviewStatus == "PENDING" {
+			cm.ReviewIndicator = "UNREVIEWED"
+		} else {
+			cm.ReviewIndicator = "REVIEWED"
+		}
 	}
 }
 
@@ -211,12 +221,90 @@ func (cm *ContractMenu) PrepareFileSummary() {
 type ContractMenuDriveFile struct {
 	ID             string         `gorm:"type:char(36);primaryKey" json:"id"`
 	ContractMenuID string         `gorm:"type:char(36);not null;index" json:"contractMenuId"`
+	SubmissionID   *string        `gorm:"type:char(36);index" json:"submissionId"`
+	UploadedByID   *string        `gorm:"type:char(36);index" json:"uploadedById"`
 	DriveFileID    *string        `gorm:"size:255;index" json:"driveFileId"`
 	DriveURL       string         `gorm:"size:1024;not null" json:"driveUrl"`
 	DriveFileName  string         `gorm:"size:1024;not null" json:"driveFileName"`
 	CreatedAt      time.Time      `json:"createdAt"`
 	UpdatedAt      time.Time      `json:"updatedAt"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type ContractMenuSubmission struct {
+	ID                 string                   `gorm:"type:char(36);primaryKey" json:"id"`
+	ContractMenuID     string                   `gorm:"type:char(36);not null;index" json:"contractMenuId"`
+	Kind               string                   `gorm:"size:32;not null" json:"kind"`
+	SubmissionSequence int                      `gorm:"not null" json:"sequence"`
+	SubmittedByID      *string                  `gorm:"type:char(36)" json:"submittedById"`
+	SubmittedAt        time.Time                `json:"submittedAt"`
+	ReviewedByID       *string                  `gorm:"type:char(36)" json:"reviewedById"`
+	ReviewedAt         *time.Time               `json:"reviewedAt"`
+	ReviewStatus       string                   `gorm:"size:32;not null" json:"reviewStatus"`
+	CreatedAt          time.Time                `json:"createdAt"`
+	UpdatedAt          time.Time                `json:"updatedAt"`
+	Files              []ContractMenuDriveFile  `gorm:"foreignKey:SubmissionID" json:"files,omitempty"`
+	Reviews            []ContractMenuFileReview `gorm:"foreignKey:SubmissionID" json:"reviews,omitempty"`
+}
+
+func (s *ContractMenuSubmission) BeforeCreate(tx *gorm.DB) error {
+	if s.ID == "" {
+		s.ID = uuid.NewString()
+	}
+	return nil
+}
+
+type ContractMenuFileReview struct {
+	ID                      string                       `gorm:"type:char(36);primaryKey" json:"id"`
+	SubmissionID            string                       `gorm:"type:char(36);not null;index" json:"submissionId"`
+	ContractMenuDriveFileID string                       `gorm:"type:char(36);not null;index" json:"fileId"`
+	ReviewerID              *string                      `gorm:"type:char(36)" json:"reviewerId"`
+	Result                  string                       `gorm:"size:32;not null" json:"result"`
+	ReviewedAt              time.Time                    `json:"reviewedAt"`
+	CreatedAt               time.Time                    `json:"createdAt"`
+	Items                   []ContractMenuFileReviewItem `gorm:"foreignKey:ReviewID" json:"items"`
+}
+
+func (r *ContractMenuFileReview) BeforeCreate(tx *gorm.DB) error {
+	if r.ID == "" {
+		r.ID = uuid.NewString()
+	}
+	return nil
+}
+
+type ContractMenuFileReviewItem struct {
+	ID        string    `gorm:"type:char(36);primaryKey" json:"id"`
+	ReviewID  string    `gorm:"type:char(36);not null;index" json:"reviewId"`
+	ItemCode  string    `gorm:"size:64;not null" json:"itemCode"`
+	Label     string    `gorm:"size:255;not null" json:"label"`
+	IsChecked bool      `gorm:"not null" json:"isChecked"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (i *ContractMenuFileReviewItem) BeforeCreate(tx *gorm.DB) error {
+	if i.ID == "" {
+		i.ID = uuid.NewString()
+	}
+	return nil
+}
+
+type ContractMenuWorkflowEvent struct {
+	ID                      string          `gorm:"type:char(36);primaryKey" json:"id"`
+	ContractMenuID          string          `gorm:"type:char(36);not null;index" json:"contractMenuId"`
+	SubmissionID            *string         `gorm:"type:char(36)" json:"submissionId"`
+	ContractMenuDriveFileID *string         `gorm:"type:char(36)" json:"fileId"`
+	EventType               string          `gorm:"size:64;not null" json:"eventType"`
+	ActorID                 *string         `gorm:"type:char(36)" json:"actorId"`
+	ActorName               *string         `gorm:"-" json:"actorName"`
+	Details                 json.RawMessage `gorm:"type:json" json:"details"`
+	CreatedAt               time.Time       `json:"createdAt"`
+}
+
+func (e *ContractMenuWorkflowEvent) BeforeCreate(tx *gorm.DB) error {
+	if e.ID == "" {
+		e.ID = uuid.NewString()
+	}
+	return nil
 }
 
 func (f *ContractMenuDriveFile) BeforeCreate(tx *gorm.DB) error {

@@ -1072,7 +1072,7 @@ Example response:
 ]
 ```
 
-`files` contains every undeleted `ContractMenuDriveFile`, ordered by creation time and ID. `fileCount` is `files.length`; `isSubmitted` and `status == SUBMITTED` are true exactly when `fileCount > 0`. `driveUrl` and `driveFileName` are deprecated read-only compatibility fields containing the first active file (or `null`). `allowUpload` / `allowDelete` combine the active-Year rule and the signed-in User's Role; the server still enforces the same checks on write endpoints.
+`files` contains every undeleted `ContractMenuDriveFile`, ordered by creation time and ID. `fileCount` is `files.length`; `isSubmitted` is true when `fileCount > 0` and is independent of workflow status. Each file includes `submissionId`, uploader metadata, and current review state. `currentSubmission`, `reviewIndicator` (`NONE`, `UNREVIEWED`, or `REVIEWED`), `allowReview`, and `allowStatusChange` are also returned. `driveUrl` and `driveFileName` remain deprecated read-only compatibility fields.
 
 `status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL / CONTINUED`, or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#ContractMenuProductionType`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
 
@@ -1194,9 +1194,12 @@ Example:
 
 ```json
 {
-  "status": "REQUESTED"
+  "status": "REQUESTED",
+  "acknowledgeAutomaticState": false
 }
 ```
+
+Advertisement Manager / Administrator may select every status for recovery. Setting a normally automatic state (`PROVISIONAL_SUBMITTED`, `MATERIAL_COMPLETED`, or `COMPLETED`) requires `acknowledgeAutomaticState: true`; otherwise the API returns `409 Conflict` with code `AUTOMATIC_STATUS_CONFIRMATION_REQUIRED`. Every actual change appends a workflow event. Past Years return `409 Conflict`.
 
 For a menu that does not require submission (`productionType = null`), any non-`SUBMITTED` `ContractMenuStatus` may be set while no active files exist. For a submission-required menu, allowed manual states are:
 
@@ -1304,7 +1307,23 @@ One request appends one or more references:
 }
 ```
 
-`files` must contain at least one item and every URL/name must be non-empty. The operation is transactional. Adding the first active file makes the Contract Menu `SUBMITTED`. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only.
+`files` must contain at least one item and every URL/name must be non-empty. The operation is transactional and creates one `ContractMenuSubmission`. `COMPANY` / `CONTINUED` uploads and `INTERNAL` material uploads set `PROVISIONAL_SUBMITTED`. An `INTERNAL` upload with `category=完成` is a final-data upload, is allowed only to Advertisement Manager / Administrator after the production flow, skips review, and sets `COMPLETED`. Permission for material upload: Sponsorship Member / Advertisement Manager / Administrator; active Year only. Advisor remains read-only for this workflow.
+
+## Get Contract Menu Review Workflow
+
+```
+GET /contract-menus/{id}/review-workflow
+```
+
+Returns the fixed checklist definition, current submission with its files/reviews, and the append-only event timeline. Every authenticated User may read it.
+
+## Review Contract Menu Submission
+
+```
+POST /contract-menus/{id}/submissions/{submissionId}/review
+```
+
+Request contains one entry for every active file and one boolean for every checklist code. The current submission only may be reviewed. Omitted files/codes, unknown codes, or already-reviewed submissions return `409 Conflict`. If every value is true, `COMPANY` / `CONTINUED` becomes `COMPLETED` and `INTERNAL` becomes `MATERIAL_COMPLETED`. Otherwise status becomes `WAITING`; the API builds a standard message listing unchecked items and mentions the Yearly Company's assigned Sponsorship Member using their `User.slackId`. Slack success/failure is recorded and returned as `slackDelivery`; failure does not roll back the review. Permission: Advertisement Manager / Administrator; active Year only.
 
 The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. The request contains `folderId` and file bodies; it does not contain a Google access token. The API uploads as the configured dedicated Google account and persists each returned `driveFileId`. Every successfully uploaded Drive file is appended as a separate reference in one database transaction. If the dedicated integration is unavailable, the endpoint returns `503 Service Unavailable` without adding a reference.
 
