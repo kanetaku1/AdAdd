@@ -759,9 +759,28 @@ export async function getContractMenuReviewWorkflow(
   if (!isApiEnabled()) {
     return { checklist: [], submissions: [], events: [] }
   }
-  return apiFetch<ContractMenuReviewWorkflow>(
+  const workflow = await apiFetch<ContractMenuReviewWorkflow>(
     `/contract-menus/${contractMenuId}/review-workflow`
   )
+  return normalizeContractMenuReviewWorkflow(workflow)
+}
+
+function normalizeContractMenuReviewWorkflow(
+  workflow: ContractMenuReviewWorkflow
+): ContractMenuReviewWorkflow {
+  return {
+    ...workflow,
+    checklist: workflow.checklist ?? [],
+    submissions: (workflow.submissions ?? []).map((submission) => ({
+      ...submission,
+      files: submission.files ?? [],
+      reviews: (submission.reviews ?? []).map((review) => ({
+        ...review,
+        items: review.items ?? [],
+      })),
+    })),
+    events: workflow.events ?? [],
+  }
 }
 
 export async function reviewContractMenuSubmission(
@@ -772,13 +791,17 @@ export async function reviewContractMenuSubmission(
     items: Record<string, ContractMenuReviewItemResult>
   }>
 ): Promise<ContractMenuReviewResult> {
-  return apiFetch<ContractMenuReviewResult>(
+  const result = await apiFetch<ContractMenuReviewResult>(
     `/contract-menus/${contractMenuId}/submissions/${submissionId}/review`,
     {
       method: "POST",
       body: JSON.stringify({ files }),
     }
   )
+  return {
+    ...result,
+    workflow: normalizeContractMenuReviewWorkflow(result.workflow),
+  }
 }
 
 export async function getPaymentByContract(
