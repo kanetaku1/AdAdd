@@ -19,13 +19,14 @@ type ErrorResponse struct {
 }
 
 const (
-	ErrCodeInvalidRequest   = "INVALID_REQUEST"
-	ErrCodeNotFound         = "NOT_FOUND"
-	ErrCodeConflict         = "CONFLICT"
-	ErrCodeInternal         = "INTERNAL_ERROR"
-	ErrCodeUnauthorized     = "UNAUTHORIZED"
-	ErrCodeForbidden        = "FORBIDDEN"
-	ErrCodeDriveUnavailable = "DRIVE_UNAVAILABLE"
+	ErrCodeInvalidRequest                      = "INVALID_REQUEST"
+	ErrCodeNotFound                            = "NOT_FOUND"
+	ErrCodeConflict                            = "CONFLICT"
+	ErrCodeInternal                            = "INTERNAL_ERROR"
+	ErrCodeUnauthorized                        = "UNAUTHORIZED"
+	ErrCodeForbidden                           = "FORBIDDEN"
+	ErrCodeDriveUnavailable                    = "DRIVE_UNAVAILABLE"
+	ErrCodeAutomaticStatusConfirmationRequired = "AUTOMATIC_STATUS_CONFIRMATION_REQUIRED"
 )
 
 // respondError is a generic helper to send standardized error responses

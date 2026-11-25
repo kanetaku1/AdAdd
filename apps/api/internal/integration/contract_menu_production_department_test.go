@@ -124,6 +124,10 @@ func TestContractMenuProductionDepartmentAndStatusRules(t *testing.T) {
 
 	companyStatusPath := "/contract-menus/" + companyMenuID + "/status"
 	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{"status": "REQUESTED"}), http.StatusOK)
+	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{"status": "COMPLETED"}), http.StatusConflict)
+	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{
+		"status": "COMPLETED", "acknowledgeAutomaticState": true,
+	}), http.StatusOK)
 	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{"status": "WAITING"}), http.StatusOK)
 	expectStatus(t, manager.do(http.MethodPatch, "/contract-menus/"+continuedMenuID+"/status", map[string]any{"status": "REQUESTED"}), http.StatusConflict)
 

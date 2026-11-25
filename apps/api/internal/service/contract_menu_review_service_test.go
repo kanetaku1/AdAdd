@@ -177,3 +177,19 @@ func TestReviewSubmissionKeepsResultWhenSlackFails(t *testing.T) {
 		t.Fatalf("review status rolled back: %q", stored.ReviewStatus)
 	}
 }
+
+func TestReviewSubmissionRejectsPastYear(t *testing.T) {
+	testdb.Open(t)
+	menu, submission := seedReviewableSubmission(t, "COMPANY")
+	if err := db.DB.Model(&model.Year{}).Where("id = ?", testYearID).Update("is_active", false).Error; err != nil {
+		t.Fatalf("deactivate year: %v", err)
+	}
+	inputs := make([]ContractMenuFileReviewInput, 0, len(menu.Files))
+	for _, file := range menu.Files {
+		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist(true)})
+	}
+	_, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", inputs)
+	if !errors.Is(err, ErrPastYearReadOnly) {
+		t.Fatalf("err = %v, want ErrPastYearReadOnly", err)
+	}
+}

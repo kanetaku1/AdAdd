@@ -103,6 +103,38 @@ func TestUpdateStatusRejectsSubmittedWithoutFiles(t *testing.T) {
 	}
 }
 
+func TestUpdateStatusRequiresAcknowledgementForAutomaticState(t *testing.T) {
+	testdb.Open(t)
+	cm := seedStatusLogContractMenu(t)
+	svc := NewContractMenuService()
+
+	if err := svc.UpdateStatusWithAcknowledgement(cm.ID, "COMPLETED", false, "user-test"); !errors.Is(err, ErrAutomaticStatusConfirmationRequired) {
+		t.Fatalf("err = %v, want ErrAutomaticStatusConfirmationRequired", err)
+	}
+	var stored model.ContractMenu
+	if err := db.DB.First(&stored, "id = ?", cm.ID).Error; err != nil {
+		t.Fatalf("load contract menu: %v", err)
+	}
+	if stored.Status != "WAITING" {
+		t.Fatalf("status = %q, want WAITING", stored.Status)
+	}
+
+	if err := svc.UpdateStatusWithAcknowledgement(cm.ID, "COMPLETED", true, "user-test"); err != nil {
+		t.Fatalf("acknowledged update: %v", err)
+	}
+	if err := svc.UpdateStatusWithAcknowledgement(cm.ID, "COMPLETED", false, "user-test"); err != nil {
+		t.Fatalf("same-status no-op should not require acknowledgement: %v", err)
+	}
+	var events int64
+	if err := db.DB.Model(&model.ContractMenuWorkflowEvent{}).
+		Where("contract_menu_id = ? AND event_type = ?", cm.ID, "STATUS_CHANGED").Count(&events).Error; err != nil {
+		t.Fatalf("count workflow events: %v", err)
+	}
+	if events != 1 {
+		t.Fatalf("workflow events = %d, want 1", events)
+	}
+}
+
 // Registering a file makes the Contract Menu PROVISIONAL_SUBMITTED and writes one
 // AD_MATERIAL_UPLOADED entry per file, not CONTRACT_MENU_STATUS_UPDATED.
 func TestAddFilesSubmitsAndLogsUpload(t *testing.T) {

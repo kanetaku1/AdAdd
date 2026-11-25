@@ -5,9 +5,42 @@ import (
 	"io"
 	"testing"
 
+	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/service"
+	"github.com/labstack/echo/v4"
 	"google.golang.org/api/drive/v3"
 )
+
+func TestApplyContractMenuCapabilities(t *testing.T) {
+	cases := []struct {
+		name       string
+		roles      []string
+		active     bool
+		wantUpload bool
+		wantDelete bool
+		wantReview bool
+		wantStatus bool
+	}{
+		{name: "sponsorship member", roles: []string{"SPONSORSHIP_MEMBER"}, active: true, wantUpload: true, wantDelete: true},
+		{name: "advisor", roles: []string{"ADVISOR"}, active: true, wantDelete: true},
+		{name: "advertisement manager", roles: []string{"ADVERTISEMENT_MANAGER"}, active: true, wantUpload: true, wantDelete: true, wantReview: true, wantStatus: true},
+		{name: "administrator", roles: []string{"ADMINISTRATOR"}, active: true, wantUpload: true, wantDelete: true, wantReview: true, wantStatus: true},
+		{name: "past year manager", roles: []string{"ADVERTISEMENT_MANAGER"}, active: false},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			e := echo.New()
+			c := e.NewContext(nil, nil)
+			c.Set("userRoles", testCase.roles)
+			menu := &model.ContractMenu{ActiveYear: testCase.active}
+			applyContractMenuCapabilities(c, menu)
+			if menu.AllowUpload != testCase.wantUpload || menu.AllowDelete != testCase.wantDelete ||
+				menu.AllowReview != testCase.wantReview || menu.AllowStatusChange != testCase.wantStatus {
+				t.Fatalf("capabilities = upload:%v delete:%v review:%v status:%v", menu.AllowUpload, menu.AllowDelete, menu.AllowReview, menu.AllowStatusChange)
+			}
+		})
+	}
+}
 
 type cleanupDriveOperator struct {
 	trashed []string
@@ -48,12 +81,12 @@ func TestBuildDriveFileName(t *testing.T) {
 	code := func(value string) *string { return &value }
 	intPtr := func(v int) *int { return &v }
 	cases := []struct {
-		editionNumber      *int
-		companyName        string
-		sponsorshipMenu    string
-		productionType     *string
-		category           string
-		want               string
+		editionNumber   *int
+		companyName     string
+		sponsorshipMenu string
+		productionType  *string
+		category        string
+		want            string
 	}{
 		{intPtr(45), "長岡テクノ", "パンフレット広告", code("COMPANY"), "素材", "45_長岡テクノ_パンフレット広告_企業_素材"},
 		{intPtr(45), "長岡テクノ", "パンフレット広告", code("INTERNAL"), "仮完成", "45_長岡テクノ_パンフレット広告_委員_仮完成"},

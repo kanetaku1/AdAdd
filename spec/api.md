@@ -1065,6 +1065,8 @@ Example response:
     "isSubmitted": false,
     "allowUpload": true,
     "allowDelete": true,
+    "allowReview": false,
+    "allowStatusChange": false,
     "driveUrl": null,
     "driveFileName": null,
     "remarks": ""
@@ -1345,7 +1347,7 @@ Every body is created as a new Drive file even when another file in the folder h
 PATCH /contract-menus/{id}/production/files/{fileId}
 ```
 
-Updates `driveUrl` and/or `driveFileName` on the named active reference. At least one field is required. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only.
+Updates `driveUrl` and/or `driveFileName` on the named active reference. At least one field is required. Permission: Sponsorship Member / Advertisement Manager / Administrator; active Year only. Advisor may delete an existing production file but may not upload, register, or update one.
 
 ## Delete Contract Menu File
 
@@ -1617,7 +1619,7 @@ This endpoint replaces the browser-side Google Picker that previously required t
 
 ### Authorization
 
-Sponsorship Member / Advisor / Advertisement Manager / Administrator. Same as "Add/update production files / Drive upload" in the Authorization Matrix. No active-Year restriction (read-only).
+Sponsorship Member / Advisor / Advertisement Manager / Administrator. No active-Year restriction because this operation is read-only.
 
 ### Response (200)
 
@@ -1727,8 +1729,10 @@ Sponsorship Member / Advisor / Advertisement Manager / Administrator. Active Yea
 | Edit Contract Menu quantity / unit price / goods sponsorship | - | ○ | - | - | -  | ○ |
 | Edit Contract Menu production type | -       | ○                   | -       | -       | ○                        | ○              |
 | List Drive folders               | -         | ○                   | ○       | -       | ○                        | ○              |
-| Add/update production files / Drive upload | - | ○ | ○ | - | ○ | ○ |
+| Add/update production files / Drive upload | - | ○ | - | - | ○ | ○ |
 | Delete a production file reference | - | ○ | ○ | - | ○ | ○ |
+| Review a production submission | - | - | - | - | ○ | ○ |
+| Change Contract Menu workflow status | - | - | - | - | ○ | ○ |
 | Update Contract Menu status     | -         | -                   | -       | -       | ○                        | ○              |
 | Assign Contract Menu production department | - | -             | -       | -       | ○                        | ○              |
 | Create payment                  | -         | ○                   | -       | ○       | -                        | ○              |

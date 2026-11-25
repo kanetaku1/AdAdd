@@ -184,6 +184,8 @@ type ContractMenu struct {
 	DriveFileName        *string                  `gorm:"-" json:"driveFileName"`
 	AllowUpload          bool                     `gorm:"-" json:"allowUpload"`
 	AllowDelete          bool                     `gorm:"-" json:"allowDelete"`
+	AllowReview          bool                     `gorm:"-" json:"allowReview"`
+	AllowStatusChange    bool                     `gorm:"-" json:"allowStatusChange"`
 	ActiveYear           bool                     `gorm:"-" json:"-"`
 }
 

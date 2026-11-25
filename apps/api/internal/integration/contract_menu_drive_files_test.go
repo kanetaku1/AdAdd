@@ -98,7 +98,7 @@ func TestContractMenuDriveFilesLifecyclePermissionsAndPastYear(t *testing.T) {
 		t.Fatalf("listed files = %d, want 2", len(files))
 	}
 
-	patched := actors.advisor.do(http.MethodPatch, "/contract-menus/"+contractMenu.ID+"/production/files/"+withFiles.Files[1].ID, map[string]any{
+	patched := actors.sponsorshipMember.do(http.MethodPatch, "/contract-menus/"+contractMenu.ID+"/production/files/"+withFiles.Files[1].ID, map[string]any{
 		"driveFileName": "裏面・確定.pdf",
 	})
 	expectStatus(t, patched, http.StatusOK)
@@ -140,7 +140,7 @@ func TestContractMenuDriveFilesLifecyclePermissionsAndPastYear(t *testing.T) {
 		t.Fatalf("trash activity logs = %d, want 2", got)
 	}
 
-	readded := actors.advisor.do(http.MethodPatch, "/contract-menus/"+contractMenu.ID+"/production", map[string]any{
+	readded := actors.sponsorshipMember.do(http.MethodPatch, "/contract-menus/"+contractMenu.ID+"/production", map[string]any{
 		"driveFolderUrl": "https://drive.google.com/file/d/final/view",
 		"driveFileName":  "最終.pdf",
 		"remarks":        "legacy endpoint compatibility",
