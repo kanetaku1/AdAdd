@@ -76,6 +76,33 @@ Administrator-only.
 Drive records the dedicated account as the Google actor. Activity Log records
 the real AdAdd User who requested the upload or deletion.
 
+## Alternatives considered
+
+### Google Cloud service account with JSON key
+
+A service account would eliminate the 7-day refresh token expiry under
+"External — Testing" mode (ADR-0007) by using JWT-based authentication
+instead of OAuth tokens.
+
+**Not viable.** Google service accounts do not have storage quota for
+My Drive. Verified experimentally (Issue #238):
+
+* Folder listing (`files.list`, `files.get`): **works** — read-only access
+  is granted when the folder is shared with the service account as Editor.
+* File upload (`files.create`): **fails** — `storageQuotaExceeded`:
+  "Service Accounts do not have storage quota."
+* Trash (`files.update` trashed): **fails** — `canTrash: false` on the file.
+* Folder creation (`files.create`): **fails** — same storage quota error.
+
+Google's recommended workarounds — shared drives (requires Workspace paid
+plan) and domain-wide delegation (requires Workspace admin) — are not
+available for a personal GCP project.
+
+The 7-day refresh token expiry is managed operationally by re-running
+`cmd/drive-auth` weekly, or resolved in the future by publishing the Drive
+GCP project's OAuth consent screen (which removes the "Testing" mode
+limitation but requires Google's review for the `drive` scope).
+
 ## Consequences
 
 * `ContractMenuDriveFile` gains nullable `driveFileId`; new API uploads always
@@ -87,3 +114,9 @@ the real AdAdd User who requested the upload or deletion.
   transferred.
 * Account recovery and passkey custody are operational responsibilities of the
   current integration administrators; ordinary members never share them.
+
+## References
+
+* Issue #238 (service account investigation)
+* ADR-0003 (noted risk: shared drive may block external service accounts)
+* ADR-0007 (GCP project separation; 7-day limitation)
