@@ -67,9 +67,31 @@ export function ContractMenuFilesSummary({
       </details>
       {menu.currentSubmission && (
         <>
-          <Button type="button" size="sm" variant="outline" onClick={() => setReviewOpen(true)}>
-            <ClipboardCheck /> Review
-          </Button>
+          <div className="flex items-center gap-1">
+            {(menu.reviewIndicator === "UNREVIEWED" ||
+              menu.reviewIndicator === "REVIEWED") && (
+              <span
+                className={
+                  menu.reviewIndicator === "REVIEWED"
+                    ? "size-2 rounded-full bg-green-500"
+                    : "size-2 rounded-full bg-red-500"
+                }
+                title={
+                  menu.reviewIndicator === "REVIEWED"
+                    ? "レビュー済み"
+                    : "未レビュー"
+                }
+                aria-label={
+                  menu.reviewIndicator === "REVIEWED"
+                    ? "レビュー済み"
+                    : "未レビュー"
+                }
+              />
+            )}
+            <Button type="button" size="sm" variant="outline" onClick={() => setReviewOpen(true)}>
+              <ClipboardCheck /> Review
+            </Button>
+          </div>
           {reviewOpen && (
             <ContractMenuReviewDialog
               menu={menu}

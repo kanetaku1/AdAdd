@@ -34,6 +34,23 @@ export const CONTRACT_MENU_STATUS_BADGE_VARIANT: Record<
   SUBMITTED: "default",
 }
 
+export function getContractMenuStatusLabel(
+  status: ContractMenuStatus,
+  productionType?: ContractMenuProductionType | null
+): string {
+  if (status === "WAITING") {
+    return productionType === "INTERNAL"
+      ? "素材データ提出待ち"
+      : "広告データ提出待ち"
+  }
+  if (status === "PROVISIONAL_SUBMITTED") {
+    return productionType === "INTERNAL"
+      ? "素材データ仮提出済み"
+      : "広告データ仮提出済み"
+  }
+  return CONTRACT_MENU_STATUS_LABEL[status]
+}
+
 /**
  * spec/business.md — Company Production: company submits a finished product.
  * Internal Production: company submits raw material for the committee to produce from.

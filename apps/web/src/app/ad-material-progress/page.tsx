@@ -20,9 +20,14 @@ import { EmptyBlock, EmptyRow, ErrorBanner, LoadingBlock } from "@/components/qu
 import { useMyAssignmentScope } from "@/hooks/use-my-assignment-scope"
 import { useSelectedYear } from "@/hooks/use-selected-year"
 import { getErrorMessage } from "@/lib/errors"
-import { CONTRACT_MENU_STATUS_LABEL } from "@/lib/contract-menu-labels"
-import type { YearlyCompany } from "@/types/yearly-company"
-import type { ContractMenuStatus } from "@/types/contract-menu"
+import {
+  CONTRACT_MENU_STATUS_LABEL,
+  getContractMenuStatusLabel,
+} from "@/lib/contract-menu-labels"
+import type {
+  ContractMenuProductionType,
+  ContractMenuStatus,
+} from "@/types/contract-menu"
 import type { SponsorshipMenu } from "@/types/sponsorship-menu"
 
 /**
@@ -124,7 +129,11 @@ type MenuBreakdown = {
 type FollowUpCompany = {
   yearlyCompanyId: string
   companyName: string
-  pending: Array<{ menuName: string; status: ContractMenuStatus }>
+  pending: Array<{
+    menuName: string
+    status: ContractMenuStatus
+    productionType: ContractMenuProductionType | null
+  }>
 }
 
 const UNASSIGNED_KEY = "UNASSIGNED"
@@ -227,7 +236,7 @@ function AdMaterialProgressPageContent() {
         (sum, row) => sum + row.quantity,
         0
       )
-      const submitted = counts.SUBMITTED
+      const submitted = counts.COMPLETED + counts.SUBMITTED
       return {
         menu,
         counts,
@@ -247,7 +256,7 @@ function AdMaterialProgressPageContent() {
   const followUpByMember = new Map<string, Map<string, FollowUpCompany>>()
   const memberNameByKey = new Map<string, string>()
   for (const cm of contractMenus) {
-    if (cm.status === "SUBMITTED") continue
+    if (cm.status === "COMPLETED" || cm.status === "SUBMITTED") continue
     const yc = yearlyCompanyById.get(cm.yearlyCompanyId)
     const key = yc?.assignedMemberId ?? UNASSIGNED_KEY
     memberNameByKey.set(key, yc?.assignedMemberName ?? "未割当")
@@ -264,7 +273,11 @@ function AdMaterialProgressPageContent() {
     }
     companies
       .get(cm.yearlyCompanyId)!
-      .pending.push({ menuName: cm.sponsorshipMenuName, status: cm.status })
+      .pending.push({
+        menuName: cm.sponsorshipMenuName,
+        status: cm.status,
+        productionType: cm.productionType,
+      })
   }
 
   // "未割当" last so an unassigned company is never the easiest one to miss.
@@ -401,7 +414,7 @@ function AdMaterialProgressPageContent() {
                               />
                             </div>
                             <span className="text-xs text-muted-foreground tabular-nums">
-                              {counts.SUBMITTED} / {total} 件
+                              {counts.COMPLETED + counts.SUBMITTED} / {total} 件
                             </span>
                           </div>
                         )}
@@ -488,7 +501,10 @@ function AdMaterialProgressPageContent() {
                                     <span
                                       className={`text-xs ${STATUS_TEXT_CLASS[p.status]}`}
                                     >
-                                      {CONTRACT_MENU_STATUS_LABEL[p.status]}
+                                      {getContractMenuStatusLabel(
+                                        p.status,
+                                        p.productionType
+                                      )}
                                     </span>
                                   </div>
                                 ))}

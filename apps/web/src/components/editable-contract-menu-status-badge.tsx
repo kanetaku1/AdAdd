@@ -13,8 +13,12 @@ import {
 import {
   CONTRACT_MENU_STATUS_BADGE_VARIANT,
   CONTRACT_MENU_STATUS_LABEL,
+  getContractMenuStatusLabel,
 } from "@/lib/contract-menu-labels"
-import type { ContractMenuStatus } from "@/types/contract-menu"
+import type {
+  ContractMenuProductionType,
+  ContractMenuStatus,
+} from "@/types/contract-menu"
 
 /**
  * Inline-editable ContractMenu.status badge (spec/frontend.md UI Principle 4;
@@ -25,12 +29,14 @@ export function EditableContractMenuStatusBadge({
   value,
   onChange,
   disabled,
+  productionType,
   availableStatuses = (Object.keys(CONTRACT_MENU_STATUS_LABEL) as ContractMenuStatus[])
     .filter((status) => status !== "SUBMITTED"),
 }: {
   value: ContractMenuStatus
   onChange: (value: ContractMenuStatus) => void
   disabled?: boolean
+  productionType?: ContractMenuProductionType | null
   availableStatuses?: ContractMenuStatus[]
 }) {
   const [editing, setEditing] = useState(false)
@@ -59,7 +65,7 @@ export function EditableContractMenuStatusBadge({
         <SelectContent>
           {availableStatuses.map((status) => (
             <SelectItem key={status} value={status}>
-              {CONTRACT_MENU_STATUS_LABEL[status]}
+              {getContractMenuStatusLabel(status, productionType)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -75,7 +81,7 @@ export function EditableContractMenuStatusBadge({
         if (isEditable) setEditing(true)
       }}
     >
-      {CONTRACT_MENU_STATUS_LABEL[value]}
+      {getContractMenuStatusLabel(value, productionType)}
     </Badge>
   )
 }

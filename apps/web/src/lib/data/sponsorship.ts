@@ -561,7 +561,8 @@ function syncMockContractTotal(
 /** PATCH /contract-menus/{id}/status (spec/api.md#Update Contract Menu Status). */
 export async function updateContractMenuStatus(
   id: string,
-  status: ContractMenuStatus
+  status: ContractMenuStatus,
+  acknowledgeAutomaticState = false
 ): Promise<ContractMenu> {
   if (isApiEnabled()) {
     const updated = await apiFetch<{
@@ -579,7 +580,7 @@ export async function updateContractMenuStatus(
       remarks?: string
     }>(`/contract-menus/${id}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, acknowledgeAutomaticState }),
     })
     return mapApiContractMenu(updated)
   }
