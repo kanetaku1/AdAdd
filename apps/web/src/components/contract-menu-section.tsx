@@ -320,6 +320,28 @@ export function ContractMenuSection({
                         menu={cm}
                         deletingFileId={deletingFileId}
                         onDelete={!readOnly && cm.allowDelete ? (fileId) => void handleDeleteFile(cm.id, fileId) : undefined}
+                        onReviewComplete={(result) => {
+                          applyMenus(
+                            contractMenus.map((menu) =>
+                              menu.id === cm.id
+                                ? {
+                                    ...menu,
+                                    status: result.status,
+                                    reviewIndicator: "REVIEWED",
+                                    currentSubmission: menu.currentSubmission
+                                      ? {
+                                          ...menu.currentSubmission,
+                                          reviewStatus:
+                                            result.status === "WAITING"
+                                              ? "CHANGES_REQUESTED"
+                                              : "APPROVED",
+                                        }
+                                      : null,
+                                  }
+                                : menu
+                            )
+                          )
+                        }}
                       />
                       {!readOnly && cm.allowUpload && (
                         <IconActionButton

@@ -11,7 +11,10 @@ import type {
  */
 export const CONTRACT_MENU_STATUS_LABEL: Record<ContractMenuStatus, string> = {
   WAITING: "広告データ提出待ち",
+  PROVISIONAL_SUBMITTED: "仮提出済み",
+  MATERIAL_COMPLETED: "素材データ完成",
   REQUESTED: "制作依頼済み",
+  COMPANY_REVIEWING: "企業への確認中",
   PRODUCING: "制作中",
   COMPLETED: "完成",
   SUBMITTED: "提出済み",
@@ -22,7 +25,10 @@ export const CONTRACT_MENU_STATUS_BADGE_VARIANT: Record<
   "default" | "secondary" | "outline"
 > = {
   WAITING: "outline",
+  PROVISIONAL_SUBMITTED: "secondary",
+  MATERIAL_COMPLETED: "default",
   REQUESTED: "outline",
+  COMPANY_REVIEWING: "secondary",
   PRODUCING: "secondary",
   COMPLETED: "secondary",
   SUBMITTED: "default",

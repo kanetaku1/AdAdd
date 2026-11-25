@@ -622,7 +622,33 @@ function ContractMenusList() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <ContractMenuFilesSummary menu={cm} />
+                      <ContractMenuFilesSummary
+                        menu={cm}
+                        onReviewComplete={(result) => {
+                          if (!activeYearId) return
+                          contractMenusCache.set(
+                            activeYearId,
+                            contractMenus.map((menu) =>
+                              menu.id === cm.id
+                                ? {
+                                    ...menu,
+                                    status: result.status,
+                                    reviewIndicator: "REVIEWED",
+                                    currentSubmission: menu.currentSubmission
+                                      ? {
+                                          ...menu.currentSubmission,
+                                          reviewStatus:
+                                            result.status === "WAITING"
+                                              ? "CHANGES_REQUESTED"
+                                              : "APPROVED",
+                                        }
+                                      : null,
+                                  }
+                                : menu
+                            )
+                          )
+                        }}
+                      />
                     </TableCell>
                   </TableRow>
                 )

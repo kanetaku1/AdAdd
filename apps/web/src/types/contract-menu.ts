@@ -15,19 +15,98 @@ export type ContractMenuProductionDepartment =
  */
 export type ContractMenuStatus =
   | "WAITING"
+  | "PROVISIONAL_SUBMITTED"
+  | "MATERIAL_COMPLETED"
   | "REQUESTED"
+  | "COMPANY_REVIEWING"
   | "PRODUCING"
   | "COMPLETED"
   | "SUBMITTED"
 
+export type ContractMenuReviewItemResult =
+  | "PASS"
+  | "FAIL"
+  | "NOT_APPLICABLE"
+
 export type ContractMenuDriveFile = {
   id: string
   contractMenuId: string
+  submissionId?: string | null
+  uploadedById?: string | null
   driveFileId: string | null
   driveUrl: string
   driveFileName: string
   createdAt?: string
   updatedAt?: string
+}
+
+export type ContractMenuSubmissionSummary = {
+  id: string
+  contractMenuId: string
+  kind: "AD_DATA" | "MATERIAL" | "FINAL_DATA"
+  sequence: number
+  submittedById: string | null
+  submittedAt: string
+  reviewedById: string | null
+  reviewedAt: string | null
+  reviewStatus: "PENDING" | "APPROVED" | "CHANGES_REQUESTED"
+}
+
+export type ContractMenuChecklistItem = {
+  code: string
+  label: string
+  description: string
+}
+
+export type ContractMenuFileReviewItem = {
+  id: string
+  reviewId: string
+  itemCode: string
+  label: string
+  result: ContractMenuReviewItemResult
+  createdAt: string
+}
+
+export type ContractMenuFileReview = {
+  id: string
+  submissionId: string
+  fileId: string
+  reviewerId: string | null
+  result: "APPROVED" | "CHANGES_REQUESTED"
+  reviewedAt: string
+  items: ContractMenuFileReviewItem[]
+}
+
+export type ContractMenuSubmission = ContractMenuSubmissionSummary & {
+  files: ContractMenuDriveFile[]
+  reviews: ContractMenuFileReview[]
+}
+
+export type ContractMenuWorkflowEvent = {
+  id: string
+  contractMenuId: string
+  submissionId: string | null
+  fileId: string | null
+  eventType: string
+  actorId: string | null
+  actorName: string | null
+  details: Record<string, unknown> | null
+  createdAt: string
+}
+
+export type ContractMenuReviewWorkflow = {
+  checklist: ContractMenuChecklistItem[]
+  submissions: ContractMenuSubmission[]
+  events: ContractMenuWorkflowEvent[]
+}
+
+export type ContractMenuReviewResult = {
+  status: ContractMenuStatus
+  slackDelivery: {
+    status: "SENT" | "SKIPPED" | "FAILED" | "NOT_REQUIRED"
+    reason?: string
+  }
+  workflow: ContractMenuReviewWorkflow
 }
 
 /**
@@ -60,6 +139,10 @@ export type ContractMenu = {
   isSubmitted: boolean
   allowUpload: boolean
   allowDelete: boolean
+  allowReview?: boolean
+  allowStatusChange?: boolean
+  currentSubmission?: ContractMenuSubmissionSummary | null
+  reviewIndicator?: "NONE" | "UNREVIEWED" | "REVIEWED"
   /** Deprecated read-only compatibility fields for the first active file. */
   driveUrl: string | null
   driveFileName: string | null
