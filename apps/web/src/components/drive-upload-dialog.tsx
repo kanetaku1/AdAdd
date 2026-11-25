@@ -29,17 +29,21 @@ export function DriveUploadDialog({
     open,
     onOpenChange,
     onSuccess,
+    fixedCategory,
+    title = "Driveへアップロード",
 }: {
     menuId: string
     open: boolean
     onOpenChange: (open: boolean) => void
     onSuccess?: (updated: ContractMenu) => void
+    fixedCategory?: DataCategory
+    title?: string
 }) {
     const [files, setFiles] = useState<File[]>([])
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [mode, setMode] = useState<UploadMode>("auto")
-    const [category, setCategory] = useState<DataCategory | null>(null)
+    const [category, setCategory] = useState<DataCategory | null>(fixedCategory ?? null)
     const [showBrowser, setShowBrowser] = useState(false)
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -105,7 +109,7 @@ export function DriveUploadDialog({
     function resetState() {
         setFiles([])
         setMode("auto")
-        setCategory(null)
+        setCategory(fixedCategory ?? null)
         setShowBrowser(false)
         setError(null)
     }
@@ -119,7 +123,7 @@ export function DriveUploadDialog({
         }}>
             <DialogContent className="sm:max-w-5xl w-[90vw]">
                 <DialogHeader>
-                    <DialogTitle>Driveへアップロード</DialogTitle>
+                    <DialogTitle>{title}</DialogTitle>
                 </DialogHeader>
 
                 <ErrorBanner message={error} />
@@ -148,7 +152,7 @@ export function DriveUploadDialog({
                 {hasFiles && !showBrowser && (
                     <>
                         {/* Mode toggle */}
-                        <div className="flex items-center gap-2 text-sm">
+                        {!fixedCategory && <div className="flex items-center gap-2 text-sm">
                             <button
                                 type="button"
                                 className={`px-2 py-1 rounded ${mode === "auto" ? "bg-muted font-medium" : "hover:bg-muted/50"}`}
@@ -163,11 +167,17 @@ export function DriveUploadDialog({
                             >
                                 手動
                             </button>
-                        </div>
+                        </div>}
 
                         {mode === "auto" ? (
                             <div className="space-y-3">
-                                <DataCategorySelector value={category} onChange={setCategory} />
+                                {fixedCategory ? (
+                                    <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                                        保存先のデータ区分: <span className="font-medium">{fixedCategory}</span>
+                                    </p>
+                                ) : (
+                                    <DataCategorySelector value={category} onChange={setCategory} />
+                                )}
                                 <div className="flex justify-end gap-2">
                                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>キャンセル</Button>
                                     <Button onClick={() => void handleAutoUpload()} disabled={!category || busy}>

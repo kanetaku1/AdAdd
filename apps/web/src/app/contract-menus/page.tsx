@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { Upload } from "lucide-react"
 
 import { useYearCatalog } from "@/components/year-catalog-provider"
 import {
@@ -36,6 +37,7 @@ import { canAccess } from "@/lib/auth/roles"
 import { useSelectedYear } from "@/hooks/use-selected-year"
 import { downloadCsv } from "@/lib/csv"
 import { ContractMenuFilesSummary } from "@/components/contract-menu-files-summary"
+import { DriveUploadDialog } from "@/components/drive-upload-dialog"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 const STATUS_ALLOWED_ROLES = ["ADVERTISEMENT_MANAGER", "ADMINISTRATOR"]
@@ -204,6 +206,7 @@ function ContractMenusList() {
 
 
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [uploadingFinalMenuId, setUploadingFinalMenuId] = useState<string | null>(null)
   useEffect(() => {
     if (!activeYearId) return
     void Promise.all([
@@ -685,33 +688,48 @@ function ContractMenusList() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <ContractMenuFilesSummary
-                        menu={cm}
-                        onReviewComplete={(result) => {
-                          if (!activeYearId) return
-                          contractMenusCache.set(
-                            activeYearId,
-                            contractMenus.map((menu) =>
-                              menu.id === cm.id
-                                ? {
-                                    ...menu,
-                                    status: result.status,
-                                    reviewIndicator: "REVIEWED",
-                                    currentSubmission: menu.currentSubmission
-                                      ? {
-                                          ...menu.currentSubmission,
-                                          reviewStatus:
-                                            result.status === "WAITING"
-                                              ? "CHANGES_REQUESTED"
-                                              : "APPROVED",
-                                        }
-                                      : null,
-                                  }
-                                : menu
+                      <div className="flex items-center gap-2">
+                        <ContractMenuFilesSummary
+                          menu={cm}
+                          onReviewComplete={(result) => {
+                            if (!activeYearId) return
+                            contractMenusCache.set(
+                              activeYearId,
+                              contractMenus.map((menu) =>
+                                menu.id === cm.id
+                                  ? {
+                                      ...menu,
+                                      status: result.status,
+                                      reviewIndicator: "REVIEWED",
+                                      currentSubmission: menu.currentSubmission
+                                        ? {
+                                            ...menu.currentSubmission,
+                                            reviewStatus:
+                                              result.status === "WAITING"
+                                                ? "CHANGES_REQUESTED"
+                                                : "APPROVED",
+                                          }
+                                        : null,
+                                    }
+                                  : menu
+                              )
                             )
-                          )
-                        }}
-                      />
+                          }}
+                        />
+                        {cm.productionType === "INTERNAL" &&
+                          cm.status === "COMPANY_REVIEWING" &&
+                          canManageStatus &&
+                          cm.allowUpload && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setUploadingFinalMenuId(cm.id)}
+                            >
+                              <Upload /> 完成データ
+                            </Button>
+                          )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -720,6 +738,28 @@ function ContractMenusList() {
           </TableBody>
         </Table>
       </div>
+
+      {uploadingFinalMenuId && (
+        <DriveUploadDialog
+          menuId={uploadingFinalMenuId}
+          open
+          fixedCategory="完成"
+          title="完成データをDriveへアップロード"
+          onOpenChange={(open) => {
+            if (!open) setUploadingFinalMenuId(null)
+          }}
+          onSuccess={(updated) => {
+            setUploadingFinalMenuId(null)
+            if (!activeYearId) return
+            contractMenusCache.set(
+              activeYearId,
+              contractMenus.map((menu) =>
+                menu.id === updated.id ? { ...menu, ...updated } : menu
+              )
+            )
+          }}
+        />
+      )}
     </div>
   )
 }
