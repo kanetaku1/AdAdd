@@ -726,11 +726,11 @@ WAITING -> PROVISIONAL_SUBMITTED -> MATERIAL_COMPLETED
                                                  COMPLETED
 ```
 
-One upload request creates one submission containing one or more files. Every file has the same fixed checklist; all files and all checklist items must pass. A rejected review returns to `WAITING`, keeps the reviewed submission and files as history, and sends a standard Slack mention to the assigned Sponsorship Member. A later upload creates a new pending submission and returns to `PROVISIONAL_SUBMITTED`.
+One upload request creates one submission containing one or more files. Every file uses the checklist for its submission kind. Every item is reviewed as `PASS`, `FAIL`, or `NOT_APPLICABLE`; all items must be `PASS` or `NOT_APPLICABLE` to complete. A rejected review returns to `WAITING`, keeps the reviewed submission and files as history, and sends only `FAIL` items in a standard Slack mention to the assigned Sponsorship Member. A later upload creates a new pending submission and returns to `PROVISIONAL_SUBMITTED`.
 
 All statuses remain manually selectable by Advertisement Manager / Administrator for exceptional recovery. Moving manually into a normally automatic state (`PROVISIONAL_SUBMITTED`, `MATERIAL_COMPLETED`, or `COMPLETED`) requires explicit acknowledgement and is recorded in workflow history. Past Years are read-only.
 
-The initial checklist is global and fixed: the file opens, the format is correct, size/resolution is correct, and required content is complete. Labels are snapshotted into each review so this can later evolve into menu-specific definitions.
+The Material checklist contains the four items from the 45th festival checklist: outlined text, CMYK color mode, embedded photos when present, and transparent logo background. The Ad Data checklist adds the contracted medium's size, ratio, and file-count requirement. The logo item explicitly accepts PDF or PNG and is `NOT_APPLICABLE` when no logo data is present. Upload accepts any file extension without an extension/MIME error; the reviewer uses `NOT_APPLICABLE` for conditions that do not apply. Labels are snapshotted into each review.
 
 Slack delivery is attempted after the review transaction. A delivery failure does not roll back the review/status; success or failure is appended to workflow history and the API returns the delivery result. Drive folder movement is deferred until the Drive integration exposes an atomic move operation; completion events already contain the submission needed by that follow-up.
 

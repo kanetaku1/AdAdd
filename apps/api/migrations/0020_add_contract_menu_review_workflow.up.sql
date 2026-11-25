@@ -69,7 +69,7 @@ CREATE TABLE contract_menu_file_review_items (
   review_id CHAR(36) NOT NULL,
   item_code VARCHAR(64) NOT NULL,
   label VARCHAR(255) NOT NULL,
-  is_checked BOOLEAN NOT NULL,
+  result VARCHAR(32) NOT NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
   UNIQUE KEY uq_contract_menu_file_review_item (review_id, item_code),

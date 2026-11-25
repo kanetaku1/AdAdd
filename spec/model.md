@@ -279,7 +279,7 @@ Groups the files uploaded in one request. It stores `id`, `contractMenuId`, `kin
 
 ## ContractMenuFileReview
 
-Stores one review of one file in a submission: `id`, `submissionId`, `contractMenuDriveFileId`, `reviewerId`, `result`, `reviewedAt`, and child `ContractMenuFileReviewItem` rows. Each item stores a stable `itemCode`, its displayed `label` snapshot, and `isChecked`, so later checklist wording changes do not rewrite history.
+Stores one review of one file in a submission: `id`, `submissionId`, `contractMenuDriveFileId`, `reviewerId`, `result`, `reviewedAt`, and child `ContractMenuFileReviewItem` rows. Each item stores a stable `itemCode`, its displayed `label` snapshot, and `result` (`PASS`, `FAIL`, or `NOT_APPLICABLE`), so later checklist wording changes do not rewrite history. Only `FAIL` requests changes; `PASS` and `NOT_APPLICABLE` satisfy completion.
 
 ## ContractMenuWorkflowEvent
 

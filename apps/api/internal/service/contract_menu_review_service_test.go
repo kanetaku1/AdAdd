@@ -24,37 +24,73 @@ func (p *reviewTestSlackPoster) PostMessage(_ context.Context, message string) e
 	return p.err
 }
 
-func completeChecklist(checked bool) map[string]bool {
-	items := make(map[string]bool, len(ContractMenuReviewChecklist))
-	for _, definition := range ContractMenuReviewChecklist {
-		items[definition.Code] = checked
+func completeChecklist(kind, result string) map[string]string {
+	checklist := contractMenuReviewChecklist(kind)
+	items := make(map[string]string, len(checklist))
+	for _, definition := range checklist {
+		items[definition.Code] = result
 	}
 	return items
 }
 
+func TestContractMenuReviewChecklistBySubmissionKind(t *testing.T) {
+	material := contractMenuReviewChecklist("MATERIAL")
+	adData := contractMenuReviewChecklist("AD_DATA")
+	if len(material) != 4 || len(adData) != 5 {
+		t.Fatalf("checklist lengths = material:%d adData:%d", len(material), len(adData))
+	}
+	if adData[len(adData)-1].Code != "MEDIA_REQUIREMENTS_MET" {
+		t.Fatalf("ad data size item = %+v", adData[len(adData)-1])
+	}
+	var logoDescription string
+	for _, item := range material {
+		if item.Code == "LOGO_BACKGROUND_TRANSPARENT" {
+			logoDescription = item.Description
+		}
+	}
+	if !strings.Contains(logoDescription, "PDF") || !strings.Contains(logoDescription, "PNG") {
+		t.Fatalf("logo description must explain PDF and PNG: %q", logoDescription)
+	}
+}
+
 func TestValidateContractMenuReviewInputs(t *testing.T) {
 	files := []model.ContractMenuDriveFile{{ID: "file-1", DriveFileName: "ad.pdf"}}
+	checklist := contractMenuReviewChecklist("AD_DATA")
 
-	_, allPassed, missing, err := validateContractMenuReviewInputs(files, []ContractMenuFileReviewInput{{
-		FileID: "file-1", Items: completeChecklist(true),
+	_, allPassed, missing, err := validateContractMenuReviewInputs(files, checklist, []ContractMenuFileReviewInput{{
+		FileID: "file-1", Items: completeChecklist("AD_DATA", ReviewItemPass),
 	}})
 	if err != nil || !allPassed || len(missing) != 0 {
 		t.Fatalf("approved validation = passed:%v missing:%v err:%v", allPassed, missing, err)
 	}
 
-	items := completeChecklist(true)
-	items["CONTENT_COMPLETE"] = false
-	_, allPassed, missing, err = validateContractMenuReviewInputs(files, []ContractMenuFileReviewInput{{
+	items := completeChecklist("AD_DATA", ReviewItemPass)
+	items["MEDIA_REQUIREMENTS_MET"] = ReviewItemFail
+	_, allPassed, missing, err = validateContractMenuReviewInputs(files, checklist, []ContractMenuFileReviewInput{{
 		FileID: "file-1", Items: items,
 	}})
 	if err != nil || allPassed || len(missing) != 1 {
 		t.Fatalf("rejected validation = passed:%v missing:%v err:%v", allPassed, missing, err)
 	}
 
-	delete(items, "FILE_OPENS")
-	_, _, _, err = validateContractMenuReviewInputs(files, []ContractMenuFileReviewInput{{FileID: "file-1", Items: items}})
+	delete(items, "TEXT_OUTLINED")
+	_, _, _, err = validateContractMenuReviewInputs(files, checklist, []ContractMenuFileReviewInput{{FileID: "file-1", Items: items}})
 	if !errors.Is(err, ErrInvalidContractMenuReview) {
 		t.Fatalf("incomplete checklist error = %v", err)
+	}
+
+	items = completeChecklist("AD_DATA", ReviewItemPass)
+	items["TEXT_OUTLINED"] = "UNKNOWN"
+	_, _, _, err = validateContractMenuReviewInputs(files, checklist, []ContractMenuFileReviewInput{{FileID: "file-1", Items: items}})
+	if !errors.Is(err, ErrInvalidContractMenuReview) {
+		t.Fatalf("invalid result error = %v", err)
+	}
+
+	items = completeChecklist("AD_DATA", ReviewItemPass)
+	items["PHOTOS_EMBEDDED"] = ReviewItemNotApplicable
+	_, allPassed, missing, err = validateContractMenuReviewInputs(files, checklist, []ContractMenuFileReviewInput{{FileID: "file-1", Items: items}})
+	if err != nil || !allPassed || len(missing) != 0 {
+		t.Fatalf("not-applicable validation = passed:%v missing:%v err:%v", allPassed, missing, err)
 	}
 }
 
@@ -96,7 +132,7 @@ func TestReviewSubmissionApprovesCompanyFiles(t *testing.T) {
 	menu, submission := seedReviewableSubmission(t, "COMPANY")
 	inputs := make([]ContractMenuFileReviewInput, 0, len(menu.Files))
 	for _, file := range menu.Files {
-		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist(true)})
+		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist("AD_DATA", ReviewItemPass)})
 	}
 
 	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", inputs)
@@ -110,7 +146,7 @@ func TestReviewSubmissionApprovesCompanyFiles(t *testing.T) {
 		t.Fatalf("workflow submissions = %+v", result.Workflow.Submissions)
 	}
 	for _, review := range result.Workflow.Submissions[0].Reviews {
-		if review.Result != "APPROVED" || len(review.Items) != len(ContractMenuReviewChecklist) {
+		if review.Result != "APPROVED" || len(review.Items) != len(contractMenuReviewChecklist("AD_DATA")) {
 			t.Fatalf("review = %+v", review)
 		}
 	}
@@ -125,9 +161,9 @@ func TestReviewSubmissionRequestsInternalChanges(t *testing.T) {
 	t.Cleanup(func() { SetSlackPosterForTest(nil) })
 	inputs := make([]ContractMenuFileReviewInput, 0, len(menu.Files))
 	for index, file := range menu.Files {
-		items := completeChecklist(true)
+		items := completeChecklist("MATERIAL", ReviewItemPass)
 		if index == 0 {
-			items["FORMAT_CORRECT"] = false
+			items["COLOR_MODE_CMYK"] = ReviewItemFail
 		}
 		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: items})
 	}
@@ -145,7 +181,7 @@ func TestReviewSubmissionRequestsInternalChanges(t *testing.T) {
 	if result.SlackDelivery.Status != "SENT" {
 		t.Fatalf("Slack delivery = %+v", result.SlackDelivery)
 	}
-	if !strings.Contains(poster.message, "<@U-REVIEWER>") || !strings.Contains(poster.message, "FORMAT") && !strings.Contains(poster.message, "ファイル形式") {
+	if !strings.Contains(poster.message, "<@U-REVIEWER>") || !strings.Contains(poster.message, "CMYK") {
 		t.Fatalf("Slack message = %q", poster.message)
 	}
 }
@@ -160,7 +196,7 @@ func TestReviewSubmissionKeepsResultWhenSlackFails(t *testing.T) {
 
 	inputs := make([]ContractMenuFileReviewInput, 0, len(menu.Files))
 	for _, file := range menu.Files {
-		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist(false)})
+		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist("AD_DATA", ReviewItemFail)})
 	}
 	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", inputs)
 	if err != nil {
@@ -186,7 +222,7 @@ func TestReviewSubmissionRejectsPastYear(t *testing.T) {
 	}
 	inputs := make([]ContractMenuFileReviewInput, 0, len(menu.Files))
 	for _, file := range menu.Files {
-		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist(true)})
+		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist("AD_DATA", ReviewItemPass)})
 	}
 	_, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", inputs)
 	if !errors.Is(err, ErrPastYearReadOnly) {

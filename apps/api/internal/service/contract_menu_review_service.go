@@ -14,20 +14,44 @@ import (
 )
 
 type ContractMenuChecklistItem struct {
-	Code  string `json:"code"`
-	Label string `json:"label"`
+	Code        string `json:"code"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
 }
 
-var ContractMenuReviewChecklist = []ContractMenuChecklistItem{
-	{Code: "FILE_OPENS", Label: "ファイルを問題なく開ける"},
-	{Code: "FORMAT_CORRECT", Label: "指定されたファイル形式である"},
-	{Code: "SIZE_RESOLUTION_CORRECT", Label: "サイズ・解像度が要件を満たす"},
-	{Code: "CONTENT_COMPLETE", Label: "必要な内容がすべて揃っている"},
+const (
+	ReviewItemPass          = "PASS"
+	ReviewItemFail          = "FAIL"
+	ReviewItemNotApplicable = "NOT_APPLICABLE"
+)
+
+var commonPDFReviewChecklist = []ContractMenuChecklistItem{
+	{Code: "TEXT_OUTLINED", Label: "テキストがアウトライン化されている", Description: "PDF提出時に確認します。フォントトラブルを防止するための項目です。"},
+	{Code: "COLOR_MODE_CMYK", Label: "カラーモードがCMYKになっている", Description: "PDF提出時に確認します。印刷時の色再現性を確保するための項目です。"},
+	{Code: "PHOTOS_EMBEDDED", Label: "写真がある場合は埋め込まれている", Description: "PDF内に写真がある場合に確認します。写真を使用していない場合は「対象外」を選択します。"},
+	{Code: "LOGO_BACKGROUND_TRANSPARENT", Label: "ロゴデータの背景が透過されている", Description: "ロゴデータはPDFまたはPNGで提出できます。ロゴデータを含まない場合は「対象外」を選択します。"},
+}
+
+var adDataReviewChecklist = append(append([]ContractMenuChecklistItem{}, commonPDFReviewChecklist...), ContractMenuChecklistItem{
+	Code:  "MEDIA_REQUIREMENTS_MET",
+	Label: "契約した広告枠のサイズ・比率・枚数を満たしている",
+	Description: "パンフレット: 1/8ページ 44×62mm (22:31)、1/4ページ 44×130mm (22:65)、1/2ページ 92×130mm (46:65)、1ページ 190×130mm (19:13)、2ページ見開き (190×130mm)×2。" +
+		"ホームページ: 2:3。ステージ裏横断幕: 2378×841mm、1枚のデータ。総合研究棟横断幕: 4000×1000mm。うちわ: 指定テンプレート。SNS: 4:5の縦長、2～3枚。",
+})
+
+func contractMenuReviewChecklist(kind string) []ContractMenuChecklistItem {
+	if kind == "MATERIAL" {
+		return commonPDFReviewChecklist
+	}
+	if kind == "AD_DATA" {
+		return adDataReviewChecklist
+	}
+	return nil
 }
 
 type ContractMenuFileReviewInput struct {
 	FileID string
-	Items  map[string]bool
+	Items  map[string]string
 }
 
 type ContractMenuReviewWorkflow struct {
@@ -65,14 +89,18 @@ func (s *ContractMenuService) GetReviewWorkflow(contractMenuID string) (*Contrac
 		return nil, err
 	}
 
+	checklist := []ContractMenuChecklistItem{}
+	if len(submissions) > 0 {
+		checklist = contractMenuReviewChecklist(submissions[len(submissions)-1].Kind)
+	}
 	return &ContractMenuReviewWorkflow{
-		Checklist:   ContractMenuReviewChecklist,
+		Checklist:   checklist,
 		Submissions: submissions,
 		Events:      events,
 	}, nil
 }
 
-func validateContractMenuReviewInputs(files []model.ContractMenuDriveFile, inputs []ContractMenuFileReviewInput) (map[string]ContractMenuFileReviewInput, bool, []string, error) {
+func validateContractMenuReviewInputs(files []model.ContractMenuDriveFile, checklist []ContractMenuChecklistItem, inputs []ContractMenuFileReviewInput) (map[string]ContractMenuFileReviewInput, bool, []string, error) {
 	if len(files) == 0 || len(inputs) != len(files) {
 		return nil, false, nil, fmt.Errorf("%w: every file must be reviewed", ErrInvalidContractMenuReview)
 	}
@@ -92,15 +120,18 @@ func validateContractMenuReviewInputs(files []model.ContractMenuDriveFile, input
 	missingLabels := make([]string, 0)
 	for _, file := range files {
 		input, ok := byFile[file.ID]
-		if !ok || len(input.Items) != len(ContractMenuReviewChecklist) {
+		if !ok || len(input.Items) != len(checklist) {
 			return nil, false, nil, fmt.Errorf("%w: checklist is incomplete", ErrInvalidContractMenuReview)
 		}
-		for _, definition := range ContractMenuReviewChecklist {
-			checked, exists := input.Items[definition.Code]
+		for _, definition := range checklist {
+			result, exists := input.Items[definition.Code]
 			if !exists {
 				return nil, false, nil, fmt.Errorf("%w: checklist is incomplete", ErrInvalidContractMenuReview)
 			}
-			if !checked {
+			if result != ReviewItemPass && result != ReviewItemFail && result != ReviewItemNotApplicable {
+				return nil, false, nil, fmt.Errorf("%w: invalid checklist result", ErrInvalidContractMenuReview)
+			}
+			if result == ReviewItemFail {
 				allPassed = false
 				missingLabels = append(missingLabels, file.DriveFileName+": "+definition.Label)
 			}
@@ -137,7 +168,8 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 			Order("created_at ASC, id ASC").Find(&files).Error; err != nil {
 			return err
 		}
-		byFile, allPassed, missingLabels, err := validateContractMenuReviewInputs(files, inputs)
+		checklist := contractMenuReviewChecklist(current.Kind)
+		byFile, allPassed, missingLabels, err := validateContractMenuReviewInputs(files, checklist, inputs)
 		if err != nil {
 			return err
 		}
@@ -147,8 +179,8 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 		for _, file := range files {
 			input := byFile[file.ID]
 			result := "APPROVED"
-			for _, checked := range input.Items {
-				if !checked {
+			for _, itemResult := range input.Items {
+				if itemResult == ReviewItemFail {
 					result = "CHANGES_REQUESTED"
 					break
 				}
@@ -163,10 +195,10 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 			if err := tx.Create(review).Error; err != nil {
 				return err
 			}
-			for _, definition := range ContractMenuReviewChecklist {
+			for _, definition := range checklist {
 				item := &model.ContractMenuFileReviewItem{
 					ReviewID: review.ID, ItemCode: definition.Code, Label: definition.Label,
-					IsChecked: input.Items[definition.Code],
+					Result: input.Items[definition.Code],
 				}
 				if err := tx.Create(item).Error; err != nil {
 					return err

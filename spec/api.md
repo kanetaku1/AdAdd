@@ -1317,7 +1317,7 @@ One request appends one or more references:
 GET /contract-menus/{id}/review-workflow
 ```
 
-Returns the fixed checklist definition, current submission with its files/reviews, and the append-only event timeline. Every authenticated User may read it.
+Returns the checklist definition for the current submission kind, current and historical submissions with their files/reviews, and the append-only event timeline. Material has four checklist items; Ad Data adds the medium-specific size/ratio/count item. Every authenticated User may read it.
 
 ## Review Contract Menu Submission
 
@@ -1325,7 +1325,24 @@ Returns the fixed checklist definition, current submission with its files/review
 POST /contract-menus/{id}/submissions/{submissionId}/review
 ```
 
-Request contains one entry for every active file and one boolean for every checklist code. The current submission only may be reviewed. Omitted files/codes, unknown codes, or already-reviewed submissions return `409 Conflict`. If every value is true, `COMPANY` / `CONTINUED` becomes `COMPLETED` and `INTERNAL` becomes `MATERIAL_COMPLETED`. Otherwise status becomes `WAITING`; the API builds a standard message listing unchecked items and mentions the Yearly Company's assigned Sponsorship Member using their `User.slackId`. Slack success/failure is recorded and returned as `slackDelivery`; failure does not roll back the review. Permission: Advertisement Manager / Administrator; active Year only.
+Request contains one entry for every active file and one result (`PASS`, `FAIL`, or `NOT_APPLICABLE`) for every checklist code. The current submission only may be reviewed. Omitted files/codes, unknown codes/results, or already-reviewed submissions return `409 Conflict`. If every value is `PASS` or `NOT_APPLICABLE`, `COMPANY` / `CONTINUED` becomes `COMPLETED` and `INTERNAL` becomes `MATERIAL_COMPLETED`. Otherwise status becomes `WAITING`; the API builds a standard message listing only `FAIL` items and mentions the Yearly Company's assigned Sponsorship Member using their `User.slackId`. Slack success/failure is recorded and returned as `slackDelivery`; failure does not roll back the review. Permission: Advertisement Manager / Administrator; active Year only.
+
+```json
+{
+  "files": [{
+    "fileId": "file-id",
+    "items": {
+      "TEXT_OUTLINED": "PASS",
+      "COLOR_MODE_CMYK": "PASS",
+      "PHOTOS_EMBEDDED": "NOT_APPLICABLE",
+      "LOGO_BACKGROUND_TRANSPARENT": "PASS",
+      "MEDIA_REQUIREMENTS_MET": "FAIL"
+    }
+  }]
+}
+```
+
+Upload does not reject a file because of its extension or MIME type. The logo item explains that PDF and PNG are both accepted.
 
 The existing multipart `POST /contract-menus/{id}/drive-upload` remains compatible with a single `file` part and additionally accepts repeated `files` parts. The request contains `folderId` and file bodies; it does not contain a Google access token. The API uploads as the configured dedicated Google account and persists each returned `driveFileId`. Every successfully uploaded Drive file is appended as a separate reference in one database transaction. If the dedicated integration is unavailable, the endpoint returns `503 Service Unavailable` without adding a reference.
 

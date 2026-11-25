@@ -23,8 +23,8 @@ func getContractMenuReviewWorkflow(c echo.Context) error {
 func reviewContractMenuSubmission(c echo.Context) error {
 	var body struct {
 		Files []struct {
-			FileID string          `json:"fileId"`
-			Items  map[string]bool `json:"items"`
+			FileID string            `json:"fileId"`
+			Items  map[string]string `json:"items"`
 		} `json:"files"`
 	}
 	if err := c.Bind(&body); err != nil {

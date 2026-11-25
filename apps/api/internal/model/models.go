@@ -279,7 +279,7 @@ type ContractMenuFileReviewItem struct {
 	ReviewID  string    `gorm:"type:char(36);not null;index" json:"reviewId"`
 	ItemCode  string    `gorm:"size:64;not null" json:"itemCode"`
 	Label     string    `gorm:"size:255;not null" json:"label"`
-	IsChecked bool      `gorm:"not null" json:"isChecked"`
+	Result    string    `gorm:"size:32;not null" json:"result"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
