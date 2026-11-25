@@ -43,6 +43,9 @@ func TestUpdateContractMenuStatusRequiresAdvertisementManagerOrAdministrator(t *
 	managerUpdate := advertisementManager.do(http.MethodPatch, statusPath, map[string]any{"status": "PRODUCING"})
 	expectStatus(t, managerUpdate, http.StatusOK)
 
-	administratorUpdate := actors.administrator.do(http.MethodPatch, statusPath, map[string]any{"status": "COMPLETED"})
+	administratorUpdate := actors.administrator.do(http.MethodPatch, statusPath, map[string]any{
+		"status":                    "COMPLETED",
+		"acknowledgeAutomaticState": true,
+	})
 	expectStatus(t, administratorUpdate, http.StatusOK)
 }
