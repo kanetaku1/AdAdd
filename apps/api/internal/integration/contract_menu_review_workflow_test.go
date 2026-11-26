@@ -99,10 +99,22 @@ func TestCompanyAdDataReviewRejectsAndAcceptsResubmission(t *testing.T) {
 	}
 
 	reviewPath := "/contract-menus/" + contractMenu.ID + "/submissions/" + firstSubmission.CurrentSubmission.ID + "/review"
-	memberReview := actors.sponsorshipMember.do(http.MethodPost, reviewPath, map[string]any{
-		"files": reviewFilesPayload(firstSubmission, true, true),
-	})
-	expectStatus(t, memberReview, http.StatusForbidden)
+	for _, actor := range []struct {
+		name   string
+		client *apiClient
+	}{
+		{name: "sponsorship member", client: actors.sponsorshipMember},
+		{name: "advisor", client: actors.advisor},
+		{name: "finance", client: actors.finance},
+		{name: "no role", client: actors.noRole},
+	} {
+		t.Run("review forbidden for "+actor.name, func(t *testing.T) {
+			response := actor.client.do(http.MethodPost, reviewPath, map[string]any{
+				"files": reviewFilesPayload(firstSubmission, true, true),
+			})
+			expectStatus(t, response, http.StatusForbidden)
+		})
+	}
 
 	rejected := manager.do(http.MethodPost, reviewPath, map[string]any{
 		"note":  "チェックリスト外の余白も修正してください。",
@@ -128,7 +140,7 @@ func TestCompanyAdDataReviewRejectsAndAcceptsResubmission(t *testing.T) {
 		t.Fatalf("second submission = %+v, want sequence 2 provisional submission", secondSubmission)
 	}
 
-	approved := manager.do(http.MethodPost,
+	approved := actors.administrator.do(http.MethodPost,
 		"/contract-menus/"+contractMenu.ID+"/submissions/"+secondSubmission.CurrentSubmission.ID+"/review",
 		map[string]any{"files": reviewFilesPayload(secondSubmission, true, false)},
 	)

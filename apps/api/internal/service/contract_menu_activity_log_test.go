@@ -69,9 +69,9 @@ func TestUpdateStatusLogsAnyStatusChangeOnce(t *testing.T) {
 		status   string
 		wantLogs int
 	}{
-		{"PRODUCING", 1},
-		{"PRODUCING", 1}, // same status: no new entry
-		{"REQUESTED", 2},
+		{"REQUESTED", 1},
+		{"REQUESTED", 1}, // same status: no new entry
+		{"COMPANY_REVIEWING", 2},
 	}
 	for _, step := range steps {
 		if err := svc.UpdateStatus(cm.ID, step.status, "user-test"); err != nil {

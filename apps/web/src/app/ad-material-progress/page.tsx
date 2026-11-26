@@ -40,29 +40,26 @@ const STATUS_ORDER: ContractMenuStatus[] = [
   "MATERIAL_COMPLETED",
   "REQUESTED",
   "COMPANY_REVIEWING",
-  "PRODUCING",
   "COMPLETED",
   "SUBMITTED",
 ]
 
-const STATUS_DOT_CLASS: Record<ContractMenuStatus, string> = {
+const STATUS_DOT_CLASS: Partial<Record<ContractMenuStatus, string>> = {
   WAITING: "bg-muted-foreground/50",
   PROVISIONAL_SUBMITTED: "bg-red-500",
   MATERIAL_COMPLETED: "bg-emerald-500",
   REQUESTED: "bg-amber-500",
   COMPANY_REVIEWING: "bg-violet-500",
-  PRODUCING: "bg-blue-500",
   COMPLETED: "bg-teal-500",
   SUBMITTED: "bg-emerald-500",
 }
 
-const STATUS_TEXT_CLASS: Record<ContractMenuStatus, string> = {
+const STATUS_TEXT_CLASS: Partial<Record<ContractMenuStatus, string>> = {
   WAITING: "text-muted-foreground",
   PROVISIONAL_SUBMITTED: "text-red-600 dark:text-red-400",
   MATERIAL_COMPLETED: "text-emerald-600 dark:text-emerald-400",
   REQUESTED: "text-amber-600 dark:text-amber-400",
   COMPANY_REVIEWING: "text-violet-600 dark:text-violet-400",
-  PRODUCING: "text-blue-600 dark:text-blue-400",
   COMPLETED: "text-teal-600 dark:text-teal-400",
   SUBMITTED: "text-emerald-600 dark:text-emerald-400",
 }

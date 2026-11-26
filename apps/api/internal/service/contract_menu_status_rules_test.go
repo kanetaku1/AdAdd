@@ -14,7 +14,7 @@ func TestValidateManualContractMenuStatus(t *testing.T) {
 		activeFiles          int64
 		wantErr              error
 	}{
-		{name: "legacy lifecycle remains readable", status: "PRODUCING"},
+		{name: "obsolete producing cannot be written", status: "PRODUCING", wantErr: ErrInvalidContractMenuStatus},
 		{name: "company waiting", productionType: stringPointer("COMPANY"), status: "WAITING"},
 		{name: "manual recovery may request", productionType: stringPointer("COMPANY"), status: "REQUESTED"},
 		{name: "provisional submission is valid", productionType: stringPointer(ProductionTypeContinued), status: "PROVISIONAL_SUBMITTED"},

@@ -23,6 +23,8 @@ func TestApplyContractMenuCapabilities(t *testing.T) {
 	}{
 		{name: "sponsorship member", roles: []string{"SPONSORSHIP_MEMBER"}, active: true, wantUpload: true, wantDelete: true},
 		{name: "advisor", roles: []string{"ADVISOR"}, active: true, wantDelete: true},
+		{name: "finance", roles: []string{"FINANCE_DEPARTMENT"}, active: true},
+		{name: "no role", roles: []string{}, active: true},
 		{name: "advertisement manager", roles: []string{"ADVERTISEMENT_MANAGER"}, active: true, wantUpload: true, wantDelete: true, wantReview: true, wantStatus: true},
 		{name: "administrator", roles: []string{"ADMINISTRATOR"}, active: true, wantUpload: true, wantDelete: true, wantReview: true, wantStatus: true},
 		{name: "past year manager", roles: []string{"ADVERTISEMENT_MANAGER"}, active: false},

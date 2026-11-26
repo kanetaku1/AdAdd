@@ -41,13 +41,12 @@ export function EditableContractMenuStatusBadge({
 }) {
   const [editing, setEditing] = useState(false)
   const submissionDerived = value === "SUBMITTED"
-  const isEditable =
-    !disabled && !submissionDerived && availableStatuses.includes(value)
+  const isEditable = !disabled && !submissionDerived
 
   if (editing) {
     return (
       <Select
-        value={value}
+        value={availableStatuses.includes(value) ? value : null}
         defaultOpen
         onValueChange={(next) => {
           if (availableStatuses.includes(next as ContractMenuStatus)) {

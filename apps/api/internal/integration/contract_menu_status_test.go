@@ -35,13 +35,14 @@ func TestUpdateContractMenuStatusRequiresAdvertisementManagerOrAdministrator(t *
 		{name: "no role", client: actors.noRole},
 	} {
 		t.Run(actor.name, func(t *testing.T) {
-			response := actor.client.do(http.MethodPatch, statusPath, map[string]any{"status": "PRODUCING"})
+			response := actor.client.do(http.MethodPatch, statusPath, map[string]any{"status": "REQUESTED"})
 			expectStatus(t, response, http.StatusForbidden)
 		})
 	}
 
-	managerUpdate := advertisementManager.do(http.MethodPatch, statusPath, map[string]any{"status": "PRODUCING"})
+	managerUpdate := advertisementManager.do(http.MethodPatch, statusPath, map[string]any{"status": "REQUESTED"})
 	expectStatus(t, managerUpdate, http.StatusOK)
+	expectStatus(t, advertisementManager.do(http.MethodPatch, statusPath, map[string]any{"status": "PRODUCING"}), http.StatusBadRequest)
 
 	administratorUpdate := actors.administrator.do(http.MethodPatch, statusPath, map[string]any{
 		"status":                    "COMPLETED",

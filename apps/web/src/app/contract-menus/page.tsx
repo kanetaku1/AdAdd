@@ -76,9 +76,14 @@ const AD_MANAGEMENT_STATUS_FILTERS: Array<{
   { value: "COMPLETED", label: "完成" },
 ]
 
-const MANUALLY_SELECTABLE_STATUSES = (
-  Object.keys(CONTRACT_MENU_STATUS_LABEL) as ContractMenuStatus[]
-).filter((status) => status !== "SUBMITTED")
+const MANUALLY_SELECTABLE_STATUSES: ContractMenuStatus[] = [
+  "WAITING",
+  "PROVISIONAL_SUBMITTED",
+  "MATERIAL_COMPLETED",
+  "REQUESTED",
+  "COMPANY_REVIEWING",
+  "COMPLETED",
+]
 
 const AUTOMATIC_STATUSES = new Set<ContractMenuStatus>([
   "PROVISIONAL_SUBMITTED",
@@ -127,7 +132,7 @@ function statusFilterLabel(filter: Exclude<StatusFilter, typeof ALL>): string {
 function isContractMenuStatus(
   value: string | null
 ): value is ContractMenuStatus {
-  return value !== null && value in CONTRACT_MENU_STATUS_LABEL
+  return value !== null && MANUALLY_SELECTABLE_STATUSES.includes(value as ContractMenuStatus)
 }
 
 /**

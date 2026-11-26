@@ -72,7 +72,7 @@ var ProductionDepartments = []string{
 
 var ContractMenuWorkflowStatuses = []string{
 	"WAITING", "PROVISIONAL_SUBMITTED", "MATERIAL_COMPLETED", "REQUESTED",
-	"COMPANY_REVIEWING", "COMPLETED", "PRODUCING", "SUBMITTED",
+	"COMPANY_REVIEWING", "COMPLETED", "SUBMITTED",
 }
 
 var automaticContractMenuStatuses = map[string]bool{

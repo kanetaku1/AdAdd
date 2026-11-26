@@ -88,11 +88,13 @@ export function ContractMenuFilesSummary({
                 }
               />
             )}
-            <Button type="button" size="sm" variant="outline" onClick={() => setReviewOpen(true)}>
-              <ClipboardCheck /> Review
-            </Button>
+            {menu.allowReview && (
+              <Button type="button" size="sm" variant="outline" onClick={() => setReviewOpen(true)}>
+                <ClipboardCheck /> Review
+              </Button>
+            )}
           </div>
-          {reviewOpen && (
+          {reviewOpen && menu.allowReview && (
             <ContractMenuReviewDialog
               menu={menu}
               open={reviewOpen}

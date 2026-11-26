@@ -113,7 +113,7 @@ func TestContractMenuProductionDepartmentAndStatusRules(t *testing.T) {
 
 	statusPath := "/contract-menus/" + firstMenuID + "/status"
 	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "REQUESTED"}), http.StatusOK)
-	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "PRODUCING"}), http.StatusOK)
+	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "COMPANY_REVIEWING"}), http.StatusOK)
 	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "SUBMITTED"}), http.StatusConflict)
 
 	secondStatusPath := "/contract-menus/" + secondMenuID + "/status"

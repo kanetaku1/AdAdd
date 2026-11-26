@@ -533,14 +533,13 @@ This is a fixed enumeration, not a reference to the organizational Department (`
 
 * Waiting
 * Requested
-* Producing
 * Completed
 * Submitted
 * Provisional Submitted
 * Material Completed
 * Company Reviewing
 
-`PROVISIONAL_SUBMITTED` is set by an upload that requires review. `MATERIAL_COMPLETED` is set when every file in the current `INTERNAL` material submission passes review. `REQUESTED` and `COMPANY_REVIEWING` are the normal manual states for `INTERNAL`; its final-data upload sets `COMPLETED`. `COMPANY` and `CONTINUED` become `COMPLETED` when every current file passes review. `SUBMITTED` remains a deprecated read-compatible legacy value and is not written by new code.
+`PROVISIONAL_SUBMITTED` is set by an upload that requires review. `MATERIAL_COMPLETED` is set when every file in the current `INTERNAL` material submission passes review. `REQUESTED` and `COMPANY_REVIEWING` are the normal manual states for `INTERNAL`; its final-data upload sets `COMPLETED`. `COMPANY` and `CONTINUED` become `COMPLETED` when every current file passes review. `SUBMITTED` remains a deprecated read-compatible legacy value and is not written by new code. `PRODUCING` is an obsolete read-compatible value: legacy rows may display it, but APIs and current UI controls never write it.
 
 ---
 

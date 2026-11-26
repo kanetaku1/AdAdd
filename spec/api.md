@@ -1076,7 +1076,7 @@ Example response:
 
 `files` contains every undeleted `ContractMenuDriveFile`, ordered by creation time and ID. `fileCount` is `files.length`; `isSubmitted` is true when `fileCount > 0` and is independent of workflow status. Each file includes `submissionId`, uploader metadata, and current review state. `currentSubmission`, `reviewIndicator` (`NONE`, `UNREVIEWED`, or `REVIEWED`), `allowReview`, and `allowStatusChange` are also returned. `driveUrl` and `driveFileName` remain deprecated read-only compatibility fields.
 
-`status` is one of `WAITING / REQUESTED / PRODUCING / COMPLETED / SUBMITTED`; `productionType` is `COMPANY / INTERNAL / CONTINUED`, or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#ContractMenuProductionType`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
+`status` is one of `WAITING / PROVISIONAL_SUBMITTED / MATERIAL_COMPLETED / REQUESTED / COMPANY_REVIEWING / COMPLETED / SUBMITTED`; `PRODUCING` is accepted only as a legacy stored value when reading old data and cannot be written. `productionType` is `COMPANY / INTERNAL / CONTINUED`, or `null` when the referenced Sponsorship Menu has `requiresSubmission = false` (`spec/model.md#ContractMenuProductionType`). `productionDepartment` is `DOCUMENT_CREATION_DEPARTMENT / PRODUCTION_BUREAU / SOCIAL_MEDIA_DEPARTMENT`, or `null` — always `null` unless `productionType` is `INTERNAL` (`spec/model.md#ContractMenuProductionDepartment`).
 
 ---
 
@@ -1201,7 +1201,7 @@ Example:
 }
 ```
 
-Advertisement Manager / Administrator may select every status for recovery. Setting a normally automatic state (`PROVISIONAL_SUBMITTED`, `MATERIAL_COMPLETED`, or `COMPLETED`) requires `acknowledgeAutomaticState: true`; otherwise the API returns `409 Conflict` with code `AUTOMATIC_STATUS_CONFIRMATION_REQUIRED`. Every actual change appends a workflow event. Past Years return `409 Conflict`.
+Advertisement Manager / Administrator may select every current workflow status for recovery except deprecated `SUBMITTED` and obsolete `PRODUCING`. Sending `PRODUCING` returns `400 Bad Request`; existing stored values remain readable. Setting a normally automatic state (`PROVISIONAL_SUBMITTED`, `MATERIAL_COMPLETED`, or `COMPLETED`) requires `acknowledgeAutomaticState: true`; otherwise the API returns `409 Conflict` with code `AUTOMATIC_STATUS_CONFIRMATION_REQUIRED`. Every actual change appends a workflow event. Past Years return `409 Conflict`.
 
 For a menu that does not require submission (`productionType = null`), any non-`SUBMITTED` `ContractMenuStatus` may be set while no active files exist. For a submission-required menu, allowed manual states are:
 
