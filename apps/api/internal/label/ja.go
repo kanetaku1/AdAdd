@@ -6,15 +6,15 @@ import "regexp"
 // spec/frontend.md Principle 2). Unknown codes are returned as-is.
 
 var (
-	reEnProgress     = regexp.MustCompile(`(?i)^Progress changed from ([A-Z0-9_]+) to ([A-Z0-9_]+)$`)
-	reEnPhase        = regexp.MustCompile(`(?i)^Phase changed from ([A-Z0-9_]+) to ([A-Z0-9_]+)$`)
-	reEnCompany      = regexp.MustCompile(`(?i)^Company status changed from ([A-Z0-9_]+) to ([A-Z0-9_]+)$`)
-	reJaProgress     = regexp.MustCompile(`^進捗を ([A-Z0-9_]+) から ([A-Z0-9_]+) に更新$`)
-	reJaProgressQ    = regexp.MustCompile(`^進捗を「([A-Z0-9_]+)」に更新$`)
-	reJaCompany      = regexp.MustCompile(`^企業ステータスを ([A-Z0-9_]+) から ([A-Z0-9_]+) に更新$`)
-	reJaPhase        = regexp.MustCompile(`^フェーズを ([A-Z0-9_]+) から ([A-Z0-9_]+) に更新$`)
-	reJaMenuStatus   = regexp.MustCompile(`^(.+)のステータスを ([A-Z0-9_]+) から ([A-Z0-9_]+) に更新$`)
-	reJaMenuSubmit   = regexp.MustCompile(`^協賛メニューのステータスを提出済みに更新$`)
+	reEnProgress   = regexp.MustCompile(`(?i)^Progress changed from ([A-Z0-9_]+) to ([A-Z0-9_]+)$`)
+	reEnPhase      = regexp.MustCompile(`(?i)^Phase changed from ([A-Z0-9_]+) to ([A-Z0-9_]+)$`)
+	reEnCompany    = regexp.MustCompile(`(?i)^Company status changed from ([A-Z0-9_]+) to ([A-Z0-9_]+)$`)
+	reJaProgress   = regexp.MustCompile(`^進捗を ([A-Z0-9_]+) から ([A-Z0-9_]+) に更新$`)
+	reJaProgressQ  = regexp.MustCompile(`^進捗を「([A-Z0-9_]+)」に更新$`)
+	reJaCompany    = regexp.MustCompile(`^企業ステータスを ([A-Z0-9_]+) から ([A-Z0-9_]+) に更新$`)
+	reJaPhase      = regexp.MustCompile(`^フェーズを ([A-Z0-9_]+) から ([A-Z0-9_]+) に更新$`)
+	reJaMenuStatus = regexp.MustCompile(`^(.+)のステータスを ([A-Z0-9_]+) から ([A-Z0-9_]+) に更新$`)
+	reJaMenuSubmit = regexp.MustCompile(`^協賛メニューのステータスを提出済みに更新$`)
 )
 
 // NormalizeActivityMessage maps legacy English / raw-enum messages onto
@@ -128,6 +128,12 @@ func ContractMenuStatus(code string) string {
 		return "広告データ提出待ち"
 	case "REQUESTED":
 		return "制作依頼済み"
+	case "PROVISIONAL_SUBMITTED":
+		return "仮提出済み"
+	case "MATERIAL_COMPLETED":
+		return "素材データ完成"
+	case "COMPANY_REVIEWING":
+		return "企業への確認中"
 	case "PRODUCING":
 		return "制作中"
 	case "COMPLETED":

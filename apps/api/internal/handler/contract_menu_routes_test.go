@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -36,6 +37,54 @@ func TestDeleteContractMenuRejectsRolelessUser(t *testing.T) {
 
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("expected status %d for a user with no Role, got %d", http.StatusForbidden, rec.Code)
+	}
+}
+
+func TestReviewContractMenuRoleBoundary(t *testing.T) {
+	cases := []struct {
+		name       string
+		roles      []string
+		wantStatus int
+	}{
+		{name: "sponsorship member", roles: []string{"SPONSORSHIP_MEMBER"}, wantStatus: http.StatusForbidden},
+		{name: "advisor", roles: []string{"ADVISOR"}, wantStatus: http.StatusForbidden},
+		{name: "finance", roles: []string{"FINANCE_DEPARTMENT"}, wantStatus: http.StatusForbidden},
+		{name: "no role", roles: []string{}, wantStatus: http.StatusForbidden},
+		// A malformed body reaches the handler and returns 400, proving the role
+		// middleware allowed these two roles through without touching the DB.
+		{name: "advertisement manager", roles: []string{"ADVERTISEMENT_MANAGER"}, wantStatus: http.StatusBadRequest},
+		{name: "administrator", roles: []string{"ADMINISTRATOR"}, wantStatus: http.StatusBadRequest},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			e := echo.New()
+			RegisterContractMenuRoutes(e)
+			e.Use(withRoles(testCase.roles...))
+
+			req := httptest.NewRequest(http.MethodPost, "/contract-menus/1/submissions/2/review", strings.NewReader("{"))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
+
+			if rec.Code != testCase.wantStatus {
+				t.Fatalf("expected status %d, got %d", testCase.wantStatus, rec.Code)
+			}
+		})
+	}
+}
+
+func TestUploadContractMenuAllowsAdvisor(t *testing.T) {
+	e := echo.New()
+	RegisterContractMenuRoutes(e)
+	e.Use(withRoles("ADVISOR"))
+
+	req := httptest.NewRequest(http.MethodPost, "/contract-menus/1/production/files", strings.NewReader("{"))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected advisor to reach the upload handler and get %d for malformed JSON, got %d", http.StatusBadRequest, rec.Code)
 	}
 }
 

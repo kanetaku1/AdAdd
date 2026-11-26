@@ -10,7 +10,7 @@ var (
 	ValidCompanyStatuses      = []string{"CONTINUING", "NEW", "DORMANT"}
 	ValidPhases               = []string{"PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4"}
 	ValidProgresses           = []string{"NOT_CONTACTED", "MATERIALS_SENT", "CONFIRMED", "INVOICE_SENT", "PAYMENT_RECEIVED", "RECEIPT_SENT", "DECLINED", "PENDING"}
-	ValidContractMenuStatuses = []string{"WAITING", "REQUESTED", "PRODUCING", "COMPLETED", "SUBMITTED"}
+	ValidContractMenuStatuses = []string{"WAITING", "PROVISIONAL_SUBMITTED", "MATERIAL_COMPLETED", "REQUESTED", "COMPANY_REVIEWING", "COMPLETED", "SUBMITTED"}
 	ValidPaymentStatuses      = []string{"WAITING", "CONFIRMED"}
 )
 

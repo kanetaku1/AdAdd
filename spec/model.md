@@ -236,7 +236,7 @@ Represents one Sponsorship Menu that a company has actually contracted for.
 
 ContractMenu does not have its own assignee. Like its contract, it is handled by the Yearly Company's `CompanyAssignment`.
 
-For a Sponsorship Menu that requires submission, the allowed manual statuses depend on `productionType` and `productionDepartment`: `COMPANY` and `CONTINUED` remain `WAITING` until a file is registered; `INTERNAL` starts at `WAITING`, and once a production department is assigned its status may be changed between `WAITING` and `REQUESTED`. An `INTERNAL` menu without a department is read-only for status changes. `SUBMITTED` is derived from active Drive-file references: one or more undeleted `ContractMenuDriveFile` rows means `SUBMITTED`; zero means not submitted. Adding the first file sets the stored status to `SUBMITTED`, and deleting the last active file resets it to `WAITING`. Menus that do not require submission (`productionType = null`) retain the existing non-submission status workflow.
+For a Sponsorship Menu that requires submission, status is a review workflow rather than a file-count-derived flag. `COMPANY` and `CONTINUED` move from `WAITING` to `PROVISIONAL_SUBMITTED` when a new submission is uploaded, then to `WAITING` when changes are requested or `COMPLETED` when every file passes review. `INTERNAL` uses the same upload/review cycle for source material; an accepted submission becomes `MATERIAL_COMPLETED`, after which Advertisement Manager may move it manually through `REQUESTED` and `COMPANY_REVIEWING`. Uploading final artwork from the Advertisement Management screen completes it without another checklist review. Menus that do not require submission (`productionType = null`) retain the existing non-submission status workflow.
 
 `unitPrice` defaults from the referenced `SponsorshipMenu.defaultPrice` but may be overridden per contract (e.g. a negotiated discount). `SponsorshipContract.totalAmount` is the sum of `quantity * unitPrice` across its Contract Menus. `quantity`, `unitPrice`, `isGoodsSponsorship`, and `productionType` remain editable after creation (not just at creation), each recalculating `totalAmount` per the rule above — see `spec/api.md#Update Contract Menu`.
 
@@ -244,11 +244,11 @@ For a Sponsorship Menu that requires submission, the allowed manual statuses dep
 
 `status` is changed only by the Advertisement Manager Role and Administrator (`spec/api.md#Update Contract Menu Status`, Issue #126).
 
-A new Contract Menu starts with `status = WAITING`, including `productionType = CONTINUED`. A Continued Contract Menu is still submitted by registering the earlier Year's file in Google Drive, which makes it `SUBMITTED`. Whether it is submitted is decided only by its Drive files: if every file is deleted, it returns to `WAITING`.
+A new Contract Menu starts with `status = WAITING`, including `productionType = CONTINUED`. `isSubmitted` means that at least one undeleted Drive reference exists; it is independent of workflow `status`.
 
-For submission-required menus, changing `productionType` with no active files resets `status` to `WAITING`; with active files, `status` remains `SUBMITTED`. This keeps the status valid for the new production type. Menus that do not require submission retain their existing status when `productionType` is cleared.
+Changing `productionType` on a submission-required menu starts a new workflow at `WAITING`. Existing Drive references and review history are retained for audit purposes. Menus that do not require submission retain their existing status when `productionType` is cleared.
 
-Existing data is normalized once: active files take precedence and set `SUBMITTED`; fileless `COMPANY` / `CONTINUED` menus become `WAITING`; fileless `INTERNAL` menus keep `WAITING`, while `REQUESTED`, `PRODUCING`, or `COMPLETED` become `REQUESTED`. Other menus are unchanged.
+Existing active Drive references are grouped into one legacy submission and migrated to `PROVISIONAL_SUBMITTED`; no file reference is removed. Legacy `SUBMITTED` rows without files become `WAITING`.
 
 `isGoodsSponsorship` marks this Contract Menu as a free return for goods sponsorship (物品協賛) rather than a paid item — same `SponsorshipMenu`, but `unitPrice` is conventionally `0` when this is true. This is a per-Contract-Menu flag, not a property of the Sponsorship Menu itself, because the same menu (e.g. a Pamphlet ad) can be sold normally in one contract and given as a goods-sponsorship return in another. The goods received (description, estimated value) are recorded in `SponsorshipContract.remarks`, not here (see `spec/domain.md` → Contract Menu → Goods Sponsorship).
 
@@ -271,7 +271,19 @@ Represents one Google Drive file reference attached to a Contract Menu. Google D
 | updatedAt      | datetime | ✓        |
 | deletedAt      | datetime |          |
 
-A Contract Menu has zero or more Drive-file references. `driveFileId` is the immutable Google Drive file identifier used for trash operations. It is nullable only for references created before dedicated-account uploads; the server may recover it from a recognized legacy Drive URL. Soft-deleted rows are excluded from `files`, `fileCount`, and the submitted-state calculation. The former `ContractMenu.driveUrl` / `driveFileName` columns are migrated into this entity before those columns are removed; the API may expose the first active file through deprecated read-only compatibility fields, but new writes always target this entity.
+A Contract Menu has zero or more Drive-file references. Files added by one request share a `submissionId`; a later upload creates a new submission without deleting earlier files. `uploadedById` is nullable for legacy rows. `driveFileId` is the immutable Google Drive file identifier used for trash operations. Soft-deleted rows are excluded from `files`, `fileCount`, and review of the current submission.
+
+## ContractMenuSubmission
+
+Groups the files uploaded in one request. It stores `id`, `contractMenuId`, `kind` (`AD_DATA`, `MATERIAL`, or `FINAL_DATA`), `sequence`, `submittedById`, `submittedAt`, `reviewedById`, `reviewedAt`, `reviewStatus` (`PENDING`, `APPROVED`, or `CHANGES_REQUESTED`), and the optional review-wide `reviewNote`. `reviewNote` is trimmed, limited to 2,000 characters, and records checklist-external findings. A non-empty note represents an additional problem and therefore makes the submission `CHANGES_REQUESTED` even when every checklist item passes. The highest undeleted sequence is the current submission.
+
+## ContractMenuFileReview
+
+Stores one review of one file in a submission: `id`, `submissionId`, `contractMenuDriveFileId`, `reviewerId`, `result`, `reviewedAt`, and child `ContractMenuFileReviewItem` rows. Each item stores a stable `itemCode`, its displayed `label` snapshot, and `result` (`PASS`, `FAIL`, or `NOT_APPLICABLE`), so later checklist wording changes do not rewrite history. Only `FAIL` requests changes; `PASS` and `NOT_APPLICABLE` satisfy completion.
+
+## ContractMenuWorkflowEvent
+
+Append-only audit history for upload, review, changes requested, Slack delivery result, manual status change, and completion. It stores actor, optional submission/file references, event type, JSON details, and timestamp. Review event details snapshot the failed item labels and `reviewNote`; Slack events retain the same review feedback together with the delivery result, so the UI can explain briefly what was inappropriate or what additional note was sent.
 
 ---
 
@@ -521,11 +533,13 @@ This is a fixed enumeration, not a reference to the organizational Department (`
 
 * Waiting
 * Requested
-* Producing
 * Completed
 * Submitted
+* Provisional Submitted
+* Material Completed
+* Company Reviewing
 
-For submission-required `COMPANY`, `CONTINUED`, and `INTERNAL` menus, only `WAITING` and `REQUESTED` are valid manual states, with `REQUESTED` available only for `INTERNAL`. `PRODUCING` and `COMPLETED` remain valid for menus that do not require submission and for historical data before normalization. `SUBMITTED` is always derived from active Drive files.
+`PROVISIONAL_SUBMITTED` is set by an upload that requires review. `MATERIAL_COMPLETED` is set when every file in the current `INTERNAL` material submission passes review. `REQUESTED` and `COMPANY_REVIEWING` are the normal manual states for `INTERNAL`; its final-data upload sets `COMPLETED`. `COMPANY` and `CONTINUED` become `COMPLETED` when every current file passes review. `SUBMITTED` remains a deprecated read-compatible legacy value and is not written by new code. `PRODUCING` is an obsolete read-compatible value: legacy rows may display it, but APIs and current UI controls never write it.
 
 ---
 

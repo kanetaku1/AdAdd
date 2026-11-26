@@ -69,9 +69,9 @@ func TestUpdateStatusLogsAnyStatusChangeOnce(t *testing.T) {
 		status   string
 		wantLogs int
 	}{
-		{"PRODUCING", 1},
-		{"PRODUCING", 1}, // same status: no new entry
-		{"COMPLETED", 2},
+		{"REQUESTED", 1},
+		{"REQUESTED", 1}, // same status: no new entry
+		{"COMPANY_REVIEWING", 2},
 	}
 	for _, step := range steps {
 		if err := svc.UpdateStatus(cm.ID, step.status, "user-test"); err != nil {
@@ -95,15 +95,47 @@ func TestUpdateStatusRejectsSubmittedWithoutFiles(t *testing.T) {
 	testdb.Open(t)
 	cm := seedStatusLogContractMenu(t)
 
-	if err := NewContractMenuService().UpdateStatus(cm.ID, "SUBMITTED", "user-test"); !errors.Is(err, ErrSubmittedStateConflict) {
-		t.Fatalf("err = %v, want ErrSubmittedStateConflict", err)
+	if err := NewContractMenuService().UpdateStatus(cm.ID, "SUBMITTED", "user-test"); !errors.Is(err, ErrInvalidContractMenuStatus) {
+		t.Fatalf("err = %v, want ErrInvalidContractMenuStatus", err)
 	}
 	if actions := activityLogActions(t); len(actions) != 0 {
 		t.Fatalf("got logs %q, want none", actions)
 	}
 }
 
-// Registering a file makes the Contract Menu SUBMITTED and writes one
+func TestUpdateStatusRequiresAcknowledgementForAutomaticState(t *testing.T) {
+	testdb.Open(t)
+	cm := seedStatusLogContractMenu(t)
+	svc := NewContractMenuService()
+
+	if err := svc.UpdateStatusWithAcknowledgement(cm.ID, "COMPLETED", false, "user-test"); !errors.Is(err, ErrAutomaticStatusConfirmationRequired) {
+		t.Fatalf("err = %v, want ErrAutomaticStatusConfirmationRequired", err)
+	}
+	var stored model.ContractMenu
+	if err := db.DB.First(&stored, "id = ?", cm.ID).Error; err != nil {
+		t.Fatalf("load contract menu: %v", err)
+	}
+	if stored.Status != "WAITING" {
+		t.Fatalf("status = %q, want WAITING", stored.Status)
+	}
+
+	if err := svc.UpdateStatusWithAcknowledgement(cm.ID, "COMPLETED", true, "user-test"); err != nil {
+		t.Fatalf("acknowledged update: %v", err)
+	}
+	if err := svc.UpdateStatusWithAcknowledgement(cm.ID, "COMPLETED", false, "user-test"); err != nil {
+		t.Fatalf("same-status no-op should not require acknowledgement: %v", err)
+	}
+	var events int64
+	if err := db.DB.Model(&model.ContractMenuWorkflowEvent{}).
+		Where("contract_menu_id = ? AND event_type = ?", cm.ID, "STATUS_CHANGED").Count(&events).Error; err != nil {
+		t.Fatalf("count workflow events: %v", err)
+	}
+	if events != 1 {
+		t.Fatalf("workflow events = %d, want 1", events)
+	}
+}
+
+// Registering a file makes the Contract Menu PROVISIONAL_SUBMITTED and writes one
 // AD_MATERIAL_UPLOADED entry per file, not CONTRACT_MENU_STATUS_UPDATED.
 func TestAddFilesSubmitsAndLogsUpload(t *testing.T) {
 	testdb.Open(t)
@@ -120,8 +152,8 @@ func TestAddFilesSubmitsAndLogsUpload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add files: %v", err)
 	}
-	if updated.Status != "SUBMITTED" {
-		t.Fatalf("status = %q, want SUBMITTED", updated.Status)
+	if updated.Status != "PROVISIONAL_SUBMITTED" {
+		t.Fatalf("status = %q, want PROVISIONAL_SUBMITTED", updated.Status)
 	}
 	actions := activityLogActions(t)
 	if len(actions) != 1 || actions[0] != model.EventAdMaterialUploaded {

@@ -35,6 +35,9 @@ import type {
   ContractMenuAcrossYear,
   ContractMenuProductionDepartment,
   ContractMenuProductionType,
+  ContractMenuReviewItemResult,
+  ContractMenuReviewResult,
+  ContractMenuReviewWorkflow,
   ContractMenuStatus,
 } from "@/types/contract-menu"
 import type { Payment, PaymentAcrossYear, PaymentStatus } from "@/types/payment"
@@ -156,6 +159,8 @@ function mapApiContractMenu(cm: {
   files?: Array<{
     id: string
     contractMenuId?: string
+    submissionId?: string | null
+    uploadedById?: string | null
     driveFileId?: string | null
     driveUrl: string
     driveFileName: string
@@ -166,6 +171,10 @@ function mapApiContractMenu(cm: {
   isSubmitted?: boolean
   allowUpload?: boolean
   allowDelete?: boolean
+  allowReview?: boolean
+  allowStatusChange?: boolean
+  currentSubmission?: ContractMenu["currentSubmission"]
+  reviewIndicator?: ContractMenu["reviewIndicator"]
   remarks?: string
 }): ContractMenu {
   const files = cm.files ?? (cm.driveUrl
@@ -190,21 +199,23 @@ function mapApiContractMenu(cm: {
       (cm.productionType as ContractMenu["productionType"]) || null,
     productionDepartment:
       (cm.productionDepartment as ContractMenuProductionDepartment | null) ?? null,
-    status: (isSubmitted
-      ? "SUBMITTED"
-      : cm.status === "SUBMITTED"
-        ? "WAITING"
-        : cm.status) as ContractMenu["status"],
+    status: cm.status as ContractMenu["status"],
     driveFolderId: cm.driveFolderId ?? null,
     files: files.map((file) => ({
       ...file,
       contractMenuId: file.contractMenuId ?? cm.id,
+      submissionId: file.submissionId ?? null,
+      uploadedById: file.uploadedById ?? null,
       driveFileId: file.driveFileId ?? null,
     })),
     fileCount: cm.fileCount ?? files.length,
     isSubmitted,
     allowUpload: cm.allowUpload ?? true,
     allowDelete: cm.allowDelete ?? true,
+    allowReview: cm.allowReview ?? false,
+    allowStatusChange: cm.allowStatusChange ?? false,
+    currentSubmission: cm.currentSubmission ?? null,
+    reviewIndicator: cm.reviewIndicator ?? "NONE",
     driveUrl: files[0]?.driveUrl ?? null,
     driveFileName: files[0]?.driveFileName ?? null,
     remarks: cm.remarks ?? "",
@@ -550,7 +561,8 @@ function syncMockContractTotal(
 /** PATCH /contract-menus/{id}/status (spec/api.md#Update Contract Menu Status). */
 export async function updateContractMenuStatus(
   id: string,
-  status: ContractMenuStatus
+  status: ContractMenuStatus,
+  acknowledgeAutomaticState = false
 ): Promise<ContractMenu> {
   if (isApiEnabled()) {
     const updated = await apiFetch<{
@@ -568,7 +580,7 @@ export async function updateContractMenuStatus(
       remarks?: string
     }>(`/contract-menus/${id}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, acknowledgeAutomaticState }),
     })
     return mapApiContractMenu(updated)
   }
@@ -652,7 +664,7 @@ export async function updateContractMenuProduction(
     driveUrl: files[0].driveUrl,
     driveFileName: files[0].driveFileName,
     remarks: input.remarks,
-    status: "SUBMITTED",
+    status: "PROVISIONAL_SUBMITTED",
   })
 }
 
@@ -712,7 +724,7 @@ export async function uploadContractMenuToDrive(
       (mockContractMenus.find((menu) => menu.id === id)?.fileCount ?? 0) +
       files.length,
     isSubmitted: true,
-    status: "SUBMITTED",
+    status: "PROVISIONAL_SUBMITTED",
   })
 }
 
@@ -735,10 +747,63 @@ export async function deleteContractMenuDriveFile(
     files,
     fileCount: files.length,
     isSubmitted: files.length > 0,
-    status: files.length > 0 ? "SUBMITTED" : "WAITING",
+    status: files.length > 0 ? "PROVISIONAL_SUBMITTED" : "WAITING",
     driveUrl: files[0]?.driveUrl ?? null,
     driveFileName: files[0]?.driveFileName ?? null,
   })
+}
+
+export async function getContractMenuReviewWorkflow(
+  contractMenuId: string
+): Promise<ContractMenuReviewWorkflow> {
+  if (!isApiEnabled()) {
+    return { checklist: [], submissions: [], events: [] }
+  }
+  const workflow = await apiFetch<ContractMenuReviewWorkflow>(
+    `/contract-menus/${contractMenuId}/review-workflow`
+  )
+  return normalizeContractMenuReviewWorkflow(workflow)
+}
+
+function normalizeContractMenuReviewWorkflow(
+  workflow: ContractMenuReviewWorkflow
+): ContractMenuReviewWorkflow {
+  return {
+    ...workflow,
+    checklist: workflow.checklist ?? [],
+    submissions: (workflow.submissions ?? []).map((submission) => ({
+      ...submission,
+      reviewNote: submission.reviewNote ?? null,
+      files: submission.files ?? [],
+      reviews: (submission.reviews ?? []).map((review) => ({
+        ...review,
+        items: review.items ?? [],
+      })),
+    })),
+    events: workflow.events ?? [],
+  }
+}
+
+export async function reviewContractMenuSubmission(
+  contractMenuId: string,
+  submissionId: string,
+  files: Array<{
+    fileId: string
+    items: Record<string, ContractMenuReviewItemResult>
+  }>,
+  note = ""
+): Promise<ContractMenuReviewResult> {
+  const result = await apiFetch<ContractMenuReviewResult>(
+    `/contract-menus/${contractMenuId}/submissions/${submissionId}/review`,
+    {
+      method: "POST",
+      body: JSON.stringify({ files, note }),
+    }
+  )
+  return {
+    ...result,
+    workflow: normalizeContractMenuReviewWorkflow(result.workflow),
+  }
 }
 
 export async function getPaymentByContract(

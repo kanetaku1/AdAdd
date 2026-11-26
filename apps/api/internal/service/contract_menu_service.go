@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,6 +23,8 @@ var (
 	ErrInvalidContractMenuStatus            = errors.New("status is not allowed for this production type")
 	ErrProductionDepartmentRequiresInternal = errors.New("production department requires INTERNAL production")
 	ErrInvalidProductionDepartment          = errors.New("invalid production department")
+	ErrAutomaticStatusConfirmationRequired  = errors.New("automatic status requires explicit acknowledgement")
+	ErrInvalidContractMenuReview            = errors.New("invalid contract menu review")
 
 	// ErrInvalidContractMenu is a Contract Menu input that is malformed by
 	// itself (missing sponsorshipMenuId, quantity < 1, negative unitPrice).
@@ -65,6 +68,17 @@ var ProductionDepartments = []string{
 	"DOCUMENT_CREATION_DEPARTMENT",
 	"PRODUCTION_BUREAU",
 	"SOCIAL_MEDIA_DEPARTMENT",
+}
+
+var ContractMenuWorkflowStatuses = []string{
+	"WAITING", "PROVISIONAL_SUBMITTED", "MATERIAL_COMPLETED", "REQUESTED",
+	"COMPANY_REVIEWING", "COMPLETED", "SUBMITTED",
+}
+
+var automaticContractMenuStatuses = map[string]bool{
+	"PROVISIONAL_SUBMITTED": true,
+	"MATERIAL_COMPLETED":    true,
+	"COMPLETED":             true,
 }
 
 func IsProductionDepartment(value string) bool {
@@ -235,24 +249,11 @@ func contractMenuStatusLogMessage(menuName, from, to string) string {
 	return menuName + "のステータスを「" + label.ContractMenuStatus(from) + "」から「" + label.ContractMenuStatus(to) + "」に更新"
 }
 
-func validateManualContractMenuStatus(productionType, productionDepartment *string, status string, activeFileCount int64) error {
-	if status == "SUBMITTED" || activeFileCount > 0 {
-		return ErrSubmittedStateConflict
+func validateManualContractMenuStatus(_ *string, _ *string, status string, _ int64) error {
+	if !contains(ContractMenuWorkflowStatuses, status) || status == "SUBMITTED" {
+		return ErrInvalidContractMenuStatus
 	}
-	if productionType == nil {
-		return nil
-	}
-	switch *productionType {
-	case "COMPANY", ProductionTypeContinued:
-		if status == "WAITING" {
-			return nil
-		}
-	case "INTERNAL":
-		if productionDepartment != nil && (status == "WAITING" || status == "REQUESTED") {
-			return nil
-		}
-	}
-	return ErrInvalidContractMenuStatus
+	return nil
 }
 
 // UpdateStatus changes the Contract Menu's status and, when it actually
@@ -262,6 +263,10 @@ func validateManualContractMenuStatus(productionType, productionDepartment *stri
 // quantity, price, or production type is kept
 // (spec/database.md#Concurrent Updates).
 func (s *ContractMenuService) UpdateStatus(id, status, userID string) error {
+	return s.UpdateStatusWithAcknowledgement(id, status, false, userID)
+}
+
+func (s *ContractMenuService) UpdateStatusWithAcknowledgement(id, status string, acknowledgeAutomatic bool, userID string) error {
 	return db.WithTx(func(tx *gorm.DB) error {
 		if err := ensureContractMenuActiveYear(tx, id); err != nil {
 			return err
@@ -282,6 +287,9 @@ func (s *ContractMenuService) UpdateStatus(id, status, userID string) error {
 		if existing.Status == status {
 			return nil
 		}
+		if automaticContractMenuStatuses[status] && !acknowledgeAutomatic {
+			return ErrAutomaticStatusConfirmationRequired
+		}
 		if err := tx.Model(&model.ContractMenu{}).Where("id = ?", id).Update("status", status).Error; err != nil {
 			return err
 		}
@@ -294,9 +302,25 @@ func (s *ContractMenuService) UpdateStatus(id, status, userID string) error {
 		if err := tx.First(&smenu, "id = ?", existing.SponsorshipMenuID).Error; err == nil && smenu.Name != "" {
 			menuName = smenu.Name
 		}
-		return writeActivityLog(tx, contract.YearlyCompanyID, userID, model.EventContractMenuStatusUpdated,
-			contractMenuStatusLogMessage(menuName, existing.Status, status))
+		if err := writeActivityLog(tx, contract.YearlyCompanyID, userID, model.EventContractMenuStatusUpdated,
+			contractMenuStatusLogMessage(menuName, existing.Status, status)); err != nil {
+			return err
+		}
+		details, _ := json.Marshal(map[string]string{"from": existing.Status, "to": status, "source": "MANUAL"})
+		return tx.Create(&model.ContractMenuWorkflowEvent{
+			ContractMenuID: id,
+			EventType:      "STATUS_CHANGED",
+			ActorID:        optionalUserID(userID),
+			Details:        details,
+		}).Error
 	})
+}
+
+func optionalUserID(userID string) *string {
+	if strings.TrimSpace(userID) == "" {
+		return nil
+	}
+	return &userID
 }
 
 // Delete removes a Contract Menu, recalculates the total (which may remove a
@@ -377,19 +401,10 @@ func (s *ContractMenuService) PatchDetails(id string, quantity *int, unitPrice *
 			}
 			m.ProductionType = productionType.Value
 			if !equalOptionalStrings(previousProductionType, m.ProductionType) {
-				var fileCount int64
-				if err := tx.Model(&model.ContractMenuDriveFile{}).
-					Where("contract_menu_id = ?", m.ID).Count(&fileCount).Error; err != nil {
-					return err
-				}
 				m.ProductionDepartment = nil
 				if sponsorshipMenu.RequiresSubmission {
-					if fileCount > 0 {
-						m.Status = "SUBMITTED"
-					} else {
-						m.Status = "WAITING"
-						m.SubmittedAt = nil
-					}
+					m.Status = "WAITING"
+					m.SubmittedAt = nil
 				}
 			} else if m.ProductionType == nil || *m.ProductionType != "INTERNAL" {
 				m.ProductionDepartment = nil
@@ -545,14 +560,18 @@ func (s *ContractMenuService) EnsureFilesWritable(contractMenuID string) error {
 }
 
 func (s *ContractMenuService) AddFiles(contractMenuID string, inputs []ContractMenuDriveFileInput, userID string) (*model.ContractMenu, error) {
-	return s.addFiles(contractMenuID, inputs, nil, userID)
+	return s.addFiles(contractMenuID, inputs, nil, "", userID)
 }
 
 func (s *ContractMenuService) AddUploadedFiles(contractMenuID, driveFolderID string, inputs []ContractMenuDriveFileInput, userID string) (*model.ContractMenu, error) {
-	return s.addFiles(contractMenuID, inputs, &driveFolderID, userID)
+	return s.addFiles(contractMenuID, inputs, &driveFolderID, "", userID)
 }
 
-func (s *ContractMenuService) addFiles(contractMenuID string, inputs []ContractMenuDriveFileInput, driveFolderID *string, userID string) (*model.ContractMenu, error) {
+func (s *ContractMenuService) AddUploadedFilesWithCategory(contractMenuID, driveFolderID, category string, inputs []ContractMenuDriveFileInput, userID string) (*model.ContractMenu, error) {
+	return s.addFiles(contractMenuID, inputs, &driveFolderID, category, userID)
+}
+
+func (s *ContractMenuService) addFiles(contractMenuID string, inputs []ContractMenuDriveFileInput, driveFolderID *string, category, userID string) (*model.ContractMenu, error) {
 	if len(inputs) == 0 {
 		return nil, fmt.Errorf("%w: at least one file is required", ErrInvalidDriveFile)
 	}
@@ -568,14 +587,50 @@ func (s *ContractMenuService) addFiles(contractMenuID string, inputs []ContractM
 		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
 			return err
 		}
+		var menu model.ContractMenu
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&menu, "id = ?", contractMenuID).Error; err != nil {
+			return err
+		}
 		logContext, err := loadContractMenuFileLogContext(tx, contractMenuID)
 		if err != nil {
 			return err
 		}
 		now := time.Now()
+		var maxSequence int
+		if err := tx.Model(&model.ContractMenuSubmission{}).
+			Where("contract_menu_id = ?", contractMenuID).
+			Select("COALESCE(MAX(submission_sequence), 0)").Scan(&maxSequence).Error; err != nil {
+			return err
+		}
+		kind := "AD_DATA"
+		nextStatus := "PROVISIONAL_SUBMITTED"
+		if menu.ProductionType != nil && *menu.ProductionType == "INTERNAL" {
+			kind = "MATERIAL"
+			if category == "完成" {
+				kind = "FINAL_DATA"
+				nextStatus = "COMPLETED"
+			}
+		}
+		reviewStatus := "PENDING"
+		if kind == "FINAL_DATA" {
+			reviewStatus = "APPROVED"
+		}
+		submission := &model.ContractMenuSubmission{
+			ContractMenuID: contractMenuID, Kind: kind, SubmissionSequence: maxSequence + 1,
+			SubmittedByID: optionalUserID(userID), SubmittedAt: now, ReviewStatus: reviewStatus,
+		}
+		if kind == "FINAL_DATA" {
+			submission.ReviewedByID = optionalUserID(userID)
+			submission.ReviewedAt = &now
+		}
+		if err := tx.Create(submission).Error; err != nil {
+			return err
+		}
 		for _, input := range inputs {
 			file := &model.ContractMenuDriveFile{
 				ContractMenuID: contractMenuID,
+				SubmissionID:   &submission.ID,
+				UploadedByID:   optionalUserID(userID),
 				DriveFileID:    input.DriveFileID,
 				DriveURL:       input.DriveURL,
 				DriveFileName:  input.DriveFileName,
@@ -596,13 +651,20 @@ func (s *ContractMenuService) addFiles(contractMenuID string, inputs []ContractM
 			}
 		}
 		updates := map[string]interface{}{
-			"status":       "SUBMITTED",
+			"status":       nextStatus,
 			"submitted_at": gorm.Expr("COALESCE(submitted_at, ?)", now),
 		}
 		if driveFolderID != nil {
 			updates["drive_folder_id"] = *driveFolderID
 		}
-		return tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).Updates(updates).Error
+		if err := tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).Updates(updates).Error; err != nil {
+			return err
+		}
+		details, _ := json.Marshal(map[string]interface{}{"kind": kind, "fileCount": len(inputs), "status": nextStatus})
+		return tx.Create(&model.ContractMenuWorkflowEvent{
+			ContractMenuID: contractMenuID, SubmissionID: &submission.ID,
+			EventType: "SUBMISSION_CREATED", ActorID: optionalUserID(userID), Details: details,
+		}).Error
 	})
 	if err != nil {
 		return nil, err
@@ -716,51 +778,19 @@ func (s *ContractMenuService) UpdateLegacyProduction(contractMenuID string, rema
 			return nil, fmt.Errorf("%w: driveUrl and driveFileName are required", ErrInvalidDriveFile)
 		}
 	}
-	err := db.WithTx(func(tx *gorm.DB) error {
-		if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
-			return err
-		}
-		if remarks != nil {
-			if err := tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).
-				Update("remarks", *remarks).Error; err != nil {
+	if remarks != nil {
+		if err := db.WithTx(func(tx *gorm.DB) error {
+			if err := ensureContractMenuActiveYear(tx, contractMenuID); err != nil {
 				return err
 			}
+			return tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).
+				Update("remarks", *remarks).Error
+		}); err != nil {
+			return nil, err
 		}
-		if file == nil {
-			return nil
-		}
-		created := &model.ContractMenuDriveFile{
-			ContractMenuID: contractMenuID,
-			DriveFileID:    file.DriveFileID,
-			DriveURL:       file.DriveURL,
-			DriveFileName:  file.DriveFileName,
-		}
-		if err := tx.Create(created).Error; err != nil {
-			return err
-		}
-		if userID != "" {
-			logContext, err := loadContractMenuFileLogContext(tx, contractMenuID)
-			if err != nil {
-				return err
-			}
-			if err := tx.Create(&model.ActivityLog{
-				YearlyCompanyID: logContext.YearlyCompanyID,
-				UserID:          userID,
-				Action:          model.EventAdMaterialUploaded,
-				Description:     fmt.Sprintf("%sの広告資料「%s」を登録", logContext.MenuName, created.DriveFileName),
-				CreatedAt:       time.Now(),
-			}).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Model(&model.ContractMenu{}).Where("id = ?", contractMenuID).
-			Updates(map[string]interface{}{
-				"status":       "SUBMITTED",
-				"submitted_at": gorm.Expr("COALESCE(submitted_at, ?)", time.Now()),
-			}).Error
-	})
-	if err != nil {
-		return nil, err
+	}
+	if file != nil {
+		return s.AddFiles(contractMenuID, []ContractMenuDriveFileInput{*file}, userID)
 	}
 	return s.GetByID(contractMenuID)
 }

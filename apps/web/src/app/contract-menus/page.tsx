@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { Upload } from "lucide-react"
 
 import { useYearCatalog } from "@/components/year-catalog-provider"
 import {
@@ -36,6 +37,7 @@ import { canAccess } from "@/lib/auth/roles"
 import { useSelectedYear } from "@/hooks/use-selected-year"
 import { downloadCsv } from "@/lib/csv"
 import { ContractMenuFilesSummary } from "@/components/contract-menu-files-summary"
+import { DriveUploadDialog } from "@/components/drive-upload-dialog"
 
 const ALLOWED_ROLES = ["SPONSORSHIP_MEMBER", "ADMINISTRATOR"]
 const STATUS_ALLOWED_ROLES = ["ADVERTISEMENT_MANAGER", "ADMINISTRATOR"]
@@ -43,6 +45,7 @@ import {
   CONTRACT_MENU_PRODUCTION_DEPARTMENT_LABEL,
   CONTRACT_MENU_PRODUCTION_TYPE_LABEL,
   CONTRACT_MENU_STATUS_LABEL,
+  getContractMenuStatusLabel,
 } from "@/lib/contract-menu-labels"
 import type {
   ContractMenuProductionDepartment,
@@ -52,22 +55,84 @@ import type {
 
 const ALL = "ALL" as const
 type ColumnFilterKey = "menu" | "productionType" | "status"
-const NON_SUBMISSION_STATUSES: ContractMenuStatus[] = [
+type ContextualStatusFilter =
+  | "AD_WAITING"
+  | "AD_PROVISIONAL_SUBMITTED"
+  | "MATERIAL_WAITING"
+  | "MATERIAL_PROVISIONAL_SUBMITTED"
+type StatusFilter = ContractMenuStatus | ContextualStatusFilter | typeof ALL
+
+const AD_MANAGEMENT_STATUS_FILTERS: Array<{
+  value: Exclude<StatusFilter, typeof ALL>
+  label: string
+}> = [
+  { value: "AD_WAITING", label: "広告データ提出待ち" },
+  { value: "AD_PROVISIONAL_SUBMITTED", label: "広告データ仮提出済み" },
+  { value: "MATERIAL_WAITING", label: "素材データ提出待ち" },
+  { value: "MATERIAL_PROVISIONAL_SUBMITTED", label: "素材データ仮提出済み" },
+  { value: "MATERIAL_COMPLETED", label: "素材データ完成" },
+  { value: "REQUESTED", label: "制作依頼済み" },
+  { value: "COMPANY_REVIEWING", label: "企業への確認中" },
+  { value: "COMPLETED", label: "完成" },
+]
+
+const MANUALLY_SELECTABLE_STATUSES: ContractMenuStatus[] = [
   "WAITING",
+  "PROVISIONAL_SUBMITTED",
+  "MATERIAL_COMPLETED",
   "REQUESTED",
-  "PRODUCING",
+  "COMPANY_REVIEWING",
   "COMPLETED",
 ]
-const AD_MANAGEMENT_STATUS_FILTERS: ContractMenuStatus[] = [
-  "WAITING",
-  "REQUESTED",
-  "SUBMITTED",
-]
+
+const AUTOMATIC_STATUSES = new Set<ContractMenuStatus>([
+  "PROVISIONAL_SUBMITTED",
+  "MATERIAL_COMPLETED",
+  "COMPLETED",
+])
+
+function matchesStatusFilter(
+  cm: {
+    status: ContractMenuStatus
+    productionType: ContractMenuProductionType | null
+  },
+  filter: StatusFilter
+): boolean {
+  if (filter === ALL) return true
+  const isAdData =
+    cm.productionType === "COMPANY" || cm.productionType === "CONTINUED"
+  if (filter === "AD_WAITING") {
+    return cm.status === "WAITING" && isAdData
+  }
+  if (filter === "AD_PROVISIONAL_SUBMITTED") {
+    return cm.status === "PROVISIONAL_SUBMITTED" && isAdData
+  }
+  if (filter === "MATERIAL_WAITING") {
+    return cm.status === "WAITING" && cm.productionType === "INTERNAL"
+  }
+  if (filter === "MATERIAL_PROVISIONAL_SUBMITTED") {
+    return (
+      cm.status === "PROVISIONAL_SUBMITTED" &&
+      cm.productionType === "INTERNAL"
+    )
+  }
+  return cm.status === filter
+}
+
+function statusFilterLabel(filter: Exclude<StatusFilter, typeof ALL>): string {
+  return (
+    AD_MANAGEMENT_STATUS_FILTERS.find((option) => option.value === filter)
+      ?.label ??
+    (filter in CONTRACT_MENU_STATUS_LABEL
+      ? CONTRACT_MENU_STATUS_LABEL[filter as ContractMenuStatus]
+      : filter)
+  )
+}
 
 function isContractMenuStatus(
   value: string | null
 ): value is ContractMenuStatus {
-  return value !== null && value in CONTRACT_MENU_STATUS_LABEL
+  return value !== null && MANUALLY_SELECTABLE_STATUSES.includes(value as ContractMenuStatus)
 }
 
 /**
@@ -131,9 +196,9 @@ function ContractMenusList() {
   const [menuFilter, setMenuFilter] = useState<string | typeof ALL>(
     initialMenuId ?? ALL
   )
-  const [statusFilter, setStatusFilter] = useState<
-    ContractMenuStatus | typeof ALL
-  >(isContractMenuStatus(initialStatus) ? initialStatus : ALL)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    isContractMenuStatus(initialStatus) ? initialStatus : ALL
+  )
   const [productionTypeFilter, setProductionTypeFilter] = useState<
     ContractMenuProductionType | typeof ALL
   >(ALL)
@@ -146,6 +211,7 @@ function ContractMenusList() {
 
 
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [uploadingFinalMenuId, setUploadingFinalMenuId] = useState<string | null>(null)
   useEffect(() => {
     if (!activeYearId) return
     void Promise.all([
@@ -166,7 +232,7 @@ function ContractMenusList() {
   const visibleContractMenus = contractMenus.filter((cm) => {
     return (
       (menuFilter === ALL || cm.sponsorshipMenuId === menuFilter) &&
-      (statusFilter === ALL || cm.status === statusFilter) &&
+      matchesStatusFilter(cm, statusFilter) &&
       (productionTypeFilter === ALL ||
         cm.productionType === productionTypeFilter) &&
       (!productionDepartmentFilter ||
@@ -193,10 +259,23 @@ function ContractMenusList() {
 
   async function handleStatusChange(id: string, status: ContractMenuStatus) {
     if (!activeYearId) return
+    const acknowledgeAutomaticState = AUTOMATIC_STATUSES.has(status)
+    if (
+      acknowledgeAutomaticState &&
+      !window.confirm(
+        `「${getContractMenuStatusLabel(status, contractMenus.find((cm) => cm.id === id)?.productionType)}」は通常、自動で切り替わるステータスです。すでに終了している工程へ戻る可能性がありますが、手動で変更しますか？`
+      )
+    ) {
+      return
+    }
     setError(null)
     setSavingId(id)
     try {
-      const updated = await updateContractMenuStatus(id, status)
+      const updated = await updateContractMenuStatus(
+        id,
+        status,
+        acknowledgeAutomaticState
+      )
       contractMenusCache.set(
         activeYearId,
         contractMenus.map((cm) => (cm.id === id ? { ...cm, ...updated } : cm))
@@ -279,7 +358,7 @@ function ContractMenusList() {
           : "-",
         cm.productionType === null
           ? "-"
-          : CONTRACT_MENU_STATUS_LABEL[cm.status],
+          : getContractMenuStatusLabel(cm.status, cm.productionType),
         cm.fileCount > 0 ? `資料${cm.fileCount}件` : "未提出",
       ])
     )
@@ -368,7 +447,7 @@ function ContractMenusList() {
             )}
             {statusFilter !== ALL && (
               <Badge variant="secondary">
-                ステータス: {CONTRACT_MENU_STATUS_LABEL[statusFilter]}
+                ステータス: {statusFilterLabel(statusFilter)}
               </Badge>
             )}
           </div>
@@ -509,17 +588,17 @@ function ContractMenusList() {
                   >
                     すべて
                   </ColumnFilterOption>
-                  {AD_MANAGEMENT_STATUS_FILTERS.map((value) => (
+                  {AD_MANAGEMENT_STATUS_FILTERS.map((option) => (
                     <ColumnFilterOption
-                      key={value}
-                      selected={statusFilter === value}
+                      key={option.value}
+                      selected={statusFilter === option.value}
                       onSelect={() =>
                         setStatusFilter((current) =>
-                          current === value ? ALL : value
+                          current === option.value ? ALL : option.value
                         )
                       }
                     >
-                      {CONTRACT_MENU_STATUS_LABEL[value]}
+                      {option.label}
                     </ColumnFilterOption>
                   ))}
                 </ColumnFilterPopover>
@@ -544,16 +623,7 @@ function ContractMenusList() {
             ) : (
               visibleContractMenus.map((cm) => {
                 const statusEditable =
-                  canManageStatus &&
-                  cm.productionType === "INTERNAL" &&
-                  cm.productionDepartment !== null
-                const availableStatuses =
-                  cm.productionType === "INTERNAL"
-                    ? (["WAITING", "REQUESTED"] as ContractMenuStatus[])
-                    : cm.productionType === "COMPANY" ||
-                        cm.productionType === "CONTINUED"
-                      ? (["WAITING"] as ContractMenuStatus[])
-                      : NON_SUBMISSION_STATUSES
+                  canManageStatus && (cm.allowStatusChange ?? true)
                 return (
                   <TableRow key={cm.id}>
                     <TableCell className="font-medium">
@@ -609,20 +679,62 @@ function ContractMenusList() {
                       {cm.productionType === null ? (
                         <span className="text-muted-foreground">-</span>
                       ) : isPastYear ? (
-                        CONTRACT_MENU_STATUS_LABEL[cm.status]
+                        getContractMenuStatusLabel(cm.status, cm.productionType)
                       ) : (
                         <EditableContractMenuStatusBadge
                           value={cm.status}
+                          productionType={cm.productionType}
                           onChange={(status) =>
                             void handleStatusChange(cm.id, status)
                           }
                           disabled={savingId === cm.id || !statusEditable}
-                          availableStatuses={availableStatuses}
+                          availableStatuses={MANUALLY_SELECTABLE_STATUSES}
                         />
                       )}
                     </TableCell>
                     <TableCell>
-                      <ContractMenuFilesSummary menu={cm} />
+                      <div className="flex items-center gap-2">
+                        <ContractMenuFilesSummary
+                          menu={cm}
+                          onReviewComplete={(result) => {
+                            if (!activeYearId) return
+                            contractMenusCache.set(
+                              activeYearId,
+                              contractMenus.map((menu) =>
+                                menu.id === cm.id
+                                  ? {
+                                      ...menu,
+                                      status: result.status,
+                                      reviewIndicator: "REVIEWED",
+                                      currentSubmission: menu.currentSubmission
+                                        ? {
+                                            ...menu.currentSubmission,
+                                            reviewStatus:
+                                              result.status === "WAITING"
+                                                ? "CHANGES_REQUESTED"
+                                                : "APPROVED",
+                                          }
+                                        : null,
+                                    }
+                                  : menu
+                              )
+                            )
+                          }}
+                        />
+                        {cm.productionType === "INTERNAL" &&
+                          cm.status === "COMPANY_REVIEWING" &&
+                          canManageStatus &&
+                          cm.allowUpload && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setUploadingFinalMenuId(cm.id)}
+                            >
+                              <Upload /> 完成データ
+                            </Button>
+                          )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -631,6 +743,28 @@ function ContractMenusList() {
           </TableBody>
         </Table>
       </div>
+
+      {uploadingFinalMenuId && (
+        <DriveUploadDialog
+          menuId={uploadingFinalMenuId}
+          open
+          fixedCategory="完成"
+          title="完成データをDriveへアップロード"
+          onOpenChange={(open) => {
+            if (!open) setUploadingFinalMenuId(null)
+          }}
+          onSuccess={(updated) => {
+            setUploadingFinalMenuId(null)
+            if (!activeYearId) return
+            contractMenusCache.set(
+              activeYearId,
+              contractMenus.map((menu) =>
+                menu.id === updated.id ? { ...menu, ...updated } : menu
+              )
+            )
+          }}
+        />
+      )}
     </div>
   )
 }

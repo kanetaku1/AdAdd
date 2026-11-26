@@ -113,19 +113,23 @@ func TestContractMenuProductionDepartmentAndStatusRules(t *testing.T) {
 
 	statusPath := "/contract-menus/" + firstMenuID + "/status"
 	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "REQUESTED"}), http.StatusOK)
-	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "PRODUCING"}), http.StatusConflict)
+	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "COMPANY_REVIEWING"}), http.StatusOK)
 	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "SUBMITTED"}), http.StatusConflict)
 
 	secondStatusPath := "/contract-menus/" + secondMenuID + "/status"
 	expectStatus(t, actors.administrator.do(http.MethodPatch, "/contract-menus/"+secondMenuID+"/production-department", map[string]any{
 		"productionDepartment": nil,
 	}), http.StatusOK)
-	expectStatus(t, manager.do(http.MethodPatch, secondStatusPath, map[string]any{"status": "WAITING"}), http.StatusConflict)
+	expectStatus(t, manager.do(http.MethodPatch, secondStatusPath, map[string]any{"status": "WAITING"}), http.StatusOK)
 
 	companyStatusPath := "/contract-menus/" + companyMenuID + "/status"
-	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{"status": "REQUESTED"}), http.StatusConflict)
+	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{"status": "REQUESTED"}), http.StatusOK)
+	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{"status": "COMPLETED"}), http.StatusConflict)
+	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{
+		"status": "COMPLETED", "acknowledgeAutomaticState": true,
+	}), http.StatusOK)
 	expectStatus(t, manager.do(http.MethodPatch, companyStatusPath, map[string]any{"status": "WAITING"}), http.StatusOK)
-	expectStatus(t, manager.do(http.MethodPatch, "/contract-menus/"+continuedMenuID+"/status", map[string]any{"status": "REQUESTED"}), http.StatusConflict)
+	expectStatus(t, manager.do(http.MethodPatch, "/contract-menus/"+continuedMenuID+"/status", map[string]any{"status": "REQUESTED"}), http.StatusOK)
 
 	filesPath := "/contract-menus/" + firstMenuID + "/production/files"
 	fileResponse := actors.sponsorshipMember.do(http.MethodPost, filesPath, map[string]any{
@@ -136,7 +140,7 @@ func TestContractMenuProductionDepartmentAndStatusRules(t *testing.T) {
 	})
 	expectStatus(t, fileResponse, http.StatusCreated)
 	file := decodeData[model.ContractMenu](t, fileResponse).Files[0]
-	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "WAITING"}), http.StatusConflict)
+	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "WAITING"}), http.StatusOK)
 	expectStatus(t, actors.sponsorshipMember.do(http.MethodDelete, filesPath+"/"+file.ID, nil), http.StatusOK)
 	expectStatus(t, manager.do(http.MethodPatch, statusPath, map[string]any{"status": "WAITING"}), http.StatusOK)
 

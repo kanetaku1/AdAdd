@@ -6,7 +6,6 @@ import (
 )
 
 func TestValidateManualContractMenuStatus(t *testing.T) {
-	department := "PRODUCTION_BUREAU"
 	cases := []struct {
 		name                 string
 		productionType       *string
@@ -15,17 +14,15 @@ func TestValidateManualContractMenuStatus(t *testing.T) {
 		activeFiles          int64
 		wantErr              error
 	}{
-		{name: "non-submission lifecycle", status: "PRODUCING"},
+		{name: "obsolete producing cannot be written", status: "PRODUCING", wantErr: ErrInvalidContractMenuStatus},
 		{name: "company waiting", productionType: stringPointer("COMPANY"), status: "WAITING"},
-		{name: "company cannot request", productionType: stringPointer("COMPANY"), status: "REQUESTED", wantErr: ErrInvalidContractMenuStatus},
-		{name: "continued waiting", productionType: stringPointer(ProductionTypeContinued), status: "WAITING"},
-		{name: "continued cannot complete", productionType: stringPointer(ProductionTypeContinued), status: "COMPLETED", wantErr: ErrInvalidContractMenuStatus},
-		{name: "internal unassigned is read-only", productionType: stringPointer("INTERNAL"), status: "WAITING", wantErr: ErrInvalidContractMenuStatus},
-		{name: "internal assigned waiting", productionType: stringPointer("INTERNAL"), productionDepartment: &department, status: "WAITING"},
-		{name: "internal assigned requested", productionType: stringPointer("INTERNAL"), productionDepartment: &department, status: "REQUESTED"},
-		{name: "internal cannot produce", productionType: stringPointer("INTERNAL"), productionDepartment: &department, status: "PRODUCING", wantErr: ErrInvalidContractMenuStatus},
-		{name: "submitted is derived", status: "SUBMITTED", wantErr: ErrSubmittedStateConflict},
-		{name: "files prevent manual progress", productionType: stringPointer("INTERNAL"), productionDepartment: &department, status: "REQUESTED", activeFiles: 1, wantErr: ErrSubmittedStateConflict},
+		{name: "manual recovery may request", productionType: stringPointer("COMPANY"), status: "REQUESTED"},
+		{name: "provisional submission is valid", productionType: stringPointer(ProductionTypeContinued), status: "PROVISIONAL_SUBMITTED"},
+		{name: "material completion is valid", productionType: stringPointer("INTERNAL"), status: "MATERIAL_COMPLETED"},
+		{name: "company reviewing is valid", productionType: stringPointer("INTERNAL"), status: "COMPANY_REVIEWING"},
+		{name: "files do not block recovery", productionType: stringPointer("INTERNAL"), status: "REQUESTED", activeFiles: 1},
+		{name: "legacy submitted cannot be written", status: "SUBMITTED", wantErr: ErrInvalidContractMenuStatus},
+		{name: "unknown status", status: "UNKNOWN", wantErr: ErrInvalidContractMenuStatus},
 	}
 
 	for _, testCase := range cases {

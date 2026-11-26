@@ -41,6 +41,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	r := e.Group("")
 	r.GET("/contracts/:contractId/menus", listContractMenus)
 	r.GET("/contract-menus/:id/production/files", listContractMenuFiles)
+	r.GET("/contract-menus/:id/review-workflow", getContractMenuReviewWorkflow)
 	// staff and admin manage contract menus — create/update only
 	rStaff := e.Group("")
 	rStaff.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADMINISTRATOR"))
@@ -51,17 +52,21 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rAdvertisementManager.Use(RequireRoles("ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
 	rAdvertisementManager.PATCH("/contract-menus/:id/status", updateContractMenuStatus)
 	rAdvertisementManager.PATCH("/contract-menus/:id/production-department", updateContractMenuProductionDepartment)
+	rAdvertisementManager.POST("/contract-menus/:id/submissions/:submissionId/review", reviewContractMenuSubmission)
 
-	rFiles := e.Group("")
-	rFiles.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
-	rFiles.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
-	rFiles.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
-	rFiles.POST("/contract-menus/:id/production/files", addContractMenuFiles)
-	rFiles.PATCH("/contract-menus/:id/production/files/:fileId", updateContractMenuFile)
-	rFiles.DELETE("/contract-menus/:id/production/files/:fileId", deleteContractMenuFile)
+	rFileWrite := e.Group("")
+	rFileWrite.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
+	rFileWrite.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
+	rFileWrite.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
+	rFileWrite.POST("/contract-menus/:id/production/files", addContractMenuFiles)
+	rFileWrite.PATCH("/contract-menus/:id/production/files/:fileId", updateContractMenuFile)
+	rFileWrite.POST("/contract-menus/:id/drive-folder", ensureDriveFolder)
+
+	rFileDelete := e.Group("")
+	rFileDelete.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
+	rFileDelete.DELETE("/contract-menus/:id/production/files/:fileId", deleteContractMenuFile)
 	// Compatibility for the path used by the first multiple-file prototype.
-	rFiles.DELETE("/contract-menus/:id/files/:fileId", deleteContractMenuFile)
-	rFiles.POST("/contract-menus/:id/drive-folder", ensureDriveFolder)
+	rFileDelete.DELETE("/contract-menus/:id/files/:fileId", deleteContractMenuFile)
 
 	// Deletion is Administrator-only system-wide (spec/api.md#Authorization
 	// Matrix) — Sponsorship Member's "manage menus" access stops at update.
@@ -150,7 +155,8 @@ func deleteContractMenu(c echo.Context) error {
 func updateContractMenuStatus(c echo.Context) error {
 	id := c.Param("id")
 	var body struct {
-		Status string `json:"status"`
+		Status                    string `json:"status"`
+		AcknowledgeAutomaticState bool   `json:"acknowledgeAutomaticState"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return respondRequestBodyError(c, err, "invalid request body")
@@ -167,7 +173,7 @@ func updateContractMenuStatus(c echo.Context) error {
 	if uid := c.Get("userId"); uid != nil {
 		userID, _ = uid.(string)
 	}
-	if err := svc.UpdateStatus(id, body.Status, userID); err != nil {
+	if err := svc.UpdateStatusWithAcknowledgement(id, body.Status, body.AcknowledgeAutomaticState, userID); err != nil {
 		if errors.Is(err, service.ErrPastYearReadOnly) {
 			return respondConflict(c, err.Error())
 		}
@@ -176,6 +182,9 @@ func updateContractMenuStatus(c echo.Context) error {
 		}
 		if errors.Is(err, service.ErrInvalidContractMenuStatus) {
 			return respondConflict(c, err.Error())
+		}
+		if errors.Is(err, service.ErrAutomaticStatusConfirmationRequired) {
+			return respondError(c, http.StatusConflict, ErrCodeAutomaticStatusConfirmationRequired, err.Error())
 		}
 		return respondInternalServerError(c, err)
 	}
@@ -276,6 +285,15 @@ func driveUploadContractMenu(c echo.Context) error {
 	if err := menuSvc.EnsureFilesWritable(id); err != nil {
 		return respondContractMenuFileError(c, err)
 	}
+	if cm.ProductionType != nil && *cm.ProductionType == "INTERNAL" && category == "完成" {
+		roles, _ := c.Get("userRoles").([]string)
+		if !hasAnyRole(roles, "ADVERTISEMENT_MANAGER", "ADMINISTRATOR") {
+			return respondForbidden(c, "only Advertisement Manager may upload final artwork")
+		}
+		if cm.Status != "COMPANY_REVIEWING" {
+			return respondConflict(c, "final artwork can be uploaded only while the company is reviewing")
+		}
+	}
 
 	// Resolve naming context: company name, sponsorship menu name, edition number
 	companyName := "不明な企業"
@@ -357,7 +375,7 @@ func driveUploadContractMenu(c echo.Context) error {
 	}
 
 	userID, _ := c.Get("userId").(string)
-	cm, err = menuSvc.AddUploadedFiles(id, folderId, inputs, userID)
+	cm, err = menuSvc.AddUploadedFilesWithCategory(id, folderId, category, inputs, userID)
 	if err != nil {
 		cleanupUploadedDriveFiles(c.Request().Context(), driveSvc, inputs)
 		return respondContractMenuFileError(c, err)
@@ -525,11 +543,13 @@ func respondContractMenuFileError(c echo.Context, err error) error {
 
 func applyContractMenuCapabilities(c echo.Context, cm *model.ContractMenu) {
 	roles, _ := c.Get("userRoles").([]string)
-	canManageFiles := hasAnyRole(roles,
-		"SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR",
-	)
-	cm.AllowUpload = cm.ActiveYear && canManageFiles
-	cm.AllowDelete = cm.ActiveYear && canManageFiles
+	canUpload := hasAnyRole(roles, "SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR")
+	canDelete := hasAnyRole(roles, "SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR")
+	canManageWorkflow := hasAnyRole(roles, "ADVERTISEMENT_MANAGER", "ADMINISTRATOR")
+	cm.AllowUpload = cm.ActiveYear && canUpload
+	cm.AllowDelete = cm.ActiveYear && canDelete
+	cm.AllowReview = cm.ActiveYear && canManageWorkflow
+	cm.AllowStatusChange = cm.ActiveYear && canManageWorkflow
 }
 
 func hasAnyRole(actual []string, allowed ...string) bool {

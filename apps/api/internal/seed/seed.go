@@ -87,11 +87,15 @@ func Run(out io.Writer) error {
 	}{
 		{"users and roles", ensureUsers},
 		{"companies (previous Year)", func() error { return ensureCompanies(previousYearCompanies) }},
-		{"Year 2025", func() error { return ensureYear(PreviousYearID, "2025", date(2025, 4, 1), date(2025, 11, 30), intPointer(44)) }},
+		{"Year 2025", func() error {
+			return ensureYear(PreviousYearID, "2025", date(2025, 4, 1), date(2025, 11, 30), intPointer(44))
+		}},
 		{"Sponsorship Menus 2025", func() error { return ensureSponsorshipMenus(sponsorshipMenus(PreviousYearID, "menu_2025_")) }},
 		{"contracts 2025", ensurePreviousYearContracts},
 		{"companies (new)", func() error { return ensureCompanies(newCompanies) }},
-		{"Year 2026", func() error { return ensureYear(CurrentYearID, "2026", date(2026, 4, 1), date(2026, 11, 30), intPointer(45)) }},
+		{"Year 2026", func() error {
+			return ensureYear(CurrentYearID, "2026", date(2026, 4, 1), date(2026, 11, 30), intPointer(45))
+		}},
 		{"Sponsorship Menus 2026", func() error { return ensureSponsorshipMenus(sponsorshipMenus(CurrentYearID, "menu_")) }},
 		{"assignments 2026", ensureCurrentYearAssignments},
 		{"advisor assignments 2026", ensureCurrentYearAdvisorAssignments},
@@ -305,7 +309,7 @@ func ensurePreviousYearContracts() error {
 			id: "contract_2025_c_001", yearID: PreviousYearID, companyID: "c_001",
 			contractDate: date(2025, 6, 10),
 			menus: []contractMenuInput{
-				{sponsorshipMenuID: previousPamphletMenuID, unitPrice: 80000, productionType: "COMPANY", status: "SUBMITTED"},
+				{sponsorshipMenuID: previousPamphletMenuID, unitPrice: 80000, productionType: "COMPANY", status: "COMPLETED"},
 			},
 			paymentStatus: "CONFIRMED", progress: "RECEIPT_SENT",
 		},
@@ -313,7 +317,7 @@ func ensurePreviousYearContracts() error {
 			id: "contract_2025_c_002", yearID: PreviousYearID, companyID: "c_002",
 			contractDate: date(2025, 7, 1),
 			menus: []contractMenuInput{
-				{sponsorshipMenuID: previousHomepageMenuID, unitPrice: 15000, productionType: "COMPANY", status: "SUBMITTED"},
+				{sponsorshipMenuID: previousHomepageMenuID, unitPrice: 15000, productionType: "COMPANY", status: "COMPLETED"},
 			},
 			paymentStatus: "CONFIRMED", progress: "RECEIPT_SENT",
 		},

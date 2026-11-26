@@ -588,9 +588,7 @@ Filters:
 
 * Company name (search, substring match)
 * Sponsorship Menu
-* Status — the choices are `すべて`, `広告データ提出待ち` (`WAITING`),
-  `制作依頼済み` (`REQUESTED`), and `提出済み` (`SUBMITTED`). `PRODUCING`
-  and `COMPLETED` are not offered in this filter.
+* Status — the choices follow the current review workflow. Obsolete `PRODUCING` is not offered in the filter, progress dashboard, or status editor. A legacy row that already stores it remains readable as `制作中` until moved to a current status.
 * Production type
 
 The production type filter keeps `委員` as the aggregate filter for all `INTERNAL` rows. Hovering or focusing `委員` opens department-specific filters for 資料作成部門 / 制作局 / SNS部門. The aggregate includes unassigned `INTERNAL` rows; department filters include only rows assigned to that department.
@@ -618,18 +616,28 @@ Administrator only; a User holding Advertisement Manager alone sees it
 read-only. Production type is editable for Sponsorship Member,
 Advertisement Manager, and Administrator. Production type is only editable when the referenced
 Sponsorship Menu has `requiresSubmission = true` (otherwise it stays
-null/`-`). Adding the first Drive-file reference changes the displayed state
-to `SUBMITTED`; deleting the final active reference returns it to `WAITING`.
+null/`-`). Adding a new reviewable submission changes the displayed state to
+`PROVISIONAL_SUBMITTED`; deleting the final active reference returns it to `WAITING`.
 Upload/delete controls are driven by `allowUpload` / `allowDelete` and are
 therefore unavailable for past Years. Sponsorship Members, Advisors,
-Advertisement Managers, and Administrators may manage file references in the
-active Year; Contract Menu entity deletion stays Administrator-only.
+Advertisement Managers, and Administrators may upload or update file references
+in the active Year. The `INTERNAL` final-artwork upload remains limited to
+Advertisement Manager / Administrator. Contract Menu entity deletion stays
+Administrator-only.
 
 CSV export uses the same summary instead of concatenating file names: the
 資料列 is `資料N件` when `fileCount > 0`, otherwise `未提出`. The status column
 uses the same file-derived state as the screen and Yearly Company Detail.
 
 ---
+
+## Ad Material Review Workflow
+
+The file cell remains count-first (`資料 N件`) and exposes links in a compact popover. Beside it, Advertisement Manager / Administrator sees a Review button for the current reviewable submission. Every other Role may see the review-state dot but does not receive the Review button and cannot open the review operation. The API independently rejects their review request with `403 Forbidden`. A red dot means the current submission has not been reviewed; green means it was reviewed; no dot is shown before any submission. The same count and state are used in Contract Menu List, Yearly Company Detail, and CSV.
+
+The Review modal shows one checklist card per file and a commit-history-style timeline. Every item requires one explicit choice: 適合 (`PASS`), 不適合 (`FAIL`), or 対象外 (`NOT_APPLICABLE`). A separate `その他（チェックリスト外の不適合）` control is collapsed by default; selecting it expands the optional free-text note field (maximum 2,000 characters), so the field does not occupy space during ordinary reviews. Submit is disabled until every checklist item has a choice and, when `その他` is selected, the note is non-empty. `FAIL` items and a non-empty note appear in the Slack preview. A note may be sent by itself when all items are `PASS` or `NOT_APPLICABLE`; because the note represents a checklist-external problem, that review requests changes and does not complete the stage. The logo item states that PDF and PNG are accepted. The timeline identifies uploader, reviewer, manual status changer, timestamps, affected files, result, Slack delivery result, and a compact summary of failed items and/or the note. Reviewed historical submissions remain readable.
+
+Status filters include the context-sensitive labels 広告データ提出待ち, 広告データ仮提出済み, 素材データ提出待ち, 素材データ仮提出済み, 素材データ完成, 制作依頼済み, 企業への確認中, and 完成. `制作中` (`PRODUCING`) is not displayed as a filter or selectable state. Advertisement Manager / Administrator may manually select every current state. Selecting a normally automatic state shows a warning and sends explicit acknowledgement; normal manual states change immediately. Past-Year controls are hidden and remain rejected by the API.
 
 ## Drive Upload Dialog
 

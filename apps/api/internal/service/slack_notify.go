@@ -17,6 +17,16 @@ type slackPoster interface {
 	PostMessage(ctx context.Context, text string) error
 }
 
+type SlackDeliveryResult struct {
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+}
+
+type assigneeSlackTarget struct {
+	SlackUserID string
+	CompanyName string
+}
+
 var (
 	slackPosterOverride slackPoster
 	slackClientOnce     sync.Once
@@ -53,6 +63,26 @@ func ConfirmedMentionText(slackUserID, companyName string) string {
 	return "<@" + escapeSlackMrkdwn(slackUserID) + "> " + escapeSlackMrkdwn(name) + " の協賛が確定しました。"
 }
 
+func ReviewChangesMentionText(slackUserID, companyName string, missingItems []string, note string) string {
+	name := companyName
+	if name == "" {
+		name = "企業"
+	}
+	lines := []string{"<@" + escapeSlackMrkdwn(slackUserID) + "> " + escapeSlackMrkdwn(name) + " の広告資料レビュー結果です。"}
+	if len(missingItems) > 0 {
+		lines = append(lines, "以下の項目を確認し、再提出してください。")
+		for _, item := range missingItems {
+			lines = append(lines, "・"+escapeSlackMrkdwn(item))
+		}
+	} else if strings.TrimSpace(note) != "" {
+		lines = append(lines, "以下の内容を確認し、再提出してください。")
+	}
+	if note = strings.TrimSpace(note); note != "" {
+		lines = append(lines, "補足:", escapeSlackMrkdwn(note))
+	}
+	return strings.Join(lines, "\n")
+}
+
 func escapeSlackMrkdwn(value string) string {
 	value = strings.ReplaceAll(value, "&", "&amp;")
 	value = strings.ReplaceAll(value, "<", "&lt;")
@@ -85,22 +115,48 @@ func notifyAssigneeConfirmed(ctx context.Context, yearlyCompanyID string) error 
 	if poster == nil || !poster.Enabled() {
 		return nil
 	}
+	target, reason, err := resolveAssigneeSlackTarget(yearlyCompanyID)
+	if err != nil {
+		return err
+	}
+	if reason != "" {
+		return nil
+	}
+	return poster.PostMessage(ctx, ConfirmedMentionText(target.SlackUserID, target.CompanyName))
+}
 
+func resolveAssigneeSlackTarget(yearlyCompanyID string) (*assigneeSlackTarget, string, error) {
 	yc, err := NewYearlyCompanyService().GetByID(yearlyCompanyID)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	if yc.AssignedMemberID == nil || *yc.AssignedMemberID == "" {
-		return nil
+		return nil, "NO_ASSIGNEE", nil
 	}
-
 	user, err := repository.NewUserRepository().GetByID(*yc.AssignedMemberID)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
-	if user.SlackID == "" {
-		return nil
+	if strings.TrimSpace(user.SlackID) == "" {
+		return nil, "NO_SLACK_ID", nil
 	}
+	return &assigneeSlackTarget{SlackUserID: user.SlackID, CompanyName: yc.CompanyName}, "", nil
+}
 
-	return poster.PostMessage(ctx, ConfirmedMentionText(user.SlackID, yc.CompanyName))
+func NotifyAssigneeReviewChanges(ctx context.Context, yearlyCompanyID string, missingItems []string, note string) SlackDeliveryResult {
+	poster := getSlackPoster()
+	if poster == nil || !poster.Enabled() {
+		return SlackDeliveryResult{Status: "SKIPPED", Reason: "NOT_CONFIGURED"}
+	}
+	target, reason, err := resolveAssigneeSlackTarget(yearlyCompanyID)
+	if err != nil {
+		return SlackDeliveryResult{Status: "FAILED", Reason: err.Error()}
+	}
+	if reason != "" {
+		return SlackDeliveryResult{Status: "SKIPPED", Reason: reason}
+	}
+	if err := poster.PostMessage(ctx, ReviewChangesMentionText(target.SlackUserID, target.CompanyName, missingItems, note)); err != nil {
+		return SlackDeliveryResult{Status: "FAILED", Reason: err.Error()}
+	}
+	return SlackDeliveryResult{Status: "SENT"}
 }

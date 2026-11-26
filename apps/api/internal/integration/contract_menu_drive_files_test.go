@@ -44,7 +44,7 @@ func TestContractMenuDriveUploadUsesServerIdentityWithoutBrowserToken(t *testing
 	}
 	request := httptest.NewRequest(http.MethodPost, "/contract-menus/"+contractMenu.ID+"/drive-upload", &body)
 	request.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
-	actors.sponsorshipMember.authenticate(request)
+	actors.advisor.authenticate(request)
 	response := httptest.NewRecorder()
 	actors.sponsorshipMember.server.ServeHTTP(response, request)
 	expectStatus(t, response, http.StatusOK)
@@ -74,7 +74,7 @@ func TestContractMenuDriveFilesLifecyclePermissionsAndPastYear(t *testing.T) {
 	expectStatus(t, added, http.StatusCreated)
 	contractMenu := decodeData[model.ContractMenu](t, added)
 
-	filesAdded := actors.sponsorshipMember.do(http.MethodPost, "/contract-menus/"+contractMenu.ID+"/production/files", map[string]any{
+	filesAdded := actors.advisor.do(http.MethodPost, "/contract-menus/"+contractMenu.ID+"/production/files", map[string]any{
 		"files": []map[string]string{
 			{"driveUrl": "https://drive.google.com/file/d/front/view", "driveFileName": "表面.pdf"},
 			{"driveUrl": "https://drive.google.com/file/d/back/view", "driveFileName": "裏面.pdf"},
@@ -82,11 +82,11 @@ func TestContractMenuDriveFilesLifecyclePermissionsAndPastYear(t *testing.T) {
 	})
 	expectStatus(t, filesAdded, http.StatusCreated)
 	withFiles := decodeData[model.ContractMenu](t, filesAdded)
-	if withFiles.FileCount != 2 || len(withFiles.Files) != 2 || !withFiles.IsSubmitted || withFiles.Status != "SUBMITTED" {
-		t.Fatalf("after add = %+v, want two files and SUBMITTED", withFiles)
+	if withFiles.FileCount != 2 || len(withFiles.Files) != 2 || !withFiles.IsSubmitted || withFiles.Status != "PROVISIONAL_SUBMITTED" {
+		t.Fatalf("after add = %+v, want two files and PROVISIONAL_SUBMITTED", withFiles)
 	}
 	if !withFiles.AllowUpload || !withFiles.AllowDelete {
-		t.Fatalf("active-year member capabilities = upload:%v delete:%v, want both true", withFiles.AllowUpload, withFiles.AllowDelete)
+		t.Fatalf("active-year advisor capabilities = upload:%v delete:%v, want both true", withFiles.AllowUpload, withFiles.AllowDelete)
 	}
 	if withFiles.DriveURL == nil || *withFiles.DriveURL != withFiles.Files[0].DriveURL {
 		t.Fatalf("legacy driveUrl = %v, want first file URL", withFiles.DriveURL)
@@ -123,8 +123,8 @@ func TestContractMenuDriveFilesLifecyclePermissionsAndPastYear(t *testing.T) {
 	firstDeleted := actors.advisor.do(http.MethodDelete, "/contract-menus/"+contractMenu.ID+"/production/files/"+withFiles.Files[0].ID, nil)
 	expectStatus(t, firstDeleted, http.StatusOK)
 	afterFirstDelete := decodeData[model.ContractMenu](t, firstDeleted)
-	if afterFirstDelete.FileCount != 1 || !afterFirstDelete.IsSubmitted || afterFirstDelete.Status != "SUBMITTED" {
-		t.Fatalf("after first delete = %+v, want one file and SUBMITTED", afterFirstDelete)
+	if afterFirstDelete.FileCount != 1 || !afterFirstDelete.IsSubmitted || afterFirstDelete.Status != "PROVISIONAL_SUBMITTED" {
+		t.Fatalf("after first delete = %+v, want one file and PROVISIONAL_SUBMITTED", afterFirstDelete)
 	}
 
 	lastDeleted := actors.advisor.do(http.MethodDelete, "/contract-menus/"+contractMenu.ID+"/production/files/"+withFiles.Files[1].ID, nil)
@@ -155,7 +155,7 @@ func TestContractMenuDriveFilesLifecyclePermissionsAndPastYear(t *testing.T) {
 	if pastMenu.AllowUpload || pastMenu.AllowDelete {
 		t.Fatalf("past-year capabilities = upload:%v delete:%v, want both false", pastMenu.AllowUpload, pastMenu.AllowDelete)
 	}
-	pastAdd := actors.sponsorshipMember.do(http.MethodPost, "/contract-menus/"+contractMenu.ID+"/production/files", map[string]any{
+	pastAdd := actors.advisor.do(http.MethodPost, "/contract-menus/"+contractMenu.ID+"/production/files", map[string]any{
 		"files": []map[string]string{{"driveUrl": "https://drive.google.com/file/d/late/view", "driveFileName": "遅延.pdf"}},
 	})
 	expectStatus(t, pastAdd, http.StatusConflict)

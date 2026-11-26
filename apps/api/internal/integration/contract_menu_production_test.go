@@ -63,13 +63,13 @@ func TestProductionRemarksOnlyKeepStatusAndActivityLog(t *testing.T) {
 
 	// A non-submission menu keeps its status when remarks change.
 	expectStatus(t, actors.administrator.do(http.MethodPatch, "/contract-menus/"+contractMenu.ID+"/status", map[string]any{
-		"status": "PRODUCING",
+		"status": "REQUESTED",
 	}), http.StatusOK)
 	logsBefore = countAllActivityLogs()
 	expectStatus(t, actors.sponsorshipMember.do(http.MethodPatch, productionPath, map[string]any{
 		"remarks": "色校正待ち",
 	}), http.StatusOK)
-	expectStored("PRODUCING", "色校正待ち")
+	expectStored("REQUESTED", "色校正待ち")
 	if got := countAllActivityLogs(); got != logsBefore {
 		t.Fatalf("activity logs after remarks-only update = %d, want %d", got, logsBefore)
 	}
