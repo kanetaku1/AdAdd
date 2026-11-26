@@ -279,7 +279,7 @@ export function ContractMenuReviewDialog({
                       value={reviewNote}
                       maxLength={2000}
                       disabled={!editable || submitting}
-                      placeholder="例：担当者名の表記を修正してください。"
+                      placeholder="例：就職活動に関連する広告は掲載不可です"
                       onChange={(event) => setReviewNote(event.target.value)}
                     />
                     <p className="text-right text-xs text-muted-foreground">
