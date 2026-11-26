@@ -73,17 +73,18 @@ func TestReviewContractMenuRoleBoundary(t *testing.T) {
 	}
 }
 
-func TestUploadContractMenuRejectsAdvisor(t *testing.T) {
+func TestUploadContractMenuAllowsAdvisor(t *testing.T) {
 	e := echo.New()
 	RegisterContractMenuRoutes(e)
 	e.Use(withRoles("ADVISOR"))
 
-	req := httptest.NewRequest(http.MethodPost, "/contract-menus/1/production/files", nil)
+	req := httptest.NewRequest(http.MethodPost, "/contract-menus/1/production/files", strings.NewReader("{"))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d for ADVISOR upload, got %d", http.StatusForbidden, rec.Code)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected advisor to reach the upload handler and get %d for malformed JSON, got %d", http.StatusBadRequest, rec.Code)
 	}
 }
 

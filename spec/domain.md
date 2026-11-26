@@ -736,7 +736,7 @@ Slack delivery is attempted after the review transaction when at least one item 
 
 The previous file-count table and `SUBMITTED` derivation are deprecated. `isSubmitted` remains a separate indication that active Drive references exist.
 
-Manual status changes and reviews are limited to Advertisement Manager / Administrator. Sponsorship Member uploads and resubmits files and may read review history. Advisor may read history and delete a production file, but cannot upload, register, or update one. The API, not only the UI, enforces these permissions.
+Manual status changes and reviews are limited to Advertisement Manager / Administrator. Sponsorship Member and Advisor may upload, resubmit, register, update, and delete production files and may read review history. The `INTERNAL` final-artwork upload remains limited to Advertisement Manager / Administrator. The API, not only the UI, enforces these permissions.
 
 A homepage banner requires submission (`requiresSubmission = true`) — the company provides banner artwork/logo data — and follows the full submission lifecycle, the same as a print advertisement.
 

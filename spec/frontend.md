@@ -619,10 +619,11 @@ Sponsorship Menu has `requiresSubmission = true` (otherwise it stays
 null/`-`). Adding a new reviewable submission changes the displayed state to
 `PROVISIONAL_SUBMITTED`; deleting the final active reference returns it to `WAITING`.
 Upload/delete controls are driven by `allowUpload` / `allowDelete` and are
-therefore unavailable for past Years. Sponsorship Members, Advertisement
-Managers, and Administrators may upload or update file references in the active
-Year. Advisors may view files and delete an existing reference, but cannot
-upload or update one. Contract Menu entity deletion stays Administrator-only.
+therefore unavailable for past Years. Sponsorship Members, Advisors,
+Advertisement Managers, and Administrators may upload or update file references
+in the active Year. The `INTERNAL` final-artwork upload remains limited to
+Advertisement Manager / Administrator. Contract Menu entity deletion stays
+Administrator-only.
 
 CSV export uses the same summary instead of concatenating file names: the
 資料列 is `資料N件` when `fileCount > 0`, otherwise `未提出`. The status column

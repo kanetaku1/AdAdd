@@ -55,7 +55,7 @@ func RegisterContractMenuRoutes(e *echo.Echo) {
 	rAdvertisementManager.POST("/contract-menus/:id/submissions/:submissionId/review", reviewContractMenuSubmission)
 
 	rFileWrite := e.Group("")
-	rFileWrite.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
+	rFileWrite.Use(RequireRoles("SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR"))
 	rFileWrite.PATCH("/contract-menus/:id/production", uploadContractMenuProduction)
 	rFileWrite.POST("/contract-menus/:id/drive-upload", driveUploadContractMenu)
 	rFileWrite.POST("/contract-menus/:id/production/files", addContractMenuFiles)
@@ -543,7 +543,7 @@ func respondContractMenuFileError(c echo.Context, err error) error {
 
 func applyContractMenuCapabilities(c echo.Context, cm *model.ContractMenu) {
 	roles, _ := c.Get("userRoles").([]string)
-	canUpload := hasAnyRole(roles, "SPONSORSHIP_MEMBER", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR")
+	canUpload := hasAnyRole(roles, "SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR")
 	canDelete := hasAnyRole(roles, "SPONSORSHIP_MEMBER", "ADVISOR", "ADVERTISEMENT_MANAGER", "ADMINISTRATOR")
 	canManageWorkflow := hasAnyRole(roles, "ADVERTISEMENT_MANAGER", "ADMINISTRATOR")
 	cm.AllowUpload = cm.ActiveYear && canUpload

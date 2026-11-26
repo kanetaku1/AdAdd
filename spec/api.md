@@ -1309,7 +1309,7 @@ One request appends one or more references:
 }
 ```
 
-`files` must contain at least one item and every URL/name must be non-empty. The operation is transactional and creates one `ContractMenuSubmission`. `COMPANY` / `CONTINUED` uploads and `INTERNAL` material uploads set `PROVISIONAL_SUBMITTED`. An `INTERNAL` upload with `category=完成` is a final-data upload, is allowed only to Advertisement Manager / Administrator after the production flow, skips review, and sets `COMPLETED`. Permission for material upload: Sponsorship Member / Advertisement Manager / Administrator; active Year only. Advisor remains read-only for this workflow.
+`files` must contain at least one item and every URL/name must be non-empty. The operation is transactional and creates one `ContractMenuSubmission`. `COMPANY` / `CONTINUED` uploads and `INTERNAL` material uploads set `PROVISIONAL_SUBMITTED`. An `INTERNAL` upload with `category=完成` is a final-data upload, is allowed only to Advertisement Manager / Administrator after the production flow, skips review, and sets `COMPLETED`. Permission for normal material upload: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only.
 
 ## Get Contract Menu Review Workflow
 
@@ -1365,7 +1365,7 @@ Every body is created as a new Drive file even when another file in the folder h
 PATCH /contract-menus/{id}/production/files/{fileId}
 ```
 
-Updates `driveUrl` and/or `driveFileName` on the named active reference. At least one field is required. Permission: Sponsorship Member / Advertisement Manager / Administrator; active Year only. Advisor may delete an existing production file but may not upload, register, or update one.
+Updates `driveUrl` and/or `driveFileName` on the named active reference. At least one field is required. Permission: Sponsorship Member / Advisor / Advertisement Manager / Administrator; active Year only.
 
 ## Delete Contract Menu File
 
@@ -1747,7 +1747,7 @@ Sponsorship Member / Advisor / Advertisement Manager / Administrator. Active Yea
 | Edit Contract Menu quantity / unit price / goods sponsorship | - | ○ | - | - | -  | ○ |
 | Edit Contract Menu production type | -       | ○                   | -       | -       | ○                        | ○              |
 | List Drive folders               | -         | ○                   | ○       | -       | ○                        | ○              |
-| Add/update production files / Drive upload | - | ○ | - | - | ○ | ○ |
+| Add/update production files / Drive upload | - | ○ | ○ | - | ○ | ○ |
 | Delete a production file reference | - | ○ | ○ | - | ○ | ○ |
 | Review a production submission | - | - | - | - | ○ | ○ |
 | Change Contract Menu workflow status | - | - | - | - | ○ | ○ |
