@@ -276,6 +276,11 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 			"status": delivery.Status, "reason": delivery.Reason,
 			"missingItems": missingItems, "note": note,
 		})
+		// The review and status transition are already committed before Slack is
+		// called. Recording the delivery result is therefore best-effort: a
+		// temporary DB failure here is logged but must not make a successful
+		// review appear to have failed. If delivery-event audit durability becomes
+		// mandatory, move this follow-up to a transactional outbox with retries.
 		if err := db.DB.Create(&model.ContractMenuWorkflowEvent{
 			ContractMenuID: contractMenuID,
 			SubmissionID:   &submissionID,

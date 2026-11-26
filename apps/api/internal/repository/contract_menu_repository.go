@@ -36,7 +36,7 @@ func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[strin
 	// tables anyway — so every joined table's deleted_at is checked explicitly.
 	// A row whose Sponsorship Menu (or any other joined parent) has been
 	// deleted is excluded rather than surfaced with a stale/missing name.
-	query := db.DB.Table("contract_menus").
+	query := preloadContractMenuWorkflow(db.DB.Table("contract_menus")).
 		Select("contract_menus.*, companies.company_name, yearly_companies.id as yearly_company_id, assignments.user_id as assigned_member_id, users.name as assigned_member_name, sponsorship_menus.name as sponsorship_menu_name").
 		Joins("JOIN sponsorship_contracts ON sponsorship_contracts.id = contract_menus.contract_id AND sponsorship_contracts.deleted_at IS NULL").
 		Joins("JOIN yearly_companies ON yearly_companies.id = sponsorship_contracts.yearly_company_id AND yearly_companies.deleted_at IS NULL").
@@ -74,14 +74,6 @@ func (r *ContractMenuRepository) ListAcrossYear(yearID string, filters map[strin
 		return nil, err
 	}
 	for i := range list {
-		if err := db.DB.Where("contract_menu_id = ?", list[i].ID).
-			Order("created_at ASC, id ASC").Find(&list[i].Files).Error; err != nil {
-			return nil, err
-		}
-		if err := db.DB.Where("contract_menu_id = ?", list[i].ID).
-			Order("submission_sequence ASC").Find(&list[i].Submissions).Error; err != nil {
-			return nil, err
-		}
 		list[i].ActiveYear = year.IsActive
 		list[i].PrepareFileSummary()
 	}
