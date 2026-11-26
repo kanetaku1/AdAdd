@@ -1325,10 +1325,11 @@ Returns the checklist definition for the current submission kind, current and hi
 POST /contract-menus/{id}/submissions/{submissionId}/review
 ```
 
-Request contains one entry for every active file and one result (`PASS`, `FAIL`, or `NOT_APPLICABLE`) for every checklist code. The current submission only may be reviewed. Omitted files/codes, unknown codes/results, or already-reviewed submissions return `409 Conflict`. If every value is `PASS` or `NOT_APPLICABLE`, `COMPANY` / `CONTINUED` becomes `COMPLETED` and `INTERNAL` becomes `MATERIAL_COMPLETED`. Otherwise status becomes `WAITING`; the API builds a standard message listing only `FAIL` items and mentions the Yearly Company's assigned Sponsorship Member using their `User.slackId`. Slack success/failure is recorded and returned as `slackDelivery`; failure does not roll back the review. Permission: Advertisement Manager / Administrator; active Year only.
+Request contains one entry for every active file and one result (`PASS`, `FAIL`, or `NOT_APPLICABLE`) for every checklist code. It may also contain an optional review-wide `note` for checklist-external findings; the server trims it and rejects more than 2,000 characters. The current submission only may be reviewed. Omitted files/codes, unknown codes/results, or already-reviewed submissions return `409 Conflict`. Completion requires every value to be `PASS` or `NOT_APPLICABLE` **and** an empty note; then `COMPANY` / `CONTINUED` becomes `COMPLETED` and `INTERNAL` becomes `MATERIAL_COMPLETED`. Any `FAIL` value or non-empty note makes the status `WAITING`. In that case, the API builds a message containing the failed items and/or note and mentions the Yearly Company's assigned Sponsorship Member using their `User.slackId`. Slack success/failure and the sent feedback are recorded in workflow history and returned as `slackDelivery`; failure does not roll back the review. Permission: Advertisement Manager / Administrator; active Year only.
 
 ```json
 {
+  "note": "ロゴの余白も確認してください。",
   "files": [{
     "fileId": "file-id",
     "items": {

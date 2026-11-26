@@ -22,6 +22,7 @@ func getContractMenuReviewWorkflow(c echo.Context) error {
 
 func reviewContractMenuSubmission(c echo.Context) error {
 	var body struct {
+		Note  string `json:"note"`
 		Files []struct {
 			FileID string            `json:"fileId"`
 			Items  map[string]string `json:"items"`
@@ -37,7 +38,7 @@ func reviewContractMenuSubmission(c echo.Context) error {
 	}
 	userID, _ := c.Get("userId").(string)
 	result, err := service.NewContractMenuService().ReviewSubmission(
-		c.Param("id"), c.Param("submissionId"), userID, inputs,
+		c.Param("id"), c.Param("submissionId"), userID, body.Note, inputs,
 	)
 	if err != nil {
 		switch {

@@ -243,6 +243,7 @@ type ContractMenuSubmission struct {
 	ReviewedByID       *string                  `gorm:"type:char(36)" json:"reviewedById"`
 	ReviewedAt         *time.Time               `json:"reviewedAt"`
 	ReviewStatus       string                   `gorm:"size:32;not null" json:"reviewStatus"`
+	ReviewNote         *string                  `gorm:"type:text" json:"reviewNote"`
 	CreatedAt          time.Time                `json:"createdAt"`
 	UpdatedAt          time.Time                `json:"updatedAt"`
 	Files              []ContractMenuDriveFile  `gorm:"foreignKey:SubmissionID" json:"files,omitempty"`

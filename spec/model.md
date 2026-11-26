@@ -275,7 +275,7 @@ A Contract Menu has zero or more Drive-file references. Files added by one reque
 
 ## ContractMenuSubmission
 
-Groups the files uploaded in one request. It stores `id`, `contractMenuId`, `kind` (`AD_DATA`, `MATERIAL`, or `FINAL_DATA`), `sequence`, `submittedById`, `submittedAt`, `reviewedById`, `reviewedAt`, and `reviewStatus` (`PENDING`, `APPROVED`, or `CHANGES_REQUESTED`). The highest undeleted sequence is the current submission.
+Groups the files uploaded in one request. It stores `id`, `contractMenuId`, `kind` (`AD_DATA`, `MATERIAL`, or `FINAL_DATA`), `sequence`, `submittedById`, `submittedAt`, `reviewedById`, `reviewedAt`, `reviewStatus` (`PENDING`, `APPROVED`, or `CHANGES_REQUESTED`), and the optional review-wide `reviewNote`. `reviewNote` is trimmed, limited to 2,000 characters, and records checklist-external findings. A non-empty note represents an additional problem and therefore makes the submission `CHANGES_REQUESTED` even when every checklist item passes. The highest undeleted sequence is the current submission.
 
 ## ContractMenuFileReview
 
@@ -283,7 +283,7 @@ Stores one review of one file in a submission: `id`, `submissionId`, `contractMe
 
 ## ContractMenuWorkflowEvent
 
-Append-only audit history for upload, review, changes requested, Slack delivery result, manual status change, and completion. It stores actor, optional submission/file references, event type, JSON details, and timestamp.
+Append-only audit history for upload, review, changes requested, Slack delivery result, manual status change, and completion. It stores actor, optional submission/file references, event type, JSON details, and timestamp. Review event details snapshot the failed item labels and `reviewNote`; Slack events retain the same review feedback together with the delivery result, so the UI can explain briefly what was inappropriate or what additional note was sent.
 
 ---
 

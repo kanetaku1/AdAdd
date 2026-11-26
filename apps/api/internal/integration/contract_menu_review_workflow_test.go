@@ -105,12 +105,18 @@ func TestCompanyAdDataReviewRejectsAndAcceptsResubmission(t *testing.T) {
 	expectStatus(t, memberReview, http.StatusForbidden)
 
 	rejected := manager.do(http.MethodPost, reviewPath, map[string]any{
+		"note":  "チェックリスト外の余白も修正してください。",
 		"files": reviewFilesPayload(firstSubmission, true, true),
 	})
 	expectStatus(t, rejected, http.StatusOK)
 	rejectedResult := decodeData[service.ContractMenuReviewResult](t, rejected)
 	if rejectedResult.Status != "WAITING" || rejectedResult.SlackDelivery.Status == "NOT_REQUIRED" {
 		t.Fatalf("rejected review = %+v, want WAITING and a Slack delivery attempt", rejectedResult)
+	}
+	if rejectedResult.Workflow == nil || len(rejectedResult.Workflow.Submissions) != 1 ||
+		rejectedResult.Workflow.Submissions[0].ReviewNote == nil ||
+		*rejectedResult.Workflow.Submissions[0].ReviewNote != "チェックリスト外の余白も修正してください。" {
+		t.Fatalf("rejected review note was not retained: %+v", rejectedResult.Workflow)
 	}
 
 	secondUpload := actors.sponsorshipMember.do(http.MethodPost, "/contract-menus/"+contractMenu.ID+"/production/files", map[string]any{

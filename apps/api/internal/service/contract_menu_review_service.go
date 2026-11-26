@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kanetaku1/AdAdd/apps/api/internal/db"
 	"github.com/kanetaku1/AdAdd/apps/api/internal/model"
@@ -20,9 +22,10 @@ type ContractMenuChecklistItem struct {
 }
 
 const (
-	ReviewItemPass          = "PASS"
-	ReviewItemFail          = "FAIL"
-	ReviewItemNotApplicable = "NOT_APPLICABLE"
+	ReviewItemPass                  = "PASS"
+	ReviewItemFail                  = "FAIL"
+	ReviewItemNotApplicable         = "NOT_APPLICABLE"
+	MaxContractMenuReviewNoteLength = 2000
 )
 
 var commonPDFReviewChecklist = []ContractMenuChecklistItem{
@@ -140,7 +143,15 @@ func validateContractMenuReviewInputs(files []model.ContractMenuDriveFile, check
 	return byFile, allPassed, missingLabels, nil
 }
 
-func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, reviewerID string, inputs []ContractMenuFileReviewInput) (*ContractMenuReviewResult, error) {
+func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, reviewerID, note string, inputs []ContractMenuFileReviewInput) (*ContractMenuReviewResult, error) {
+	note = strings.TrimSpace(note)
+	if utf8.RuneCountInString(note) > MaxContractMenuReviewNoteLength {
+		return nil, fmt.Errorf("%w: note must be at most %d characters", ErrInvalidContractMenuReview, MaxContractMenuReviewNoteLength)
+	}
+	var reviewNote *string
+	if note != "" {
+		reviewNote = &note
+	}
 	targetStatus := ""
 	yearlyCompanyID := ""
 	missingItems := make([]string, 0)
@@ -174,6 +185,9 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 			return err
 		}
 		missingItems = missingLabels
+		if note != "" {
+			allPassed = false
+		}
 
 		now := time.Now()
 		for _, file := range files {
@@ -217,6 +231,7 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 		}
 		if err := tx.Model(&current).Updates(map[string]interface{}{
 			"review_status":  reviewStatus,
+			"review_note":    reviewNote,
 			"reviewed_by_id": optionalUserID(reviewerID),
 			"reviewed_at":    now,
 		}).Error; err != nil {
@@ -238,7 +253,7 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 		}
 		yearlyCompanyID = logContext.YearlyCompanyID
 		details, _ := json.Marshal(map[string]interface{}{
-			"result": reviewStatus, "status": targetStatus, "missingItems": missingLabels,
+			"result": reviewStatus, "status": targetStatus, "missingItems": missingLabels, "note": note,
 		})
 		return tx.Create(&model.ContractMenuWorkflowEvent{
 			ContractMenuID: contractMenuID,
@@ -253,11 +268,14 @@ func (s *ContractMenuService) ReviewSubmission(contractMenuID, submissionID, rev
 	}
 
 	delivery := SlackDeliveryResult{Status: "NOT_REQUIRED"}
-	if targetStatus == "WAITING" {
+	if len(missingItems) > 0 || note != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		delivery = NotifyAssigneeReviewChanges(ctx, yearlyCompanyID, missingItems)
+		delivery = NotifyAssigneeReviewChanges(ctx, yearlyCompanyID, missingItems, note)
 		cancel()
-		details, _ := json.Marshal(delivery)
+		details, _ := json.Marshal(map[string]interface{}{
+			"status": delivery.Status, "reason": delivery.Reason,
+			"missingItems": missingItems, "note": note,
+		})
 		if err := db.DB.Create(&model.ContractMenuWorkflowEvent{
 			ContractMenuID: contractMenuID,
 			SubmissionID:   &submissionID,

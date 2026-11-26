@@ -135,7 +135,7 @@ func TestReviewSubmissionApprovesCompanyFiles(t *testing.T) {
 		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist("AD_DATA", ReviewItemPass)})
 	}
 
-	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", inputs)
+	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", "", inputs)
 	if err != nil {
 		t.Fatalf("review submission: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestReviewSubmissionRequestsInternalChanges(t *testing.T) {
 		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: items})
 	}
 
-	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", inputs)
+	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", "", inputs)
 	if err != nil {
 		t.Fatalf("review submission: %v", err)
 	}
@@ -186,6 +186,51 @@ func TestReviewSubmissionRequestsInternalChanges(t *testing.T) {
 	}
 }
 
+func TestReviewSubmissionNoteOnlyRequestsChanges(t *testing.T) {
+	testdb.Open(t)
+	menu, submission := seedReviewableSubmission(t, "COMPANY")
+	assignReviewSlackRecipient(t)
+	poster := &reviewTestSlackPoster{}
+	SetSlackPosterForTest(poster)
+	t.Cleanup(func() { SetSlackPosterForTest(nil) })
+
+	inputs := make([]ContractMenuFileReviewInput, 0, len(menu.Files))
+	for _, file := range menu.Files {
+		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist("AD_DATA", ReviewItemPass)})
+	}
+	const note = "チェックリスト外ですが、担当者名の表記を修正してください。"
+	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", "  "+note+"  ", inputs)
+	if err != nil {
+		t.Fatalf("review submission: %v", err)
+	}
+	if result.Status != "WAITING" || result.Workflow.Submissions[0].ReviewStatus != "CHANGES_REQUESTED" {
+		t.Fatalf("note-only review result = %+v", result)
+	}
+	storedNote := result.Workflow.Submissions[0].ReviewNote
+	if storedNote == nil || *storedNote != note {
+		t.Fatalf("review note = %v, want %q", storedNote, note)
+	}
+	if result.SlackDelivery.Status != "SENT" || !strings.Contains(poster.message, note) {
+		t.Fatalf("Slack delivery = %+v message = %q", result.SlackDelivery, poster.message)
+	}
+	var foundReviewEvent bool
+	for _, event := range result.Workflow.Events {
+		if event.EventType == "SUBMISSION_REVIEWED" && strings.Contains(string(event.Details), note) {
+			foundReviewEvent = true
+		}
+	}
+	if !foundReviewEvent {
+		t.Fatalf("review note was not preserved in workflow events: %+v", result.Workflow.Events)
+	}
+}
+
+func TestReviewSubmissionRejectsTooLongNote(t *testing.T) {
+	_, err := NewContractMenuService().ReviewSubmission("menu", "submission", "reviewer", strings.Repeat("あ", MaxContractMenuReviewNoteLength+1), nil)
+	if !errors.Is(err, ErrInvalidContractMenuReview) {
+		t.Fatalf("err = %v, want ErrInvalidContractMenuReview", err)
+	}
+}
+
 func TestReviewSubmissionKeepsResultWhenSlackFails(t *testing.T) {
 	testdb.Open(t)
 	menu, submission := seedReviewableSubmission(t, "COMPANY")
@@ -198,7 +243,7 @@ func TestReviewSubmissionKeepsResultWhenSlackFails(t *testing.T) {
 	for _, file := range menu.Files {
 		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist("AD_DATA", ReviewItemFail)})
 	}
-	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", inputs)
+	result, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", "", inputs)
 	if err != nil {
 		t.Fatalf("review submission: %v", err)
 	}
@@ -224,7 +269,7 @@ func TestReviewSubmissionRejectsPastYear(t *testing.T) {
 	for _, file := range menu.Files {
 		inputs = append(inputs, ContractMenuFileReviewInput{FileID: file.ID, Items: completeChecklist("AD_DATA", ReviewItemPass)})
 	}
-	_, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", inputs)
+	_, err := NewContractMenuService().ReviewSubmission(menu.ID, submission.ID, "user-test", "", inputs)
 	if !errors.Is(err, ErrPastYearReadOnly) {
 		t.Fatalf("err = %v, want ErrPastYearReadOnly", err)
 	}
