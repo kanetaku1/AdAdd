@@ -14,6 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import {
   getContractMenuReviewWorkflow,
   reviewContractMenuSubmission,
@@ -66,6 +68,27 @@ function formatDate(value: string): string {
   }).format(new Date(value))
 }
 
+function compactText(value: string, maxLength = 80): string {
+  const normalized = value.trim().replace(/\s+/g, " ")
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength)}…`
+    : normalized
+}
+
+function reviewEventFeedback(details: Record<string, unknown> | null): {
+  missingItems: string[]
+  note: string
+} {
+  if (!details) return { missingItems: [], note: "" }
+  const missingItems = Array.isArray(details.missingItems)
+    ? details.missingItems.filter((item): item is string => typeof item === "string")
+    : []
+  return {
+    missingItems,
+    note: typeof details.note === "string" ? details.note.trim() : "",
+  }
+}
+
 export function ContractMenuReviewDialog({
   menu,
   open,
@@ -83,6 +106,8 @@ export function ContractMenuReviewDialog({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [delivery, setDelivery] = useState<ContractMenuReviewResult["slackDelivery"] | null>(null)
+  const [hasOtherIssue, setHasOtherIssue] = useState(false)
+  const [reviewNote, setReviewNote] = useState("")
 
   useEffect(() => {
     if (!open) return
@@ -92,6 +117,9 @@ export function ContractMenuReviewDialog({
         if (!active) return
         setWorkflow(next)
         setAnswers(answersFromWorkflow(next))
+        const savedNote = next.submissions.at(-1)?.reviewNote?.trim() ?? ""
+        setReviewNote(savedNote)
+        setHasOtherIssue(savedNote !== "")
       })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : "レビュー情報を取得できませんでした")
@@ -113,7 +141,8 @@ export function ContractMenuReviewDialog({
       workflow &&
       submission.files.every((file) =>
         workflow.checklist.every((item) => answers[file.id]?.[item.code])
-      )
+      ) &&
+      (!hasOtherIssue || reviewNote.trim() !== "")
   )
   const failedItems = useMemo(() => {
     if (!submission || !workflow) return []
@@ -123,6 +152,7 @@ export function ContractMenuReviewDialog({
         .map((item) => `${file.driveFileName}: ${item.label}`)
     )
   }, [answers, submission, workflow])
+  const requestsChanges = failedItems.length > 0 || hasOtherIssue
 
   async function submitReview() {
     if (!submission || !workflow || !complete) return
@@ -135,10 +165,14 @@ export function ContractMenuReviewDialog({
         submission.files.map((file) => ({
           fileId: file.id,
           items: answers[file.id],
-        }))
+        })),
+        hasOtherIssue ? reviewNote.trim() : ""
       )
       setWorkflow(result.workflow)
       setAnswers(answersFromWorkflow(result.workflow))
+      const savedNote = result.workflow.submissions.at(-1)?.reviewNote?.trim() ?? ""
+      setReviewNote(savedNote)
+      setHasOtherIssue(savedNote !== "")
       setDelivery(result.slackDelivery)
       onReviewed?.(result)
     } catch (reason) {
@@ -154,7 +188,7 @@ export function ContractMenuReviewDialog({
         <DialogHeader>
           <DialogTitle>提出資料のレビュー</DialogTitle>
           <DialogDescription>
-            ファイルごとに全項目を確認します。不適合の項目だけが担当者へのSlack通知に含まれます。
+            ファイルごとに全項目を確認します。不適合の項目と「その他」の内容が担当者へのSlack通知に含まれます。
           </DialogDescription>
         </DialogHeader>
 
@@ -221,13 +255,56 @@ export function ContractMenuReviewDialog({
               </section>
             ))}
 
-            {editable && failedItems.length > 0 && (
+            {editable && (
+              <section className="space-y-3 rounded-lg border p-4">
+                <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                  <span>その他（チェックリスト外の不適合）</span>
+                  <Switch
+                    checked={hasOtherIssue}
+                    disabled={!editable || submitting}
+                    onCheckedChange={(checked) => {
+                      setHasOtherIssue(checked)
+                      if (!checked) setReviewNote("")
+                    }}
+                    aria-label="その他の不適合を入力"
+                  />
+                </label>
+                {hasOtherIssue && (
+                  <div className="space-y-1.5">
+                    <label htmlFor={`review-note-${submission.id}`} className="text-xs text-muted-foreground">
+                      チェックリスト外の不適合内容
+                    </label>
+                    <Textarea
+                      id={`review-note-${submission.id}`}
+                      value={reviewNote}
+                      maxLength={2000}
+                      disabled={!editable || submitting}
+                      placeholder="例：担当者名の表記を修正してください。"
+                      onChange={(event) => setReviewNote(event.target.value)}
+                    />
+                    <p className="text-right text-xs text-muted-foreground">
+                      {reviewNote.length} / 2000
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {editable && requestsChanges && (
               <section className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
                 <h3 className="flex items-center gap-2 font-medium"><MessageSquareWarning /> Slack通知プレビュー</h3>
-                <p className="mt-1 text-xs text-muted-foreground">次の不適合項目を担当者へのメンション付きで送信します。</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                  {failedItems.map((item) => <li key={item}>{item}</li>)}
-                </ul>
+                <p className="mt-1 text-xs text-muted-foreground">次の不適合内容を担当者へのメンション付きで送信します。</p>
+                {failedItems.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                    {failedItems.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                )}
+                {hasOtherIssue && reviewNote.trim() && (
+                  <div className="mt-3 rounded-md bg-background/70 p-3 text-sm">
+                    <p className="font-medium">その他</p>
+                    <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{reviewNote.trim()}</p>
+                  </div>
+                )}
               </section>
             )}
 
@@ -244,17 +321,34 @@ export function ContractMenuReviewDialog({
                 <p className="text-sm text-muted-foreground">履歴はありません。</p>
               ) : (
                 <ol className="space-y-3">
-                  {[...workflow.events].reverse().map((event) => (
-                    <li key={event.id} className="flex gap-3 text-sm">
-                      {event.eventType === "SUBMISSION_REVIEWED" ? <CheckCircle2 className="mt-0.5 text-green-600" /> : <Clock3 className="mt-0.5 text-muted-foreground" />}
-                      <div>
-                        <p>{EVENT_LABEL[event.eventType] ?? event.eventType}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {event.actorName ?? "システム"} ・ {formatDate(event.createdAt)}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
+                  {[...workflow.events].reverse().map((event) => {
+                    const feedback = event.eventType === "SUBMISSION_REVIEWED"
+                      ? reviewEventFeedback(event.details)
+                      : { missingItems: [], note: "" }
+                    return (
+                      <li key={event.id} className="flex gap-3 text-sm">
+                        {event.eventType === "SUBMISSION_REVIEWED" ? <CheckCircle2 className="mt-0.5 text-green-600" /> : <Clock3 className="mt-0.5 text-muted-foreground" />}
+                        <div className="min-w-0">
+                          <p>{EVENT_LABEL[event.eventType] ?? event.eventType}</p>
+                          {feedback.missingItems.length > 0 && (
+                            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400" title={feedback.missingItems.join("、")}>
+                              {compactText(feedback.missingItems[0])}
+                              {feedback.missingItems.length > 1 ? ` ほか${feedback.missingItems.length - 1}件` : ""}
+                              が不適切だったため修正依頼
+                            </p>
+                          )}
+                          {feedback.note && (
+                            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400" title={feedback.note}>
+                              その他: {compactText(feedback.note)}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {event.actorName ?? "システム"} ・ {formatDate(event.createdAt)}
+                          </p>
+                        </div>
+                      </li>
+                    )
+                  })}
                 </ol>
               )}
             </section>
@@ -265,7 +359,7 @@ export function ContractMenuReviewDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>閉じる</Button>
           {editable && (
             <Button type="button" disabled={!complete || submitting} onClick={() => void submitReview()}>
-              {submitting ? "保存中..." : failedItems.length > 0 ? "修正依頼を送信" : "レビューを完了"}
+              {submitting ? "保存中..." : requestsChanges ? "修正依頼を送信" : "レビューを完了"}
             </Button>
           )}
         </DialogFooter>

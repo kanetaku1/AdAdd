@@ -773,6 +773,7 @@ function normalizeContractMenuReviewWorkflow(
     checklist: workflow.checklist ?? [],
     submissions: (workflow.submissions ?? []).map((submission) => ({
       ...submission,
+      reviewNote: submission.reviewNote ?? null,
       files: submission.files ?? [],
       reviews: (submission.reviews ?? []).map((review) => ({
         ...review,
@@ -789,13 +790,14 @@ export async function reviewContractMenuSubmission(
   files: Array<{
     fileId: string
     items: Record<string, ContractMenuReviewItemResult>
-  }>
+  }>,
+  note = ""
 ): Promise<ContractMenuReviewResult> {
   const result = await apiFetch<ContractMenuReviewResult>(
     `/contract-menus/${contractMenuId}/submissions/${submissionId}/review`,
     {
       method: "POST",
-      body: JSON.stringify({ files }),
+      body: JSON.stringify({ files, note }),
     }
   )
   return {

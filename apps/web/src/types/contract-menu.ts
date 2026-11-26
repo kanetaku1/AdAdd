@@ -50,6 +50,7 @@ export type ContractMenuSubmissionSummary = {
   reviewedById: string | null
   reviewedAt: string | null
   reviewStatus: "PENDING" | "APPROVED" | "CHANGES_REQUESTED"
+  reviewNote: string | null
 }
 
 export type ContractMenuChecklistItem = {
